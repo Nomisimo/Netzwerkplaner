@@ -60,7 +60,7 @@ export const patchRows = (P, X) => P.verbindungen.map((c, n) => {
   const ra = X.portRef.get(`${c.a.dev}:${c.a.port}`), rb = X.portRef.get(`${c.b.dev}:${c.b.port}`);
   const cv = connVlan(c, X);
   return { "#": n + 1, Label: c.label, "Von Gerät": ra?.dev.name, "Von Port": ra?.port.name, "Nach Gerät": rb?.dev.name, "Nach Port": rb?.port.name,
-    VLAN: (cv.kind === "trunk" ? "Trunk: " : "") + cv.vlans.map((id) => X.vlanById.get(id)?.vid).join(", "), Kabel: kabelLabel(c.kabel), "Länge (m)": c.laenge ? +c.laenge : "", Notiz: c.notiz || "" };
+    VLAN: (cv.kind === "trunk" ? "Trunk: " : "") + cv.vlans.map((id) => X.vlanById.get(id)?.vid).join(", "), Kabel: kabelLabel(c.kabel), Notiz: c.notiz || "" };
 });
 export const deviceRows = (P, X) => P.geraete.map((d) => ({
   Name: d.name, Netzwerkname: d.netzname || "", Typ: TYPEN[d.typ]?.label, Bereich: d.kategorie, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell,
@@ -94,7 +94,7 @@ export const buildXlsxBase64 = (P, X, issues) => {
   };
   add("IP-Liste", ipRows(P, X));
   add("VLANs", vlanRows(P));
-  add("Patchliste", patchRows(P, X));
+  add("Verbindungen", patchRows(P, X));
   add("Switch-Ports", switchPortRows(P, X));
   add("Geräte", deviceRows(P, X));
   add("Prüfung", issues.map((i) => ({ Schwere: { error: "Fehler", warn: "Warnung", info: "Hinweis" }[i.sev], Meldung: i.msg })));
@@ -150,7 +150,7 @@ td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } 
 </div>
 ${topo ? `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>` : ""}
 <div class="page">${head("IP-Liste")}${table(ipRows(P, X), ["IP", "CIDR", "VLAN", "Gerät", "Interface", "Gateway", "MAC", "Standort", "Modell", "Web-UI"])}</div>
-<div class="page">${head("Patchliste")}${table(patchRows(P, X))}<h2>Switch-Ports</h2>${table(switchPortRows(P, X))}</div>
+<div class="page">${head("Switch-Ports")}${table(switchPortRows(P, X))}</div>
 <div class="page">${head("Geräte")}${table(deviceRows(P, X), ["Name", "Typ", "Bereich", "Standort", "Hersteller", "Modell", "IPs", "Web-UI", "Protokolle"])}</div>
 <div class="page">${head("Prüfung")}${issues.length ? `<table><thead><tr><th style="width:70px">Schwere</th><th>Meldung</th></tr></thead><tbody>${issues.map((i) => `<tr><td class="sev-${i.sev}">${sev[i.sev]}</td><td>${esc(i.msg)}</td></tr>`).join("")}</tbody></table>` : `<p>Keine Auffälligkeiten.</p>`}
 <p class="empty">Protokoll- und Gerätedaten aus der Projektrecherche; teils nicht datenblattgeprüft.</p></div>

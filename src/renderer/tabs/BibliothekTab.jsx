@@ -77,7 +77,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
     r.readAsDataURL(f);
   };
 
-  const TABS = [["bestand", `Gerätebestand (${library.bestand?.length || 0})`], ["protokolle", `Protokolle (${PROTOKOLLE.length})`], ["katalog", `Gerätekatalog (${KATALOG_GERAETE.length})`], ["vorlagen", `Eigene Vorlagen (${library.vorlagen?.length || 0})`], ["netz", "mDNS · QoS · Infrastruktur"], ["icons", "Icons"]];
+  const TABS = [["bestand", `Gerätebestand (${library.bestand?.length || 0})`], ["vorlagen", `Eigene Vorlagen (${library.vorlagen?.length || 0})`], ["katalog", `Herstellergeräte (${KATALOG_GERAETE.length})`], ["protokolle", `Protokolle (${PROTOKOLLE.length})`], ["icons", "Icons"]];
 
   return (
     <>
@@ -107,7 +107,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       )}
 
       {sub === "katalog" && (
-        <Section title="Gerätekatalog" subtitle={`Stand ${KATALOG.stand} · ${geraete.length} Modelle. Fokus-Hersteller (${(KATALOG.fokus || []).join(", ")}) sind gegen Herstellerdoku recherchiert; der Datenstand steht je Modell in den Details.`}>
+        <Section title="Herstellergeräte" subtitle={`Stand ${KATALOG.stand} · ${geraete.length} Modelle. Fokus-Hersteller (${(KATALOG.fokus || []).join(", ")}) sind gegen Herstellerdoku recherchiert; der Datenstand steht je Modell in den Details.`}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="🔍 Hersteller, Modell, Typ, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
             <select style={{ ...S.selectSm, width: "auto" }} value={herst} onChange={(e) => setHerst(e.target.value)}><option value="">Alle Hersteller</option>{hersteller.map((h) => <option key={h}>{h}</option>)}</select>
@@ -149,7 +149,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       {sub === "bestand" && <BestandView P={P} library={library} setLibrary={setLibrary} onAddDevice={onAddDevice} onSelectDevice={onSelectDevice} onSaveAlleBestand={onSaveAlleBestand} allIcons={allIcons} notify={notify} />}
 
       {sub === "vorlagen" && (
-        <Section title="Eigene Vorlagen" subtitle="Vorlagen sind Gerätetypen ohne Adressen (Ports, VLANs, Protokolle). Für konkrete Geräte mit IPs gibt es den Gerätebestand. Im Geräte-Editor mit „＋ Vorlage“ speichern. Vorlagen liegen in der Bibliothek der App und stehen in jedem Projekt zur Verfügung.">
+        <Section title="Eigene Vorlagen" subtitle="Vorlagen sind Gerätetypen ohne Adressen (Ports, VLANs, Protokolle). Für konkrete Geräte mit IPs gibt es den Gerätebestand. Im Geräte-Editor mit „＋ Vorlage“ speichern. Vorlagen liegen im Katalog der App und stehen in jedem Projekt zur Verfügung.">
           {!(library.vorlagen || []).length && <p style={S.empty}>Noch keine eigenen Vorlagen.</p>}
           {(library.vorlagen || []).map((v) => (
             <div key={v.id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px" }}>
@@ -163,25 +163,8 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
         </Section>
       )}
 
-      {sub === "netz" && (
-        <>
-          <Section title="mDNS-/DNS-SD-Dienste" subtitle="mDNS (224.0.0.251:5353) wird nicht geroutet: pro VLAN planen oder mDNS-Reflector einsetzen.">
-            <table style={S.table}><thead><tr><th style={S.th}>Service-Typ</th><th style={S.th}>Protokoll</th><th style={S.th}>Zweck</th></tr></thead>
-              <tbody>{KATALOG.mdns.map((m) => <tr key={m["Service-Typ"]}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{m["Service-Typ"]}</td><td style={S.td}>{m.Protokoll}</td><td style={{ ...S.td, color: SUB }}>{m.Zweck}</td></tr>)}</tbody></table>
-          </Section>
-          <Section title="QoS / DSCP">
-            <table style={S.table}><thead><tr><th style={S.th}>System</th><th style={S.th}>DSCP</th><th style={S.th}>Hinweis</th><th style={S.th}>Quelle</th></tr></thead>
-              <tbody>{KATALOG.qos.map((m) => <tr key={m.System}><td style={{ ...S.td, fontWeight: 600 }}>{m.System}</td><td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{m["DSCP-Werte"]}</td><td style={{ ...S.td, color: SUB }}>{m.Hinweis}</td><td style={{ ...S.td, color: MUTED, fontSize: 11 }}>{m.Quelle}</td></tr>)}</tbody></table>
-          </Section>
-          <Section title="Infrastruktur-Protokolle">
-            <table style={S.table}><thead><tr><th style={S.th}>Protokoll</th><th style={S.th}>Port / Schicht</th><th style={S.th}>Rolle im Veranstaltungsnetz</th></tr></thead>
-              <tbody>{KATALOG.infrastruktur.map((m) => <tr key={m.Protokoll}><td style={{ ...S.td, fontWeight: 600 }}>{m.Protokoll}</td><td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{m["Port / Schicht"]}</td><td style={{ ...S.td, color: SUB }}>{m["Rolle im Veranstaltungsnetz"]}</td></tr>)}</tbody></table>
-          </Section>
-        </>
-      )}
-
       {sub === "icons" && (
-        <Section title="Icons" subtitle="Mitgelieferte Geräte-Icons und eigene Uploads (SVG oder PNG, max. 300 KB). Eigene Icons werden in der Bibliothek und in der Projektdatei gespeichert, damit das Projekt auf anderen Rechnern gleich aussieht."
+        <Section title="Icons" subtitle="Mitgelieferte Geräte-Icons und eigene Uploads (SVG oder PNG, max. 300 KB). Eigene Icons werden im Katalog und in der Projektdatei gespeichert, damit das Projekt auf anderen Rechnern gleich aussieht."
           right={<label style={{ ...S.primaryBtn, display: "inline-block" }}>+ Icon hochladen<input type="file" accept=".svg,.png,image/svg+xml,image/png" style={{ display: "none" }} onChange={uploadIcon} /></label>}>
           <div className="sp-section-label">Mitgeliefert ({ICON_NAMES.length})</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(96px,1fr))", gap: 8 }}>

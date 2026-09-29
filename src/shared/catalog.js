@@ -269,3 +269,34 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
     notizen: "",
   };
 };
+
+/* Vorhandenes Gerät nachträglich auf ein Katalogmodell / eine Vorlage umbauen.
+   Name, Netzwerkname, Inventar, Standort, Notizen, IPs (je Interface in Reihenfolge)
+   und alle Verbindungen bleiben erhalten; Ports, Protokolle, Web-UI, Icon und
+   Herstellerdaten kommen aus dem neuen Modell. Verbundene Ports, die das neue
+   Modell nicht hat, werden angehängt statt gelöscht. */
+export const geraetUmbauen = (P, devId, neu) => {
+  const dev = P.geraete.find((g) => g.id === devId);
+  if (!dev) return null;
+  neu.interfaces.forEach((i, n) => {
+    const o = dev.interfaces[n];
+    if (o) Object.assign(i, { ip: o.ip, prefix: o.prefix || i.prefix, gateway: o.gateway, mac: o.mac, dhcp: o.dhcp, vlan: o.vlan || i.vlan });
+  });
+  for (const o of dev.interfaces.slice(neu.interfaces.length)) if (o.ip || o.dhcp) neu.interfaces.push({ ...o });
+  const belegt = new Set(P.verbindungen.flatMap((c) => [c.a, c.b]).filter((e) => e.dev === devId).map((e) => e.port));
+  const portMap = {};
+  dev.ports.forEach((p, n) => {
+    const np = neu.ports[n];
+    if (np) {
+      portMap[p.id] = np.id;
+      if (dev.isSwitch && neu.isSwitch) Object.assign(np, { modus: p.modus, vlan: p.vlan, vlans: p.vlans, poe: p.poe ?? np.poe });
+      else if (p.vlan && !np.vlan) np.vlan = p.vlan;
+    } else if (belegt.has(p.id)) { neu.ports.push({ ...p, iface: null }); portMap[p.id] = p.id; }
+  });
+  for (const c of P.verbindungen) for (const e of [c.a, c.b]) if (e.dev === devId && portMap[e.port]) e.port = portMap[e.port];
+  const bleibt = { id: dev.id, name: dev.name, netzname: dev.netzname || "", inventar: dev.inventar, bestandId: dev.bestandId, bereich: dev.bereich, notizen: dev.notizen, stroeme: [] };
+  for (const k of Object.keys(dev)) delete dev[k];
+  Object.assign(dev, neu, bleibt);
+  if (!dev.bestandId) delete dev.bestandId;
+  return dev;
+};
