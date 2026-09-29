@@ -20,9 +20,10 @@ import WissenTab from "./tabs/WissenTab.jsx";
 import { analyseIssues } from "../shared/analyse.js";
 import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } from "../shared/version.js";
 import AnleitungTab from "./tabs/AnleitungTab.jsx";
+import LiveTab from "./tabs/LiveTab.jsx";
 
 
-const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs & IP-Plan"], ["patch", "Patchliste"], ["pruefung", "Prüfung"], ["analyse", "Analyse"], ["wissen", "Wissen"], ["bibliothek", "Bibliothek"], ["hilfe", "Anleitung"]];
+const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs & IP-Plan"], ["patch", "Patchliste"], ["pruefung", "Prüfung"], ["analyse", "Analyse"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Bibliothek"], ["hilfe", "Anleitung"]];
 
 const loadAutosave = () => {
   try { const s = localStorage.getItem(LS_KEY); if (s) return migrateProject(JSON.parse(s)); } catch (e) { console.error(e); }
@@ -367,6 +368,7 @@ export default function App() {
             {tab === "pruefung" && <PruefungTab P={Pv} X={X} issues={issues} onShowIssue={showIssue} />}
             {tab === "bibliothek" && <BibliothekTab P={Pv} mutate={mutate} onSaveAlleBestand={saveAlleBestand} notify={notify} library={library} setLibrary={setLibrary} protoId={protoId} setProtoId={setProtoId} onAddDevice={addDevice} onSelectDevice={selectDevice} sub={bibSub} setSub={setBibSub} allIcons={allIcons} />}
             {tab === "analyse" && <AnalyseTab P={Pv} X={X} onSelectDevice={selectDevice} goTab={setTab} />}
+            {tab === "live" && <LiveTab P={Pv} X={X} mutate={mutate} status={status} checkReach={checkReach} autoStatus={autoStatus} setAutoStatus={setAutoStatus} onSelectDevice={selectDevice} notify={notify} />}
             {tab === "wissen" && <WissenTab />}
             {tab === "hilfe" && <AnleitungTab />}
           </div>

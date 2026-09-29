@@ -61,7 +61,10 @@
       "category": "public.app-category.utilities",
       "identity": "-",
       "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "Der Netzwerkplaner liest im Live-Tab sACN, Art-Net, Dante, NDI und andere Protokolle im lokalen Netz mit und scannt auf Wunsch Subnetze."
+      }
     },
     "nsis": {
       "oneClick": true,
