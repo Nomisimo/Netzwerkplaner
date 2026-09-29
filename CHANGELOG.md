@@ -3,6 +3,13 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.4.0-beta.1] – 2026-09-29
+
+- Neuer Tab „Live“: Online-Status aller Geräte, Netzwerkscan mit Abgleich gegen den Plan (fehlt, nicht im Plan, MAC weicht ab)
+- Switches per SNMP: Live-VLAN je Port im Vergleich zum geplanten
+- Protokoll-Monitore für sACN, Art-Net, Dante, MA-Net, NDI, OSC, CITP und PTP-Clock; gefundene IPs zeigen den Gerätenamen aus dem Plan
+- Die Monitore hören nur mit; gesendet werden nur ArtPoll (per Knopf), mDNS-Abfragen, Scan und SNMP
+
 ## [0.3.0-beta.1] – 2026-09-29
 
 - Neue Topologie-Ansicht „Frontplatten“ im Stil von Luminex Araneo: Switches als Frontplatte mit ihrer echten Portzahl und Bauform (RJ45, SFP, etherCON)
