@@ -1,0 +1,94 @@
+{
+  "name": "netzwerkplaner",
+  "version": "0.2.0-beta.1",
+  "private": true,
+  "description": "Offline-Netzwerkplaner für die Veranstaltungstechnik: Topologie als Mindmap, VLANs, IP-Plan, Patchliste",
+  "author": "Momo",
+  "license": "UNLICENSED",
+  "main": "src/main/main.js",
+  "scripts": {
+    "build": "node scripts/build.js --minify",
+    "build:dev": "node scripts/build.js",
+    "start": "npm run build:dev && electron .",
+    "test": "node scripts/test.js",
+    "import-data": "node scripts/import-data.js",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:ci": "electron-builder --publish never"
+  },
+  "build": {
+    "appId": "dev.netzwerkplaner",
+    "productName": "Netzwerkplaner",
+    "icon": "assets/app-icon/icon.png",
+    "files": [
+      "src/main/**",
+      "src/preload/**",
+      "dist-app/index.html",
+      "assets/app-icon/**",
+      "package.json"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "netplan",
+        "name": "Netzwerkplaner-Projekt",
+        "description": "Netzwerkplaner-Projekt",
+        "role": "Editor"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "differentialPackage": false
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "dmg": {
+      "writeUpdateInfo": false
+    },
+    "publish": null
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.28.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nomisimo/Netzwerkplaner.git"
+  },
+  "homepage": "https://github.com/Nomisimo/Netzwerkplaner"
+}
