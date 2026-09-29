@@ -11,7 +11,7 @@ Electron-Desktop-App für **macOS und Windows**, läuft komplett ohne Server und
 | Tab | Inhalt |
 |---|---|
 | **Projekt** | Veranstaltung, Ort, Version, Standorte/Äste, Übersicht, Beispielprojekt |
-| **Topologie** | Mindmap mit Auto-Layout, Geräte per Drag & Drop, Werkzeug „Verbinden“, Äste ein-/ausklappen, Verschieben mit Ast, Farbe nach VLAN/Bereich/Kabel, Filter & Suche, Web-UI-Links, Erreichbarkeits-Status |
+| **Topologie** | Zwei Ansichten: Mindmap und Frontplatten (Stil Luminex Araneo, Ports in VLAN-Farbe, Geräte als Karten am Port). Auto-Layout, Geräte per Drag & Drop, Werkzeug „Verbinden“, Äste ein-/ausklappen, Verschieben mit Ast, Farbe nach VLAN/Bereich/Kabel, Filter & Suche, Web-UI-Links, Erreichbarkeits-Status |
 | **Geräte** | Liste mit Filter, Editor für Interfaces (IP/Maske/VLAN/Gateway/MAC/DHCP), physische Ports (Access/Trunk, PoE, Punkt-zu-Punkt), Web-UI, Protokolle, Notizen, eigene Icons |
 | **VLANs & IP-Plan** | VLANs mit Subnetz, Gateway, IGMP-Querier, EEE, QoS, DHCP-Bereich; IP-Raster je VLAN mit Konflikten und nächster freier Adresse |
 | **Patchliste** | Nach Switch oder als Gesamtliste, Kabeltyp, Länge, Label, Kabelsummen |

@@ -12,6 +12,7 @@ export const topologySvg = (svgEl, P) => {
   const clone = svgEl.cloneNode(true);
   const world = clone.querySelector("#np-world");
   const b = JSON.parse(world.getAttribute("data-bounds"));
+  const bgColor = world.getAttribute("data-bg") || "#15191e";
   clone.querySelectorAll(".np-ui, .np-legend").forEach((n) => n.remove());
   world.removeAttribute("transform");
   const pad = 40, head = 50;
@@ -23,7 +24,7 @@ export const topologySvg = (svgEl, P) => {
   clone.removeAttribute("style");
   const ns = "http://www.w3.org/2000/svg";
   const bg = document.createElementNS(ns, "rect");
-  Object.entries({ x, y, width: w, height: h, fill: "#15191e" }).forEach(([k, v]) => bg.setAttribute(k, v));
+  Object.entries({ x, y, width: w, height: h, fill: bgColor }).forEach(([k, v]) => bg.setAttribute(k, v));
   clone.insertBefore(bg, clone.firstChild.nextSibling);
   const t = document.createElementNS(ns, "text");
   Object.entries({ x: x + pad, y: y + 34, fill: "#b3483f", "font-size": 18, "font-weight": 800 }).forEach(([k, v]) => t.setAttribute(k, v));

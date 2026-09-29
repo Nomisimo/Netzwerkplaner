@@ -9,6 +9,8 @@ import ConnEditor from "../ConnEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { endInfo, portLabel, vlanKurz, vlanLang } from "../portinfo.js";
+import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
+import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
 
 const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: "#9aa4af", p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
@@ -32,7 +34,12 @@ export default function TopologieTab(props) {
   const fitted = useRef(false);
 
   const T = useMemo(() => buildTree(P, X), [P, X]);
-  const L = useMemo(() => layoutMindmap(P, T), [P, T]);
+  const front = P.layout.ansicht === "front";
+  const setAnsicht = (a) => { mutate((d) => { d.layout.ansicht = a; }); fitted.current = false; };
+  const LM = useMemo(() => (front ? null : layoutMindmap(P, T)), [P, T, front]);
+  const F = useMemo(() => (front ? layoutFrontplatten(P, T, X) : null), [P, T, X, front]);
+  const L = front ? F : LM;
+  const offKey = front ? "fpOffsets" : "offsets";
 
   // Probleme je Gerät / Verbindung
   const devIssues = useMemo(() => {
@@ -49,7 +56,9 @@ export default function TopologieTab(props) {
   // Live-Position während des Ziehens (Ast zieht mit)
   const moving = useMemo(() => {
     if (!drag || drag.kind !== "node" || !drag.moved) return null;
-    const ids = L.pos.get(drag.id)?.lose ? [drag.id] : subtreeIds(T, drag.id);
+    const p = L.pos.get(drag.id);
+    if (front) return new Set(p?.lose || p?.kind === "card" && p.head !== drag.id ? [drag.id] : F.members.get(drag.id) || [drag.id]);
+    const ids = p?.lose ? [drag.id] : subtreeIds(T, drag.id);
     return new Set(ids);
   }, [drag, T, L]);
   const posOf = (id) => {
@@ -57,6 +66,12 @@ export default function TopologieTab(props) {
     if (!p) return null;
     if (moving && moving.has(id)) return { ...p, x: p.x + drag.dx, y: p.y + drag.dy };
     return p;
+  };
+  // Port-Slots einer Frontplatte (ziehen mit)
+  const slotsOf = (id) => {
+    const m = F?.slots.get(id);
+    if (!m || !(moving && moving.has(id))) return m;
+    return new Map([...m].map(([k, s]) => [k, { ...s, ax: s.ax + drag.dx, ay: s.ay + drag.dy }]));
   };
 
   const fit = useCallback(() => {
@@ -74,7 +89,11 @@ export default function TopologieTab(props) {
     return { x: (e.clientX - r.left - view.x) / view.k, y: (e.clientY - r.top - view.y) / view.k };
   };
   const hitNode = (w) => {
-    for (const [id, p] of L.pos) if (Math.abs(w.x - p.x) <= HW && Math.abs(w.y - p.y) <= HH) return id;
+    for (const [id, p] of L.pos) {
+      if (!front) { if (Math.abs(w.x - p.x) <= HW && Math.abs(w.y - p.y) <= HH) return id; continue; }
+      const top = p.y - p.h / 2 - (p.kind === "card" ? TAB_H : 0);
+      if (Math.abs(w.x - p.x) <= p.w / 2 && w.y >= top && w.y <= p.y + p.h / 2) return id;
+    }
     return null;
   };
 
@@ -92,11 +111,11 @@ export default function TopologieTab(props) {
     return () => el.removeEventListener("wheel", h);
   }, []);
 
-  const onDown = (e, nodeId) => {
+  const onDown = (e, nodeId, conn = null) => {
     if (e.button !== 0) return;
     e.stopPropagation();
     if (nodeId && tool === "connect") { const w = toWorld(e); setDraw({ from: nodeId, x: w.x, y: w.y }); return; }
-    if (nodeId) setDrag({ kind: "node", id: nodeId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false });
+    if (nodeId) setDrag({ kind: "node", id: nodeId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false, conn });
     else setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false });
   };
   const onMove = (e) => {
@@ -119,10 +138,11 @@ export default function TopologieTab(props) {
       if (drag.moved) {
         const id = drag.id, dx = drag.dx, dy = drag.dy;
         mutate((d) => {
-          const o = d.layout.offsets[id] || { dx: 0, dy: 0 };
-          d.layout.offsets[id] = { dx: Math.round(o.dx + dx), dy: Math.round(o.dy + dy) };
+          d.layout[offKey] = d.layout[offKey] || {};
+          const o = d.layout[offKey][id] || { dx: 0, dy: 0 };
+          d.layout[offKey][id] = { dx: Math.round(o.dx + dx), dy: Math.round(o.dy + dy) };
         });
-      } else setSelection({ type: "dev", id: drag.id });
+      } else setSelection(drag.conn ? { type: "conn", id: drag.conn.id } : { type: "dev", id: drag.id });
     } else if (!drag.moved) setSelection(null);
     setDrag(null);
   };
@@ -239,13 +259,18 @@ export default function TopologieTab(props) {
       {/* Zeichenfläche */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }} title="Darstellung der Topologie">
+            {[["mindmap", "◉ Mindmap"], ["front", "▦ Frontplatten"]].map(([k, l]) => (
+              <button key={k} onClick={() => setAnsicht(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, ...((front ? "front" : "mindmap") === k ? { background: "#2c3b93", color: "#fff" } : {}) }}>{l}</button>
+            ))}
+          </div>
           <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }}>
             {[["move", "✥ Bewegen", "V"], ["connect", "🔗 Verbinden", "C"]].map(([k, l, key]) => (
               <button key={k} title={`Taste ${key}`} onClick={() => setTool(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, ...(tool === k ? { background: ACCENT, color: "#fff" } : {}) }}>{l}</button>
             ))}
           </div>
           <button style={S.ghostBtn} onClick={fit} title="Alles einpassen">⤢ Einpassen</button>
-          <button style={S.ghostBtn} onClick={() => mutate((d) => { d.layout.offsets = {}; d.layout.pinned = {}; })} title="Manuelle Verschiebungen zurücksetzen">↺ Auto-Layout</button>
+          <button style={S.ghostBtn} onClick={() => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; })} title="Manuelle Verschiebungen zurücksetzen">↺ Auto-Layout</button>
           <button style={S.ghostBtn} onClick={() => mutate((d) => { const any = Object.values(d.layout.collapsed || {}).some(Boolean); d.layout.collapsed = any ? {} : Object.fromEntries([...T.children].filter(([id, ch]) => ch.length && !T.roots.includes(id)).map(([id]) => [id, true])); })}>⊟ Äste</button>
           <span style={{ width: 1, height: 22, background: LINE }} />
           <select style={{ ...S.selectSm, width: "auto" }} value={colorBy} onChange={(e) => setColorBy(e.target.value)} title="Farbe der Verbindungen">
@@ -259,26 +284,46 @@ export default function TopologieTab(props) {
           </select>
           <VlanSelect vlans={P.vlans} value={vlanFilter} onChange={setVlanFilter} style={{ width: "auto" }} noneLabel="Alle VLANs" />
           <input style={{ ...S.inputSm, width: 150 }} placeholder="🔍 Suchen (Name, IP)" value={q} onChange={(e) => setQ(e.target.value)} />
-          <Toggle checked={showPorts} onChange={setShowPorts} label="Port & VLAN" title="Switch-Port und VLAN an jeder Verbindung anzeigen" />
+          {!front && <Toggle checked={showPorts} onChange={setShowPorts} label="Port & VLAN" title="Switch-Port und VLAN an jeder Verbindung anzeigen" />}
           <span style={{ flex: 1 }} />
           <button style={S.ghostBtn} onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen">⟳ Status</button>
           <Toggle checked={autoStatus} onChange={setAutoStatus} label="alle 15 s" title="Erreichbarkeit zyklisch prüfen" />
         </div>
 
-        <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: "#12161a", cursor: tool === "connect" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
+        <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FP_BG : "#12161a", cursor: tool === "connect" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
           onMouseDown={(e) => onDown(e, null)} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { setDrag(null); setDraw(null); }}
           onWheel={onWheel} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
           <svg ref={svgRef} width="100%" height="100%" style={{ display: "block", userSelect: "none" }} xmlns="http://www.w3.org/2000/svg" fontFamily="'Segoe UI',system-ui,sans-serif">
             <defs>
               <pattern id="np-grid" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform={`translate(${view.x},${view.y}) scale(${view.k})`}>
-                <circle cx="1" cy="1" r="1" fill="#252b33" />
+                {front ? <path d="M40 0 L0 0 0 40" fill="none" stroke="#1c2552" strokeWidth="1" /> : <circle cx="1" cy="1" r="1" fill="#252b33" />}
               </pattern>
               <filter id="np-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" /></filter>
             </defs>
             <rect className="np-ui" width="100%" height="100%" fill="url(#np-grid)" />
-            <g id="np-world" transform={`translate(${view.x},${view.y}) scale(${view.k})`} data-bounds={JSON.stringify(L.bounds)}>
+            <g id="np-world" transform={`translate(${view.x},${view.y}) scale(${view.k})`} data-bounds={JSON.stringify(L.bounds)} data-bg={front ? FP_BG : "#15191e"}>
               {/* Verbindungen */}
-              {allConns.map((c) => {
+              {front && allConns.map((c) => {
+                const pa = posOf(c.a.dev), pb = posOf(c.b.dev);
+                const a1 = anker(pa, slotsOf(c.a.dev)?.get(c.a.port), pb), b1 = anker(pb, slotsOf(c.b.dev)?.get(c.b.port), pa);
+                const straight = pa.kind === "switch" && pb.kind === "switch";
+                const k = Math.max(18, Math.abs(b1.y - a1.y) / 2);
+                const dPath = straight ? `M${a1.x},${a1.y} L${b1.x},${b1.y}` : `M${a1.x},${a1.y} C${a1.x},${a1.y + a1.dir * k} ${b1.x},${b1.y + b1.dir * k} ${b1.x},${b1.y}`;
+                const st = edgeStyle(c);
+                const sel = selConn?.id === c.id;
+                const dim = filtering && !(matches(X.devById.get(c.a.dev)) && matches(X.devById.get(c.b.dev)));
+                return (
+                  <g key={c.id} opacity={dim ? 0.12 : 1} style={{ cursor: "pointer" }}
+                    onMouseDown={(e) => { e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}>
+                    <path d={dPath} stroke="transparent" strokeWidth="12" fill="none" />
+                    {(sel || st.errs) && <path d={dPath} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
+                    <path d={dPath} stroke={st.color} strokeWidth={straight ? Math.max(2, st.width - 1) : 1.8} fill="none" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
+                    <circle cx={a1.x} cy={a1.y} r="2.2" fill={st.color} /><circle cx={b1.x} cy={b1.y} r="2.2" fill={st.color} />
+                    {c.label && <text x={(a1.x + b1.x) / 2 + 4} y={(a1.y + b1.y) / 2} fontSize="10" fill="#c8d0d8">{c.label}</text>}
+                  </g>
+                );
+              })}
+              {!front && allConns.map((c) => {
                 const pa = posOf(c.a.dev), pb = posOf(c.b.dev);
                 const tree = treeConnIds.has(c.id);
                 // Baumkanten vom Elternknoten aus zeichnen
@@ -307,7 +352,28 @@ export default function TopologieTab(props) {
               )}
 
               {/* Geräte */}
-              {[...L.pos.keys()].map((id) => {
+              {front && [...L.pos.keys()].map((id) => {
+                const d = X.devById.get(id);
+                if (!d) return null;
+                const p = posOf(id);
+                const iss = devIssues.get(id) || [];
+                const worst = iss.some((i) => i.sev === "error") ? ERR : iss.some((i) => i.sev === "warn") ? WARN : null;
+                const common = { d, p, P, sel: selDev?.id === id, hover: hover === id, hit: !!(ql && matches(d)), dim: filtering && !matches(d), status: status[id], worst, iss, titel, tool,
+                  onDown: (e) => onDown(e, id), onContextMenu: (e) => { e.preventDefault(); e.stopPropagation(); setCtx({ id, x: e.clientX, y: e.clientY }); } };
+                if (p.kind === "switch") {
+                  const kids = T.children.get(id) || [];
+                  const collapsed = !!P.layout.collapsed?.[id];
+                  const url = webUrl(d);
+                  return <FrontPlate key={id} {...common} X={X} slots={slotsOf(id)} url={url} onWeb={() => api.openExternal(url)}
+                    onPortDown={(e, c) => { if (tool === "move" && e.button === 0) { onDown(e, id, c); } }}
+                    canCollapse={kids.length > 0 && !T.roots.includes(id)} collapsed={collapsed} hidden={L.hidden.get(id)}
+                    onToggle={() => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [id]: !collapsed }; })} />;
+                }
+                const z = laschenZustand(id, T, X);
+                const own = X.vlanById.get(d.interfaces.find((i) => i.ip)?.vlan || d.interfaces[0]?.vlan);
+                return <FrontCard key={id} {...common} tab={laschenText(id, T, X)} farbe={z ? kartenFarbe(z) : own?.farbe || MUTED} />;
+              })}
+              {!front && [...L.pos.keys()].map((id) => {
                 const d = X.devById.get(id);
                 if (!d) return null;
                 const p = posOf(id);
@@ -369,9 +435,9 @@ export default function TopologieTab(props) {
             </g>
           </svg>
           <div style={{ position: "absolute", left: 10, bottom: 8, fontSize: 11, color: MUTED, pointerEvents: "none" }}>
-            {Math.round(view.k * 100)} % · Mausrad = Zoom · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : "Gerät ziehen = Ast verschieben"} · Rechtsklick = Geräteinfos · Entf = löschen
+            {Math.round(view.k * 100)} % · Mausrad = Zoom · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"} · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
-          <Legend P={P} colorBy={colorBy} />
+          <Legend P={P} colorBy={colorBy} front={front} />
           {ctx && X.devById.get(ctx.id) && (() => {
             const d = X.devById.get(ctx.id);
             const hasKids = (T.children.get(d.id) || []).length > 0 && !T.roots.includes(d.id);
@@ -445,8 +511,8 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra }) {
   );
 }
 
-function Legend({ P, colorBy }) {
-  const items = colorBy === "vlan"
+function Legend({ P, colorBy, front }) {
+  const items = colorBy === "vlan" || front
     ? [...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => [v.farbe, `${v.vid} ${v.name}`]).concat([["#d8dde3", "Trunk"], ["#ff8c42", "Punkt-zu-Punkt"]])
     : colorBy === "kabel" ? Object.entries(KABEL).map(([k, v]) => [KABEL_FARBEN[k], v.label])
     : Object.keys(KATEGORIEN).map((k) => [katColor(k), k]);
