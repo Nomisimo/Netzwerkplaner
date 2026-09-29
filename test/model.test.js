@@ -73,3 +73,24 @@ test("Beispielprojekt: fehlerfrei, Mindmap mit Secondary-Insel", () => {
   const L = layoutMindmap(P, T);
   assert.equal(L.pos.size, P.geraete.length);
 });
+
+test("Bestand: Gerät mit IPs sichern und in anderes Projekt einfügen (VLAN über VID)", async () => {
+  const { snapshotDevice } = await import("../src/shared/catalog.js");
+  const P = demoProject();
+  const cl5 = P.geraete.find((d) => d.name === "FOH CL5");
+  cl5.netzname = "FOH-CL5";
+  cl5.inventar = { nr: "T-0042", sn: "ABC123", case: "Case 7" };
+  const snap = snapshotDevice(cl5, P.vlans);
+  const Q = emptyProject(); // neue VLAN-IDs, gleiche VIDs
+  const d = createDevice({ eigeneVorlage: { geraet: snap }, vlans: Q.vlans, mitAdressen: true });
+  const pri = d.interfaces.find((i) => i.name === "Primary");
+  assert.equal(pri.ip, cl5.interfaces.find((i) => i.name === "Primary").ip);
+  assert.equal(Q.vlans.find((v) => v.id === pri.vlan).vid, 10);
+  assert.equal(d.netzname, "FOH-CL5");
+  assert.equal(d.inventar.nr, "T-0042");
+  assert.ok(d.interfaces.every((i) => !("vid" in i)));
+  assert.notEqual(d.id, cl5.id);
+  // Vorlage (ohne Adressen)
+  const v = createDevice({ eigeneVorlage: { geraet: snap }, vlans: Q.vlans });
+  assert.ok(v.interfaces.every((i) => !i.ip));
+});

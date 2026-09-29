@@ -62,9 +62,9 @@ export const patchRows = (P, X) => P.verbindungen.map((c, n) => {
     VLAN: (cv.kind === "trunk" ? "Trunk: " : "") + cv.vlans.map((id) => X.vlanById.get(id)?.vid).join(", "), Kabel: kabelLabel(c.kabel), "Länge (m)": c.laenge ? +c.laenge : "", Notiz: c.notiz || "" };
 });
 export const deviceRows = (P, X) => P.geraete.map((d) => ({
-  Name: d.name, Typ: TYPEN[d.typ]?.label, Bereich: d.kategorie, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell,
+  Name: d.name, Netzwerkname: d.netzname || "", Typ: TYPEN[d.typ]?.label, Bereich: d.kategorie, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell,
   IPs: d.interfaces.filter((i) => i.ip).map((i) => `${i.ip}/${i.prefix}`).join(", "), Ports: d.ports.length, "Web-UI": webUrl(d) || (d.webUi?.vorhanden ? "ja (IP fehlt)" : ""),
-  Protokolle: (d.protokolle || []).join(", "), Notizen: d.notizen,
+  Protokolle: (d.protokolle || []).join(", "), "Inventar-Nr.": d.inventar?.nr || "", Seriennummer: d.inventar?.sn || "", Case: d.inventar?.case || "", Notizen: d.notizen,
 }));
 export const vlanRows = (P) => [...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => ({
   VLAN: v.vid, Name: v.name, Subnetz: v.subnetz, Maske: parseCidr(v.subnetz) ? prefixToMaskStr(parseCidr(v.subnetz).prefix) : "", Gateway: v.gateway, Zweck: v.zweck,

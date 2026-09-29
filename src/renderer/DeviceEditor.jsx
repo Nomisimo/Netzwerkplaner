@@ -39,7 +39,7 @@ function TrunkVlans({ vlans, value, onChange }) {
   );
 }
 
-export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onSelectDevice, onDelete, onShowProto, onSaveVorlage }) {
+export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, bestand = [] }) {
   const [protoInput, setProtoInput] = useState("");
   const [showKatalog, setShowKatalog] = useState(false);
   const upd = (fn) => mutate((d) => fn(d.geraete.find((g) => g.id === dev.id), d));
@@ -73,7 +73,12 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         <button style={S.smallBtn} onClick={() => onCheck && onCheck([dev.id])} title="Ping bzw. TCP-Prüfung auf den Web-UI-Port">⟳ Erreichbarkeit</button>
         {X && <button style={{ ...S.smallBtn, ...(isRoot ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={() => mutate((d) => { d.layout.rootId = isRoot ? null : dev.id; })}
           title="Dieses Gerät als Mitte der Mindmap verwenden">{isRoot ? "★ Core (Mitte)" : "☆ Als Core setzen"}</button>}
-        <button style={S.smallBtn} onClick={() => onSaveVorlage && onSaveVorlage(dev)} title="Als eigene Gerätevorlage in der Bibliothek speichern">＋ Vorlage</button>
+        <button style={S.smallBtn} onClick={() => onSaveVorlage && onSaveVorlage(dev)} title="Als eigene Gerätevorlage (ohne IPs) in der Bibliothek speichern">＋ Vorlage</button>
+        {onSaveBestand && (() => {
+          const inB = dev.bestandId && bestand.some((b) => b.id === dev.bestandId);
+          return <button style={{ ...S.smallBtn, ...(inB ? { borderColor: "#2ecc7188" } : {}) }} onClick={() => onSaveBestand(dev)}
+            title={inB ? "Den Eintrag im Gerätebestand mit dem aktuellen Stand (Name, IPs, Ports …) überschreiben" : "Dieses konkrete Gerät mit Name, IPs, MACs und Ports im Gerätebestand speichern"}>{inB ? "⟳ Bestand aktualisieren" : "⇩ In Bestand"}</button>;
+        })()}
         <button style={S.smallBtn} onClick={() => mutate((d) => {
           const c = clone(dev); const idMap = {};
           c.id = uid(); c.name = dev.name + " (Kopie)";
@@ -107,6 +112,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
             {Object.keys(KATEGORIEN).map((key) => <option key={key}>{key}</option>)}
           </select>
         </Field>
+        <Field label="Netzwerkname" hint="Name im Gerät selbst (Dante-Name, Hostname, MA-Station)"><input style={S.inputSm} value={dev.netzname || ""} placeholder={dev.name.replace(/[^A-Za-z0-9-]+/g, "-")} onChange={(e) => upd((g) => (g.netzname = e.target.value))} /></Field>
         <Field label="Hersteller"><input style={S.inputSm} value={dev.hersteller} onChange={(e) => upd((g) => (g.hersteller = e.target.value))} /></Field>
         <Field label="Modell"><input style={S.inputSm} value={dev.modell} onChange={(e) => upd((g) => (g.modell = e.target.value))} /></Field>
         <Field label="Standort / Ast">
@@ -119,6 +125,12 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
       </div>
 
       {/* Interfaces */}
+      <div style={{ display: "grid", gridTemplateColumns: grid, gap: 10, marginTop: 10 }}>
+        <Field label="Inventar-Nr."><input style={S.inputSm} value={dev.inventar?.nr || ""} onChange={(e) => upd((g) => (g.inventar = { ...(g.inventar || {}), nr: e.target.value }))} /></Field>
+        <Field label="Seriennummer"><input style={S.inputSm} value={dev.inventar?.sn || ""} onChange={(e) => upd((g) => (g.inventar = { ...(g.inventar || {}), sn: e.target.value }))} /></Field>
+        <Field label="Case / Lagerort"><input style={S.inputSm} value={dev.inventar?.case || ""} onChange={(e) => upd((g) => (g.inventar = { ...(g.inventar || {}), case: e.target.value }))} /></Field>
+      </div>
+
       <Sub right={<button style={S.smallBtn} onClick={() => upd((g) => g.interfaces.push(newIface({ name: `LAN ${g.interfaces.length + 1}` })))}>+ Interface</button>}>
         Netzwerk-Interfaces (IP)
       </Sub>

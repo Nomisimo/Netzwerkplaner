@@ -96,7 +96,7 @@ export const KatChip = ({ k }) => (
 );
 
 /* ── Geräteauswahl: Katalogmodelle, eigene Vorlagen, generische Typen ──── */
-export function DevicePicker({ onPick, onClose, vorlagen = [], title = "Gerät hinzufügen", customIcons }) {
+export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], title = "Gerät hinzufügen", customIcons }) {
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const inp = useRef(null);
@@ -106,8 +106,9 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], title = "Gerät h
     const gen = Object.entries(TYPEN).map(([k, t]) => ({ kind: "typ", key: k, title: t.label, sub: "Generischer Typ", icon: t.icon, kat: t.kat }));
     const own = vorlagen.map((v) => ({ kind: "vorlage", key: v.id, title: v.name, sub: `Eigene Vorlage · ${v.geraet.hersteller || ""} ${v.geraet.modell || ""}`, icon: v.geraet.icon, kat: v.geraet.kategorie }));
     const kg = KATALOG_GERAETE.map((g) => ({ kind: "katalog", key: g.id, title: `${g.hersteller} ${g.modell}`, sub: g.geraetetyp + (g.raw["Web-UI"] !== "Nein" ? " · Web-UI" : ""), icon: TYPEN[g.typ]?.icon, kat: g.kategorie, search: `${g.raw.Protokolle} ${g.raw.Funktion}` }));
-    return [...own, ...kg, ...gen].filter((i) => (!kat || i.kat === kat) && (!ql || `${i.title} ${i.sub} ${i.search || ""}`.toLowerCase().includes(ql)));
-  }, [ql, kat, vorlagen]);
+    const best = bestand.map((b) => ({ kind: "bestand", key: b.id, title: b.name, sub: ["Bestand", [b.geraet.hersteller, b.geraet.modell].filter(Boolean).join(" "), b.geraet.interfaces.filter((i) => i.ip).map((i) => i.ip).join(", "), b.geraet.inventar?.nr].filter(Boolean).join(" · "), icon: b.geraet.icon, kat: b.geraet.kategorie, search: `${b.geraet.netzname || ""} ${b.geraet.inventar?.sn || ""}` }));
+    return [...best, ...own, ...kg, ...gen].filter((i) => (!kat || i.kat === kat) && (!ql || `${i.title} ${i.sub} ${i.search || ""}`.toLowerCase().includes(ql)));
+  }, [ql, kat, vorlagen, bestand]);
   return (
     <Modal title={title} onClose={onClose} width={720}>
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
@@ -129,6 +130,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], title = "Gerät h
               <div style={{ fontWeight: 600, fontSize: 13 }}>{i.title}</div>
               <div style={{ fontSize: 11, color: SUB }}>{i.sub}</div>
             </div>
+            {i.kind === "bestand" && <span style={{ ...S.badge, background: "#2ecc71", color: "#10261a" }}>Bestand</span>}
             {i.kind === "vorlage" && <span style={{ ...S.badge, background: ACCENT, color: "#fff" }}>Vorlage</span>}
             {i.kind === "typ" && <span style={{ ...S.badge, border: `1px solid ${LINE}`, color: SUB }}>generisch</span>}
           </button>

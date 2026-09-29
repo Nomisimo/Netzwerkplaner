@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY } from "../shared/constants.js";
 import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl } from "../shared/model.js";
-import { createDevice, uid } from "../shared/catalog.js";
+import { createDevice, uid, snapshotDevice } from "../shared/catalog.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
 import { DevicePicker, Modal } from "./ui.jsx";
@@ -43,7 +43,7 @@ export default function App() {
   const [picker, setPicker] = useState(null); // { connectTo }
   const [status, setStatus] = useState({});
   const [autoStatus, setAutoStatus] = useState(false);
-  const [library, setLibrary] = useState({ vorlagen: [], icons: [] });
+  const [library, setLibrary] = useState({ vorlagen: [], bestand: [], icons: [] });
   const [libLoaded, setLibLoaded] = useState(false);
   const [filePath, setFilePath] = useState(() => localStorage.getItem("netzwerkplaner_file") || null);
   const [recents, setRecents] = useState([]);
@@ -51,7 +51,7 @@ export default function App() {
   const [showExport, setShowExport] = useState(false);
   const [protoModal, setProtoModal] = useState(null);
   const [protoId, setProtoId] = useState(null);
-  const [bibSub, setBibSub] = useState("protokolle");
+  const [bibSub, setBibSub] = useState("bestand");
   const [changelog, setChangelog] = useState(false);
   const [toast, setToast] = useState(null);
   const [version, setVersion] = useState("");
@@ -100,7 +100,7 @@ export default function App() {
 
   // Bibliothek (eigene Vorlagen + Icons) aus dem App-Datenordner
   useEffect(() => {
-    api.loadLibrary().then((l) => { if (l) setLibrary({ vorlagen: [], icons: [], ...l }); setLibLoaded(true); });
+    api.loadLibrary().then((l) => { if (l) setLibrary({ vorlagen: [], bestand: [], icons: [], ...l }); setLibLoaded(true); });
     api.getRecents().then(setRecents);
     api.appVersion().then(setVersion);
     api.onOpenFile((r) => r && loadFromFile(r));
@@ -157,10 +157,16 @@ export default function App() {
   /* ── Geräte & Verbindungen ──────────────────────────────────────────── */
   const addDevice = useCallback((item, { connectTo, at, picker: usePicker } = {}) => {
     if (!item || usePicker) { setPicker({ connectTo }); return null; }
-    const vorlage = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key) : null;
-    let id = null;
+    const vorlage = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
+      : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
+    let id = null, konflikte = [];
     mutate((d) => {
-      const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: vorlage });
+      const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
+      if (item.kind === "bestand") {
+        dev.bestandId = vorlage.id;
+        const belegt = new Set(d.geraete.flatMap((g) => g.interfaces.map((i) => i.ip)).filter(Boolean));
+        konflikte = dev.interfaces.filter((i) => i.ip && belegt.has(i.ip)).map((i) => i.ip);
+      }
       // eindeutiger Name
       const names = new Set(d.geraete.map((g) => g.name));
       if (names.has(dev.name)) { let n = 2; while (names.has(`${dev.name} ${n}`)) n++; dev.name = `${dev.name} ${n}`; }
@@ -176,7 +182,8 @@ export default function App() {
       if (parent) addConnection(d, parent.id, dev.id);
       else if (at) d.layout.pinned = { ...(d.layout.pinned || {}), [dev.id]: at };
     });
-    notify("Gerät hinzugefügt.");
+    if (konflikte.length) notify(`Gerät eingefügt. IP bereits belegt: ${konflikte.join(", ")} – siehe Prüfung.`, "err");
+    else notify(item.kind === "bestand" ? "Gerät aus dem Bestand eingefügt (mit IPs)." : "Gerät hinzugefügt.");
     return id;
   }, [library, mutate]);
 
@@ -199,12 +206,45 @@ export default function App() {
   const saveVorlage = (dev) => {
     const name = prompt("Name der Vorlage:", [dev.hersteller, dev.modell].filter(Boolean).join(" ") || dev.name);
     if (!name) return;
-    const g = clone(dev);
+    const g = snapshotDevice(dev, P.vlans);
     g.interfaces.forEach((i) => { i.ip = ""; i.mac = ""; });
-    g.notizen = "";
+    g.notizen = ""; g.netzname = ""; g.inventar = { nr: "", sn: "", case: "" };
     setLibrary((l) => ({ ...l, vorlagen: [...(l.vorlagen || []), { id: uid(), name, geraet: g }] }));
     if (dev.icon?.startsWith("custom:")) { const ic = P.icons.find((i) => "custom:" + i.id === dev.icon); if (ic) setLibrary((l) => ({ ...l, icons: (l.icons || []).some((x) => x.id === ic.id) ? l.icons : [...(l.icons || []), ic] })); }
     notify(`Vorlage „${name}“ gespeichert.`);
+  };
+
+  // Konkretes Gerät (mit Name, IPs, MACs, Ports) im Gerätebestand speichern bzw. aktualisieren
+  const rememberIcon = (dev) => {
+    if (!dev.icon?.startsWith("custom:")) return;
+    const ic = P.icons.find((i) => "custom:" + i.id === dev.icon);
+    if (ic) setLibrary((l) => ({ ...l, icons: (l.icons || []).some((x) => x.id === ic.id) ? l.icons : [...(l.icons || []), ic] }));
+  };
+  const saveBestand = (dev) => {
+    const g = snapshotDevice(dev, P.vlans);
+    const now = new Date().toISOString();
+    const vorhanden = dev.bestandId && (library.bestand || []).some((b) => b.id === dev.bestandId);
+    if (vorhanden) {
+      setLibrary((l) => ({ ...l, bestand: l.bestand.map((b) => (b.id === dev.bestandId ? { ...b, name: dev.name, geraet: g, geaendert: now } : b)) }));
+      notify(`„${dev.name}“ im Bestand aktualisiert.`);
+    } else {
+      const bid = uid();
+      setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), { id: bid, name: dev.name, geraet: g, angelegt: now, geaendert: now }] }));
+      mutate((d) => { const x = d.geraete.find((y) => y.id === dev.id); if (x) x.bestandId = bid; });
+      notify(`„${dev.name}“ im Gerätebestand gespeichert.`);
+    }
+    rememberIcon(dev);
+  };
+  const saveAlleBestand = () => {
+    const neu = P.geraete.filter((d) => !d.bestandId || !(library.bestand || []).some((b) => b.id === d.bestandId));
+    if (!neu.length) return notify("Alle Projektgeräte sind schon im Bestand.");
+    if (!confirm(`${neu.length} Geräte aus diesem Projekt in den Bestand übernehmen?`)) return;
+    const now = new Date().toISOString();
+    const entries = neu.map((d) => ({ id: uid(), dev: d }));
+    setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...entries.map(({ id, dev }) => ({ id, name: dev.name, geraet: snapshotDevice(dev, P.vlans), angelegt: now, geaendert: now }))] }));
+    mutate((d) => { for (const e of entries) { const x = d.geraete.find((y) => y.id === e.dev.id); if (x) x.bestandId = e.id; } });
+    neu.forEach(rememberIcon);
+    notify(`${neu.length} Geräte in den Bestand übernommen.`);
   };
 
   const selectDevice = (id) => { setSelection({ type: "dev", id }); if (!["topologie", "geraete"].includes(tab)) setTab("geraete"); };
@@ -255,7 +295,7 @@ export default function App() {
   };
 
   const nErr = issues.filter((i) => i.sev === "error").length, nWarn = issues.filter((i) => i.sev === "warn").length;
-  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSelectDevice: selectDevice };
+  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice };
 
   return (
     <div style={S.app}>
@@ -311,13 +351,13 @@ export default function App() {
             {tab === "vlans" && <VlanTab P={Pv} X={X} mutate={mutate} issues={issues} onSelectDevice={selectDevice} />}
             {tab === "patch" && <PatchTab P={Pv} X={X} mutate={mutate} issues={issues} onSelectDevice={selectDevice} onDeleteConn={deleteConn} />}
             {tab === "pruefung" && <PruefungTab P={Pv} X={X} issues={issues} onShowIssue={showIssue} />}
-            {tab === "bibliothek" && <BibliothekTab P={Pv} mutate={mutate} library={library} setLibrary={setLibrary} protoId={protoId} setProtoId={setProtoId} onAddDevice={addDevice} onSelectDevice={selectDevice} sub={bibSub} setSub={setBibSub} allIcons={allIcons} />}
+            {tab === "bibliothek" && <BibliothekTab P={Pv} mutate={mutate} onSaveAlleBestand={saveAlleBestand} notify={notify} library={library} setLibrary={setLibrary} protoId={protoId} setProtoId={setProtoId} onAddDevice={addDevice} onSelectDevice={selectDevice} sub={bibSub} setSub={setBibSub} allIcons={allIcons} />}
             {tab === "hilfe" && <AnleitungTab />}
           </div>
         </main>
       )}
 
-      {picker && <DevicePicker vorlagen={library.vorlagen || []} customIcons={allIcons} title={picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
+      {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={library.bestand || []} customIcons={allIcons} title={picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
         onClose={() => setPicker(null)} onPick={(item) => { const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
       {protoModal && <Modal title="Protokoll" width={860} onClose={() => setProtoModal(null)}
         footer={<button style={S.secondaryBtn} onClick={() => { setProtoId(protoModal); setBibSub("protokolle"); setTab("bibliothek"); setProtoModal(null); }}>In der Bibliothek öffnen</button>}>

@@ -14,7 +14,7 @@ const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", f
 const HW = NODE_W / 2, HH = NODE_H / 2;
 
 export default function TopologieTab(props) {
-  const { P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onDeleteConn, onShowProto, onSaveVorlage, svgRef, autoStatus, setAutoStatus } = props;
+  const { P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onDeleteConn, onShowProto, onSaveVorlage, onSaveBestand, bestand, svgRef, autoStatus, setAutoStatus } = props;
   const [tool, setTool] = useState("move");
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const [drag, setDrag] = useState(null);   // { kind:'node'|'pan', id, sx, sy, dx, dy, moved }
@@ -25,7 +25,8 @@ export default function TopologieTab(props) {
   const [vlanFilter, setVlanFilter] = useState(null);
   const [q, setQ] = useState("");
   const [showPorts, setShowPorts] = useState(true);
-  const [ctx, setCtx] = useState(null); // Kontextmenü { id, x, y }
+  const [ctx, setCtx] = useState(null);
+  const [titel, setTitel] = useState("name"); // Beschriftung der Knoten // Kontextmenü { id, x, y }
   const [paletteOpen, setPaletteOpen] = useState(true);
   const wrapRef = useRef(null);
   const fitted = useRef(false);
@@ -167,7 +168,7 @@ export default function TopologieTab(props) {
       const inV = d.interfaces.some((i) => i.vlan === vlanFilter) || d.ports.some((p) => p.vlan === vlanFilter || (p.modus === "trunk" && (p.vlans || []).includes(vlanFilter)));
       if (!inV) return false;
     }
-    if (ql) return `${d.name} ${d.modell} ${d.hersteller} ${d.bereich} ${d.interfaces.map((i) => i.ip).join(" ")}`.toLowerCase().includes(ql);
+    if (ql) return `${d.name} ${d.netzname || ""} ${d.inventar?.nr || ""} ${d.modell} ${d.hersteller} ${d.bereich} ${d.interfaces.map((i) => i.ip).join(" ")}`.toLowerCase().includes(ql);
     return true;
   };
   const filtering = !!(katFilter || vlanFilter || ql);
@@ -250,6 +251,9 @@ export default function TopologieTab(props) {
           <select style={{ ...S.selectSm, width: "auto" }} value={colorBy} onChange={(e) => setColorBy(e.target.value)} title="Farbe der Verbindungen">
             <option value="vlan">Farbe: VLAN</option><option value="kat">Farbe: Bereich</option><option value="kabel">Farbe: Kabel</option>
           </select>
+          <select style={{ ...S.selectSm, width: "auto" }} value={titel} onChange={(e) => setTitel(e.target.value)} title="Beschriftung der Geräte">
+            <option value="name">Titel: Name</option><option value="netzname">Titel: Netzwerkname</option><option value="inventar">Titel: Inventar-Nr.</option>
+          </select>
           <select style={{ ...S.selectSm, width: "auto" }} value={katFilter} onChange={(e) => setKatFilter(e.target.value)}>
             <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
           </select>
@@ -330,7 +334,7 @@ export default function TopologieTab(props) {
                     <rect width="5" height={NODE_H} rx="2" fill={col} />
                     <rect x="12" y="11" width="36" height="36" rx="7" fill={col + "1f"} />
                     <SvgIcon icon={d.icon} customIcons={P.icons} x={18} y={17} size={24} color={col} />
-                    <text x="56" y="20" fontSize="13" fontWeight="700" fill="#fff">{d.name.length > 20 ? d.name.slice(0, 19) + "…" : d.name}<title>{d.name}</title></text>
+                    {(() => { const t = (titel === "netzname" && d.netzname) || (titel === "inventar" && d.inventar?.nr) || d.name; return <text x="56" y="20" fontSize="13" fontWeight="700" fill="#fff">{t.length > 20 ? t.slice(0, 19) + "…" : t}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, d.inventar?.nr && `Inventar: ${d.inventar.nr}`].filter(Boolean).join("\n")}</title></text>; })()}
                     <text x="56" y="36" fontSize="11" fill={ip ? "#c8d0d8" : MUTED} fontFamily="Consolas,monospace">{ip || (d.interfaces.some((i) => i.dhcp) ? "DHCP" : d.isSwitch && !d.interfaces.length ? "unmanaged" : "keine IP")}</text>
                     {v && <g transform={`translate(${56 + Math.max(ip.length, 7) * 6.6 + 6},27)`}><rect width={v.vid > 99 ? 30 : 24} height="12" rx="3" fill={v.farbe + "33"} stroke={v.farbe} strokeWidth=".8" /><text x={v.vid > 99 ? 15 : 12} y="9.5" fontSize="9" fill="#fff" textAnchor="middle">{v.vid}</text></g>}
                     <text x="56" y="50" fontSize="10" fill={MUTED}>{[d.bereich, d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ").slice(0, url ? 26 : 30)}</text>
@@ -386,7 +390,7 @@ export default function TopologieTab(props) {
             <button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}>✕</button>
           </div>
           {selDev && <DeviceEditor key={selDev.id} compact P={P} X={X} dev={selDev} mutate={mutate} status={status[selDev.id]} onCheck={checkReach}
-            issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} />}
+            issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} bestand={bestand} />}
           {selConn && <ConnEditor P={P} X={X} conn={selConn} mutate={mutate} onDelete={onDeleteConn} issues={connIssues.get(selConn.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} />}
         </div>
       )}

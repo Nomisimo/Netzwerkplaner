@@ -169,15 +169,37 @@ export const splitProtokolle = (s) =>
 export const newPort = (o = {}) => ({ id: uid(), name: "", typ: "RJ45", iface: null, modus: "access", vlan: null, vlans: [], poe: false, p2p: false, ...o });
 export const newIface = (o = {}) => ({ id: uid(), name: "LAN", ip: "", prefix: 24, gateway: "", vlan: null, mac: "", dhcp: false, ...o });
 
-export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage }) => {
+/* Gerät für Bibliothek (Vorlage oder Bestand) sichern. VLANs werden über ihre
+   VLAN-ID (vid) gemerkt, weil die internen IDs in jedem Projekt anders sind. */
+export const snapshotDevice = (dev, vlans = []) => {
+  const g = JSON.parse(JSON.stringify(dev));
+  const vid = (id) => vlans.find((v) => v.id === id)?.vid ?? null;
+  for (const i of g.interfaces) i.vid = vid(i.vlan);
+  for (const p of g.ports) { p.vid = vid(p.vlan); p.vids = (p.vlans || []).map(vid).filter((x) => x != null); }
+  for (const s of g.stroeme || []) s.ziele = [];
+  delete g.bestandId;
+  return g;
+};
+
+export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, mitAdressen = false }) => {
   const k = katalogId ? KATALOG_GERAETE.find((x) => x.id === katalogId) : null;
   const src = eigeneVorlage || null;
   if (src) {
     const d = JSON.parse(JSON.stringify(src.geraet));
     const idMap = {};
-    d.interfaces = d.interfaces.map((i) => { const nid = uid(); idMap[i.id] = nid; return { ...i, id: nid, ip: "" }; });
-    d.ports = d.ports.map((p) => ({ ...p, id: uid(), iface: p.iface ? idMap[p.iface] || null : null }));
+    // VLAN über die VLAN-ID zuordnen; ältere Vorlagen ohne vid behalten die ID, falls sie existiert
+    const map = (oldId, vid) => (vid != null ? vlans.find((v) => +v.vid === +vid)?.id || null : vlans.some((v) => v.id === oldId) ? oldId : null);
+    d.interfaces = d.interfaces.map((i) => {
+      const nid = uid(); idMap[i.id] = nid;
+      const { vid, ...rest } = i;
+      return { ...rest, id: nid, vlan: map(i.vlan, vid), ip: mitAdressen ? i.ip : "", mac: mitAdressen ? i.mac : "" };
+    });
+    d.ports = d.ports.map((p) => {
+      const { vid, vids, ...rest } = p;
+      return { ...rest, id: uid(), iface: p.iface ? idMap[p.iface] || null : null, vlan: map(p.vlan, vid), vlans: vids ? vids.map((x) => map(null, x)).filter(Boolean) : (p.vlans || []).filter((id) => vlans.some((v) => v.id === id)) };
+    });
     if (d.webUi) d.webUi.iface = d.webUi.iface ? idMap[d.webUi.iface] || null : null;
+    d.stroeme = (d.stroeme || []).map((s) => ({ ...s, id: uid(), ziele: [], iface: s.iface ? idMap[s.iface] || null : null }));
     return { ...d, id: uid(), name: name || d.name };
   }
   const t = typ || k?.typ || "sonstiges";

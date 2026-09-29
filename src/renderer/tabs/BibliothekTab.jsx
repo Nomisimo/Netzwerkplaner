@@ -4,6 +4,7 @@ import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid } from "../../
 import { Section, KatChip } from "../ui.jsx";
 import { IconView, ICON_NAMES } from "../icons.jsx";
 import { api } from "../api.js";
+import BestandView from "./BestandView.jsx";
 
 const FLAG_LABELS = [
   ["p2p", "Punkt-zu-Punkt, nicht über Switch", ERR],
@@ -49,7 +50,7 @@ export function ProtokollDetail({ p, P, onSelectDevice }) {
   );
 }
 
-export default function BibliothekTab({ P, mutate, library, setLibrary, protoId, setProtoId, onAddDevice, onSelectDevice, sub, setSub, allIcons }) {
+export default function BibliothekTab({ P, mutate, library, setLibrary, protoId, setProtoId, onAddDevice, onSelectDevice, sub, setSub, allIcons, onSaveAlleBestand, notify }) {
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [herst, setHerst] = useState("");
@@ -75,7 +76,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
     r.readAsDataURL(f);
   };
 
-  const TABS = [["protokolle", `Protokolle (${PROTOKOLLE.length})`], ["katalog", `Gerätekatalog (${KATALOG_GERAETE.length})`], ["vorlagen", `Eigene Vorlagen (${library.vorlagen?.length || 0})`], ["netz", "mDNS · QoS · Infrastruktur"], ["icons", "Icons"]];
+  const TABS = [["bestand", `Gerätebestand (${library.bestand?.length || 0})`], ["protokolle", `Protokolle (${PROTOKOLLE.length})`], ["katalog", `Gerätekatalog (${KATALOG_GERAETE.length})`], ["vorlagen", `Eigene Vorlagen (${library.vorlagen?.length || 0})`], ["netz", "mDNS · QoS · Infrastruktur"], ["icons", "Icons"]];
 
   return (
     <>
@@ -143,8 +144,10 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
         </Section>
       )}
 
+      {sub === "bestand" && <BestandView P={P} library={library} setLibrary={setLibrary} onAddDevice={onAddDevice} onSelectDevice={onSelectDevice} onSaveAlleBestand={onSaveAlleBestand} allIcons={allIcons} notify={notify} />}
+
       {sub === "vorlagen" && (
-        <Section title="Eigene Vorlagen" subtitle="Im Geräte-Editor mit „＋ Vorlage“ speichern. Vorlagen liegen in der Bibliothek der App und stehen in jedem Projekt zur Verfügung.">
+        <Section title="Eigene Vorlagen" subtitle="Vorlagen sind Gerätetypen ohne Adressen (Ports, VLANs, Protokolle). Für konkrete Geräte mit IPs gibt es den Gerätebestand. Im Geräte-Editor mit „＋ Vorlage“ speichern. Vorlagen liegen in der Bibliothek der App und stehen in jedem Projekt zur Verfügung.">
           {!(library.vorlagen || []).length && <p style={S.empty}>Noch keine eigenen Vorlagen.</p>}
           {(library.vorlagen || []).map((v) => (
             <div key={v.id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px" }}>

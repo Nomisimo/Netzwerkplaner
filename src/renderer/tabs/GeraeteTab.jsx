@@ -8,7 +8,7 @@ import DeviceEditor from "../DeviceEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
 
-export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage }) {
+export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage, onSaveBestand, bestand }) {
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [vlan, setVlan] = useState(null);
@@ -21,7 +21,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
   const list = useMemo(() => {
     const ql = q.toLowerCase();
     const l = P.geraete.filter((d) => (!kat || d.kategorie === kat) && (!vlan || d.interfaces.some((i) => i.vlan === vlan))
-      && (!ql || `${d.name} ${d.hersteller} ${d.modell} ${d.bereich} ${d.interfaces.map((i) => i.ip + " " + i.mac).join(" ")} ${(d.protokolle || []).join(" ")}`.toLowerCase().includes(ql)));
+      && (!ql || `${d.name} ${d.netzname || ""} ${d.inventar?.nr || ""} ${d.inventar?.sn || ""} ${d.hersteller} ${d.modell} ${d.bereich} ${d.interfaces.map((i) => i.ip + " " + i.mac).join(" ")} ${(d.protokolle || []).join(" ")}`.toLowerCase().includes(ql)));
     const key = { name: (a, b) => a.name.localeCompare(b.name, "de", { numeric: true }), ip: (a, b) => ipSort(mainIp(a), mainIp(b)), kat: (a, b) => a.kategorie.localeCompare(b.kategorie) || a.name.localeCompare(b.name, "de", { numeric: true }), bereich: (a, b) => (a.bereich || "~").localeCompare(b.bereich || "~") || a.name.localeCompare(b.name, "de") }[sort];
     return [...l].sort(key);
   }, [P.geraete, q, kat, vlan, sort]);
@@ -75,7 +75,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
                           <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{d.name}</span>
                           {iss.some((i) => i.sev === "error") ? <span style={{ color: ERR }} title={iss.map((i) => i.msg).join("\n")}>⚠</span> : iss.some((i) => i.sev === "warn") ? <span style={{ color: WARN }} title={iss.map((i) => i.msg).join("\n")}>⚠</span> : null}
                         </div>
-                        <div style={{ fontSize: 11, color: MUTED }}>{[d.hersteller, d.modell].filter(Boolean).join(" ") || TYPEN[d.typ]?.label}</div>
+                        <div style={{ fontSize: 11, color: MUTED }}>{[d.hersteller, d.modell].filter(Boolean).join(" ") || TYPEN[d.typ]?.label}{d.netzname ? ` · ${d.netzname}` : ""}</div>
                       </td>
                       <td style={{ ...S.td, fontSize: 12, color: katColor(d.kategorie) }}>{d.kategorie}</td>
                       <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{ip || <span style={{ color: MUTED }}>{d.interfaces.some((i) => i.dhcp) ? "DHCP" : "–"}</span>}{d.interfaces.filter((i) => i.ip).length > 1 && <span style={{ color: MUTED }}> +{d.interfaces.filter((i) => i.ip).length - 1}</span>}</td>
@@ -96,7 +96,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
         <Section style={{ position: "sticky", top: 100, maxHeight: "calc(100vh - 120px)", overflowY: "auto" }}
           right={<button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}>✕</button>} title=" ">
           <DeviceEditor key={sel.id} P={P} X={X} dev={sel} mutate={mutate} status={status[sel.id]} onCheck={checkReach} issues={devIssues(sel.id)}
-            onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} />
+            onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} bestand={bestand} />
         </Section>
       )}
     </div>
