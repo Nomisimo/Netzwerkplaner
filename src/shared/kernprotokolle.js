@@ -26,18 +26,19 @@ export const KERN = [
       { key: "fs", label: "Samplerate", type: "select", options: [44100, 48000, 88200, 96000], def: 48000 },
       { key: "bit", label: "Auflösung (Bit)", type: "select", options: [16, 24, 32], def: 24 },
       { key: "proFlow", label: "Kanäle je Flow", type: "number", def: 4, hint: "Unicast-Flows tragen bis zu 4 Kanäle" },
-      { key: "pps", label: "Pakete/s je Flow", type: "number", def: 1000, hint: "Richtwert; hängt von der Latenzeinstellung ab" },
+      { key: "pps", label: "Pakete/s je Flow", type: "number", def: 3000, hint: "48 000 ÷ Samples je Paket; 3 000/s entspricht 16 Samples (Richtwert der Recherche)" },
     ],
     rechne: (n, p) => {
       const flows = Math.ceil(n / Math.max(1, p.proFlow));
       const perFlowCh = n / Math.max(1, flows);
-      const payload = (perFlowCh * p.fs * (p.bit / 8)) / p.pps + 20;
+      const payload = (perFlowCh * p.fs * (p.bit / 8)) / p.pps + 4; // + Dante-Header (≈70 Byte Overhead gesamt)
       return { mbit: mbit(payload, p.pps) * flows, pps: p.pps * flows, flows, hinweis: `${flows} Flow(s) à ≈${mbit(payload, p.pps).toFixed(2)} Mbit/s` };
     },
     latenz: [
+      ["0,15 ms", "nur PCIe-Karten, direkte Verbindung"],
       ["0,25 ms", "kleine Gigabit-Netze, wenige Switches (Richtwert bis 3 Hops)"],
       ["0,5 ms", "mittlere Gigabit-Netze (Richtwert bis 5 Hops)"],
-      ["1 ms", "Standard; große Gigabit-Netze oder 100-Mbit-Geräte im Pfad (Richtwert bis 10 Hops)"],
+      ["1 ms", "Standard; große Gigabit-Netze (Richtwert bis 10 Hops); Minimum bei 100-Mbit-Ports"],
       ["2 ms / 5 ms", "sehr große Netze, WAN-Strecken, Dante Via/DVS"],
     ],
     anforderungen: { igmp: "bei Multicast-Flows und PTP zwingend (Snooping + ein Querier je VLAN)", qos: "DSCP 56 (CS7) PTP · 46 (EF) Audio · 8 (CS1) reserviert; Strict Priority, 4 Queues", ptp: "PTPv1 (AES67-Modus: PTPv2); ein Leader je Netz, Switches ohne PTP-Filter", eee: "abschalten (802.3az stört den Takt)", jumbo: "nicht nötig", stp: "RSTP ok; Edge-/PortFast an Geräteports, Primary und Secondary nie verbinden" },
@@ -51,22 +52,23 @@ export const KERN = [
   },
   {
     id: "manet", name: "MA-Net (1–3)", ref: "MA-Net3", kategorie: "Licht", farbe: "#f5d023",
-    kurz: "Netzwerkprotokolle von MA Lighting: MA-Net (grandMA1), MA-Net2 (grandMA2) und MA-Net3 (grandMA3). Pulte, Processing Units und Nodes bilden eine Session; DMX wird über das Netz an die Nodes verteilt.",
+    kurz: "Netzwerkprotokolle von MA Lighting: MA-Net (grandMA1), MA-Net2 (grandMA2) und MA-Net3 (grandMA3). Pulte, Processing Units und Nodes bilden eine Session und verteilen Showfile, Parameter- und DMX-Berechnung. Verluste werden per NACK nachgefordert.",
     einheit: "Universen", menge: 16,
     params: [
-      { key: "hz", label: "Wiederholrate (Hz)", type: "number", def: 44, hint: "DMX-Refresh je Universum" },
+      { key: "reserve", label: "Session-Reserve (Mbit/s)", type: "number", def: 200, hint: "MA-Vorgabe für MA-Net3: im Mittel 200 Mbit/s für Echtzeitverkehr (Worst Case 158 Mbit/s). Nur einmal je Session eintragen, z. B. am Master-Pult." },
+      { key: "hz", label: "Wiederholrate (Hz)", type: "number", def: 30, hint: "DMX-Refresh je Universum (grandMA3: 30 Hz)" },
       { key: "bytes", label: "Nutzdaten je Paket (Byte)", type: "number", def: 560, hint: "Richtwert, wie sACN/Art-Net" },
     ],
-    rechne: (n, p) => ({ mbit: mbit(p.bytes, p.hz) * n, pps: p.hz * n, hinweis: "Richtwert: DMX-Verteilung ähnlich sACN; Session-Sync und Showfile-Transfer kommen dazu" }),
+    rechne: (n, p) => ({ mbit: (+p.reserve || 0) + mbit(p.bytes, p.hz) * n, pps: p.hz * n, hinweis: `${p.reserve || 0} Mbit/s Session-Reserve (MA-Vorgabe) + ≈${(mbit(p.bytes, p.hz) * n).toFixed(1)} Mbit/s für ${n} Universen` }),
     varianten: [
       ["MA-Net (grandMA1)", "grandMA1-Serie mit NSP/NDP, 100-Mbit-Netz, Broadcast-lastig. Eigenes, dediziertes Netz verwenden.", "Fachwissen, vor Einsatz prüfen"],
-      ["MA-Net2 (grandMA2)", "grandMA2 mit NPU/NSP/NDP, Sessions und DMX-Verteilung. 100 Mbit minimal, Gigabit empfohlen, dediziertes Netz. Ports siehe grandMA2-Handbuch.", "Fachwissen, vor Einsatz prüfen"],
-      ["MA-Net3 (grandMA3)", "UDP 30020, TCP 30021/30022+; Multicast 236.4.1.0–.4 je Session (alternativ 239.4.1.x), bis 32 Sessions. Gigabit, IGMP-Snooping + Querier, EEE aus.", "Herstellerdoku geprüft 09/2026"],
+      ["MA-Net2 (grandMA2)", "grandMA2 mit NPU/NSP/NDP. UDP 29998/29999 (Session), TCP 7003 (Software-Update), Multicast 236.4.0.x. Ports stammen aus dem MA-Forum, nicht aus offizieller Doku. Dediziertes Netz.", "Fachwissen, vor Einsatz prüfen"],
+      ["MA-Net3 (grandMA3)", "UDP 30020 (Session, Multicast), TCP 30022+ (Alternate Traffic), TCP 30021 (Worldserver); Multicast 236.4.1.0–.4 für Session 1 (alternativ 239.4.1.x). 1 GbE non-blocking, keine 100-Mbit-Geräte im VLAN, IGMP-Snooping + Querier, EEE aus, max. 2 ms Laufzeit in der Broadcast-Domain. 192.168.33.x auf Con1–Con3 ist unzulässig.", "Herstellerdoku geprüft 09/2026"],
     ],
-    latenz: [["< 1 Frame", "unkritisch im LAN; Session-Sync braucht stabile Verbindung ohne Paketverlust"]],
-    anforderungen: { igmp: "MA-Net3: Snooping + Querier (Multicast je Session)", qos: "Best Effort, Trennung per eigenem VLAN", ptp: "–", eee: "abschalten", jumbo: "nein", stp: "RSTP; Loops vermeiden (Session-Multicast)" },
-    tools: [["MA Network Configuration (im Pult)", "Session, Stationen, Nodes, DMX-Ports"], ["grandMA3 Web-Remote (Port 80/8080)", "Fernbedienung und Status im Browser"], ["Wireshark", "Multicast 236.4.1.x und UDP 30020 prüfen"]],
-    stolpersteine: ["MA-Net2 und MA-Net3 nicht im selben Session-Bereich mischen", "Viele Sessions/Universen ohne IGMP fluten das Licht-VLAN", "Showfile-Übertragungen erzeugen kurzzeitig hohe Last"],
+    latenz: [["max. 2 ms", "MA-Vorgabe für die Laufzeit innerhalb der Broadcast-Domain (MA-Net3)"], ["33 ms", "DMX-Zeitfenster bei 30 Hz"]],
+    anforderungen: { igmp: "Snooping + Querier auf allen Switches; bei mehreren Switches laut MA-Doku PIM", qos: "Best Effort, Trennung per eigenem VLAN", ptp: "–", eee: "abschalten", jumbo: "nein", stp: "RSTP; Loops vermeiden (Session-Multicast)" },
+    tools: [["grandMA3 System Monitor", "NACK-Zähler: 0–50 Retransmissions stabil, mehr unregelmäßig untersuchen"], ["Menü Network im Pult", "Session, Stationen, Nodes, DMX-Ports"], ["grandMA3 Web Remote (Port 80/8080)", "Fernbedienung und Status im Browser"], ["Wireshark", "Multicast 236.4.1.x und UDP 30020 prüfen"]],
+    stolpersteine: ["Keine 100-Mbit-Geräte ins MA-Net3-VLAN", "MA-Net2 und MA-Net3 nicht im selben Session-Bereich mischen", "Viele Sessions/Universen ohne IGMP fluten das Licht-VLAN", "Der MA Network Switch hat IGMP teils deaktiviert (Forenbericht) – Einstellungen prüfen", "Showfile-Übertragungen erzeugen kurzzeitig hohe Last"],
   },
   {
     id: "artnet", name: "Art-Net", ref: "Art-Net 4", kategorie: "Licht", farbe: "#ffcf5c",
@@ -129,8 +131,8 @@ export const KERN = [
     params: [{ key: "stream", label: "MSEx-Stream (Mbit/s)", type: "number", def: 4, hint: "Vorschau-Stream, Richtwert" }],
     rechne: (n, p) => ({ mbit: n * p.stream, hinweis: "Discovery und Thumbnails sind vernachlässigbar; Vorschau-Streams je nach Auflösung" }),
     latenz: [["unkritisch", "Vorschau und Metadaten"]],
-    anforderungen: { igmp: "PINF-Multicast im selben VLAN", qos: "Best Effort", ptp: "–", eee: "–", jumbo: "–", stp: "–" },
-    tools: [["Pult/Medienserver-Menüs", "CITP-Verbindung und Thumbnails"], ["Wireshark", "UDP 4809, Multicast 224.0.0.180"]],
+    anforderungen: { igmp: "wirkungslos: PINF 224.0.0.180 ist Link-Local und wird immer geflutet; Pult und Server im selben VLAN", qos: "Best Effort", ptp: "–", eee: "–", jumbo: "–", stp: "–" },
+    tools: [["Pult/Medienserver-Menüs", "CITP-Verbindung und Thumbnails"], ["Wireshark", "UDP 4809, Multicast 224.0.0.180; danach TCP auf dem in PINF genannten Port (MagicQ: 4811/4814)"]],
     stolpersteine: ["Pult und Medienserver müssen im selben VLAN sein (Multicast-Discovery)", "Ports teils dynamisch – Firewalls vermeiden"],
   },
 ];

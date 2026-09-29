@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor } from "../../shared/constants.js";
 import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid } from "../../shared/catalog.js";
-import { Section, KatChip } from "../ui.jsx";
+import { Section, KatChip, Toggle } from "../ui.jsx";
 import { IconView, ICON_NAMES } from "../icons.jsx";
 import { api } from "../api.js";
 import BestandView from "./BestandView.jsx";
@@ -54,13 +54,14 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [herst, setHerst] = useState("");
+  const [nurFokus, setNurFokus] = useState(true);
   const [open, setOpen] = useState(null);
   const ql = q.toLowerCase();
 
   const protos = useMemo(() => PROTOKOLLE.filter((p) => (!kat || p.kategorie === kat) && (!ql || `${p.name} ${p.raw.Ports} ${p.raw["Hersteller / Gremium"]}`.toLowerCase().includes(ql))), [ql, kat]);
-  const geraete = useMemo(() => KATALOG_GERAETE.filter((g) => (!herst || g.hersteller === herst) && (!kat || g.kategorie === kat) && (!ql || `${g.hersteller} ${g.modell} ${g.geraetetyp} ${g.raw.Protokolle}`.toLowerCase().includes(ql))), [ql, herst, kat]);
+  const geraete = useMemo(() => KATALOG_GERAETE.filter((g) => (!nurFokus || g.fokus) && (!herst || g.hersteller === herst) && (!kat || g.kategorie === kat) && (!ql || `${g.hersteller} ${g.modell} ${g.geraetetyp} ${g.raw.Protokolle}`.toLowerCase().includes(ql))), [ql, herst, kat]);
   const cur = PROTOKOLLE.find((p) => p.id === protoId) || protos[0];
-  const hersteller = [...new Set(KATALOG_GERAETE.map((g) => g.hersteller))].sort((a, b) => a.localeCompare(b, "de"));
+  const hersteller = [...new Set(KATALOG_GERAETE.filter((g) => !nurFokus || g.fokus).map((g) => g.hersteller))].sort((a, b) => a.localeCompare(b, "de"));
 
   const uploadIcon = (e) => {
     const f = e.target.files[0];
@@ -106,11 +107,12 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       )}
 
       {sub === "katalog" && (
-        <Section title="Gerätekatalog" subtitle={`Stand ${KATALOG.stand} · Quelle: ${KATALOG.quelle.geraete}. Werte aus Fachwissen, nicht alle datenblattgeprüft (Spalte „Hinweis“).`}>
+        <Section title="Gerätekatalog" subtitle={`Stand ${KATALOG.stand} · ${geraete.length} Modelle. Fokus-Hersteller (${(KATALOG.fokus || []).join(", ")}) sind gegen Herstellerdoku recherchiert; der Datenstand steht je Modell in den Details.`}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="🔍 Hersteller, Modell, Typ, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
             <select style={{ ...S.selectSm, width: "auto" }} value={herst} onChange={(e) => setHerst(e.target.value)}><option value="">Alle Hersteller</option>{hersteller.map((h) => <option key={h}>{h}</option>)}</select>
             <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}><option value="">Alle Bereiche</option>{["Ton", "Licht", "Bild", "Netzwerk", "Bühne", "Intercom"].map((k) => <option key={k}>{k}</option>)}</select>
+            <Toggle checked={nurFokus} onChange={(c) => { setNurFokus(c); setHerst(""); }} label="nur Fokus-Hersteller" />
           </div>
           <table style={S.table}>
             <thead><tr><th style={S.th}></th><th style={S.th}>Hersteller / Modell</th><th style={S.th}>Typ</th><th style={S.th}>Ports</th><th style={S.th}>Web-UI</th><th style={S.th}></th></tr></thead>
@@ -119,7 +121,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
                 <React.Fragment key={g.id}>
                   <tr style={{ cursor: "pointer" }} onClick={() => setOpen(open === g.id ? null : g.id)}>
                     <td style={S.td}><IconView icon={TYPEN[g.typ]?.icon} color={katColor(g.kategorie)} size={20} /></td>
-                    <td style={S.td}><div style={{ fontWeight: 600 }}>{g.modell}</div><div style={{ fontSize: 11, color: MUTED }}>{g.hersteller}</div></td>
+                    <td style={S.td}><div style={{ fontWeight: 600 }}>{g.modell}{g.fokus && /geprüft/i.test(g.raw.Datenstand || "") && <span title={g.raw.Datenstand} style={{ color: OK, marginLeft: 6, fontSize: 11 }}>✓ geprüft</span>}</div><div style={{ fontSize: 11, color: MUTED }}>{g.hersteller}</div></td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.geraetetyp}</td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.raw["Netzwerkports (Anzahl)"]}</td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.raw["Web-UI"]}</td>

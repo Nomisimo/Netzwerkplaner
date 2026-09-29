@@ -89,8 +89,11 @@ const TYP_RULES = [
   [/Switch|Glasfaser-Netzwerkknoten/i, "switch_managed"],
   [/Router|Firewall/i, "router"],
   [/WLAN/i, "wlan"],
-  [/Lichtpult|Bedienwing|Processing Unit/i, "lichtpult"],
-  [/USB-DMX|DMX-Node/i, "node"],
+  [/Lichtpult|Bedienwing|Bedienerweiterung|Processing Unit/i, "lichtpult"],
+  [/LED-Kachel|LED-Pixel/i, "scheinwerfer"],
+  [/USB-DMX|DMX-Node|I\/O-Node|Pixel-Controller|Pixel-Gateway|DMX-over-IP|DMX-Splitter|DMX-Router|Art-Net-Node|Versorgungseinheit/i, "node"],
+  [/Karte|OEM-Modul|Netzwerk-Adapter|Audio-Interface|Dante-Interface/i, "stagebox"],
+  [/Software/i, "pc"],
   [/Dimmer/i, "dimmer"],
   [/Moving Head|LED-Wash/i, "scheinwerfer"],
   [/Bildprozessor|LED-Prozessor|LED-Video|LED-Controller/i, "ledproc"],
@@ -117,8 +120,10 @@ const katFuer = (g) => {
   return { Ton: "Ton", Licht: "Licht", Bild: "Bild", Netzwerk: "Netzwerk", Bühne: "Bühne" }[a] || "Sonstiges";
 };
 
-export const KATALOG_GERAETE = KATALOG.geraete.map((g, i) => ({
-  id: "k" + i,
+const slug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+export const KATALOG_GERAETE = KATALOG.geraete.map((g) => ({
+  id: `k-${slug(g.Hersteller)}-${slug(g.Modell)}`, // stabil, damit Projekte auch nach einem Katalog-Update ihr Modell finden
+  fokus: g.Fokus === "Ja",
   hersteller: g.Hersteller,
   modell: g.Modell,
   geraetetyp: g.Gerätetyp,

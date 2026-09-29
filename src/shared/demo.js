@@ -37,7 +37,7 @@ export const demoProject = () => {
   const ds10 = add("d&b DS10", "Bühne", { katalog: "DS10" });
   const d80 = add("Amp Rack L", "Bühne", { katalog: "D80" });
   const ma = add("grandMA3 light", "FOH", { katalog: "grandMA3 light" });
-  const pu = add("MA3 PU L", "FOH", { katalog: "processing unit" });
+  const pu = add("MA3 PU L", "FOH", { katalog: "processing unit L" });
   const node1 = add("Node Truss 1", "Bühne", { katalog: "LumiNode 12" });
   const node2 = add("Node Truss 2", "Bühne", { katalog: "LumiNode 4" });
   const laptop = add("Laptop FOH", "FOH", { typ: "pc" });
