@@ -219,11 +219,19 @@ export default function App() {
   const umbauen = useCallback((devId, item) => {
     const quelle = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
       : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
+    const ausBestand = item.kind === "bestand" && !!quelle;
+    let konflikte = [];
     mutate((d) => {
-      const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: quelle });
-      geraetUmbauen(d, devId, neu);
+      const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: quelle, mitAdressen: ausBestand });
+      if (ausBestand) {
+        neu.bestandId = quelle.id;
+        const belegt = new Set(d.geraete.filter((g) => g.id !== devId).flatMap((g) => g.interfaces.map((i) => i.ip)).filter(Boolean));
+        konflikte = neu.interfaces.filter((i) => i.ip && belegt.has(i.ip)).map((i) => i.ip);
+      }
+      geraetUmbauen(d, devId, neu, { ausBestand });
     });
-    notify("Modell übernommen. Name, IPs und Verbindungen sind geblieben.");
+    if (konflikte.length) notify(`Gerät aus dem Bestand übernommen. IP bereits vergeben: ${konflikte.join(", ")}`, "warn");
+    else notify(ausBestand ? "Gerät aus dem Bestand übernommen, mit seinen festen IPs. Die Verbindungen sind geblieben." : "Modell übernommen. Name, IPs und Verbindungen sind geblieben.");
   }, [library, mutate]);
 
   const deleteDevice = useCallback((id) => {

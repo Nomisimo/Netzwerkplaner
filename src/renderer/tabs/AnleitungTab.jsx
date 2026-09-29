@@ -69,7 +69,7 @@ const KAPITEL = [
       "Klick auf ein Gerät öffnet den Editor: Name, Netzwerkname (Hostname), Hersteller/Modell, Standort, Inventar (Nr., Seriennummer, Case), Interfaces, Ports, Web-UI, Protokolle und Notizen.",
       "Interfaces: IP, Maske, VLAN, Gateway, MAC und DHCP. ⟳ neben der IP schlägt die nächste freie Adresse im VLAN vor, „⟳ IPs vergeben“ füllt alle leeren Interfaces auf einmal.",
       "Ports: Access- oder Trunk-VLANs, PoE und Punkt-zu-Punkt (AES50, SLink, HDBaseT …).",
-      "„⇄ Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Name, Netzwerkname, IPs, VLANs, Inventar und Verbindungen bleiben erhalten, Ports und Protokolle kommen aus dem Katalog.",
+      "„⇄ Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs, VLANs und Inventar erhalten. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und Inventar, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
       "„im Katalog speichern“ legt das Gerät als eigene Vorlage oder im Gerätebestand ab.",
     ]} />
     <Bild id="geraet-editor" text="Geräte-Editor in der Topologie" />

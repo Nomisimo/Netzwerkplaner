@@ -116,3 +116,24 @@ test("Gerät nachträglich auf ein Katalogmodell umbauen behält Name, IPs und V
   for (const c of conns) for (const e of [c.a, c.b]) assert.ok(X.portRef.get(`${e.dev}:${e.port}`), "Port der Verbindung existiert");
   assert.ok(X0);
 });
+
+test("Modell zuweisen aus dem Bestand übernimmt feste IPs und Namen", async () => {
+  const { geraetUmbauen, createDevice, snapshotDevice } = await import("../src/shared/catalog.js");
+  const { demoProject } = await import("../src/shared/demo.js");
+  const P = demoProject();
+  const dev = P.geraete.find((g) => !g.isSwitch && g.interfaces.some((i) => i.ip));
+  const nConn = P.verbindungen.filter((c) => c.a.dev === dev.id || c.b.dev === dev.id).length;
+  const vorlage = createDevice({ typ: "lichtpult", vlans: P.vlans, name: "Pult 1" });
+  vorlage.netzname = "3LT1"; vorlage.interfaces[0].ip = "10.10.20.201"; vorlage.interfaces[0].vlan = P.vlans.find((v) => v.vid === 20).id;
+  const bestand = { id: "b1", name: "Pult 1", geraet: snapshotDevice(vorlage, P.vlans) };
+  const neu = createDevice({ vlans: P.vlans, eigeneVorlage: bestand, mitAdressen: true });
+  neu.bestandId = bestand.id;
+  geraetUmbauen(P, dev.id, neu, { ausBestand: true });
+  const d2 = P.geraete.find((g) => g.id === dev.id);
+  assert.equal(d2.name, "Pult 1");
+  assert.equal(d2.netzname, "3LT1");
+  assert.equal(d2.bestandId, "b1");
+  assert.equal(d2.interfaces[0].ip, "10.10.20.201");
+  assert.equal(P.vlans.find((v) => v.id === d2.interfaces[0].vlan).vid, 20);
+  assert.equal(P.verbindungen.filter((c) => c.a.dev === dev.id || c.b.dev === dev.id).length, nConn);
+});
