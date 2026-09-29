@@ -229,16 +229,6 @@ export const validate = (P, X) => {
     if (vids.has(+v.vid)) add("error", `VLAN-ID ${v.vid} ist doppelt vergeben (${vids.get(+v.vid).name} / ${v.name}).`, { vlan: v.id });
     vids.set(+v.vid, v);
     if (+v.vid < 1 || +v.vid > 4094) add("error", `VLAN „${v.name}“: ID ${v.vid} liegt außerhalb 1–4094.`, { vlan: v.id });
-    const c = parseCidr(v.subnetz);
-    if (v.subnetz && !c) add("error", `VLAN ${v.vid}: Subnetz „${v.subnetz}“ ist keine gültige CIDR-Angabe.`, { vlan: v.id });
-    if (c && !c.exact) add("warn", `VLAN ${v.vid}: „${v.subnetz}“ ist keine Netzadresse (gemeint: ${c.cidr}?).`, { vlan: v.id });
-    if (c && v.gateway && !inSubnet(v.gateway, c)) add("error", `VLAN ${v.vid}: Gateway ${v.gateway} liegt nicht im Subnetz ${c.cidr}.`, { vlan: v.id });
-    for (const r of DEFAULT_RANGES) if (c && subnetsOverlap(c.cidr, r.cidr)) add("info", `VLAN ${v.vid} (${c.cidr}) überschneidet sich mit dem Default-Bereich ${r.cidr} – ${r.name}.`, { vlan: v.id });
-  }
-  for (let i = 0; i < vlanList.length; i++) for (let j = i + 1; j < vlanList.length; j++) {
-    const a = vlanList[i], b = vlanList[j];
-    if (a.subnetz && b.subnetz && parseCidr(a.subnetz) && parseCidr(b.subnetz) && subnetsOverlap(a.subnetz, b.subnetz))
-      add("error", `Subnetze überschneiden sich: VLAN ${a.vid} (${a.subnetz}) und VLAN ${b.vid} (${b.subnetz}).`, { vlan: a.id });
   }
 
   // Adressen
@@ -249,7 +239,7 @@ export const validate = (P, X) => {
       if (i.mac && !isValidMac(i.mac)) add("warn", `${where}: MAC „${i.mac}“ hat kein gültiges Format.`, { dev: d.id });
       if (i.dhcp) {
         const v = X.vlanById.get(i.vlan);
-        if (v && !v.dhcp?.aktiv) add("info", `${where} bezieht die Adresse per DHCP, im VLAN ${v.vid} ist aber kein DHCP-Bereich eingetragen.`, { dev: d.id });
+        if (v && !v.dhcp?.aktiv) add("info", `${where} bezieht die Adresse per DHCP, im VLAN ${v.vid} ist DHCP aber nicht aktiviert.`, { dev: d.id });
         if (!i.ip) continue;
       }
       if (!i.ip) continue;
@@ -257,19 +247,7 @@ export const validate = (P, X) => {
       if (n === null) { add("error", `${where}: „${i.ip}“ ist keine gültige IPv4-Adresse.`, { dev: d.id }); continue; }
       if (!ipOwners.has(n)) ipOwners.set(n, []);
       ipOwners.get(n).push({ d, i });
-      const v = X.vlanById.get(i.vlan);
-      const c = v ? parseCidr(v.subnetz) : null;
-      if (!v) add("warn", `${where} (${i.ip}) ist keinem VLAN zugeordnet.`, { dev: d.id });
-      else if (c) {
-        if (!inSubnet(n, c)) add("error", `${where}: ${i.ip} liegt nicht im Subnetz von VLAN ${v.vid} (${c.cidr}).`, { dev: d.id });
-        else if (c.prefix < 31 && (n === c.net || n === c.bcast)) add("error", `${where}: ${i.ip} ist ${n === c.net ? "die Netzadresse" : "die Broadcast-Adresse"} von ${c.cidr}.`, { dev: d.id });
-        if (+i.prefix !== c.prefix) add("warn", `${where}: Maske /${i.prefix} passt nicht zu VLAN ${v.vid} (/${c.prefix}).`, { dev: d.id });
-        if (v.gateway && ip2int(v.gateway) === n) add("error", `${where}: ${i.ip} ist die Gateway-Adresse von VLAN ${v.vid}.`, { dev: d.id });
-        if (v.dhcp?.aktiv && !i.dhcp) {
-          const a = ip2int(v.dhcp.von), b = ip2int(v.dhcp.bis);
-          if (a !== null && b !== null && n >= a && n <= b) add("warn", `${where}: statische Adresse ${i.ip} liegt im DHCP-Bereich von VLAN ${v.vid}.`, { dev: d.id });
-        }
-      }
+      if (!X.vlanById.get(i.vlan)) add("warn", `${where} (${i.ip}) ist keinem VLAN zugeordnet.`, { dev: d.id });
     }
     if (d.webUi?.vorhanden && !webUrl(d)) add("info", `${d.name}: Web-UI ist eingetragen, aber es fehlt eine IP-Adresse für den Link.`, { dev: d.id });
   }
@@ -324,7 +302,6 @@ export const validate = (P, X) => {
     for (const d of devs) for (const s of d.protokolle || []) { const r = findProtokoll(s); if (r) refs.set(r.name, r); }
     const mc = [...refs.values()].filter((r) => r.flags.igmp || r.flags.multicast && !r.flags.p2p);
     if (mc.length && !v.igmp) add("warn", `VLAN ${v.vid} ${v.name}: Multicast-Protokolle (${mc.slice(0, 4).map((r) => r.name).join(", ")}) ohne IGMP-Snooping/Querier.`, { vlan: v.id });
-    if (v.igmp && !v.querier) add("info", `VLAN ${v.vid} ${v.name}: IGMP ist aktiv – genau einen Querier festlegen (Feld „Querier“).`, { vlan: v.id });
     const aoip = devs.some((d) => (d.protokolle || []).some((s) => AOIP.test(s)));
     if (aoip && !v.eeeAus) add("warn", `VLAN ${v.vid} ${v.name}: Audio over IP im VLAN – Energy Efficient Ethernet (802.3az) auf den Switches abschalten.`, { vlan: v.id });
     if (aoip && !v.qos) add("info", `VLAN ${v.vid} ${v.name}: Audio over IP ohne QoS (DSCP) geplant.`, { vlan: v.id });

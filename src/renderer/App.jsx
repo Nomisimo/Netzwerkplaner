@@ -25,7 +25,7 @@ import AnleitungTab from "./tabs/AnleitungTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
 
 
-const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs & IP-Plan"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
+const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
 
 const loadAutosave = () => {
   try { const s = localStorage.getItem(LS_KEY); if (s) return migrateProject(JSON.parse(s)); } catch (e) { console.error(e); }

@@ -53,7 +53,7 @@ export const ipRows = (P, X) => {
   const r = [];
   for (const d of P.geraete) for (const i of d.interfaces) {
     const v = X.vlanById.get(i.vlan);
-    r.push({ IP: i.ip || (i.dhcp ? "DHCP" : ""), Maske: prefixToMaskStr(+i.prefix), CIDR: "/" + i.prefix, VLAN: v ? v.vid : "", "VLAN-Name": v?.name || "", Gerät: d.name, Interface: i.name, Gateway: i.gateway || v?.gateway || "", MAC: i.mac, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell, "Web-UI": webUrl(d) || "" });
+    r.push({ IP: i.ip || (i.dhcp ? "DHCP" : ""), Maske: prefixToMaskStr(+i.prefix), CIDR: "/" + i.prefix, VLAN: v ? v.vid : "", "VLAN-Name": v?.name || "", Gerät: d.name, Interface: i.name, Gateway: i.gateway || "", MAC: i.mac, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell, "Web-UI": webUrl(d) || "" });
   }
   return r.sort((a, b) => (+a.VLAN || 9999) - (+b.VLAN || 9999) || ipSort(a.IP, b.IP));
 };
@@ -69,8 +69,8 @@ export const deviceRows = (P, X) => P.geraete.map((d) => ({
   Protokolle: (d.protokolle || []).join(", "), "Inventar-Nr.": d.inventar?.nr || "", Seriennummer: d.inventar?.sn || "", Case: d.inventar?.case || "", Notizen: d.notizen,
 }));
 export const vlanRows = (P) => [...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => ({
-  VLAN: v.vid, Name: v.name, Subnetz: v.subnetz, Maske: parseCidr(v.subnetz) ? prefixToMaskStr(parseCidr(v.subnetz).prefix) : "", Gateway: v.gateway, Zweck: v.zweck,
-  IGMP: v.igmp ? "ja" : "nein", Querier: v.querier, "EEE aus": v.eeeAus ? "ja" : "nein", QoS: v.qos ? "ja" : "nein", DHCP: v.dhcp?.aktiv ? `${v.dhcp.von} – ${v.dhcp.bis}` : "", Notiz: v.notiz,
+  VLAN: v.vid, Name: v.name, Zweck: v.zweck,
+  IGMP: v.igmp ? "ja" : "nein", "EEE aus": v.eeeAus ? "ja" : "nein", QoS: v.qos ? "ja" : "nein", DHCP: v.dhcp?.aktiv ? "ja" : "nein", Notiz: v.notiz,
 }));
 export const switchPortRows = (P, X) => {
   const r = [];
@@ -151,7 +151,7 @@ td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } 
   <h1${logo ? ' style="margin-top:10mm"' : ""}>${esc(m.veranstaltung)}</h1>
   <div class="meta">Netzwerkplan · Version ${esc(m.version)} · ${esc(m.datum)}${m.ort ? `<br>Ort: ${esc(m.ort)}` : ""}${m.ersteller ? `<br>Ersteller: ${esc(m.ersteller)}` : ""}${m.notiz ? `<br><br>${esc(m.notiz).replace(/\n/g, "<br>")}` : ""}</div>
   <div class="stats"><div><b>${P.geraete.length}</b>Geräte</div><div><b>${P.geraete.filter((d) => d.isSwitch).length}</b>Switches</div><div><b>${P.verbindungen.length}</b>Verbindungen</div><div><b>${P.vlans.length}</b>VLANs</div><div><b>${issues.filter((i) => i.sev === "error").length}</b>Fehler</div><div><b>${issues.filter((i) => i.sev === "warn").length}</b>Warnungen</div></div>
-  <h2>VLANs</h2>${table(vlanTable, ["VLAN", "Name", "Subnetz", "Gateway", "Zweck", "IGMP", "Querier", "EEE aus", "QoS", "DHCP"])}
+  <h2>VLANs</h2>${table(vlanTable, ["VLAN", "Name", "Zweck", "IGMP", "EEE aus", "QoS", "DHCP"])}
 </div>
 ${topo ? `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>` : ""}
 <div class="page">${head("IP-Liste")}${table(ipRows(P, X), ["IP", "CIDR", "VLAN", "Gerät", "Interface", "Gateway", "MAC", "Standort", "Modell", "Web-UI"])}</div>

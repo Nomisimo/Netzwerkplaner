@@ -49,7 +49,7 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
 
       <Section title="Switch-Konfiguration je VLAN" subtitle="Zusammenfassung dessen, was auf den managed Switches einzustellen ist.">
         <table style={S.table}>
-          <thead><tr><th style={S.th}>VLAN</th><th style={S.th}>Subnetz</th><th style={S.th}>IGMP</th><th style={S.th}>Querier</th><th style={S.th}>EEE</th><th style={S.th}>QoS</th><th style={S.th}>Protokolle im VLAN</th></tr></thead>
+          <thead><tr><th style={S.th}>VLAN</th><th style={S.th}>IGMP</th><th style={S.th}>EEE</th><th style={S.th}>QoS</th><th style={S.th}>Protokolle im VLAN</th></tr></thead>
           <tbody>
             {[...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => {
               const protos = new Set();
@@ -57,9 +57,7 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
               return (
                 <tr key={v.id}>
                   <td style={S.td}><VlanChip v={v} /></td>
-                  <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{v.subnetz}</td>
                   <td style={{ ...S.td, color: v.igmp ? OK : MUTED }}>{v.igmp ? "Snooping an" : "aus"}</td>
-                  <td style={S.td}>{v.querier || (v.igmp ? <span style={{ color: WARN }}>festlegen</span> : "–")}</td>
                   <td style={{ ...S.td, color: v.eeeAus ? OK : MUTED }}>{v.eeeAus ? "aus" : "–"}</td>
                   <td style={S.td}>{v.qos ? "aktiv" : "–"}</td>
                   <td style={{ ...S.td, fontSize: 11, color: SUB }}>{[...protos].slice(0, 8).join(", ")}{protos.size > 8 ? ` … (+${protos.size - 8})` : ""}</td>

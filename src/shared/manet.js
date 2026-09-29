@@ -83,8 +83,7 @@ export const maNetIssues = (P, X) => {
     const hat3 = e.gens.has(3);
     if (gens.length > 1) add("warn", `${name} mischt ${gens.map((g) => `MA-Net${g}`).join(" und ")}. Generationen in getrennte VLANs legen.`, { vlan: vid });
     if (hat3 || e.gens.has(2)) {
-      if (!v.igmp) add(hat3 ? "error" : "warn", `${name}: IGMP-Snooping ist aus. ${hat3 ? "MA-Net3" : "MA-Net2"} verteilt die Session per Multicast.`, { vlan: vid });
-      else if (!v.querier) add("warn", `${name}: kein IGMP-Querier eingetragen. Genau einen Querier festlegen, sonst bricht die Session nach einigen Minuten ab.`, { vlan: vid });
+      if (!v.igmp) add(hat3 ? "error" : "warn", `${name}: IGMP-Snooping ist aus. ${hat3 ? "MA-Net3" : "MA-Net2"} verteilt die Session per Multicast. Snooping an und genau einen Querier setzen.`, { vlan: vid });
     }
     if (hat3 && !v.eeeAus) add("error", `${name}: Energy Efficient Ethernet ist nicht als abgeschaltet markiert. Im MA-Net3-VLAN muss EEE aus sein.`, { vlan: vid });
 
@@ -121,12 +120,5 @@ export const maNetIssues = (P, X) => {
     }
   }
 
-  // Subnetz der Session
-  for (const [vid, e] of proVlan) {
-    const v = X.vlanById.get(vid);
-    const c = v ? parseCidr(v.subnetz) : null;
-    if (!v || c) continue;
-    if (e.gens.has(3)) add("info", `VLAN ${v.vid} ${v.name}: kein Subnetz eingetragen. Alle Mitglieder einer MA-Net3-Session brauchen dasselbe Subnetz.`, { vlan: vid });
-  }
   return issues;
 };

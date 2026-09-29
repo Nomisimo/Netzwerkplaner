@@ -21,7 +21,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
   return (
     <>
       {P.geraete.length === 0 && (
-        <Section title="Willkommen im Netzwerkplaner" subtitle="Offline-Planung für Veranstaltungsnetze: Topologie als Mindmap oder Frontplatten, VLANs, IP-Plan und Prüfungen in einer Projektdatei.">
+        <Section title="Willkommen im Netzwerkplaner" subtitle="Offline-Planung für Veranstaltungsnetze: Topologie als Mindmap oder Frontplatten, VLANs, IP-Adressen und Prüfungen in einer Projektdatei.">
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button style={S.primaryBtn} onClick={() => goTab("topologie")}>Leeres Projekt: zur Topologie</button>
             <button style={S.secondaryBtn} onClick={loadDemo}>Beispielprojekt laden</button>
