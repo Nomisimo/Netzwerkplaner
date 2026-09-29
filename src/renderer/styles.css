@@ -1,0 +1,25 @@
+/* ── Netzwerkplaner – Global CSS (Designsprache wie Stromplaner) ──────────
+   Wird vom Build statisch in <head> injiziert. */
+:root {
+  --sp-accent: #f5a623;
+  --sp-dark:   #1c2127;
+  --sp-panel:  #252b33;
+  --sp-line:   #3a424c;
+  --sp-bg:     #15191e;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--sp-bg); color: #e8eaed; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--sp-accent); outline-offset: -1px; }
+button:hover:not(:disabled) { filter: brightness(1.1); }
+button:active:not(:disabled) { filter: brightness(0.95); }
+button:disabled { opacity: .45; cursor: default !important; }
+a { color: inherit; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--sp-line); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #4a5563; }
+input[type=number]::-webkit-inner-spin-button { opacity: .4; }
+select option { background: #1b2026; }
+.sp-norm-hint { font-size: 10px; color: #7c8794; margin-top: 2px; display: block; }
+.sp-section-label { font-size: 11px; color: #9aa4af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px; }
+@keyframes npFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
