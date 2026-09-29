@@ -3,6 +3,11 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.5.0-beta.2] – 2026-09-30
+
+- macOS: Das Intel-DMG war beschädigt und ließ sich nicht öffnen (Fehler 3840). Jeder Mac-Build erzeugt jetzt nur noch sein DMG, und der Release prüft es vor dem Hochladen
+- „⇄ Modell zuweisen“ mit einem Gerät aus dem eigenen Gerätebestand übernimmt dessen feste IPs, Namen, Netzwerknamen und Inventar genau wie beim Einfügen; die Verbindungen bleiben
+
 ## [0.5.0-beta.1] – 2026-09-30
 
 - Bibliothek heißt jetzt einheitlich „Katalog“; Geräte lassen sich direkt im Katalog anlegen (Bestand und eigene Vorlagen)

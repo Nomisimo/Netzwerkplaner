@@ -5,6 +5,10 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.5.0-beta.2": [
+    "macOS: Das Intel-DMG war beschädigt und ließ sich nicht öffnen (Fehler 3840). Jeder Mac-Build erzeugt jetzt nur noch sein DMG, und der Release prüft es vor dem Hochladen",
+    "„⇄ Modell zuweisen“ mit einem Gerät aus dem eigenen Gerätebestand übernimmt dessen feste IPs, Namen, Netzwerknamen und Inventar genau wie beim Einfügen; die Verbindungen bleiben",
+  ],
   "0.5.0-beta.1": [
     "Bibliothek heißt jetzt einheitlich „Katalog“; Geräte lassen sich direkt im Katalog anlegen (Bestand und eigene Vorlagen)",
     "Gerätebestand als CSV exportieren und importieren, z. B. aus einer anderen Installation oder einer eigenen Excel-Liste",
