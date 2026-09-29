@@ -1,7 +1,7 @@
 /* ── Netzwerkplaner – Global CSS (Designsprache wie Stromplaner) ──────────
    Wird vom Build statisch in <head> injiziert. */
 :root {
-  --sp-accent: #f5a623;
+  --sp-accent: #b3483f;
   --sp-dark:   #1c2127;
   --sp-panel:  #252b33;
   --sp-line:   #3a424c;

@@ -26,7 +26,7 @@ export const topologySvg = (svgEl, P) => {
   Object.entries({ x, y, width: w, height: h, fill: "#15191e" }).forEach(([k, v]) => bg.setAttribute(k, v));
   clone.insertBefore(bg, clone.firstChild.nextSibling);
   const t = document.createElementNS(ns, "text");
-  Object.entries({ x: x + pad, y: y + 34, fill: "#f5a623", "font-size": 18, "font-weight": 800 }).forEach(([k, v]) => t.setAttribute(k, v));
+  Object.entries({ x: x + pad, y: y + 34, fill: "#b3483f", "font-size": 18, "font-weight": 800 }).forEach(([k, v]) => t.setAttribute(k, v));
   t.textContent = `${P.meta.veranstaltung}${P.meta.ort ? " · " + P.meta.ort : ""} · Netzwerktopologie · v${P.meta.version} · ${P.meta.datum}`;
   clone.appendChild(t);
   return { svg: new XMLSerializer().serializeToString(clone), w, h };
@@ -125,8 +125,8 @@ export const buildPdfHtml = (P, X, issues, topo) => {
 body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; color: #1c2127; font-size: 9.5px; }
 .page { width: 297mm; min-height: 210mm; padding: 10mm 12mm; page-break-after: always; position: relative; }
 .page:last-child { page-break-after: auto; }
-.head { display: flex; gap: 14px; align-items: baseline; border-bottom: 2px solid #f5a623; padding-bottom: 5px; margin-bottom: 10px; color: #555; }
-.head .logo { font-weight: 800; letter-spacing: 1px; color: #f5a623; font-size: 12px; }
+.head { display: flex; gap: 14px; align-items: baseline; border-bottom: 2px solid #b3483f; padding-bottom: 5px; margin-bottom: 10px; color: #555; }
+.head .logo { font-weight: 800; letter-spacing: 1px; color: #b3483f; font-size: 12px; }
 .head .t { margin-left: auto; font-weight: 700; color: #1c2127; font-size: 12px; }
 h1 { font-size: 26px; margin: 30mm 0 4px; } h2 { font-size: 13px; margin: 14px 0 6px; }
 .meta { color: #555; font-size: 12px; line-height: 1.7; }

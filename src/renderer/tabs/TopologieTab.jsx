@@ -7,6 +7,8 @@ import { Toggle, VlanSelect, Dot } from "../ui.jsx";
 import DeviceEditor from "../DeviceEditor.jsx";
 import ConnEditor from "../ConnEditor.jsx";
 import { api } from "../api.js";
+import DeviceContextMenu from "../DeviceContextMenu.jsx";
+import { endInfo, portLabel, vlanKurz, vlanLang } from "../portinfo.js";
 
 const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: "#9aa4af", p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
@@ -22,7 +24,8 @@ export default function TopologieTab(props) {
   const [katFilter, setKatFilter] = useState("");
   const [vlanFilter, setVlanFilter] = useState(null);
   const [q, setQ] = useState("");
-  const [showPorts, setShowPorts] = useState(false);
+  const [showPorts, setShowPorts] = useState(true);
+  const [ctx, setCtx] = useState(null); // Kontextmenü { id, x, y }
   const [paletteOpen, setPaletteOpen] = useState(true);
   const wrapRef = useRef(null);
   const fitted = useRef(false);
@@ -208,6 +211,7 @@ export default function TopologieTab(props) {
   const treeConnIds = new Set(treeChildByConn.keys());
 
   const H = "calc(100vh - 96px)";
+  const closeCtx = useCallback(() => setCtx(null), []);
 
   return (
     <div style={{ display: "flex", height: H, minHeight: 500 }}>
@@ -236,7 +240,7 @@ export default function TopologieTab(props) {
         <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
           <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }}>
             {[["move", "✥ Bewegen", "V"], ["connect", "🔗 Verbinden", "C"]].map(([k, l, key]) => (
-              <button key={k} title={`Taste ${key}`} onClick={() => setTool(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, ...(tool === k ? { background: ACCENT, color: DARK } : {}) }}>{l}</button>
+              <button key={k} title={`Taste ${key}`} onClick={() => setTool(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, ...(tool === k ? { background: ACCENT, color: "#fff" } : {}) }}>{l}</button>
             ))}
           </div>
           <button style={S.ghostBtn} onClick={fit} title="Alles einpassen">⤢ Einpassen</button>
@@ -251,7 +255,7 @@ export default function TopologieTab(props) {
           </select>
           <VlanSelect vlans={P.vlans} value={vlanFilter} onChange={setVlanFilter} style={{ width: "auto" }} noneLabel="Alle VLANs" />
           <input style={{ ...S.inputSm, width: 150 }} placeholder="🔍 Suchen (Name, IP)" value={q} onChange={(e) => setQ(e.target.value)} />
-          <Toggle checked={showPorts} onChange={setShowPorts} label="Ports" />
+          <Toggle checked={showPorts} onChange={setShowPorts} label="Port & VLAN" title="Switch-Port und VLAN an jeder Verbindung anzeigen" />
           <span style={{ flex: 1 }} />
           <button style={S.ghostBtn} onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen">⟳ Status</button>
           <Toggle checked={autoStatus} onChange={setAutoStatus} label="alle 15 s" title="Erreichbarkeit zyklisch prüfen" />
@@ -289,11 +293,8 @@ export default function TopologieTab(props) {
                     <path d={g.d} stroke="transparent" strokeWidth="14" fill="none" />
                     {(sel || st.errs) && <path d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
-                    {showPorts && <>
-                      <text x={g.x1 + (g.x2 > g.x1 ? 6 : g.x2 < g.x1 ? -6 : 4)} y={g.y1 - 5} fontSize="10" fill={SUB} textAnchor={g.x2 >= g.x1 ? "start" : "end"}>{pName(fromEnd)}</text>
-                      <text x={g.x2 + (g.x2 > g.x1 ? -6 : g.x2 < g.x1 ? 6 : 4)} y={g.y2 - 5} fontSize="10" fill={SUB} textAnchor={g.x2 >= g.x1 ? "end" : "start"}>{pName(toEnd)}</text>
-                      {c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill="#c8d0d8" textAnchor="middle">{c.label}</text>}
-                    </>}
+                    {showPorts && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} />}
+                    {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill="#c8d0d8" textAnchor="middle">{c.label}</text>}
                   </g>
                 );
               })}
@@ -322,7 +323,8 @@ export default function TopologieTab(props) {
                 const side = p.side || (p.x >= 0 ? 1 : -1);
                 return (
                   <g key={id} transform={`translate(${p.x - HW},${p.y - HH})`} opacity={dim ? 0.2 : 1}
-                    onMouseDown={(e) => onDown(e, id)} style={{ cursor: tool === "connect" ? "crosshair" : "pointer" }}>
+                    onMouseDown={(e) => onDown(e, id)} style={{ cursor: tool === "connect" ? "crosshair" : "pointer" }}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtx({ id, x: e.clientX, y: e.clientY }); }}>
                     {(sel || hover === id || hit) && <rect x="-4" y="-4" width={NODE_W + 8} height={NODE_H + 8} rx="11" fill="none" stroke={sel ? ACCENT : hover === id ? OK : "#fff"} strokeWidth="2" opacity=".9" />}
                     <rect width={NODE_W} height={NODE_H} rx="8" fill={isRoot ? "#262d36" : "#1f242b"} stroke={isRoot ? ACCENT : worst || LINE} strokeWidth={isRoot || worst ? 1.6 : 1} />
                     <rect width="5" height={NODE_H} rx="2" fill={col} />
@@ -363,9 +365,17 @@ export default function TopologieTab(props) {
             </g>
           </svg>
           <div style={{ position: "absolute", left: 10, bottom: 8, fontSize: 11, color: MUTED, pointerEvents: "none" }}>
-            {Math.round(view.k * 100)} % · Mausrad = Zoom · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : "Gerät ziehen = Ast verschieben"} · Entf = löschen
+            {Math.round(view.k * 100)} % · Mausrad = Zoom · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : "Gerät ziehen = Ast verschieben"} · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
           <Legend P={P} colorBy={colorBy} />
+          {ctx && X.devById.get(ctx.id) && (() => {
+            const d = X.devById.get(ctx.id);
+            const hasKids = (T.children.get(d.id) || []).length > 0 && !T.roots.includes(d.id);
+            return <DeviceContextMenu P={P} X={X} dev={d} x={ctx.x} y={ctx.y} status={status[d.id]} issues={devIssues.get(d.id) || []} onClose={closeCtx}
+              onEdit={() => setSelection({ type: "dev", id: d.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(d.id)}
+              onSetRoot={d.isSwitch && P.layout.rootId !== d.id ? () => mutate((dd) => { dd.layout.rootId = d.id; }) : null}
+              collapsed={!!P.layout.collapsed?.[d.id]} onToggleCollapse={hasKids ? () => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [d.id]: !dd.layout.collapsed?.[d.id] }; }) : null} />;
+          })()}
         </div>
       </div>
 
@@ -381,6 +391,53 @@ export default function TopologieTab(props) {
         </div>
       )}
     </div>
+  );
+}
+
+/* Port- und VLAN-Plakette an einer Verbindung: sitzt am Geräte-Ende und zeigt,
+   an welchem Switch-Port das Gerät steckt und welches VLAN dort anliegt. */
+const CW = 5.9; // geschätzte Zeichenbreite bei 10 px
+function PortBadge({ c, g, fromEnd, toEnd, X, extra }) {
+  const a = endInfo(c, fromEnd, X), b = endInfo(c, toEnd, X);
+  if (!a || !b) return null;
+  const sw = a.sw ? a : b.sw ? b : null;
+  const ep = sw === a ? b : a;
+  const seg = [];
+  if (a.sw && b.sw) seg.push({ t: `${portLabel(a.port)} ⇄ ${portLabel(b.port)}`, fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
+  else if (sw) seg.push({ t: portLabel(sw.port) + (sw.port.poe ? " ⚡" : ""), fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
+  else seg.push({ t: `${portLabel(a.port)} ⇄ ${portLabel(b.port)}`, fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
+  const info = sw && sw.managed ? sw : a.vlans.length ? a : b;
+  if (info.kind === "trunk") seg.push({ t: vlanKurz(info), fill: "#d8dde322", stroke: "#d8dde3", col: "#e8eaed" });
+  else if (info.vlans[0]) seg.push({ t: `VLAN ${info.vlans[0].vid}`, fill: info.vlans[0].farbe + "40", stroke: info.vlans[0].farbe, col: "#fff" });
+  else seg.push({ t: "kein VLAN", fill: "#ff5d5d22", stroke: "#ff5d5d", col: "#ffb3b3" });
+  if (sw && !ep.sw && ep.dev.ports.length > 1 && !/^\d+$/.test(ep.port.name)) seg.push({ t: ep.port.name, fill: "transparent", stroke: "transparent", col: SUB });
+  const widths = seg.map((s) => Math.round(s.t.length * CW + 10));
+  const total = widths.reduce((x, y) => x + y, 0);
+  const vertical = Math.abs(g.x2 - g.x1) < 2 || Math.abs(g.x2 - g.x1) < Math.abs(g.y2 - g.y1) * 0.25 && Math.abs(g.x2 - g.x1) < 40;
+  const dir = g.x2 >= g.x1 ? 1 : -1;
+  let x0, y0;
+  if (vertical) { const dy = g.y2 >= g.y1 ? 1 : -1; x0 = g.x2 + 6; y0 = g.y2 - dy * 20 - 7; }
+  else { x0 = dir > 0 ? g.x2 - 8 - total : g.x2 + 8; y0 = extra ? g.y2 + 5 : g.y2 - 18; } // Querverbindungen unter die Linie, damit sie die Baumkante nicht verdecken
+  const tip = [
+    sw ? `${sw.dev.name} · Port ${sw.port.name} (${sw.port.typ}${sw.port.poe ? ", PoE" : ""})` : `${a.dev.name} · ${a.port.name}`,
+    `→ ${ep.dev.name} · ${ep.port.name}${ep.ifc?.ip ? ` (${ep.ifc.ip})` : ""}`,
+    vlanLang(info),
+  ].join("\n");
+  let cx = x0;
+  return (
+    <g className="np-portbadge" transform={`translate(${cx},${y0})`}>
+      <title>{tip}</title>
+      {seg.map((s, n) => {
+        const x = widths.slice(0, n).reduce((p, q) => p + q, 0);
+        const first = n === 0, last = n === seg.length - 1;
+        return (
+          <g key={n} transform={`translate(${x},0)`}>
+            <rect width={widths[n]} height="14" rx={first || last ? 4 : 0} fill={s.fill === "transparent" ? "#12161acc" : s.fill} stroke={s.stroke} strokeWidth=".8" />
+            <text x={widths[n] / 2} y="10.3" fontSize="10" fill={s.col} fontWeight={s.bold ? 700 : 500} textAnchor="middle" fontFamily="'Segoe UI',system-ui,sans-serif">{s.t}</text>
+          </g>
+        );
+      })}
+    </g>
   );
 }
 

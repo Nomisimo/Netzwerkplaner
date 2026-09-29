@@ -129,7 +129,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], title = "Gerät h
               <div style={{ fontWeight: 600, fontSize: 13 }}>{i.title}</div>
               <div style={{ fontSize: 11, color: SUB }}>{i.sub}</div>
             </div>
-            {i.kind === "vorlage" && <span style={{ ...S.badge, background: ACCENT, color: "#1c2127" }}>Vorlage</span>}
+            {i.kind === "vorlage" && <span style={{ ...S.badge, background: ACCENT, color: "#fff" }}>Vorlage</span>}
             {i.kind === "typ" && <span style={{ ...S.badge, border: `1px solid ${LINE}`, color: SUB }}>generisch</span>}
           </button>
         ))}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
 import { mainIp, webUrl, suggestIp } from "../../shared/model.js";
 import { ipSort } from "../../shared/net.js";
@@ -6,12 +6,15 @@ import { Section, VlanChip, StatusDot, VlanSelect } from "../ui.jsx";
 import { IconView } from "../icons.jsx";
 import DeviceEditor from "../DeviceEditor.jsx";
 import { api } from "../api.js";
+import DeviceContextMenu from "../DeviceContextMenu.jsx";
 
 export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage }) {
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [vlan, setVlan] = useState(null);
   const [sort, setSort] = useState("name");
+  const [ctx, setCtx] = useState(null);
+  const closeCtx = useCallback(() => setCtx(null), []);
   const sel = selection?.type === "dev" ? X.devById.get(selection.id) : null;
   const devIssues = (id) => issues.filter((i) => i.dev === id || (i.devs || []).includes(id));
 
@@ -64,7 +67,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
                   const url = webUrl(d);
                   const active = sel?.id === d.id;
                   return (
-                    <tr key={d.id} onClick={() => setSelection({ type: "dev", id: d.id })} style={{ cursor: "pointer", background: active ? ACCENT + "1c" : undefined }}>
+                    <tr key={d.id} onClick={() => setSelection({ type: "dev", id: d.id })} onContextMenu={(e) => { e.preventDefault(); setCtx({ id: d.id, x: e.clientX, y: e.clientY }); }} style={{ cursor: "pointer", background: active ? ACCENT + "1c" : undefined }}>
                       <td style={S.td}><IconView icon={d.icon} customIcons={P.icons} color={katColor(d.kategorie)} size={20} /></td>
                       <td style={S.td}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -87,6 +90,8 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
           </div>
         )}
       </Section>
+      {ctx && X.devById.get(ctx.id) && <DeviceContextMenu P={P} X={X} dev={X.devById.get(ctx.id)} x={ctx.x} y={ctx.y} status={status[ctx.id]} issues={devIssues(ctx.id)} onClose={closeCtx}
+        onEdit={() => setSelection({ type: "dev", id: ctx.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(ctx.id)} />}
       {sel && (
         <Section style={{ position: "sticky", top: 100, maxHeight: "calc(100vh - 120px)", overflowY: "auto" }}
           right={<button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}>✕</button>} title=" ">

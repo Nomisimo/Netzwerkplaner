@@ -1,6 +1,6 @@
 /* ── Farben (identisch zum Stromplaner) ─────────────────────────────────── */
-export const ACCENT = "#f5a623", DARK = "#1c2127", PANEL = "#252b33", LINE = "#3a424c", BG = "#15191e";
-export const OK = "#2ecc71", WARN = "#f39c12", ERR = "#e74c3c", INFO = "#4ea1ff", MUTED = "#7c8794", SUB = "#9aa4af";
+export const ACCENT = "#b3483f", DARK = "#1c2127", PANEL = "#252b33", LINE = "#3a424c", BG = "#15191e";
+export const OK = "#2ecc71", WARN = "#f39c12", ERR = "#ff5d5d", INFO = "#4ea1ff", MUTED = "#7c8794", SUB = "#9aa4af";
 
 export const LS_KEY = "netzwerkplaner_autosave";
 
@@ -80,7 +80,7 @@ export const S = {
   header:       { display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", background: DARK, borderBottom: `2px solid ${ACCENT}`, position: "sticky", top: 0, zIndex: 10, flexWrap: "wrap" },
   logo:         { fontWeight: 800, fontSize: 18, letterSpacing: 1, color: ACCENT, whiteSpace: "nowrap" },
   headerMeta:   { fontSize: 12, color: SUB, flex: 1, minWidth: 120 },
-  exportBtn:    { background: ACCENT, color: DARK, border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 },
+  exportBtn:    { background: ACCENT, color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 },
   ghostBtn:     { background: "transparent", color: "#e8eaed", border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 11px", fontWeight: 600, cursor: "pointer", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 },
   nav:          { display: "flex", gap: 4, padding: "0 18px", background: DARK, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap", position: "sticky", top: 51, zIndex: 9 },
   navBtn:       { background: "transparent", border: "none", color: SUB, padding: "11px 13px", cursor: "pointer", fontSize: 13, borderBottom: "3px solid transparent", transition: "color 0.14s,border-color 0.14s" },
@@ -99,7 +99,7 @@ export const S = {
   select:       { background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 10px", color: "#fff", fontSize: 14, minWidth: 160 },
   selectSm:     { background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 5, padding: "5px 8px", color: "#fff", fontSize: 13, width: "100%", boxSizing: "border-box" },
   row:          { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 16 },
-  primaryBtn:   { background: ACCENT, color: DARK, border: "none", borderRadius: 6, padding: "9px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 },
+  primaryBtn:   { background: ACCENT, color: "#fff", border: "none", borderRadius: 6, padding: "9px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 },
   secondaryBtn: { background: "#323a44", color: "#fff", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer", fontSize: 12 },
   smallBtn:     { background: "#323a44", color: "#fff", border: `1px solid ${LINE}`, borderRadius: 5, padding: "4px 8px", cursor: "pointer", fontSize: 11, whiteSpace: "nowrap" },
   dangerBtn:    { background: "transparent", color: ERR, border: "1px solid #5a2a2a", borderRadius: 5, padding: "4px 9px", cursor: "pointer", fontWeight: 700 },
@@ -116,7 +116,7 @@ export const S = {
   cardBody:     { padding: 14, borderTop: `1px solid ${LINE}` },
   boxTabs:      { display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 14 },
   boxTab:       { background: PANEL, border: `1px solid ${LINE}`, color: SUB, borderRadius: 6, padding: "7px 12px", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 },
-  boxTabActive: { background: ACCENT, color: DARK, fontWeight: 700, border: `1px solid ${ACCENT}` },
+  boxTabActive: { background: ACCENT, color: "#fff", fontWeight: 700, border: `1px solid ${ACCENT}` },
   chip:         { display: "inline-flex", alignItems: "center", gap: 4, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: "#c8d0d8", whiteSpace: "nowrap" },
   badge:        { display: "inline-block", borderRadius: 4, padding: "1px 6px", fontSize: 10, fontWeight: 700 },
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" },
