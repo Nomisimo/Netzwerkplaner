@@ -1,7 +1,10 @@
 # Baut die Installer für Windows (x64) und macOS (Apple Silicon und Intel)
 # und veröffentlicht sie als GitHub-Release.
 #
-# Auslöser: ein Tag „v…“ pushen, z. B.  git tag v0.2.0-beta.1 && git push origin v0.2.0-beta.1
+# Auslöser:
+#  - ein Tag „v…“ pushen, z. B.  git tag v0.2.0-beta.1 && git push origin v0.2.0-beta.1
+#  - oder auf GitHub unter Actions → Release → „Run workflow“ starten: baut den gewählten
+#    Branch (meist main) und legt den Tag v<version aus package.json> selbst an.
 # Tags mit Bindestrich (…-beta.1, …-rc.1) werden als Vorabversion (Beta) veröffentlicht.
 # Die Versionsnummer im Tag muss zur „version“ in package.json passen.
 name: Release
@@ -10,10 +13,6 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Vorhandener Tag, z. B. v0.2.0-beta.1"
-        required: true
 
 permissions:
   contents: write
@@ -37,8 +36,6 @@ jobs:
             args: --mac --x64
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -51,8 +48,8 @@ jobs:
       - name: Version prüfen
         shell: bash
         run: |
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           PKG="v$(node -p "require('./package.json').version")"
+          if [ "${{ github.ref_type }}" = "tag" ]; then TAG="${{ github.ref_name }}"; else TAG="$PKG"; fi
           echo "Tag $TAG, package.json $PKG"
           if [ "$TAG" != "$PKG" ]; then echo "::error::Tag $TAG passt nicht zu package.json ($PKG)"; exit 1; fi
 
@@ -81,8 +78,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -93,7 +88,8 @@ jobs:
         id: notes
         shell: bash
         run: |
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          PKG="v$(node -p "require('./package.json').version")"
+          if [ "${{ github.ref_type }}" = "tag" ]; then TAG="${{ github.ref_name }}"; else TAG="$PKG"; fi
           V="${TAG#v}"
           node -e '
             const v = process.argv[1];
@@ -108,6 +104,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.notes.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: Netzwerkplaner ${{ steps.notes.outputs.tag }}
           body_path: notes.md
           prerelease: ${{ steps.notes.outputs.prerelease }}
