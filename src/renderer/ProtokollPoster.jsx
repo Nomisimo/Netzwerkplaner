@@ -58,7 +58,7 @@ const UEB = { U: "Unicast", B: "Broadcast", M: "Multicast" };
 const uebText = (s) => s.split("").map((c) => (UEB[c.toUpperCase()] ? (c === c.toLowerCase() ? `(${UEB[c.toUpperCase()]})` : UEB[c]) : "")).filter(Boolean).join(", ");
 
 export default function ProtokollPoster() {
-  const COL = 30, LEFT = 360, TOP = 150, ROW = 26;
+  const COL = 30, LEFT = 440, TOP = 150, ROW = 26;
   const n = POSTER_PROTOKOLLE.length;
   const W = LEFT + n * COL + 20, H = TOP + 7 * ROW + 190;
   const yLayer = (l) => TOP + (7 - l) * ROW;
@@ -71,16 +71,16 @@ export default function ProtokollPoster() {
   return (
     <div>
       <div style={{ overflowX: "auto", border: `1px solid ${LINE}`, borderRadius: 8, background: "#161b21" }}>
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", fontFamily: "'Segoe UI',system-ui,sans-serif" }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ display: "block", width: "100%", minWidth: 1100, height: "auto", fontFamily: "'Segoe UI',system-ui,sans-serif" }}>
           {/* OSI-Schichten links */}
           <text x="14" y={TOP - 14} fontSize="11" fill={SUB} fontWeight="700">OSI-SCHICHT</text>
-          <text x="170" y={TOP - 14} fontSize="11" fill={SUB} fontWeight="700">EINHEIT · ADRESSE · GERÄTE</text>
+          <text x="232" y={TOP - 14} fontSize="11" fill={SUB} fontWeight="700">EINHEIT · ADRESSE · GERÄTE</text>
           {OSI.map(([nr, en, de, einheit, adr, ger, col]) => (
             <g key={nr}>
               <rect x="10" y={yLayer(nr)} width={LEFT - 20} height={ROW - 2} rx="3" fill={col + "cc"} />
               <text x="18" y={yLayer(nr) + 16} fontSize="12" fontWeight="700" fill="#fff">{nr} {en}</text>
-              <text x="118" y={yLayer(nr) + 16} fontSize="10.5" fill="#ffffffcc">{de}</text>
-              <text x="200" y={yLayer(nr) + 16} fontSize="10.5" fill="#fff">{[einheit, adr, ger].filter(Boolean).join(" · ")}</text>
+              <text x="140" y={yLayer(nr) + 16} fontSize="10.5" fill="#ffffffcc">{de}</text>
+              <text x="232" y={yLayer(nr) + 16} fontSize="10" fill="#fff">{[einheit, adr, ger].filter(Boolean).join(" · ")}</text>
             </g>
           ))}
           {/* Spalten je Protokoll */}
@@ -92,8 +92,9 @@ export default function ProtokollPoster() {
               <g key={kurz}>
                 <title>{`${kurz}: ${lang}\nPort ${port} · ${tr}${ueb ? " · " + uebText(ueb) : ""}${mc ? "\nMulticast: " + mc : ""}`}</title>
                 <rect x={x + 2} y={oben - (tr === "L2" ? 0 : 118)} width={COL - 4} height={(tr === "L2" ? yLayer(2) + ROW - 2 : yLayer(4) - 2) - (oben - (tr === "L2" ? 0 : 118))} rx="3" fill={col + "33"} stroke={col} strokeWidth=".8" />
-                <text transform={`translate(${x + COL / 2 + 4},${oben - (tr === "L2" ? 6 : 124)}) rotate(-90)`} fontSize="11" fill="#fff" fontWeight="700">{port !== "–" ? `${port} ${kurz}` : kurz}</text>
-                {mc && <text transform={`translate(${x + COL / 2 + 4},${oben - (tr === "L2" ? 6 : 124) - (String(port).length + kurz.length + 2) * 6.6}) rotate(-90)`} fontSize="9.5" fill="#8ec5ff">{mc}</text>}
+                <text transform={`translate(${x + COL / 2 + 4},${tr === "L2" ? yLayer(2) + ROW - 8 : yLayer(4) - 8}) rotate(-90)`} fontSize="11" fill="#fff" fontWeight="700">
+                  {port !== "–" ? `${port} ${kurz}` : kurz}{mc && <tspan fontSize="9.5" fontWeight="400" fill="#8ec5ff">{`  ${mc}`}</tspan>}
+                </text>
                 <text x={x + COL / 2} y={yLayer(3) + 16} fontSize="9.5" fontWeight="700" fill="#fff" textAnchor="middle">{ueb}</text>
                 <text transform={`translate(${x + COL / 2 + 4},${yLayer(1) + ROW + 58}) rotate(-90)`} fontSize="9.5" fill={SUB} textAnchor="end" fontStyle="italic">{lang.length > 34 ? lang.slice(0, 33) + "…" : lang}</text>
               </g>
