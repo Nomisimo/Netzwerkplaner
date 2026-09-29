@@ -4,6 +4,8 @@ import { uid } from "../../shared/catalog.js";
 import { Section } from "../ui.jsx";
 import { IconView } from "../icons.jsx";
 import { api } from "../api.js";
+import { bestandZuCsv, csvZuBestand } from "../../shared/bestandcsv.js";
+import GeraetAnlegen from "../GeraetAnlegen.jsx";
 
 const datum = (iso) => (iso ? new Date(iso).toLocaleDateString("de-DE") : "");
 
@@ -13,6 +15,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [sel, setSel] = useState(() => new Set());
+  const [anlegen, setAnlegen] = useState(false);
   const fileRef = useRef(null);
   const bestand = library.bestand || [];
   const ql = q.toLowerCase();
@@ -45,12 +48,20 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   const toggle = (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const exportJson = () => api.saveFile(JSON.stringify({ format: "netzwerkplaner-bestand", version: 1, bestand, icons: library.icons || [] }, null, 2), "Gerätebestand.json", [{ name: "JSON", extensions: ["json"] }], "utf8");
-  const importJson = (e) => {
+  const exportCsv = () => api.saveFile(bestandZuCsv(bestand), "Gerätebestand.csv", [{ name: "CSV", extensions: ["csv"] }], "utf8");
+  const importDatei = (e) => {
     const f = e.target.files[0];
     e.target.value = "";
     if (!f) return;
     const r = new FileReader();
     r.onload = () => {
+      if (/\.(csv|txt|tsv)$/i.test(f.name) || !/^\s*\{/.test(r.result)) {
+        const { bestand: neu, fehler } = csvZuBestand(r.result, P.vlans);
+        if (!neu.length) return notify("In der CSV wurden keine Geräte gefunden. Erste Zeile muss die Spaltennamen enthalten (mindestens „Name“).", "err");
+        setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...neu] }));
+        const ohne = neu.filter((b) => !b.geraet.katalogId).length;
+        return notify(`${neu.length} Geräte aus CSV in den Bestand importiert${ohne ? `, ${ohne} ohne Katalogmodell (generischer Typ)` : ""}${fehler.length ? `, ${fehler.length} Zeilen übersprungen` : ""}.`);
+      }
       try {
         const data = JSON.parse(r.result);
         const neu = (data.bestand || []).filter((b) => b?.geraet?.interfaces);
@@ -74,9 +85,11 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
       subtitle="Deine eigenen Geräte mit Name, Netzwerkname, IPs, MACs, Ports und Inventardaten. Speichern im Geräte-Editor mit „⇩ In Bestand“. Beim Einfügen bleiben IPs und Einstellungen erhalten; VLANs werden über die VLAN-ID zugeordnet."
       right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button style={S.secondaryBtn} onClick={onSaveAlleBestand} title="Alle Geräte dieses Projekts, die noch nicht im Bestand sind, übernehmen">⇩ Projektgeräte übernehmen</button>
-        <button style={S.secondaryBtn} onClick={exportJson} disabled={!bestand.length}>Export</button>
-        <button style={S.secondaryBtn} onClick={() => fileRef.current?.click()}>Import</button>
-        <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={importJson} />
+        <button style={S.primaryBtn} onClick={() => setAnlegen(true)}>+ Neues Gerät</button>
+        <button style={S.secondaryBtn} onClick={exportCsv} disabled={!bestand.length} title="Als CSV (Excel, andere Netzwerkplaner-Installationen)">Export CSV</button>
+        <button style={S.secondaryBtn} onClick={exportJson} disabled={!bestand.length} title="Als JSON mit eigenen Icons">Export JSON</button>
+        <button style={S.secondaryBtn} onClick={() => fileRef.current?.click()} title="CSV oder JSON aus einer anderen Installation oder einer eigenen Liste">Import</button>
+        <input ref={fileRef} type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv" style={{ display: "none" }} onChange={importDatei} />
       </div>}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="🔍 Name, IP, MAC, Modell, Inventar-Nr., Case" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -132,6 +145,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
           </table>
         </div>
       )}
+      {anlegen && <GeraetAnlegen P={P} ziel="bestand" onClose={() => setAnlegen(false)} onSave={(b) => { setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), b] })); setAnlegen(false); notify(`„${b.name}“ im Gerätebestand angelegt.`); }} />}
     </Section>
   );
 }
