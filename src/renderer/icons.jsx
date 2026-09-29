@@ -1,8 +1,19 @@
 import React from "react";
 import BUILTIN from "virtual:device-icons";
+import { MODELL_ICONS } from "../shared/geraeteicons.js";
 
 export const BUILTIN_ICONS = BUILTIN; // { name: innerSvgMarkup }
 export const ICON_NAMES = Object.keys(BUILTIN).sort();
+
+// Für das Auswahlmenü: erst die Typ-Icons, dann die Modell-Icons je Hersteller
+export const ICON_LABEL = Object.fromEntries(Object.entries(MODELL_ICONS).map(([k, [, label]]) => [k, label]));
+export const ICON_GRUPPEN = [
+  { titel: "Gerätetypen", icons: ICON_NAMES.filter((n) => !MODELL_ICONS[n]) },
+  ...[...new Set(Object.values(MODELL_ICONS).map(([h]) => h))].map((h) => ({
+    titel: h,
+    icons: Object.keys(MODELL_ICONS).filter((k) => MODELL_ICONS[k][0] === h && BUILTIN[k]),
+  })),
+];
 
 const inner = (svg) => svg.replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
 const INNER = Object.fromEntries(Object.entries(BUILTIN).map(([k, v]) => [k, inner(v)]));

@@ -1,5 +1,6 @@
 import KATALOG from "./data/katalog.json";
 import { TYPEN, KAT_VLAN } from "./constants.js";
+import { modellIcon } from "./geraeteicons.js";
 
 export { KATALOG };
 export const uid = () => Math.random().toString(36).slice(2, 10);
@@ -129,6 +130,7 @@ export const KATALOG_GERAETE = KATALOG.geraete.map((g) => ({
   geraetetyp: g.Gerätetyp,
   typ: typFuerGeraetetyp(g.Gerätetyp),
   kategorie: katFuer(g),
+  icon: modellIcon(g.Hersteller, g.Modell) || TYPEN[typFuerGeraetetyp(g.Gerätetyp)]?.icon || "sonstiges", // Modell-Icon, sonst das des Typs
   raw: g,
 }));
 
@@ -256,7 +258,7 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
     hersteller: k?.hersteller || "",
     modell: k?.modell || "",
     katalogId: k?.id || null,
-    icon: TYPEN[t]?.icon || "sonstiges",
+    icon: (k && modellIcon(k.hersteller, k.modell)) || TYPEN[t]?.icon || "sonstiges",
     bereich: "",
     isSwitch,
     poeBudget: isSwitch ? 0 : undefined,
