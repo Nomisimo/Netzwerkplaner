@@ -1,0 +1,114 @@
+# Baut die Installer für Windows (x64) und macOS (Apple Silicon und Intel)
+# und veröffentlicht sie als GitHub-Release.
+#
+# Auslöser: ein Tag „v…“ pushen, z. B.  git tag v0.2.0-beta.1 && git push origin v0.2.0-beta.1
+# Tags mit Bindestrich (…-beta.1, …-rc.1) werden als Vorabversion (Beta) veröffentlicht.
+# Die Versionsnummer im Tag muss zur „version“ in package.json passen.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Vorhandener Tag, z. B. v0.2.0-beta.1"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            args: --win --x64
+          - name: macOS Apple Silicon
+            os: macos-latest
+            args: --mac --arm64
+          - name: macOS Intel
+            os: macos-latest
+            args: --mac --x64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Version prüfen
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          PKG="v$(node -p "require('./package.json').version")"
+          echo "Tag $TAG, package.json $PKG"
+          if [ "$TAG" != "$PKG" ]; then echo "::error::Tag $TAG passt nicht zu package.json ($PKG)"; exit 1; fi
+
+      - name: Tests
+        run: npm test
+
+      - name: App bauen
+        run: npm run build
+
+      - name: Installer bauen
+        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ strategy.job-index }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+          if-no-files-found: error
+
+  release:
+    name: GitHub-Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artefakte
+          merge-multiple: true
+
+      - name: Release-Text aus dem Changelog
+        id: notes
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          V="${TAG#v}"
+          node -e '
+            const v = process.argv[1];
+            const src = require("fs").readFileSync("CHANGELOG.md", "utf8");
+            const m = src.split(/^## /m).find((s) => s.startsWith("[" + v + "]") || s.startsWith(v));
+            console.log(m ? m.split("\n").slice(1).join("\n").trim() : "");
+          ' "$V" > notes.md
+          cat .github/release-hinweise.md >> notes.md
+          echo "prerelease=$([[ "$TAG" == *-* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.notes.outputs.tag }}
+          name: Netzwerkplaner ${{ steps.notes.outputs.tag }}
+          body_path: notes.md
+          prerelease: ${{ steps.notes.outputs.prerelease }}
+          files: artefakte/*

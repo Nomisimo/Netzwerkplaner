@@ -15,19 +15,14 @@ import VlanTab from "./tabs/VlanTab.jsx";
 import PatchTab from "./tabs/PatchTab.jsx";
 import PruefungTab from "./tabs/PruefungTab.jsx";
 import BibliothekTab from "./tabs/BibliothekTab.jsx";
+import AnalyseTab from "./tabs/AnalyseTab.jsx";
+import WissenTab from "./tabs/WissenTab.jsx";
+import { analyseIssues } from "../shared/analyse.js";
+import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } from "../shared/version.js";
 import AnleitungTab from "./tabs/AnleitungTab.jsx";
 
-const CHANGELOG = {
-  "0.1.0": [
-    "Erste Version: Topologie als Mindmap mit Drag & Drop, Verbinden-Werkzeug, Ein-/Ausklappen und Auto-Layout",
-    "Geräte aus dem Hardwarekatalog (Ports, Protokolle, Web-UI vorbelegt) und generische Typen mit eigenen Icons",
-    "VLANs, IP-Plan mit Konfliktprüfung und Vorschlag der nächsten freien Adresse",
-    "Patchliste, Switch-Port-Konfiguration (Access/Trunk, PoE), Prüfung nach den Regeln der Protokollrecherche",
-    "Web-UI-Links und Erreichbarkeit per TCP/Ping, Exporte als PDF, Excel, CSV, SVG und PNG",
-  ],
-};
 
-const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs & IP-Plan"], ["patch", "Patchliste"], ["pruefung", "Prüfung"], ["bibliothek", "Bibliothek"], ["hilfe", "Anleitung"]];
+const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs & IP-Plan"], ["patch", "Patchliste"], ["pruefung", "Prüfung"], ["analyse", "Analyse"], ["wissen", "Wissen"], ["bibliothek", "Bibliothek"], ["hilfe", "Anleitung"]];
 
 const loadAutosave = () => {
   try { const s = localStorage.getItem(LS_KEY); if (s) return migrateProject(JSON.parse(s)); } catch (e) { console.error(e); }
@@ -53,6 +48,8 @@ export default function App() {
   const [protoId, setProtoId] = useState(null);
   const [bibSub, setBibSub] = useState("bestand");
   const [changelog, setChangelog] = useState(false);
+  const [update, setUpdate] = useState(null); // { tag, url } wenn neuer als die laufende Version
+  const [updateStatus, setUpdateStatus] = useState("");
   const [toast, setToast] = useState(null);
   const [version, setVersion] = useState("");
   const svgRef = useRef(null);
@@ -126,7 +123,7 @@ export default function App() {
   }, [P.icons, libLoaded]);
 
   const X = useMemo(() => buildIndex(P), [P]);
-  const issues = useMemo(() => validate(P, X), [P, X]);
+  const issues = useMemo(() => [...validate(P, X), ...analyseIssues(P, X)], [P, X]);
   const Pv = useMemo(() => ({ ...P, icons: allIcons }), [P, allIcons]);
 
   /* ── Erreichbarkeit ─────────────────────────────────────────────────── */
@@ -153,6 +150,19 @@ export default function App() {
     const t = setInterval(() => checkReach(), 15000);
     return () => clearInterval(t);
   }, [autoStatus, checkReach]);
+
+  /* ── Versionen: beim Start prüfen, ob auf GitHub eine neuere Version liegt ── */
+  const checkUpdate = useCallback(async (manuell = false) => {
+    if (!version || version === "dev") return;
+    if (manuell) setUpdateStatus("Suche …");
+    const list = await api.fetchReleases();
+    if (!list) { if (manuell) setUpdateStatus("GitHub nicht erreichbar."); return; }
+    // Stabile Versionen sehen nur stabile Releases, Betas sehen alles
+    const n = neuesteVersion(istBeta(version) ? list : list.filter((r) => !r.prerelease));
+    if (n && compareVersions(n.tag_name, version) > 0) { setUpdate({ tag: n.tag_name.replace(/^v/, ""), url: n.html_url || RELEASES_URL }); setUpdateStatus(`Neue Version ${n.tag_name} verfügbar.`); }
+    else if (manuell) setUpdateStatus(`Du nutzt die neueste Version (${version}).`);
+  }, [version]);
+  useEffect(() => { checkUpdate(false); }, [checkUpdate]);
 
   /* ── Geräte & Verbindungen ──────────────────────────────────────────── */
   const addDevice = useCallback((item, { connectTo, at, picker: usePicker } = {}) => {
@@ -301,6 +311,10 @@ export default function App() {
     <div style={S.app}>
       <header style={S.header}>
         <div style={S.logo}>⌬ NETZWERKPLANER</div>
+        {version && <button onClick={() => setChangelog(true)} title="Version und Änderungen" style={{ background: "none", border: `1px solid ${LINE}`, borderRadius: 10, color: SUB, fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
+          v{version.replace(/-beta\.?\d*$/i, "")}{istBeta(version) && <span style={{ marginLeft: 5, color: "#fff", background: ACCENT, borderRadius: 6, padding: "0 5px", fontSize: 9.5, fontWeight: 700 }}>BETA {(version.match(/beta\.?(\d+)/i) || [])[1] || ""}</span>}
+        </button>}
+        {update && <button onClick={() => api.openExternal(update.url)} title="Download-Seite öffnen" style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>⬆ {update.tag} verfügbar</button>}
         <div style={S.headerMeta}>{P.meta.veranstaltung} · v{P.meta.version} · {P.meta.datum}{filePath && <span style={{ color: MUTED }}> · {filePath.split(/[\\/]/).pop()}</span>}</div>
         <span style={{ fontSize: 10, color: "#555" }} title="Automatisch gespeichert">💾 auto</span>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={undo} title="Rückgängig (Strg+Z)" disabled={!hist.current.undo.length}>↶</button>
@@ -352,6 +366,8 @@ export default function App() {
             {tab === "patch" && <PatchTab P={Pv} X={X} mutate={mutate} issues={issues} onSelectDevice={selectDevice} onDeleteConn={deleteConn} />}
             {tab === "pruefung" && <PruefungTab P={Pv} X={X} issues={issues} onShowIssue={showIssue} />}
             {tab === "bibliothek" && <BibliothekTab P={Pv} mutate={mutate} onSaveAlleBestand={saveAlleBestand} notify={notify} library={library} setLibrary={setLibrary} protoId={protoId} setProtoId={setProtoId} onAddDevice={addDevice} onSelectDevice={selectDevice} sub={bibSub} setSub={setBibSub} allIcons={allIcons} />}
+            {tab === "analyse" && <AnalyseTab P={Pv} X={X} onSelectDevice={selectDevice} goTab={setTab} />}
+            {tab === "wissen" && <WissenTab />}
             {tab === "hilfe" && <AnleitungTab />}
           </div>
         </main>
@@ -364,7 +380,12 @@ export default function App() {
         <ProtokollDetail p={PROTOKOLLE.find((p) => p.id === protoModal)} P={Pv} onSelectDevice={(id) => { setProtoModal(null); selectDevice(id); }} />
       </Modal>}
       {changelog && <Modal title={`Netzwerkplaner ${version}`} onClose={() => setChangelog(false)}>
-        {Object.entries(CHANGELOG).map(([v, items]) => <div key={v}><div className="sp-section-label">Version {v}</div><ul style={{ margin: "0 0 12px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13 }}>{items.map((t, i) => <li key={i}>{t}</li>)}</ul></div>)}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+          <button style={S.secondaryBtn} onClick={() => checkUpdate(true)}>Nach Updates suchen</button>
+          <button style={S.ghostBtn} onClick={() => api.openExternal(update?.url || RELEASES_URL)}>Alle Versionen auf GitHub</button>
+          <span style={{ fontSize: 12, color: update ? "#2ecc71" : SUB }}>{updateStatus}</span>
+        </div>
+        {Object.entries(CHANGELOG).map(([v, items]) => <div key={v}><div className="sp-section-label">Version {v}{v === version ? " (installiert)" : ""}</div><ul style={{ margin: "0 0 12px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13 }}>{items.map((t, i) => <li key={i}>{t}</li>)}</ul></div>)}
       </Modal>}
       {toast && <div style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", background: "#1b2026", border: `1px solid ${toast.kind === "err" ? ERR : toast.kind === "warn" ? WARN : ACCENT}`, color: "#e8eaed", padding: "9px 16px", borderRadius: 8, fontSize: 13, zIndex: 2000, boxShadow: "0 8px 24px rgba(0,0,0,.5)", maxWidth: "80vw" }}>{toast.msg}</div>}
     </div>

@@ -32,3 +32,13 @@ test("Nächste freie Adresse", () => {
   assert.ok(isValidMac("00:1d:c1:aa:bb:cc"));
   assert.ok(!isValidMac("00:1d:c1"));
 });
+
+test("Versionsvergleich mit Beta-Versionen", async () => {
+  const { compareVersions, neuesteVersion } = await import("../src/shared/version.js");
+  assert.ok(compareVersions("0.2.0-beta.1", "0.2.0-beta.2") < 0);
+  assert.ok(compareVersions("0.2.0-beta.2", "0.2.0") < 0);
+  assert.ok(compareVersions("v0.2.0", "0.1.9") > 0);
+  assert.ok(compareVersions("0.2.0-beta.10", "0.2.0-beta.9") > 0);
+  assert.equal(compareVersions("1.0.0", "v1.0.0"), 0);
+  assert.equal(neuesteVersion([{ tag_name: "v0.2.0-beta.1" }, { tag_name: "v0.2.0-beta.3" }, { tag_name: "v0.3.0", draft: true }]).tag_name, "v0.2.0-beta.3");
+});

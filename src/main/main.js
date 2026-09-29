@@ -84,6 +84,18 @@ function sendOpenFile(filePath) {
 }
 
 ipcMain.handle('app-version', () => app.getVersion());
+
+// Neueste Releases von GitHub holen (für den Update-Hinweis). Ohne Netz: null.
+const RELEASES_API = 'https://api.github.com/repos/Nomisimo/Netzwerkplaner/releases?per_page=20';
+ipcMain.handle('fetch-releases', async () => {
+  try {
+    const { net: enet } = require('electron');
+    const r = await enet.fetch(RELEASES_API, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Netzwerkplaner' } });
+    if (!r.ok) return null;
+    const list = await r.json();
+    return Array.isArray(list) ? list.map((x) => ({ tag_name: x.tag_name, name: x.name, html_url: x.html_url, prerelease: x.prerelease, draft: x.draft, published_at: x.published_at })) : null;
+  } catch { return null; }
+});
 ipcMain.handle('get-recents', () => loadRecents());
 
 ipcMain.handle('save-project', async (_e, { json, suggestedName, filePath }) => {

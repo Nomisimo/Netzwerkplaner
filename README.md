@@ -4,6 +4,8 @@ Offline-Planungswerkzeug für Netzwerke in der Veranstaltungstechnik (Ton, Licht
 
 Electron-Desktop-App für **macOS und Windows**, läuft komplett ohne Server und ohne Internet.
 
+> **Beta.** Download der aktuellen Version unter [Releases](https://github.com/Nomisimo/Netzwerkplaner/releases): Windows (x64), macOS Apple Silicon und macOS Intel. Die Installer sind nicht signiert; Hinweise zum ersten Start stehen im Release.
+
 ## Funktionen
 
 | Tab | Inhalt |
@@ -13,8 +15,10 @@ Electron-Desktop-App für **macOS und Windows**, läuft komplett ohne Server und
 | **Geräte** | Liste mit Filter, Editor für Interfaces (IP/Maske/VLAN/Gateway/MAC/DHCP), physische Ports (Access/Trunk, PoE, Punkt-zu-Punkt), Web-UI, Protokolle, Notizen, eigene Icons |
 | **VLANs & IP-Plan** | VLANs mit Subnetz, Gateway, IGMP-Querier, EEE, QoS, DHCP-Bereich; IP-Raster je VLAN mit Konflikten und nächster freier Adresse |
 | **Patchliste** | Nach Switch oder als Gesamtliste, Kabeltyp, Länge, Label, Kabelsummen |
+| **Analyse** | Datenströme je Gerät → Leitungslast je Verbindung, Multicast/Broadcast je VLAN, Dante-Hops mit Latenz-Empfehlung, Bandbreiten- und Laufzeitrechner, Analyse-Werkzeuge (Wireshark-Filter, Switch-Befehle) |
+| **Wissen** | IGMP, QoS/DSCP, Bandbreite, Latenz, PTP, EEE, STP, VLANs, Adressen, Redundanz, Switch-Einstellungen je Hersteller; Seiten zu Dante, MA-Net 1–3, Art-Net, sACN, NDI, OSC, CITP |
 | **Prüfung** | IP-Konflikte, Adressen außerhalb des Subnetzes, VLAN-Mismatch an Switch-Ports, Trunks, Punkt-zu-Punkt-Protokolle (AES50, SLink, HDBaseT …) am Switch, Multicast ohne IGMP, EEE bei Audio over IP, PoE-Budget, doppelte Ports |
-| **Bibliothek** | Protokollreferenz (Ports, Multicast, Anforderungen, Datenstand), Gerätekatalog, eigene Vorlagen, mDNS/QoS/Infrastruktur, Icons |
+| **Bibliothek** | Gerätebestand (eigene Geräte mit IPs, direkt einfügbar), Protokollreferenz (Ports, Multicast, Anforderungen, Datenstand), Gerätekatalog, eigene Vorlagen, mDNS/QoS/Infrastruktur, Icons |
 
 **Exporte:** PDF-Dokumentation (A4 quer), Excel (IP-Liste, VLANs, Patchliste, Switch-Ports, Geräte, Prüfung), CSV-IP-Liste, Topologie als SVG/PNG.
 **Dateien:** Projekte als `.netplan` (JSON, Doppelklick öffnet die App), Autospeichern, „zuletzt geöffnet“, Bibliothek (eigene Vorlagen + Icons) im App-Datenordner.
@@ -31,6 +35,13 @@ npm run dist:win   # .exe-Installer (NSIS, x64)
 ```
 
 Die Oberfläche (React 18) wird mit esbuild zu einer einzelnen Datei `dist-app/index.html` gebündelt, wie beim Stromplaner.
+
+## Versionen & Release
+
+- Die Versionsnummer steht in `package.json` (SemVer, Betas als `0.x.y-beta.n`) und wird in der App oben links angezeigt.
+- Änderungen je Version: `src/shared/version.js` (erscheint in der App unter „Was ist neu?“) und [CHANGELOG.md](CHANGELOG.md).
+- Die App fragt beim Start die GitHub-Releases ab und zeigt einen Hinweis, wenn es eine neuere Version gibt.
+- **Release bauen:** Version in `package.json`, `version.js` und `CHANGELOG.md` erhöhen, committen, dann `git tag v0.2.0-beta.2 && git push origin v0.2.0-beta.2`. Die GitHub Action [Release](.github/workflows/release.yml) baut Windows x64, macOS arm64 und macOS x64 und veröffentlicht sie; Tags mit Bindestrich werden als Vorabversion markiert.
 
 ## Ordnerstruktur
 
