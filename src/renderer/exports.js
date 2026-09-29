@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { KABEL, TYPEN } from "../shared/constants.js";
 import { connVlan, otherEnd, webUrl, kabelLabel } from "../shared/model.js";
 import { ipSort, prefixToMaskStr, parseCidr } from "../shared/net.js";
+import { ladeLogo } from "./logo.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const fileBase = (P) => (P.meta.veranstaltung || "Netzwerkplan").replace(/[\\/:*?"<>|]+/g, "_").trim() || "Netzwerkplan";
@@ -118,7 +119,9 @@ const table = (rows, cols) => {
 export const buildPdfHtml = (P, X, issues, topo) => {
   const m = P.meta;
   const sev = { error: "Fehler", warn: "Warnung", info: "Hinweis" };
-  const head = (t) => `<div class="head"><span class="logo">NETZWERKPLANER</span><span>${esc(m.veranstaltung)}${m.ort ? " · " + esc(m.ort) : ""} · v${esc(m.version)} · ${esc(m.datum)}</span><span class="t">${esc(t)}</span></div>`;
+  const logo = ladeLogo();
+  const logoImg = (h) => (logo && /^data:image\//.test(logo) ? `<img src="${logo.replace(/"/g, "&quot;")}" style="max-height:${h}px;max-width:${h * 4}px;object-fit:contain">` : "");
+  const head = (t) => `<div class="head">${logo ? `<span class="corp">${logoImg(22)}</span>` : ""}<span class="logo">NETZWERKPLANER</span><span>${esc(m.veranstaltung)}${m.ort ? " · " + esc(m.ort) : ""} · v${esc(m.version)} · ${esc(m.datum)}</span><span class="t">${esc(t)}</span></div>`;
   const vlanTable = vlanRows(P).map((v) => ({ ...v, VLAN: v.VLAN }));
   return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${esc(m.veranstaltung)} – Netzwerkplan</title><style>
 @page { size: A4 landscape; margin: 0; }
@@ -128,6 +131,7 @@ body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; color: #1c2127
 .page:last-child { page-break-after: auto; }
 .head { display: flex; gap: 14px; align-items: baseline; border-bottom: 2px solid #b3483f; padding-bottom: 5px; margin-bottom: 10px; color: #555; }
 .head .logo { font-weight: 800; letter-spacing: 1px; color: #b3483f; font-size: 12px; }
+.head .corp { align-self: center; } .head .corp img { display: block; }
 .head .t { margin-left: auto; font-weight: 700; color: #1c2127; font-size: 12px; }
 h1 { font-size: 26px; margin: 30mm 0 4px; } h2 { font-size: 13px; margin: 14px 0 6px; }
 .meta { color: #555; font-size: 12px; line-height: 1.7; }
@@ -143,7 +147,8 @@ td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } 
 </style></head><body>
 <div class="page">
   ${head("Deckblatt")}
-  <h1>${esc(m.veranstaltung)}</h1>
+  ${logo ? `<div style="margin-top:22mm">${logoImg(70)}</div>` : ""}
+  <h1${logo ? ' style="margin-top:10mm"' : ""}>${esc(m.veranstaltung)}</h1>
   <div class="meta">Netzwerkplan · Version ${esc(m.version)} · ${esc(m.datum)}${m.ort ? `<br>Ort: ${esc(m.ort)}` : ""}${m.ersteller ? `<br>Ersteller: ${esc(m.ersteller)}` : ""}${m.notiz ? `<br><br>${esc(m.notiz).replace(/\n/g, "<br>")}` : ""}</div>
   <div class="stats"><div><b>${P.geraete.length}</b>Geräte</div><div><b>${P.geraete.filter((d) => d.isSwitch).length}</b>Switches</div><div><b>${P.verbindungen.length}</b>Verbindungen</div><div><b>${P.vlans.length}</b>VLANs</div><div><b>${issues.filter((i) => i.sev === "error").length}</b>Fehler</div><div><b>${issues.filter((i) => i.sev === "warn").length}</b>Warnungen</div></div>
   <h2>VLANs</h2>${table(vlanTable, ["VLAN", "Name", "Subnetz", "Gateway", "Zweck", "IGMP", "Querier", "EEE aus", "QoS", "DHCP"])}

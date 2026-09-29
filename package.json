@@ -37,6 +37,11 @@
         "role": "Editor"
       }
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "Nomisimo",
+      "repo": "Netzwerkplaner"
+    },
     "win": {
       "target": [
         {
@@ -78,8 +83,7 @@
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "dmg": {
       "writeUpdateInfo": false
-    },
-    "publish": null
+    }
   },
   "devDependencies": {
     "electron": "^33.4.11",
@@ -93,5 +97,8 @@
     "type": "git",
     "url": "https://github.com/Nomisimo/Netzwerkplaner.git"
   },
-  "homepage": "https://github.com/Nomisimo/Netzwerkplaner"
+  "homepage": "https://github.com/Nomisimo/Netzwerkplaner",
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
 }

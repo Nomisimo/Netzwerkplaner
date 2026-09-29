@@ -96,6 +96,41 @@ ipcMain.handle('fetch-releases', async () => {
     return Array.isArray(list) ? list.map((x) => ({ tag_name: x.tag_name, name: x.name, html_url: x.html_url, prerelease: x.prerelease, draft: x.draft, published_at: x.published_at })) : null;
   } catch { return null; }
 });
+
+/* ── Updates wie im Stromplaner ──────────────────────────────────────────
+   Windows: electron-updater lädt die neue Version im Hintergrund und installiert
+   sie nach Bestätigung. macOS: die App ist nicht mit Apple-Developer-ID signiert,
+   dort nur Hinweis und Download-Seite öffnen. */
+const MANUAL_UPDATE = process.platform === 'darwin';
+const RELEASES_URL = 'https://github.com/Nomisimo/Netzwerkplaner/releases';
+let updaterAktiv = false, updateReady = false;
+function setupAutoUpdater(win) {
+  if (MANUAL_UPDATE || !app.isPackaged) return;
+  let autoUpdater;
+  try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.error('electron-updater fehlt:', e?.message); return; }
+  updaterAktiv = true;
+  const send = (type, payload) => { if (!win.isDestroyed()) win.webContents.send('update-status', { type, ...payload }); };
+  autoUpdater.allowPrerelease = app.getVersion().includes('-'); // Betas bekommen auch Betas
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('checking-for-update', () => send('checking'));
+  autoUpdater.on('update-not-available', () => send('up-to-date'));
+  autoUpdater.on('error', (err) => { console.error('AutoUpdater:', err?.message || err); send('error', { message: err?.message || String(err) }); });
+  autoUpdater.on('download-progress', (p) => send('downloading', { percent: Math.round(p.percent) }));
+  autoUpdater.on('update-available', (info) => send('available', { version: info.version }));
+  autoUpdater.on('update-downloaded', (info) => { updateReady = true; send('downloaded', { version: info.version }); });
+  ipcMain.removeHandler('check-for-updates');
+  ipcMain.handle('check-for-updates', () => {
+    if (updateReady) { send('downloaded'); return { auto: true }; }
+    autoUpdater.checkForUpdates().catch((err) => send('error', { message: err?.message || String(err) }));
+    return { auto: true };
+  });
+  ipcMain.removeHandler('install-update');
+  ipcMain.handle('install-update', () => { if (updateReady) autoUpdater.quitAndInstall(); else shell.openExternal(RELEASES_URL); });
+  setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 4000);
+}
+ipcMain.handle('check-for-updates', () => ({ auto: updaterAktiv }));
+ipcMain.handle('install-update', (_e, url) => shell.openExternal(/^https:\/\/github\.com\/Nomisimo\/Netzwerkplaner\//.test(url || '') ? url : RELEASES_URL));
+
 ipcMain.handle('get-recents', () => loadRecents());
 
 ipcMain.handle('save-project', async (_e, { json, suggestedName, filePath }) => {
@@ -250,6 +285,7 @@ if (!app.requestSingleInstanceLock()) {
     const f = fileArg(process.argv);
     if (f) pendingOpen = f;
     createWindow();
+    setupAutoUpdater(mainWin);
   });
   app.on('window-all-closed', () => app.quit());
 }

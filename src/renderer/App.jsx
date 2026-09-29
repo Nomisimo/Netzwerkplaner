@@ -17,6 +17,9 @@ import BibliothekTab from "./tabs/BibliothekTab.jsx";
 import WissenTab from "./tabs/WissenTab.jsx";
 import { analyseIssues } from "../shared/analyse.js";
 import { maNetIssues } from "../shared/manet.js";
+import { ladeLogo, speichereLogo, logoAusDatei } from "./logo.js";
+import APP_ICON_SVG from "../../assets/app-icon/icon.svg";
+const APP_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(APP_ICON_SVG)}`;
 import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } from "../shared/version.js";
 import AnleitungTab from "./tabs/AnleitungTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
@@ -48,6 +51,12 @@ export default function App() {
   const [protoId, setProtoId] = useState(null);
   const [bibSub, setBibSub] = useState("bestand");
   const [changelog, setChangelog] = useState(false);
+  const [corpLogo, setCorpLogo] = useState(ladeLogo);
+  const logoHochladen = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (!f) return;
+    try { const url = await logoAusDatei(f); setCorpLogo(url); speichereLogo(url); } catch { notify("Das Bild ließ sich nicht lesen.", "warn"); }
+  };
   const [update, setUpdate] = useState(null); // { tag, url } wenn neuer als die laufende Version
   const [updateStatus, setUpdateStatus] = useState("");
   const [toast, setToast] = useState(null);
@@ -159,10 +168,19 @@ export default function App() {
     if (!list) { if (manuell) setUpdateStatus("GitHub nicht erreichbar."); return; }
     // Stabile Versionen sehen nur stabile Releases, Betas sehen alles
     const n = neuesteVersion(istBeta(version) ? list : list.filter((r) => !r.prerelease));
-    if (n && compareVersions(n.tag_name, version) > 0) { setUpdate({ tag: n.tag_name.replace(/^v/, ""), url: n.html_url || RELEASES_URL }); setUpdateStatus(`Neue Version ${n.tag_name} verfügbar.`); }
+    if (n && compareVersions(n.tag_name, version) > 0) { setUpdate((u) => ({ ...u, tag: n.tag_name.replace(/^v/, ""), url: n.html_url || RELEASES_URL })); setUpdateStatus((s) => (/geladen|bereit/.test(s) ? s : `Neue Version ${n.tag_name} verfügbar.`)); }
     else if (manuell) setUpdateStatus(`Du nutzt die neueste Version (${version}).`);
+    // Windows: electron-updater lädt die neue Version im Hintergrund
+    if (manuell) api.checkForUpdates();
   }, [version]);
   useEffect(() => { checkUpdate(false); }, [checkUpdate]);
+  useEffect(() => api.onUpdateStatus((m) => {
+    if (m.type === "available") { setUpdate((u) => ({ url: RELEASES_URL, ...u, tag: m.version || u?.tag })); setUpdateStatus(`Version ${m.version} wird geladen …`); }
+    else if (m.type === "downloading") setUpdateStatus(`Update wird geladen … ${m.percent} %`);
+    else if (m.type === "downloaded") { setUpdate((u) => ({ url: RELEASES_URL, ...u, tag: m.version || u?.tag, bereit: true })); setUpdateStatus(`Version ${m.version || ""} ist bereit. „Neu starten“ installiert sie.`); }
+    else if (m.type === "error") setUpdateStatus((s) => (/verfügbar/.test(s) ? s : "Automatisches Update nicht möglich. Download-Seite nutzen."));
+  }), []);
+  const updateAusfuehren = () => (update?.bereit ? api.installUpdate() : api.installUpdate(update?.url || RELEASES_URL));
 
   /* ── Geräte & Verbindungen ──────────────────────────────────────────── */
   const addDevice = useCallback((item, { connectTo, at, picker: usePicker } = {}) => {
@@ -321,11 +339,16 @@ export default function App() {
   return (
     <div style={S.app}>
       <header style={S.header}>
-        <div style={S.logo}>⌬ NETZWERKPLANER</div>
+        <div style={{ ...S.logo, display: "flex", alignItems: "center", gap: 8 }}><img src={APP_ICON} alt="" style={{ width: 24, height: 24, display: "block" }} />NETZWERKPLANER</div>
+        {corpLogo && <img src={corpLogo} alt="Logo" style={{ height: 26, maxWidth: 110, objectFit: "contain", display: "block" }} />}
+        <label style={{ ...S.ghostBtn, padding: "3px 7px", fontSize: 10, cursor: "pointer" }} title={corpLogo ? "Logo ersetzen" : "Eigenes Logo hochladen (erscheint auch in PDF-Exporten)"}>
+          {corpLogo ? "✎ Logo" : "+ Logo"}<input type="file" accept="image/*" style={{ display: "none" }} onChange={logoHochladen} />
+        </label>
+        {corpLogo && <button style={{ ...S.ghostBtn, padding: "3px 6px", fontSize: 10 }} onClick={() => { setCorpLogo(""); speichereLogo(""); }} title="Logo entfernen">✕</button>}
         {version && <button onClick={() => setChangelog(true)} title="Version und Änderungen" style={{ background: "none", border: `1px solid ${LINE}`, borderRadius: 10, color: SUB, fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
           v{version.replace(/-beta\.?\d*$/i, "")}{istBeta(version) && <span style={{ marginLeft: 5, color: "#fff", background: ACCENT, borderRadius: 6, padding: "0 5px", fontSize: 9.5, fontWeight: 700 }}>BETA {(version.match(/beta\.?(\d+)/i) || [])[1] || ""}</span>}
         </button>}
-        {update && <button onClick={() => api.openExternal(update.url)} title="Download-Seite öffnen" style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>⬆ {update.tag} verfügbar</button>}
+        {update?.tag && <button onClick={updateAusfuehren} title={update.bereit ? "Neu starten und Update installieren" : "Download-Seite öffnen"} style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>⬆ {update.bereit ? `${update.tag} installieren` : `${update.tag} verfügbar`}</button>}
         <div style={S.headerMeta}>{P.meta.veranstaltung} · v{P.meta.version} · {P.meta.datum}{filePath && <span style={{ color: MUTED }}> · {filePath.split(/[\\/]/).pop()}</span>}</div>
         <span style={{ fontSize: 10, color: "#555" }} title="Automatisch gespeichert">💾 auto</span>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={undo} title="Rückgängig (Strg+Z)" disabled={!hist.current.undo.length}>↶</button>
@@ -392,6 +415,7 @@ export default function App() {
       {changelog && <Modal title={`Netzwerkplaner ${version}`} onClose={() => setChangelog(false)}>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
           <button style={S.secondaryBtn} onClick={() => checkUpdate(true)}>Nach Updates suchen</button>
+          {update?.bereit && <button style={S.primaryBtn} onClick={updateAusfuehren}>Neu starten und installieren</button>}
           <button style={S.ghostBtn} onClick={() => api.openExternal(update?.url || RELEASES_URL)}>Alle Versionen auf GitHub</button>
           <span style={{ fontSize: 12, color: update ? "#2ecc71" : SUB }}>{updateStatus}</span>
         </div>

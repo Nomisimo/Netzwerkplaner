@@ -24,6 +24,9 @@ const pickFile = (accept) => new Promise((resolve) => {
 });
 
 export const api = {
+  checkForUpdates: () => (E?.checkForUpdates ? E.checkForUpdates() : Promise.resolve({ auto: false })),
+  installUpdate: (url) => (E?.installUpdate ? E.installUpdate(url) : window.open(url, "_blank")),
+  onUpdateStatus: (cb) => (E?.onUpdateStatus ? E.onUpdateStatus(cb) : () => {}),
   fetchReleases: () => (E ? E.fetchReleases() : fetch("https://api.github.com/repos/Nomisimo/Netzwerkplaner/releases?per_page=20").then((r) => (r.ok ? r.json() : null)).catch(() => null)),
   appVersion: () => (E ? E.appVersion() : Promise.resolve(typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev")),
   saveProject: async (json, suggestedName, filePath) => {

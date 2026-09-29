@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   appVersion:        () => ipcRenderer.invoke('app-version'),
   fetchReleases:     () => ipcRenderer.invoke('fetch-releases'),
+  checkForUpdates:   () => ipcRenderer.invoke('check-for-updates'),
+  installUpdate:     (url) => ipcRenderer.invoke('install-update', url),
+  onUpdateStatus:    (cb) => { const h = (_, msg) => cb(msg); ipcRenderer.on('update-status', h); return () => ipcRenderer.removeListener('update-status', h); },
   saveProject:       (args) => ipcRenderer.invoke('save-project', args),
   openProject:       () => ipcRenderer.invoke('open-project'),
   openRecent:        (filePath) => ipcRenderer.invoke('open-recent', filePath),
