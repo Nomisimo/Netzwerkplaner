@@ -16,6 +16,7 @@ import PruefungTab from "./tabs/PruefungTab.jsx";
 import BibliothekTab from "./tabs/BibliothekTab.jsx";
 import WissenTab from "./tabs/WissenTab.jsx";
 import { analyseIssues } from "../shared/analyse.js";
+import { maNetIssues } from "../shared/manet.js";
 import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } from "../shared/version.js";
 import AnleitungTab from "./tabs/AnleitungTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
@@ -122,7 +123,7 @@ export default function App() {
   }, [P.icons, libLoaded]);
 
   const X = useMemo(() => buildIndex(P), [P]);
-  const issues = useMemo(() => [...validate(P, X), ...analyseIssues(P, X)], [P, X]);
+  const issues = useMemo(() => [...validate(P, X), ...analyseIssues(P, X), ...maNetIssues(P, X)], [P, X]);
   const Pv = useMemo(() => ({ ...P, icons: allIcons }), [P, allIcons]);
 
   /* ── Erreichbarkeit ─────────────────────────────────────────────────── */

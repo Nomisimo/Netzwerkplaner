@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK } from "../../shared/constants.js";
 import { KATALOG, findProtokoll } from "../../shared/catalog.js";
 import { Section, SevBadge, SEV, VlanChip } from "../ui.jsx";
+import { GOLD_STANDARDS, maNetGen } from "../../shared/manet.js";
 
 export default function PruefungTab({ P, X, issues, onShowIssue }) {
   const [filter, setFilter] = useState({ error: true, warn: true, info: true });
@@ -33,6 +34,18 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
           </div>
         ))}
       </Section>
+
+      {P.geraete.some((d) => maNetGen(d) > 0) && (
+        <Section title="MA-Net Gold-Standards" subtitle="Diese Regeln prüft der Netzwerkplaner für alle Geräte mit MA-Net1, MA-Net2 oder MA-Net3. Treffer stehen oben mit dem Präfix „MA-Net:“.">
+          <table style={S.table}>
+            <tbody>{GOLD_STANDARDS.map(([k, t]) => {
+              return <tr key={k}><td style={{ ...S.td, fontWeight: 600, whiteSpace: "nowrap" }}>{k}</td><td style={{ ...S.td, fontSize: 12, color: SUB }}>{t}</td></tr>;
+            })}</tbody>
+          </table>
+          {(() => { const n = issues.filter((i) => i.msg.startsWith("MA-Net:") && i.sev !== "info").length;
+            return <div style={{ marginTop: 10, fontSize: 13, color: n ? WARN : OK, fontWeight: 600 }}>{n ? `${n} Abweichung${n > 1 ? "en" : ""} von den Gold-Standards` : "✓ Alle MA-Net-Regeln erfüllt"}</div>; })()}
+        </Section>
+      )}
 
       <Section title="Switch-Konfiguration je VLAN" subtitle="Zusammenfassung dessen, was auf den managed Switches einzustellen ist.">
         <table style={S.table}>
