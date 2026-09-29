@@ -227,6 +227,10 @@ ipcMain.handle('check-reachability', async (_e, targets) => {
   return out;
 });
 
+/* ── Live-Monitore (sACN, Art-Net, Dante, Scan, SNMP …) ────────────────── */
+const monitors = require('./monitor').register(ipcMain, () => mainWin);
+app.on('before-quit', () => monitors.stopAll());
+
 /* ── Start, Dateiverknüpfung, Einzelinstanz ────────────────────────────── */
 const fileArg = (argv) => argv.slice(1).find((a) => /\.netplan$|\.json$/i.test(a) && fs.existsSync(a));
 

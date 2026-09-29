@@ -16,6 +16,7 @@ Electron-Desktop-App für **macOS und Windows**, läuft komplett ohne Server und
 | **VLANs & IP-Plan** | VLANs mit Subnetz, Gateway, IGMP-Querier, EEE, QoS, DHCP-Bereich; IP-Raster je VLAN mit Konflikten und nächster freier Adresse |
 | **Patchliste** | Nach Switch oder als Gesamtliste, Kabeltyp, Länge, Label, Kabelsummen |
 | **Analyse** | Datenströme je Gerät → Leitungslast je Verbindung, Multicast/Broadcast je VLAN, Dante-Hops mit Latenz-Empfehlung, Bandbreiten- und Laufzeitrechner, Analyse-Werkzeuge (Wireshark-Filter, Switch-Befehle) |
+| **Live** | Werkzeuge fürs laufende Netz, je Protokoll ein Untertab: Online-Status aller Geräte, Netzwerkscan mit Soll/Ist-Abgleich gegen den Plan, Switches per SNMP (Link, VLAN je Port, PoE, LLDP-Nachbarn, Abweichungen zum Plan), sACN-Monitor (Quellen, Priorität, fps, Kanalwerte, Universe Discovery), Art-Net (ArtPoll-Nodes, Universen, Kanalwerte), Dante und NDI (Geräte per mDNS), MA-Net (Verkehr je Sender), OSC-Protokoll, CITP-Teilnehmer, PTP-Clock (Master, Domain, Konflikte) |
 | **Wissen** | IGMP, QoS/DSCP, Bandbreite, Latenz, PTP, EEE, STP, VLANs, Adressen, Redundanz, Switch-Einstellungen je Hersteller; Seiten zu Dante, MA-Net 1–3, Art-Net, sACN, NDI, OSC, CITP |
 | **Prüfung** | IP-Konflikte, Adressen außerhalb des Subnetzes, VLAN-Mismatch an Switch-Ports, Trunks, Punkt-zu-Punkt-Protokolle (AES50, SLink, HDBaseT …) am Switch, Multicast ohne IGMP, EEE bei Audio over IP, PoE-Budget, doppelte Ports |
 | **Bibliothek** | Gerätebestand (eigene Geräte mit IPs, direkt einfügbar), Protokollreferenz (Ports, Multicast, Anforderungen, Datenstand), Gerätekatalog, eigene Vorlagen, mDNS/QoS/Infrastruktur, Icons |
@@ -47,6 +48,7 @@ Die Oberfläche (React 18) wird mit esbuild zu einer einzelnen Datei `dist-app/i
 
 ```
 src/main/        Electron-Hauptprozess (Fenster, Dateien, PDF, Ping/TCP), Splash
+src/main/monitor/  Live-Monitore (sACN, Art-Net, CITP, OSC, MA-Net, PTP, mDNS, Scan, SNMP), reines Node
 src/preload/     IPC-Brücke (contextBridge)
 src/renderer/    React-Oberfläche: App, Tabs, Geräte-/Verbindungs-Editor, Exporte
 src/shared/      Logik ohne UI: IP-Rechnung, Datenmodell, Prüfregeln, Mindmap-Layout, Katalog

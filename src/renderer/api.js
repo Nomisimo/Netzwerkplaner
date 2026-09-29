@@ -53,5 +53,12 @@ export const api = {
     if (E) return E.checkReachability(targets);
     return Object.fromEntries(targets.map((t) => [t.id, { ok: null, method: "nur in der Desktop-App" }]));
   },
+  // Live-Monitore (nur Desktop-App)
+  monInterfaces: () => (E?.monInterfaces ? E.monInterfaces() : Promise.resolve([])),
+  monStart: (kind, opts) => (E?.monStart ? E.monStart(kind, opts) : Promise.resolve({ ok: false, error: "Live-Monitore funktionieren nur in der Desktop-App." })),
+  monStop: (kind) => (E?.monStop ? E.monStop(kind) : Promise.resolve(true)),
+  monAction: (kind, name, args) => (E?.monAction ? E.monAction(kind, name, args) : Promise.resolve({ ok: false, error: "Nur in der Desktop-App." })),
+  monState: () => (E?.monState ? E.monState() : Promise.resolve({})),
+  onMonEvent: (cb) => (E?.onMonEvent ? E.onMonEvent(cb) : () => {}),
   onOpenFile: (cb) => E && E.onOpenFile && E.onOpenFile(cb),
 };
