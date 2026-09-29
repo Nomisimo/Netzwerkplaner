@@ -16,7 +16,7 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
 
   return (
     <>
-      <Section title="Prüfung" subtitle="IP-Konflikte, Subnetze, VLAN-Zuordnung an Switch-Ports, Punkt-zu-Punkt-Protokolle am Switch, IGMP/EEE je VLAN, PoE-Budget und doppelt belegte Ports. Die Regeln leiten sich aus der Protokollrecherche ab.">
+      <Section title="Prüfung" subtitle="IP-Konflikte, VLAN-Zuordnung an Switch-Ports, Punkt-zu-Punkt-Protokolle am Switch, IGMP/EEE je VLAN, PoE-Budget, doppelt belegte Ports und die MA-Net Gold-Standards. Die Regeln leiten sich aus der Protokollrecherche ab.">
         <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
           {["error", "warn", "info"].map((s) => (
             <button key={s} onClick={() => setFilter((f) => ({ ...f, [s]: !f[s] }))}

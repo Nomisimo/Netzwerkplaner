@@ -7,6 +7,7 @@ const path = require("path");
 const ROOT = path.join(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "dist-app");
 const ICON_DIR = path.join(ROOT, "assets", "icons", "devices");
+const ANLEITUNG_DIR = path.join(ROOT, "assets", "anleitung");
 
 const iconsPlugin = {
   name: "device-icons",
@@ -21,6 +22,21 @@ const iconsPlugin = {
   },
 };
 
+// Screenshots der Anleitung (assets/anleitung/*.jpg) als Data-URLs
+const anleitungPlugin = {
+  name: "anleitung-bilder",
+  setup(build) {
+    build.onResolve({ filter: /^virtual:anleitung-bilder$/ }, () => ({ path: "anleitung-bilder", namespace: "anleitung" }));
+    build.onLoad({ filter: /.*/, namespace: "anleitung" }, () => {
+      const bilder = {};
+      const files = fs.existsSync(ANLEITUNG_DIR) ? fs.readdirSync(ANLEITUNG_DIR).filter((f) => /\.(jpe?g|png)$/i.test(f)).sort() : [];
+      for (const f of files)
+        bilder[f.replace(/\.\w+$/, "")] = `data:image/${/png$/i.test(f) ? "png" : "jpeg"};base64,${fs.readFileSync(path.join(ANLEITUNG_DIR, f)).toString("base64")}`;
+      return { contents: `export default ${JSON.stringify(bilder)};`, loader: "js", watchFiles: files.map((f) => path.join(ANLEITUNG_DIR, f)) };
+    });
+  },
+};
+
 async function build() {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
   const result = await esbuild.build({
@@ -31,7 +47,7 @@ async function build() {
     loader: { ".jsx": "jsx", ".js": "jsx", ".svg": "text" },
     jsx: "transform",
     define: { "process.env.NODE_ENV": '"production"', __APP_VERSION__: JSON.stringify(pkg.version) },
-    plugins: [iconsPlugin],
+    plugins: [iconsPlugin, anleitungPlugin],
     write: false,
     logLevel: "warning",
   });
