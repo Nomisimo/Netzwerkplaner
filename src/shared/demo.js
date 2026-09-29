@@ -53,15 +53,15 @@ export const demoProject = () => {
   ip(laptop, 0);
   laptop.protokolle = ["Dante", "OSC"];
 
-  addConnection(P, core.id, foh.id, { kabel: "fiber_sm", laenge: 120, label: "FIB-FOH-01" });
-  addConnection(P, core.id, mon.id, { kabel: "ethercon", laenge: 30, label: "NET-MON-01" });
+  addConnection(P, core.id, foh.id, { kabel: "fiber_sm", label: "FIB-FOH-01" });
+  addConnection(P, core.id, mon.id, { kabel: "ethercon", label: "NET-MON-01" });
   for (const [d, sw, m] of [[cl5, foh, 3], [ma, foh, 2], [pu, foh, 2], [laptop, foh, 2], [ap, foh, 3], [cam, foh, 5], [atem, foh, 3],
     [rio1, core, 2], [rio2, core, 2], [ds10, core, 2], [d80, core, 5], [node1, core, 15], [node2, core, 25],
-    [monPult, mon, 2], [ulxd, mon, 2], [gg, mon, 2]]) addConnection(P, sw.id, d.id, { laenge: m, kabel: "ethercon" });
+    [monPult, mon, 2], [ulxd, mon, 2], [gg, mon, 2]]) addConnection(P, sw.id, d.id, { kabel: "ethercon" });
   // Dante Secondary auf eigenem Switch
   for (const d of [cl5, rio1, rio2, monPult]) {
     const s = d.ports.find((p) => p.name === "Secondary");
-    if (s) addConnection(P, sec.id, d.id, { portB: "Secondary", laenge: 30, kabel: "ethercon" });
+    if (s) addConnection(P, sec.id, d.id, { portB: "Secondary", kabel: "ethercon" });
   }
   core.ports.slice(0, 4).forEach((p) => { if (p.modus === "access") p.poe = true; });
   // Datenströme (was jedes Gerät sendet)

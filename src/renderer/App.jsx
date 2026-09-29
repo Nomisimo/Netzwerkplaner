@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY } from "../shared/constants.js";
 import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl } from "../shared/model.js";
-import { createDevice, uid, snapshotDevice } from "../shared/catalog.js";
+import { createDevice, uid, snapshotDevice, geraetUmbauen } from "../shared/catalog.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
 import { DevicePicker, Modal } from "./ui.jsx";
@@ -12,18 +12,20 @@ import ProjektTab from "./tabs/ProjektTab.jsx";
 import TopologieTab from "./tabs/TopologieTab.jsx";
 import GeraeteTab from "./tabs/GeraeteTab.jsx";
 import VlanTab from "./tabs/VlanTab.jsx";
-import PatchTab from "./tabs/PatchTab.jsx";
 import PruefungTab from "./tabs/PruefungTab.jsx";
 import BibliothekTab from "./tabs/BibliothekTab.jsx";
-import AnalyseTab from "./tabs/AnalyseTab.jsx";
 import WissenTab from "./tabs/WissenTab.jsx";
 import { analyseIssues } from "../shared/analyse.js";
+import { maNetIssues } from "../shared/manet.js";
+import { ladeLogo, speichereLogo, logoAusDatei } from "./logo.js";
+import APP_ICON_SVG from "../../assets/app-icon/icon.svg";
+const APP_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(APP_ICON_SVG)}`;
 import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } from "../shared/version.js";
 import AnleitungTab from "./tabs/AnleitungTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
 
 
-const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs & IP-Plan"], ["patch", "Patchliste"], ["pruefung", "Prüfung"], ["analyse", "Analyse"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Bibliothek"], ["hilfe", "Anleitung"]];
+const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
 
 const loadAutosave = () => {
   try { const s = localStorage.getItem(LS_KEY); if (s) return migrateProject(JSON.parse(s)); } catch (e) { console.error(e); }
@@ -34,7 +36,7 @@ export default function App() {
   const [P, setP] = useState(loadAutosave);
   const Pref = useRef(P);
   const hist = useRef({ undo: [], redo: [] });
-  const [tab, setTab] = useState(() => localStorage.getItem("netzwerkplaner_tab") || "projekt");
+  const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || t === "patch" || t === "analyse" ? "projekt" : t; });
   const [selection, setSelection] = useState(null);
   const [picker, setPicker] = useState(null); // { connectTo }
   const [status, setStatus] = useState({});
@@ -49,6 +51,12 @@ export default function App() {
   const [protoId, setProtoId] = useState(null);
   const [bibSub, setBibSub] = useState("bestand");
   const [changelog, setChangelog] = useState(false);
+  const [corpLogo, setCorpLogo] = useState(ladeLogo);
+  const logoHochladen = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (!f) return;
+    try { const url = await logoAusDatei(f); setCorpLogo(url); speichereLogo(url); } catch { notify("Das Bild ließ sich nicht lesen.", "warn"); }
+  };
   const [update, setUpdate] = useState(null); // { tag, url } wenn neuer als die laufende Version
   const [updateStatus, setUpdateStatus] = useState("");
   const [toast, setToast] = useState(null);
@@ -124,7 +132,7 @@ export default function App() {
   }, [P.icons, libLoaded]);
 
   const X = useMemo(() => buildIndex(P), [P]);
-  const issues = useMemo(() => [...validate(P, X), ...analyseIssues(P, X)], [P, X]);
+  const issues = useMemo(() => [...validate(P, X), ...analyseIssues(P, X), ...maNetIssues(P, X)], [P, X]);
   const Pv = useMemo(() => ({ ...P, icons: allIcons }), [P, allIcons]);
 
   /* ── Erreichbarkeit ─────────────────────────────────────────────────── */
@@ -160,10 +168,19 @@ export default function App() {
     if (!list) { if (manuell) setUpdateStatus("GitHub nicht erreichbar."); return; }
     // Stabile Versionen sehen nur stabile Releases, Betas sehen alles
     const n = neuesteVersion(istBeta(version) ? list : list.filter((r) => !r.prerelease));
-    if (n && compareVersions(n.tag_name, version) > 0) { setUpdate({ tag: n.tag_name.replace(/^v/, ""), url: n.html_url || RELEASES_URL }); setUpdateStatus(`Neue Version ${n.tag_name} verfügbar.`); }
+    if (n && compareVersions(n.tag_name, version) > 0) { setUpdate((u) => ({ ...u, tag: n.tag_name.replace(/^v/, ""), url: n.html_url || RELEASES_URL })); setUpdateStatus((s) => (/geladen|bereit/.test(s) ? s : `Neue Version ${n.tag_name} verfügbar.`)); }
     else if (manuell) setUpdateStatus(`Du nutzt die neueste Version (${version}).`);
+    // Windows: electron-updater lädt die neue Version im Hintergrund
+    if (manuell) api.checkForUpdates();
   }, [version]);
   useEffect(() => { checkUpdate(false); }, [checkUpdate]);
+  useEffect(() => api.onUpdateStatus((m) => {
+    if (m.type === "available") { setUpdate((u) => ({ url: RELEASES_URL, ...u, tag: m.version || u?.tag })); setUpdateStatus(`Version ${m.version} wird geladen …`); }
+    else if (m.type === "downloading") setUpdateStatus(`Update wird geladen … ${m.percent} %`);
+    else if (m.type === "downloaded") { setUpdate((u) => ({ url: RELEASES_URL, ...u, tag: m.version || u?.tag, bereit: true })); setUpdateStatus(`Version ${m.version || ""} ist bereit. „Neu starten“ installiert sie.`); }
+    else if (m.type === "error") setUpdateStatus((s) => (/verfügbar/.test(s) ? s : "Automatisches Update nicht möglich. Download-Seite nutzen."));
+  }), []);
+  const updateAusfuehren = () => (update?.bereit ? api.installUpdate() : api.installUpdate(update?.url || RELEASES_URL));
 
   /* ── Geräte & Verbindungen ──────────────────────────────────────────── */
   const addDevice = useCallback((item, { connectTo, at, picker: usePicker } = {}) => {
@@ -196,6 +213,17 @@ export default function App() {
     if (konflikte.length) notify(`Gerät eingefügt. IP bereits belegt: ${konflikte.join(", ")} – siehe Prüfung.`, "err");
     else notify(item.kind === "bestand" ? "Gerät aus dem Bestand eingefügt (mit IPs)." : "Gerät hinzugefügt.");
     return id;
+  }, [library, mutate]);
+
+  // Gerät nachträglich auf ein Katalogmodell, eine Vorlage oder einen Bestandseintrag umbauen
+  const umbauen = useCallback((devId, item) => {
+    const quelle = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
+      : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
+    mutate((d) => {
+      const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: quelle });
+      geraetUmbauen(d, devId, neu);
+    });
+    notify("Modell übernommen. Name, IPs und Verbindungen sind geblieben.");
   }, [library, mutate]);
 
   const deleteDevice = useCallback((id) => {
@@ -306,16 +334,21 @@ export default function App() {
   };
 
   const nErr = issues.filter((i) => i.sev === "error").length, nWarn = issues.filter((i) => i.sev === "warn").length;
-  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice };
+  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }) };
 
   return (
     <div style={S.app}>
       <header style={S.header}>
-        <div style={S.logo}>⌬ NETZWERKPLANER</div>
+        <div style={{ ...S.logo, display: "flex", alignItems: "center", gap: 8 }}><img src={APP_ICON} alt="" style={{ width: 24, height: 24, display: "block" }} />NETZWERKPLANER</div>
+        {corpLogo && <img src={corpLogo} alt="Logo" style={{ height: 26, maxWidth: 110, objectFit: "contain", display: "block" }} />}
+        <label style={{ ...S.ghostBtn, padding: "3px 7px", fontSize: 10, cursor: "pointer" }} title={corpLogo ? "Logo ersetzen" : "Eigenes Logo hochladen (erscheint auch in PDF-Exporten)"}>
+          {corpLogo ? "✎ Logo" : "+ Logo"}<input type="file" accept="image/*" style={{ display: "none" }} onChange={logoHochladen} />
+        </label>
+        {corpLogo && <button style={{ ...S.ghostBtn, padding: "3px 6px", fontSize: 10 }} onClick={() => { setCorpLogo(""); speichereLogo(""); }} title="Logo entfernen">✕</button>}
         {version && <button onClick={() => setChangelog(true)} title="Version und Änderungen" style={{ background: "none", border: `1px solid ${LINE}`, borderRadius: 10, color: SUB, fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
           v{version.replace(/-beta\.?\d*$/i, "")}{istBeta(version) && <span style={{ marginLeft: 5, color: "#fff", background: ACCENT, borderRadius: 6, padding: "0 5px", fontSize: 9.5, fontWeight: 700 }}>BETA {(version.match(/beta\.?(\d+)/i) || [])[1] || ""}</span>}
         </button>}
-        {update && <button onClick={() => api.openExternal(update.url)} title="Download-Seite öffnen" style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>⬆ {update.tag} verfügbar</button>}
+        {update?.tag && <button onClick={updateAusfuehren} title={update.bereit ? "Neu starten und Update installieren" : "Download-Seite öffnen"} style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>⬆ {update.bereit ? `${update.tag} installieren` : `${update.tag} verfügbar`}</button>}
         <div style={S.headerMeta}>{P.meta.veranstaltung} · v{P.meta.version} · {P.meta.datum}{filePath && <span style={{ color: MUTED }}> · {filePath.split(/[\\/]/).pop()}</span>}</div>
         <span style={{ fontSize: 10, color: "#555" }} title="Automatisch gespeichert">💾 auto</span>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={undo} title="Rückgängig (Strg+Z)" disabled={!hist.current.undo.length}>↶</button>
@@ -339,7 +372,7 @@ export default function App() {
         <div style={{ position: "relative" }}>
           <button style={S.exportBtn} onClick={() => setShowExport((v) => !v)}>⇩ Export ▾</button>
           {showExport && <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: "#1b2026", border: "1px solid #2e3640", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 230, marginTop: 4, overflow: "hidden" }} onMouseLeave={() => setShowExport(false)}>
-            {[["pdf", "🖨 PDF-Dokumentation"], ["xlsx", "📊 Excel (IP-Liste, VLANs, Patch …)"], ["csv", "IP-Liste als CSV"], ["svg", "Topologie als SVG"], ["png", "Topologie als PNG"]].map(([k, l]) => (
+            {[["pdf", "🖨 PDF-Dokumentation"], ["xlsx", "📊 Excel (IP-Liste, VLANs, Ports …)"], ["csv", "IP-Liste als CSV"], ["svg", "Topologie als SVG"], ["png", "Topologie als PNG"]].map(([k, l]) => (
               <button key={k} onClick={() => doExport(k)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid #232a33", padding: "9px 12px", cursor: "pointer", color: "#e8eaed", fontSize: 12 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#232a33")} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>{l}</button>
             ))}
@@ -364,26 +397,25 @@ export default function App() {
             {tab === "projekt" && <ProjektTab P={Pv} X={X} mutate={mutate} issues={issues} goTab={setTab} loadDemo={loadDemo} newProject={newProject} />}
             {tab === "geraete" && <GeraeteTab {...shared} />}
             {tab === "vlans" && <VlanTab P={Pv} X={X} mutate={mutate} issues={issues} onSelectDevice={selectDevice} />}
-            {tab === "patch" && <PatchTab P={Pv} X={X} mutate={mutate} issues={issues} onSelectDevice={selectDevice} onDeleteConn={deleteConn} />}
             {tab === "pruefung" && <PruefungTab P={Pv} X={X} issues={issues} onShowIssue={showIssue} />}
             {tab === "bibliothek" && <BibliothekTab P={Pv} mutate={mutate} onSaveAlleBestand={saveAlleBestand} notify={notify} library={library} setLibrary={setLibrary} protoId={protoId} setProtoId={setProtoId} onAddDevice={addDevice} onSelectDevice={selectDevice} sub={bibSub} setSub={setBibSub} allIcons={allIcons} />}
-            {tab === "analyse" && <AnalyseTab P={Pv} X={X} onSelectDevice={selectDevice} goTab={setTab} />}
             {tab === "live" && <LiveTab P={Pv} X={X} mutate={mutate} status={status} checkReach={checkReach} autoStatus={autoStatus} setAutoStatus={setAutoStatus} onSelectDevice={selectDevice} notify={notify} />}
             {tab === "wissen" && <WissenTab />}
-            {tab === "hilfe" && <AnleitungTab />}
+            {tab === "hilfe" && <AnleitungTab goTab={setTab} />}
           </div>
         </main>
       )}
 
-      {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={library.bestand || []} customIcons={allIcons} title={picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
-        onClose={() => setPicker(null)} onPick={(item) => { const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
+      {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={library.bestand || []} customIcons={allIcons} title={picker.umbauFor ? `Modell für „${X.devById.get(picker.umbauFor)?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
+        onClose={() => setPicker(null)} onPick={(item) => { if (picker.umbauFor) { umbauen(picker.umbauFor, item); setPicker(null); return; } const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
       {protoModal && <Modal title="Protokoll" width={860} onClose={() => setProtoModal(null)}
-        footer={<button style={S.secondaryBtn} onClick={() => { setProtoId(protoModal); setBibSub("protokolle"); setTab("bibliothek"); setProtoModal(null); }}>In der Bibliothek öffnen</button>}>
+        footer={<button style={S.secondaryBtn} onClick={() => { setProtoId(protoModal); setBibSub("protokolle"); setTab("bibliothek"); setProtoModal(null); }}>Im Katalog öffnen</button>}>
         <ProtokollDetail p={PROTOKOLLE.find((p) => p.id === protoModal)} P={Pv} onSelectDevice={(id) => { setProtoModal(null); selectDevice(id); }} />
       </Modal>}
       {changelog && <Modal title={`Netzwerkplaner ${version}`} onClose={() => setChangelog(false)}>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
           <button style={S.secondaryBtn} onClick={() => checkUpdate(true)}>Nach Updates suchen</button>
+          {update?.bereit && <button style={S.primaryBtn} onClick={updateAusfuehren}>Neu starten und installieren</button>}
           <button style={S.ghostBtn} onClick={() => api.openExternal(update?.url || RELEASES_URL)}>Alle Versionen auf GitHub</button>
           <span style={{ fontSize: 12, color: update ? "#2ecc71" : SUB }}>{updateStatus}</span>
         </div>

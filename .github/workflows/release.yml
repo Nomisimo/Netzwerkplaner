@@ -67,9 +67,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: installer-${{ strategy.job-index }}
+          # latest.yml braucht das automatische Update unter Windows
           path: |
             dist/*.exe
             dist/*.dmg
+            dist/latest.yml
           if-no-files-found: error
 
   release:

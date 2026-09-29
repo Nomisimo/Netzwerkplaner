@@ -87,7 +87,6 @@ export const ARTIKEL = [
         "Uplinks tragen die Summe aller Ströme, die den Switch verlassen. Full-NDI braucht in der Regel 10G-Uplinks.",
         "Multicast ohne IGMP-Snooping und Art-Net-Broadcast liegen an jedem Port im VLAN an, auch an 100-Mbit-Geräten.",
         "Dante-Geräte mit 100-Mbit-Ports (ältere Verstärker, Wandpanels) begrenzen Kanalzahl und Latenz.",
-        "Die Leitungslast im Analyse-Tab rechnet im Worst Case: Ströme ohne Empfänger laufen bis zum Core.",
       ] },
     ],
   },
@@ -99,7 +98,7 @@ export const ARTIKEL = [
       { t: "p", x: `Beispiel: 1500-Byte-Paket über 3 Gigabit-Switches, 3 µs Durchlauf je Switch, 200 m Kabel, mit Warteschlange: ≈${us(laufzeit({ hops: 3, mbit: 1000, bytes: 1500, meter: 200, switchUs: 3, queue: true }).gesamt)}. Das Netz selbst ist also schnell; die eingestellte Gerätelatenz muss vor allem Schwankungen (Jitter) auffangen.` },
       { t: "h", x: "Dante-Latenz" },
       { t: "table", kopf: ["Einstellung", "Einsatz"], zeilen: KERN_BY_ID.dante.latenz },
-      { t: "p", x: "Die Latenz wird je Empfänger eingestellt und gilt für alle Flows, die er empfängt. Ist sie zu klein, zeigt Dante Controller späte Pakete an („Late Packets“) und es gibt Aussetzer. Der Analyse-Tab zählt die Switches zwischen den Dante-Geräten und schlägt einen Wert vor." },
+      { t: "p", x: "Die Latenz wird je Empfänger eingestellt und gilt für alle Flows, die er empfängt. Ist sie zu klein, zeigt Dante Controller späte Pakete an („Late Packets“) und es gibt Aussetzer. Die Prüfung zählt die Switches zwischen den Dante-Geräten und warnt bei mehr als 10 Hops." },
       { t: "h", x: "Weitere Größenordnungen" },
       { t: "table", kopf: ["Was", "Zeit"], zeilen: [
         ["1 Sample bei 48 kHz", "20,8 µs"],
@@ -174,6 +173,18 @@ export const ARTIKEL = [
         "Dante-Geräte ohne DHCP nehmen sich Link-local-Adressen (169.254.x.x) und finden sich trotzdem. Für geplante Netze sind feste Adressen übersichtlicher.",
       ] },
     ],
+  },
+  {
+    id: "osi", titel: "OSI-Modell & Ports", kurz: "Welche Protokolle auf welcher Schicht laufen, mit Port und Übertragungsart. Nach den Protokoll-Postern von Frank Plöger (Lichttechnik) und W&T.",
+    bloecke: [{ t: "poster" }],
+  },
+  {
+    id: "mdns", titel: "mDNS-Dienste", kurz: "Welche Dienste Geräte per mDNS/DNS-SD ankündigen. mDNS (224.0.0.251:5353) wird nicht geroutet: pro VLAN planen oder einen mDNS-Reflector einsetzen.",
+    bloecke: [{ t: "mdns" }],
+  },
+  {
+    id: "infrastruktur", titel: "Infrastruktur-Protokolle", kurz: "Die Protokolle, die im Hintergrund laufen (DHCP, LLDP, SNMP, NTP …), und ihre Rolle im Veranstaltungsnetz.",
+    bloecke: [{ t: "infra" }],
   },
   {
     id: "jumbo", titel: "Jumbo-Frames", kurz: "Für die Kernprotokolle nicht nötig.",

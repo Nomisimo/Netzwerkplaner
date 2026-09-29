@@ -8,7 +8,7 @@ import DeviceEditor from "../DeviceEditor.jsx";
 import ConnEditor from "../ConnEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
-import { endInfo, portLabel, vlanKurz, vlanLang } from "../portinfo.js";
+import { endInfo, portLabel, vlanKurz, vlanLang, geraeteTitel } from "../portinfo.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
 
@@ -16,7 +16,7 @@ const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", f
 const HW = NODE_W / 2, HH = NODE_H / 2;
 
 export default function TopologieTab(props) {
-  const { P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onDeleteConn, onShowProto, onSaveVorlage, onSaveBestand, bestand, svgRef, autoStatus, setAutoStatus } = props;
+  const { P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onDeleteConn, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, bestand, svgRef, autoStatus, setAutoStatus } = props;
   const [tool, setTool] = useState("move");
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const [drag, setDrag] = useState(null);   // { kind:'node'|'pan', id, sx, sy, dx, dy, moved }
@@ -28,7 +28,9 @@ export default function TopologieTab(props) {
   const [q, setQ] = useState("");
   const [showPorts, setShowPorts] = useState(true);
   const [ctx, setCtx] = useState(null);
-  const [titel, setTitel] = useState("name"); // Beschriftung der Knoten // Kontextmenü { id, x, y }
+  const titel = P.layout.titel || "name"; // Beschriftung der Knoten
+  const setTitel = (t) => mutate((d) => { d.layout.titel = t; });
+  const linien = P.layout.linien || "rund"; // Verbindungslinien: rund oder eckig
   const [paletteOpen, setPaletteOpen] = useState(true);
   const wrapRef = useRef(null);
   const fitted = useRef(false);
@@ -217,11 +219,11 @@ export default function TopologieTab(props) {
       const dy = pb.y >= pa.y ? 1 : -1;
       const x1 = pa.x, y1 = pa.y + dy * HH, x2 = pb.x, y2 = pb.y - dy * HH;
       const my = (y1 + y2) / 2;
-      return { d: `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`, x1, y1, x2, y2 };
+      return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "v") : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`, x1, y1, x2, y2 };
     }
     const x1 = pa.x + dir * HW, y1 = pa.y, x2 = pb.x - dir * HW, y2 = pb.y;
     const mx = (x1 + x2) / 2;
-    return { d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, x1, y1, x2, y2 };
+    return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "h") : `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, x1, y1, x2, y2 };
   };
 
   const selDev = selection?.type === "dev" ? X.devById.get(selection.id) : null;
@@ -276,8 +278,11 @@ export default function TopologieTab(props) {
           <select style={{ ...S.selectSm, width: "auto" }} value={colorBy} onChange={(e) => setColorBy(e.target.value)} title="Farbe der Verbindungen">
             <option value="vlan">Farbe: VLAN</option><option value="kat">Farbe: Bereich</option><option value="kabel">Farbe: Kabel</option>
           </select>
+          <select style={{ ...S.selectSm, width: "auto" }} value={linien} onChange={(e) => mutate((d) => { d.layout.linien = e.target.value; })} title="Form der Verbindungslinien">
+            <option value="rund">Linien: rund</option><option value="eckig">Linien: eckig</option>
+          </select>
           <select style={{ ...S.selectSm, width: "auto" }} value={titel} onChange={(e) => setTitel(e.target.value)} title="Beschriftung der Geräte">
-            <option value="name">Titel: Name</option><option value="netzname">Titel: Netzwerkname</option><option value="inventar">Titel: Inventar-Nr.</option>
+            <option value="name">Titel: Gerätename</option><option value="netzname">Titel: Netzwerkname</option><option value="typ">Titel: Typ / Modell</option><option value="inventar">Titel: Inventar-Nr.</option>
           </select>
           <select style={{ ...S.selectSm, width: "auto" }} value={katFilter} onChange={(e) => setKatFilter(e.target.value)}>
             <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
@@ -308,7 +313,9 @@ export default function TopologieTab(props) {
                 const a1 = anker(pa, slotsOf(c.a.dev)?.get(c.a.port), pb), b1 = anker(pb, slotsOf(c.b.dev)?.get(c.b.port), pa);
                 const straight = pa.kind === "switch" && pb.kind === "switch";
                 const k = Math.max(18, Math.abs(b1.y - a1.y) / 2);
-                const dPath = straight ? `M${a1.x},${a1.y} L${b1.x},${b1.y}` : `M${a1.x},${a1.y} C${a1.x},${a1.y + a1.dir * k} ${b1.x},${b1.y + b1.dir * k} ${b1.x},${b1.y}`;
+                const dPath = straight ? `M${a1.x},${a1.y} L${b1.x},${b1.y}`
+                  : linien === "eckig" ? eckPfad(a1.x, a1.y, b1.x, b1.y, "v")
+                  : `M${a1.x},${a1.y} C${a1.x},${a1.y + a1.dir * k} ${b1.x},${b1.y + b1.dir * k} ${b1.x},${b1.y}`;
                 const st = edgeStyle(c);
                 const sel = selConn?.id === c.id;
                 const dim = filtering && !(matches(X.devById.get(c.a.dev)) && matches(X.devById.get(c.b.dev)));
@@ -400,7 +407,7 @@ export default function TopologieTab(props) {
                     <rect width="5" height={NODE_H} rx="2" fill={col} />
                     <rect x="12" y="11" width="36" height="36" rx="7" fill={col + "1f"} />
                     <SvgIcon icon={d.icon} customIcons={P.icons} x={18} y={17} size={24} color={col} />
-                    {(() => { const t = (titel === "netzname" && d.netzname) || (titel === "inventar" && d.inventar?.nr) || d.name; return <text x="56" y="20" fontSize="13" fontWeight="700" fill="#fff">{t.length > 20 ? t.slice(0, 19) + "…" : t}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, d.inventar?.nr && `Inventar: ${d.inventar.nr}`].filter(Boolean).join("\n")}</title></text>; })()}
+                    {(() => { const t = geraeteTitel(d, titel); return <text x="56" y="20" fontSize="13" fontWeight="700" fill="#fff">{t.length > 20 ? t.slice(0, 19) + "…" : t}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, d.inventar?.nr && `Inventar: ${d.inventar.nr}`].filter(Boolean).join("\n")}</title></text>; })()}
                     <text x="56" y="36" fontSize="11" fill={ip ? "#c8d0d8" : MUTED} fontFamily="Consolas,monospace">{ip || (d.interfaces.some((i) => i.dhcp) ? "DHCP" : d.isSwitch && !d.interfaces.length ? "unmanaged" : "keine IP")}</text>
                     {v && <g transform={`translate(${56 + Math.max(ip.length, 7) * 6.6 + 6},27)`}><rect width={v.vid > 99 ? 30 : 24} height="12" rx="3" fill={v.farbe + "33"} stroke={v.farbe} strokeWidth=".8" /><text x={v.vid > 99 ? 15 : 12} y="9.5" fontSize="9" fill="#fff" textAnchor="middle">{v.vid}</text></g>}
                     <text x="56" y="50" fontSize="10" fill={MUTED}>{[d.bereich, d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ").slice(0, url ? 26 : 30)}</text>
@@ -456,13 +463,29 @@ export default function TopologieTab(props) {
             <button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}>✕</button>
           </div>
           {selDev && <DeviceEditor key={selDev.id} compact P={P} X={X} dev={selDev} mutate={mutate} status={status[selDev.id]} onCheck={checkReach}
-            issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} bestand={bestand} />}
+            issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} bestand={bestand} />}
           {selConn && <ConnEditor P={P} X={X} conn={selConn} mutate={mutate} onDelete={onDeleteConn} issues={connIssues.get(selConn.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} />}
         </div>
       )}
     </div>
   );
 }
+
+/* Eckige Verbindung (rechtwinklig mit kleinem Radius). dir "h": erst waagrecht,
+   "v": erst senkrecht; mid legt die Knickstelle fest. */
+const eckPfad = (x1, y1, x2, y2, dir, mid) => {
+  const r = 6;
+  if (dir === "h") {
+    const mx = mid ?? (x1 + x2) / 2, sy = Math.sign(y2 - y1), sx1 = Math.sign(mx - x1) || 1, sx2 = Math.sign(x2 - mx) || 1;
+    if (!sy) return `M${x1},${y1} L${x2},${y2}`;
+    const rr = Math.min(r, Math.abs(y2 - y1) / 2, Math.abs(mx - x1), Math.abs(x2 - mx));
+    return `M${x1},${y1} L${mx - sx1 * rr},${y1} Q${mx},${y1} ${mx},${y1 + sy * rr} L${mx},${y2 - sy * rr} Q${mx},${y2} ${mx + sx2 * rr},${y2} L${x2},${y2}`;
+  }
+  const my = mid ?? (y1 + y2) / 2, sx = Math.sign(x2 - x1), sy1 = Math.sign(my - y1) || 1, sy2 = Math.sign(y2 - my) || 1;
+  if (!sx) return `M${x1},${y1} L${x2},${y2}`;
+  const rr = Math.min(r, Math.abs(x2 - x1) / 2, Math.abs(my - y1), Math.abs(y2 - my));
+  return `M${x1},${y1} L${x1},${my - sy1 * rr} Q${x1},${my} ${x1 + sx * rr},${my} L${x2 - sx * rr},${my} Q${x2},${my} ${x2},${my + sy2 * rr} L${x2},${y2}`;
+};
 
 /* Port- und VLAN-Plakette an einer Verbindung: sitzt am Geräte-Ende und zeigt,
    an welchem Switch-Port das Gerät steckt und welches VLAN dort anliegt. */

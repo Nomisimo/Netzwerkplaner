@@ -1,3 +1,4 @@
+import { TYPEN } from "../shared/constants.js";
 import { connVlan, otherEnd } from "../shared/model.js";
 
 // Anzeigename eines Ports: reine Nummern als „P12“, sonst der Name
@@ -43,3 +44,11 @@ export const portBelegung = (dev, X) => dev.ports.map((port) => {
   const other = c ? endInfo(c, o, X) : null;
   return { port, c, self, other };
 });
+
+// Beschriftung eines Geräts in der Topologie. Ohne Netzwerknamen erscheint der Typ.
+export const typName = (d) => d.modell || TYPEN[d.typ]?.label || "Gerät";
+export const geraeteTitel = (d, modus) =>
+  modus === "netzname" ? d.netzname || typName(d)
+  : modus === "typ" ? typName(d)
+  : modus === "inventar" ? d.inventar?.nr || d.name
+  : d.name;

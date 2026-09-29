@@ -122,7 +122,7 @@ export const KERN = [
     latenz: [["< 1 ms im LAN", "UDP ohne Bestätigung, Verluste werden nicht wiederholt"]],
     anforderungen: { igmp: "–", qos: "Best Effort", ptp: "–", eee: "–", jumbo: "–", stp: "–" },
     tools: [["Protokol (Hexler)", "OSC/MIDI-Nachrichten mitlesen"], ["TouchOSC / Bitfocus Companion", "Senden und Testen"], ["Wireshark", "Dissector „osc“"]],
-    stolpersteine: ["Ports je Gerät unterschiedlich (z. B. Eos, WING, X32) – in der Bibliothek nachsehen", "UDP-Broadcast-OSC landet bei allen Geräten im VLAN"],
+    stolpersteine: ["Ports je Gerät unterschiedlich (z. B. Eos, WING, X32) – im Katalog nachsehen", "UDP-Broadcast-OSC landet bei allen Geräten im VLAN"],
   },
   {
     id: "citp", name: "CITP / MSEx", ref: "CITP / MSEx", kategorie: "Licht", farbe: "#e67e22",

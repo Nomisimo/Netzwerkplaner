@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK } from "../../shared/constants.js";
 import { KATALOG, findProtokoll } from "../../shared/catalog.js";
 import { Section, SevBadge, SEV, VlanChip } from "../ui.jsx";
+import { GOLD_STANDARDS, maNetGen } from "../../shared/manet.js";
 
 export default function PruefungTab({ P, X, issues, onShowIssue }) {
   const [filter, setFilter] = useState({ error: true, warn: true, info: true });
@@ -15,7 +16,7 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
 
   return (
     <>
-      <Section title="Prüfung" subtitle="IP-Konflikte, Subnetze, VLAN-Zuordnung an Switch-Ports, Punkt-zu-Punkt-Protokolle am Switch, IGMP/EEE je VLAN, PoE-Budget und doppelt belegte Ports. Die Regeln leiten sich aus der Protokollrecherche ab.">
+      <Section title="Prüfung" subtitle="IP-Konflikte, VLAN-Zuordnung an Switch-Ports, Punkt-zu-Punkt-Protokolle am Switch, IGMP/EEE je VLAN, PoE-Budget, doppelt belegte Ports und die MA-Net Gold-Standards. Die Regeln leiten sich aus der Protokollrecherche ab.">
         <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
           {["error", "warn", "info"].map((s) => (
             <button key={s} onClick={() => setFilter((f) => ({ ...f, [s]: !f[s] }))}
@@ -34,9 +35,21 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
         ))}
       </Section>
 
+      {P.geraete.some((d) => maNetGen(d) > 0) && (
+        <Section title="MA-Net Gold-Standards" subtitle="Diese Regeln prüft der Netzwerkplaner für alle Geräte mit MA-Net1, MA-Net2 oder MA-Net3. Treffer stehen oben mit dem Präfix „MA-Net:“.">
+          <table style={S.table}>
+            <tbody>{GOLD_STANDARDS.map(([k, t]) => {
+              return <tr key={k}><td style={{ ...S.td, fontWeight: 600, whiteSpace: "nowrap" }}>{k}</td><td style={{ ...S.td, fontSize: 12, color: SUB }}>{t}</td></tr>;
+            })}</tbody>
+          </table>
+          {(() => { const n = issues.filter((i) => i.msg.startsWith("MA-Net:") && i.sev !== "info").length;
+            return <div style={{ marginTop: 10, fontSize: 13, color: n ? WARN : OK, fontWeight: 600 }}>{n ? `${n} Abweichung${n > 1 ? "en" : ""} von den Gold-Standards` : "✓ Alle MA-Net-Regeln erfüllt"}</div>; })()}
+        </Section>
+      )}
+
       <Section title="Switch-Konfiguration je VLAN" subtitle="Zusammenfassung dessen, was auf den managed Switches einzustellen ist.">
         <table style={S.table}>
-          <thead><tr><th style={S.th}>VLAN</th><th style={S.th}>Subnetz</th><th style={S.th}>IGMP</th><th style={S.th}>Querier</th><th style={S.th}>EEE</th><th style={S.th}>QoS</th><th style={S.th}>Protokolle im VLAN</th></tr></thead>
+          <thead><tr><th style={S.th}>VLAN</th><th style={S.th}>IGMP</th><th style={S.th}>EEE</th><th style={S.th}>QoS</th><th style={S.th}>Protokolle im VLAN</th></tr></thead>
           <tbody>
             {[...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => {
               const protos = new Set();
@@ -44,9 +57,7 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
               return (
                 <tr key={v.id}>
                   <td style={S.td}><VlanChip v={v} /></td>
-                  <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{v.subnetz}</td>
                   <td style={{ ...S.td, color: v.igmp ? OK : MUTED }}>{v.igmp ? "Snooping an" : "aus"}</td>
-                  <td style={S.td}>{v.querier || (v.igmp ? <span style={{ color: WARN }}>festlegen</span> : "–")}</td>
                   <td style={{ ...S.td, color: v.eeeAus ? OK : MUTED }}>{v.eeeAus ? "aus" : "–"}</td>
                   <td style={S.td}>{v.qos ? "aktiv" : "–"}</td>
                   <td style={{ ...S.td, fontSize: 11, color: SUB }}>{[...protos].slice(0, 8).join(", ")}{protos.size > 8 ? ` … (+${protos.size - 8})` : ""}</td>

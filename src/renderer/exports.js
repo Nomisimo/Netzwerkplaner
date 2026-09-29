@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { KABEL, TYPEN } from "../shared/constants.js";
 import { connVlan, otherEnd, webUrl, kabelLabel } from "../shared/model.js";
 import { ipSort, prefixToMaskStr, parseCidr } from "../shared/net.js";
+import { ladeLogo } from "./logo.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const fileBase = (P) => (P.meta.veranstaltung || "Netzwerkplan").replace(/[\\/:*?"<>|]+/g, "_").trim() || "Netzwerkplan";
@@ -52,7 +53,7 @@ export const ipRows = (P, X) => {
   const r = [];
   for (const d of P.geraete) for (const i of d.interfaces) {
     const v = X.vlanById.get(i.vlan);
-    r.push({ IP: i.ip || (i.dhcp ? "DHCP" : ""), Maske: prefixToMaskStr(+i.prefix), CIDR: "/" + i.prefix, VLAN: v ? v.vid : "", "VLAN-Name": v?.name || "", Gerät: d.name, Interface: i.name, Gateway: i.gateway || v?.gateway || "", MAC: i.mac, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell, "Web-UI": webUrl(d) || "" });
+    r.push({ IP: i.ip || (i.dhcp ? "DHCP" : ""), Maske: prefixToMaskStr(+i.prefix), CIDR: "/" + i.prefix, VLAN: v ? v.vid : "", "VLAN-Name": v?.name || "", Gerät: d.name, Interface: i.name, Gateway: i.gateway || "", MAC: i.mac, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell, "Web-UI": webUrl(d) || "" });
   }
   return r.sort((a, b) => (+a.VLAN || 9999) - (+b.VLAN || 9999) || ipSort(a.IP, b.IP));
 };
@@ -60,7 +61,7 @@ export const patchRows = (P, X) => P.verbindungen.map((c, n) => {
   const ra = X.portRef.get(`${c.a.dev}:${c.a.port}`), rb = X.portRef.get(`${c.b.dev}:${c.b.port}`);
   const cv = connVlan(c, X);
   return { "#": n + 1, Label: c.label, "Von Gerät": ra?.dev.name, "Von Port": ra?.port.name, "Nach Gerät": rb?.dev.name, "Nach Port": rb?.port.name,
-    VLAN: (cv.kind === "trunk" ? "Trunk: " : "") + cv.vlans.map((id) => X.vlanById.get(id)?.vid).join(", "), Kabel: kabelLabel(c.kabel), "Länge (m)": c.laenge ? +c.laenge : "", Notiz: c.notiz || "" };
+    VLAN: (cv.kind === "trunk" ? "Trunk: " : "") + cv.vlans.map((id) => X.vlanById.get(id)?.vid).join(", "), Kabel: kabelLabel(c.kabel), Notiz: c.notiz || "" };
 });
 export const deviceRows = (P, X) => P.geraete.map((d) => ({
   Name: d.name, Netzwerkname: d.netzname || "", Typ: TYPEN[d.typ]?.label, Bereich: d.kategorie, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell,
@@ -68,8 +69,8 @@ export const deviceRows = (P, X) => P.geraete.map((d) => ({
   Protokolle: (d.protokolle || []).join(", "), "Inventar-Nr.": d.inventar?.nr || "", Seriennummer: d.inventar?.sn || "", Case: d.inventar?.case || "", Notizen: d.notizen,
 }));
 export const vlanRows = (P) => [...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => ({
-  VLAN: v.vid, Name: v.name, Subnetz: v.subnetz, Maske: parseCidr(v.subnetz) ? prefixToMaskStr(parseCidr(v.subnetz).prefix) : "", Gateway: v.gateway, Zweck: v.zweck,
-  IGMP: v.igmp ? "ja" : "nein", Querier: v.querier, "EEE aus": v.eeeAus ? "ja" : "nein", QoS: v.qos ? "ja" : "nein", DHCP: v.dhcp?.aktiv ? `${v.dhcp.von} – ${v.dhcp.bis}` : "", Notiz: v.notiz,
+  VLAN: v.vid, Name: v.name, Zweck: v.zweck,
+  IGMP: v.igmp ? "ja" : "nein", "EEE aus": v.eeeAus ? "ja" : "nein", QoS: v.qos ? "ja" : "nein", DHCP: v.dhcp?.aktiv ? "ja" : "nein", Notiz: v.notiz,
 }));
 export const switchPortRows = (P, X) => {
   const r = [];
@@ -94,7 +95,7 @@ export const buildXlsxBase64 = (P, X, issues) => {
   };
   add("IP-Liste", ipRows(P, X));
   add("VLANs", vlanRows(P));
-  add("Patchliste", patchRows(P, X));
+  add("Verbindungen", patchRows(P, X));
   add("Switch-Ports", switchPortRows(P, X));
   add("Geräte", deviceRows(P, X));
   add("Prüfung", issues.map((i) => ({ Schwere: { error: "Fehler", warn: "Warnung", info: "Hinweis" }[i.sev], Meldung: i.msg })));
@@ -118,7 +119,9 @@ const table = (rows, cols) => {
 export const buildPdfHtml = (P, X, issues, topo) => {
   const m = P.meta;
   const sev = { error: "Fehler", warn: "Warnung", info: "Hinweis" };
-  const head = (t) => `<div class="head"><span class="logo">NETZWERKPLANER</span><span>${esc(m.veranstaltung)}${m.ort ? " · " + esc(m.ort) : ""} · v${esc(m.version)} · ${esc(m.datum)}</span><span class="t">${esc(t)}</span></div>`;
+  const logo = ladeLogo();
+  const logoImg = (h) => (logo && /^data:image\//.test(logo) ? `<img src="${logo.replace(/"/g, "&quot;")}" style="max-height:${h}px;max-width:${h * 4}px;object-fit:contain">` : "");
+  const head = (t) => `<div class="head">${logo ? `<span class="corp">${logoImg(22)}</span>` : ""}<span class="logo">NETZWERKPLANER</span><span>${esc(m.veranstaltung)}${m.ort ? " · " + esc(m.ort) : ""} · v${esc(m.version)} · ${esc(m.datum)}</span><span class="t">${esc(t)}</span></div>`;
   const vlanTable = vlanRows(P).map((v) => ({ ...v, VLAN: v.VLAN }));
   return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${esc(m.veranstaltung)} – Netzwerkplan</title><style>
 @page { size: A4 landscape; margin: 0; }
@@ -128,6 +131,7 @@ body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; color: #1c2127
 .page:last-child { page-break-after: auto; }
 .head { display: flex; gap: 14px; align-items: baseline; border-bottom: 2px solid #b3483f; padding-bottom: 5px; margin-bottom: 10px; color: #555; }
 .head .logo { font-weight: 800; letter-spacing: 1px; color: #b3483f; font-size: 12px; }
+.head .corp { align-self: center; } .head .corp img { display: block; }
 .head .t { margin-left: auto; font-weight: 700; color: #1c2127; font-size: 12px; }
 h1 { font-size: 26px; margin: 30mm 0 4px; } h2 { font-size: 13px; margin: 14px 0 6px; }
 .meta { color: #555; font-size: 12px; line-height: 1.7; }
@@ -143,14 +147,15 @@ td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } 
 </style></head><body>
 <div class="page">
   ${head("Deckblatt")}
-  <h1>${esc(m.veranstaltung)}</h1>
+  ${logo ? `<div style="margin-top:22mm">${logoImg(70)}</div>` : ""}
+  <h1${logo ? ' style="margin-top:10mm"' : ""}>${esc(m.veranstaltung)}</h1>
   <div class="meta">Netzwerkplan · Version ${esc(m.version)} · ${esc(m.datum)}${m.ort ? `<br>Ort: ${esc(m.ort)}` : ""}${m.ersteller ? `<br>Ersteller: ${esc(m.ersteller)}` : ""}${m.notiz ? `<br><br>${esc(m.notiz).replace(/\n/g, "<br>")}` : ""}</div>
   <div class="stats"><div><b>${P.geraete.length}</b>Geräte</div><div><b>${P.geraete.filter((d) => d.isSwitch).length}</b>Switches</div><div><b>${P.verbindungen.length}</b>Verbindungen</div><div><b>${P.vlans.length}</b>VLANs</div><div><b>${issues.filter((i) => i.sev === "error").length}</b>Fehler</div><div><b>${issues.filter((i) => i.sev === "warn").length}</b>Warnungen</div></div>
-  <h2>VLANs</h2>${table(vlanTable, ["VLAN", "Name", "Subnetz", "Gateway", "Zweck", "IGMP", "Querier", "EEE aus", "QoS", "DHCP"])}
+  <h2>VLANs</h2>${table(vlanTable, ["VLAN", "Name", "Zweck", "IGMP", "EEE aus", "QoS", "DHCP"])}
 </div>
 ${topo ? `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>` : ""}
 <div class="page">${head("IP-Liste")}${table(ipRows(P, X), ["IP", "CIDR", "VLAN", "Gerät", "Interface", "Gateway", "MAC", "Standort", "Modell", "Web-UI"])}</div>
-<div class="page">${head("Patchliste")}${table(patchRows(P, X))}<h2>Switch-Ports</h2>${table(switchPortRows(P, X))}</div>
+<div class="page">${head("Switch-Ports")}${table(switchPortRows(P, X))}</div>
 <div class="page">${head("Geräte")}${table(deviceRows(P, X), ["Name", "Typ", "Bereich", "Standort", "Hersteller", "Modell", "IPs", "Web-UI", "Protokolle"])}</div>
 <div class="page">${head("Prüfung")}${issues.length ? `<table><thead><tr><th style="width:70px">Schwere</th><th>Meldung</th></tr></thead><tbody>${issues.map((i) => `<tr><td class="sev-${i.sev}">${sev[i.sev]}</td><td>${esc(i.msg)}</td></tr>`).join("")}</tbody></table>` : `<p>Keine Auffälligkeiten.</p>`}
 <p class="empty">Protokoll- und Gerätedaten aus der Projektrecherche; teils nicht datenblattgeprüft.</p></div>
