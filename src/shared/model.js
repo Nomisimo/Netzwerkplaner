@@ -30,7 +30,7 @@ export const migrateProject = (p) => {
   out.vlans = (p.vlans || []).map((v) => newVlan({ ...v, dhcp: { aktiv: false, von: "", bis: "", ...(v.dhcp || {}) } }));
   out.geraete = (p.geraete || []).map((d) => ({
     kategorie: "Sonstiges", bereich: "", protokolle: [], notizen: "", webUi: { vorhanden: false, url: "http://{ip}", iface: null },
-    poeBedarf: 0, poeBudget: 0, ...d,
+    poeBedarf: 0, poeBudget: 0, stroeme: [], ...d,
     interfaces: (d.interfaces || []).map((i) => newIface(i)),
     ports: (d.ports || []).map((pt) => newPort(pt)),
   }));

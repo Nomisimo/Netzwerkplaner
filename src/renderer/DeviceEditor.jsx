@@ -5,6 +5,7 @@ import { otherEnd, suggestIp, webUrl, clone } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
 import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot } from "./ui.jsx";
 import { api } from "./api.js";
+import StroemeEditor from "./StroemeEditor.jsx";
 
 const Sub = ({ children, right }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "18px 0 8px" }}>
@@ -265,6 +266,12 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         </form>
       </div>
       <div style={{ ...S.hint, marginTop: 6 }}>⛓ = Punkt-zu-Punkt-Protokoll, läuft nicht über Switches. Klick auf ein Protokoll zeigt Ports und Anforderungen.</div>
+
+      {/* Datenströme */}
+      {!dev.isSwitch && X && <>
+        <Sub>Datenströme</Sub>
+        <StroemeEditor P={P} X={X} dev={dev} upd={upd} />
+      </>}
 
       {/* Katalog */}
       {k && <>

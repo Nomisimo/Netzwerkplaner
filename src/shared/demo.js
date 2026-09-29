@@ -1,5 +1,6 @@
 import { emptyProject, addConnection, suggestIp } from "./model.js";
 import { createDevice, KATALOG_GERAETE } from "./catalog.js";
+import { newStream } from "./analyse.js";
 
 // Beispielprojekt: kleines Open Air mit Ton, Licht, Video und Intercom
 export const demoProject = () => {
@@ -63,6 +64,17 @@ export const demoProject = () => {
     if (s) addConnection(P, sec.id, d.id, { portB: "Secondary", laenge: 30, kabel: "ethercon" });
   }
   core.ports.slice(0, 4).forEach((p) => { if (p.modus === "access") p.poe = true; });
+  // Datenströme (was jedes Gerät sendet)
+  const strom = (d, o) => { d.stroeme = [...(d.stroeme || []), newStream(o)]; };
+  strom(rio1, { proto: "dante", menge: 32, mc: true, ziele: [cl5.id, monPult.id] });
+  strom(rio2, { proto: "dante", menge: 32, mc: true, ziele: [cl5.id, monPult.id] });
+  strom(cl5, { proto: "dante", menge: 16, ziele: [ds10.id, d80.id] });
+  strom(monPult, { proto: "dante", menge: 24, ziele: [rio2.id] });
+  strom(ulxd, { proto: "dante", menge: 4, mc: true, ziele: [cl5.id, monPult.id] });
+  strom(ma, { proto: "manet", menge: 8 });
+  strom(pu, { proto: "sacn", menge: 24 });
+  strom(cam, { proto: "ndi", menge: 1, param: { variante: "full", format: "1080p50" } });
+  strom(laptop, { proto: "osc", menge: 20 });
   const v20 = V(20); v20.querier = "CORE Bühne";
   const v10 = V(10); v10.querier = "CORE Bühne";
   return P;
