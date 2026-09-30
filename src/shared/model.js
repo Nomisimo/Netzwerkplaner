@@ -1,3 +1,4 @@
+import { doppelteBestandsgeraete } from "./bestandschluessel.js";
 import { STANDARD_VLANS, DEFAULT_BEREICHE, KABEL } from "./constants.js";
 import { uid, findProtokoll, migrateGeraet, physPorts, ipPorts } from "./catalog.js";
 import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAULT_RANGES, isValidMac } from "./net.js";
@@ -219,6 +220,9 @@ export const validate = (P, X) => {
   const issues = [];
   const add = (sev, msg, ref = {}) => issues.push({ sev, msg, ...ref });
   const vlanList = P.vlans;
+
+  // Dasselbe Bestandsgerät (Inventar-Nr., Seriennummer oder MAC) mehrfach im Plan
+  for (const grp of doppelteBestandsgeraete(P)) add("warn", `Dasselbe Bestandsgerät steht ${grp.length}× im Plan: ${grp.map((d) => `„${d.name}“`).join(", ")}.`, { dev: grp[1].id });
 
   // VLANs
   // Doppelte IDs sind erlaubt, wenn QinQ (IEEE 802.1ad) sie trennt
