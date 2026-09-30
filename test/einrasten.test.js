@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { einrasten, mitlaeufer } from "../src/shared/einrasten.js";
+import { einrasten, mitlaeufer, gruppeBewegen } from "../src/shared/einrasten.js";
 
 test("Ohne Nachbarn rastet die linke obere Ecke im Raster ein", () => {
   const r = einrasten({ x: 107, y: 53, w: 100, h: 40 }, []);
@@ -30,4 +30,15 @@ test("Mitläufer: loser Ast und Stapel wandern mit, feste Geräte nicht", () => 
   const kinder = new Map([["sw", ["a", "b"]], ["a", ["a1"]], ["b", ["b1"]]]);
   const m = mitlaeufer("sw", { kinder, ziele: { b: { x: 0, y: 0 } }, stapel: [{ id: "s", ids: ["a1", "x"] }] });
   assert.deepEqual([...m].sort(), ["a", "a1", "sw", "x"]);
+});
+
+test("Mehrfachauswahl: Geräte im Ast eines anderen gewählten Geräts nicht doppelt verschieben", () => {
+  const kinder = new Map([["sw", ["a", "b"]], ["b", ["c"]]]);
+  let r = gruppeBewegen(["sw", "b", "x"], { kinder });
+  assert.deepEqual(r.schreiben.sort(), ["sw", "x"]);
+  assert.deepEqual([...r.alle].sort(), ["a", "b", "c", "sw", "x"]);
+  r = gruppeBewegen(["sw", "b"], { kinder, ziele: { b: { x: 0, y: 0 } } }); // b angepinnt: läuft nicht mit
+  assert.deepEqual(r.schreiben.sort(), ["b", "sw"]);
+  r = gruppeBewegen(["p", "q"], { stapel: [{ id: "s", ids: ["p", "q"] }] });
+  assert.equal(r.schreiben.length, 1);
 });

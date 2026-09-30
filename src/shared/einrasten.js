@@ -42,3 +42,19 @@ export function mitlaeufer(id, { kinder = new Map(), ziele = {}, stapel = [], da
   }
   return out;
 }
+
+/* Mehrfachauswahl verschieben: ids sind die gezogenen Geräte (Stapel-Anker).
+   „schreiben“ sind die Geräte, deren Position gespeichert werden muss: Wer schon
+   im Ast oder Stapel eines anderen gewählten Geräts mitläuft, würde sonst doppelt
+   verschoben. „alle“ sind alle Geräte, die sich bewegen (für das Einrasten). */
+export function gruppeBewegen(ids, { kinder = new Map(), ziele = {}, stapel = [], dazu = () => [] } = {}) {
+  const liste = [...new Set(ids)];
+  const mit = new Map(liste.map((id) => [id, mitlaeufer(id, { kinder, ziele, stapel, dazu: dazu(id) })]));
+  let schreiben = [];
+  for (const id of liste) {
+    if (schreiben.some((o) => mit.get(o).has(id))) continue;
+    schreiben = [...schreiben.filter((o) => !mit.get(id).has(o)), id];
+  }
+  const alle = new Set(liste.flatMap((id) => [...mit.get(id)]));
+  return { schreiben, alle };
+}

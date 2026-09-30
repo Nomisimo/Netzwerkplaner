@@ -114,3 +114,21 @@ test("Vorlage mit eigenem VLAN: beim Einfügen fehlt die ID im Projekt, VLAN wir
   assert.equal(B.vlans.length, 4);
   assert.equal(d.vlanDefs, undefined);
 });
+
+test("Katalog- und Bestandsgeräte: Konfig einfügen lässt Buchsen, P2P und PoE-Werte des Modells", async () => {
+  const { hardwareFest } = await import("../src/shared/catalog.js");
+  const P = projekt();
+  const kid = KATALOG_GERAETE.find((g) => g.modell === "RSio64-D").id;
+  const rs = createDevice({ katalogId: kid, vlans: P.vlans });
+  assert.equal(hardwareFest(rs), true);
+  assert.deepEqual(rs.ports.map((p) => p.name), ["Primary", "Secondary"]);
+  const frei = createDevice({ typ: "stagebox", vlans: P.vlans });
+  assert.equal(hardwareFest(frei), false);
+  frei.ports[0].typ = "SFP"; frei.ports[0].p2p = true; frei.ports[0].vlan = P.vlans[0].id; frei.poeBedarf = 13;
+  const typ0 = rs.ports[0].typ;
+  konfigAnwenden(rs, konfigAus(frei, P.vlans, ["ports", "poe"]), ["ports", "poe"], P.vlans);
+  assert.equal(rs.ports[0].vlan, P.vlans[0].id);
+  assert.equal(rs.ports[0].typ, typ0);
+  assert.equal(!!rs.ports[0].p2p, false);
+  assert.equal(rs.poeBedarf || 0, 0);
+});

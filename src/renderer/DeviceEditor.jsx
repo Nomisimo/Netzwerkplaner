@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, katColor, TYPEN, KATEGORIEN, PORT_TYPEN } from "../shared/constants.js";
-import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid } from "../shared/catalog.js";
+import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid, hardwareFest } from "../shared/catalog.js";
 import { otherEnd, suggestIp, webUrl, clone } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
 import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot } from "./ui.jsx";
@@ -93,6 +93,9 @@ const Gegenstellen = ({ cons, onSelectDevice }) => <>
   ))}
 </>;
 
+const festStil = (an) => (an ? { opacity: 0.6, cursor: "not-allowed" } : {});
+const FEST_TIP = "Fest durch das Modell aus Katalog bzw. Gerätebestand. Ändern über „⇄ Modell zuweisen“ oder im Katalog.";
+
 const PortLoeschen = ({ dev, p, mutate }) => (
   <button style={{ ...S.dangerBtn, padding: "1px 6px" }} title={p.virtuell ? "Management-Interface löschen" : "Port löschen (inkl. Verbindung)"} onClick={() => mutate((d) => {
     const g = d.geraete.find((x) => x.id === dev.id);
@@ -104,14 +107,15 @@ const PortLoeschen = ({ dev, p, mutate }) => (
 );
 
 /* Port eines Endgeräts oder Management-Interface eines Switches: Anschluss und IP-Daten in einem */
-function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice }) {
+function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest }) {
+  const hw = fest && !p.virtuell; // Buchse aus dem Modell: Name, Typ und P2P fest
   const v = X?.vlanById.get(p.vlan);
   const setP = (fn) => upd((g) => fn(g.ports.find((x) => x.id === p.id)));
   const ip = !p.p2p; // Punkt-zu-Punkt-Ports (AES50, SLink …) haben keine IP
   return (
     <div style={{ border: `1px solid ${cons.length > 1 ? ERR : LINE}`, borderLeft: `3px solid ${ip && v?.farbe || LINE}`, borderRadius: 7, padding: 10, marginBottom: 8, background: "#1f242b" }}>
       <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : ip ? "1.3fr 1.3fr 1.7fr .6fr 1.3fr 1.4fr" : "1.3fr 1.3fr 3fr", gap: 8, alignItems: "end" }}>
-        <Field label={p.virtuell ? "Name" : "Port"} hint={p.virtuell ? "ohne Buchse" : undefined}><input style={S.inputSm} value={p.name} onChange={(e) => setP((x) => (x.name = e.target.value))} /></Field>
+        <Field label={p.virtuell ? "Name" : "Port"} hint={p.virtuell ? "ohne Buchse" : undefined}><input style={{ ...S.inputSm, ...festStil(hw) }} value={p.name} readOnly={hw} title={hw ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.name = e.target.value))} /></Field>
         {ip ? <>
           <Field label="VLAN"><VlanSelect vlans={P.vlans} value={p.vlan} onChange={(val) => setP((x) => {
             x.vlan = val;
@@ -133,17 +137,17 @@ function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice }) {
           <Field label="Gateway"><input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.gateway} placeholder={v?.gateway || ""} onChange={(e) => setP((x) => (x.gateway = e.target.value.trim()))} /></Field>
           <Field label="MAC (optional)"><input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.mac} placeholder="00:1d:c1:…" onChange={(e) => setP((x) => (x.mac = e.target.value.trim()))} /></Field>
         </> : <>
-          <Field label="Typ"><select style={S.selectSm} value={p.typ} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></Field>
+          <Field label="Typ"><select style={S.selectSm} value={p.typ} disabled={hw} title={hw ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></Field>
           <Field label="Verbunden mit"><div style={{ fontSize: 11, padding: "4px 0" }}><Gegenstellen cons={cons} onSelectDevice={onSelectDevice} /></div></Field>
         </>}
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
         {ip && <Toggle checked={p.dhcp} onChange={(c) => setP((x) => (x.dhcp = c))} label="DHCP" />}
         {ip && <span style={{ fontSize: 11, color: MUTED }}>{prefixToMaskStr(+p.prefix)}</span>}
-        {!p.virtuell && ip && <select style={{ ...S.selectSm, width: 100, padding: "2px 4px" }} value={p.typ} title="Porttyp" onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select>}
-        {!p.virtuell && <Toggle checked={!!p.p2p} onChange={(c) => setP((x) => (x.p2p = c))} label="P2P" />}
+        {!p.virtuell && ip && <select style={{ ...S.selectSm, width: 100, padding: "2px 4px" }} value={p.typ} disabled={hw} title={hw ? FEST_TIP : "Porttyp"} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select>}
+        {!p.virtuell && <Toggle checked={!!p.p2p} disabled={hw} title={hw ? FEST_TIP : undefined} onChange={(c) => setP((x) => (x.p2p = c))} label="P2P" />}
         <span style={{ fontSize: 11, flex: 1 }}>{!p.virtuell && ip && <Gegenstellen cons={cons} onSelectDevice={onSelectDevice} />}</span>
-        <PortLoeschen dev={dev} p={p} mutate={mutate} />
+        {!hw && <PortLoeschen dev={dev} p={p} mutate={mutate} />}
       </div>
     </div>
   );
@@ -200,6 +204,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
   const unmanaged = dev.typ === "switch_unmanaged";
   const col = katColor(dev.kategorie);
   const isRoot = X && P.layout.rootId === dev.id;
+  const fest = hardwareFest(dev);
 
   const connOf = (p) => (X.connsByPort.get(`${dev.id}:${p.id}`) || []).map((c) => {
     const o = otherEnd(c, dev.id);
@@ -248,11 +253,18 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         </div>
       )}
 
+      {fest && (
+        <div style={{ marginTop: 12, padding: "7px 10px", border: `1px solid ${LINE}`, borderRadius: 7, background: "#1f242b", fontSize: 11.5, color: SUB, lineHeight: 1.45 }}>
+          🔒 {dev.bestandId ? "Aus dem Gerätebestand" : "Herstellermodell aus dem Katalog"}: Gerätetyp, Hersteller, Modell, Ports, Buchsen und PoE-Werte sind fest.
+          Einstellbar bleiben Name, VLAN, IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen.{onUmbauen ? " Anderes Modell: „⇄ Modell zuweisen“." : ""}
+        </div>
+      )}
+
       {/* Allgemein */}
       <Sub>Allgemein</Sub>
       <div style={{ display: "grid", gridTemplateColumns: grid, gap: 10 }}>
         <Field label="Gerätetyp">
-          <select style={S.selectSm} value={dev.typ} onChange={(e) => upd((g) => {
+          <select style={S.selectSm} value={dev.typ} disabled={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => {
             const t = TYPEN[e.target.value];
             g.typ = e.target.value; g.isSwitch = !!t.isSwitch; g.icon = t.icon;
           })}>
@@ -265,15 +277,15 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
           </select>
         </Field>
         <Field label="Netzwerkname" hint="Name im Gerät selbst (Dante-Name, Hostname, MA-Station)"><input style={S.inputSm} value={dev.netzname || ""} placeholder={dev.name.replace(/[^A-Za-z0-9-]+/g, "-")} onChange={(e) => upd((g) => (g.netzname = e.target.value))} /></Field>
-        <Field label="Hersteller"><input style={S.inputSm} value={dev.hersteller} onChange={(e) => upd((g) => (g.hersteller = e.target.value))} /></Field>
-        <Field label="Modell"><input style={S.inputSm} value={dev.modell} onChange={(e) => upd((g) => (g.modell = e.target.value))} /></Field>
+        <Field label="Hersteller"><input style={{ ...S.inputSm, ...festStil(fest) }} value={dev.hersteller} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.hersteller = e.target.value))} /></Field>
+        <Field label="Modell"><input style={{ ...S.inputSm, ...festStil(fest) }} value={dev.modell} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.modell = e.target.value))} /></Field>
         <Field label="Standort / Ast">
           <input style={S.inputSm} list="np-bereiche" value={dev.bereich} onChange={(e) => upd((g) => (g.bereich = e.target.value))} placeholder="z. B. FOH" />
           <datalist id="np-bereiche">{P.bereiche.map((b) => <option key={b} value={b} />)}</datalist>
         </Field>
         {dev.isSwitch
-          ? <Field label="PoE-Budget (W)" hint="0 = keine Prüfung"><input type="number" min="0" style={S.inputSm} value={dev.poeBudget || 0} onChange={(e) => upd((g) => (g.poeBudget = +e.target.value))} /></Field>
-          : <Field label="PoE-Bedarf (W)" hint="0 = eigenes Netzteil"><input type="number" min="0" style={S.inputSm} value={dev.poeBedarf || 0} onChange={(e) => upd((g) => (g.poeBedarf = +e.target.value))} /></Field>}
+          ? <Field label="PoE-Budget (W)" hint="0 = keine Prüfung"><input type="number" min="0" style={{ ...S.inputSm, ...festStil(fest) }} value={dev.poeBudget || 0} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.poeBudget = +e.target.value))} /></Field>
+          : <Field label="PoE-Bedarf (W)" hint="0 = eigenes Netzteil"><input type="number" min="0" style={{ ...S.inputSm, ...festStil(fest) }} value={dev.poeBedarf || 0} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.poeBedarf = +e.target.value))} /></Field>}
       </div>
 
       <EigeneFelder dev={dev} katalog={P.feldKatalog || []} upd={upd} grid={grid} />
@@ -281,8 +293,8 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
 
       {/* Ports: jeder Port ist zugleich ein Interface mit VLAN und IP-Daten */}
       <Sub right={<>
-        <button style={S.smallBtn} onClick={() => upd((g) => { const n = physPorts(g).length + 1; g.ports.push(newPort({ name: g.isSwitch ? String(n) : `LAN ${n}` })); })}>+ Port</button>
-        {dev.isSwitch && <button style={S.smallBtn} onClick={() => upd((g) => { for (let n = 0; n < 8; n++) g.ports.push(newPort({ name: String(physPorts(g).length + 1) })); })}>+ 8 Ports</button>}
+        {!fest && <button style={S.smallBtn} onClick={() => upd((g) => { const n = physPorts(g).length + 1; g.ports.push(newPort({ name: g.isSwitch ? String(n) : `LAN ${n}` })); })}>+ Port</button>}
+        {dev.isSwitch && !fest && <button style={S.smallBtn} onClick={() => upd((g) => { for (let n = 0; n < 8; n++) g.ports.push(newPort({ name: String(physPorts(g).length + 1) })); })}>+ 8 Ports</button>}
         {dev.isSwitch && !unmanaged && <button style={S.smallBtn} title="Management-Interface ohne eigene Buchse (IP des Switches)" onClick={() => upd((g) => g.ports.push(newPort({ name: "Management", virtuell: true })))}>+ Management</button>}
       </>}>
         Ports ({physPorts(dev).length})
@@ -296,7 +308,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         </div>
       )}
       {dev.ports.length === 0 && <div style={{ ...S.empty, padding: "4px 0" }}>Keine Ports.</div>}
-      {dev.ports.filter((p) => !dev.isSwitch || p.virtuell).map((p) => <IpPort key={p.id} P={P} X={X} dev={dev} p={p} upd={upd} mutate={mutate} compact={compact} cons={connOf(p)} onSelectDevice={onSelectDevice} />)}
+      {dev.ports.filter((p) => !dev.isSwitch || p.virtuell).map((p) => <IpPort key={p.id} P={P} X={X} dev={dev} p={p} upd={upd} mutate={mutate} compact={compact} cons={connOf(p)} onSelectDevice={onSelectDevice} fest={fest} />)}
       {dev.isSwitch && physPorts(dev).length > 0 && <div style={{ overflowX: "auto" }}>
         <table style={{ ...S.table, marginTop: 0, fontSize: 12 }}>
           <thead><tr>
@@ -311,8 +323,8 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
               const cons = connOf(p);
               return (
                 <tr key={p.id} style={{ background: cons.length > 1 ? ERR + "18" : undefined }}>
-                  <td style={{ ...S.td, width: 80 }}><input style={{ ...S.inputSm, padding: "3px 6px" }} value={p.name} onChange={(e) => setP((x) => (x.name = e.target.value))} /></td>
-                  <td style={{ ...S.td, width: 92 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.typ} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></td>
+                  <td style={{ ...S.td, width: 80 }}><input style={{ ...S.inputSm, padding: "3px 6px", ...festStil(fest) }} value={p.name} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.name = e.target.value))} /></td>
+                  <td style={{ ...S.td, width: 92 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.typ} disabled={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></td>
                   {!unmanaged && <>
                     <td style={{ ...S.td, width: 84 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.modus} onChange={(e) => setP((x) => (x.modus = e.target.value))}><option value="access">Access</option><option value="trunk">Trunk</option></select></td>
                     <td style={{ ...S.td, minWidth: 120 }}>{p.modus === "trunk"
@@ -320,9 +332,9 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
                       : <VlanSelect vlans={P.vlans} value={p.vlan} onChange={(val) => setP((x) => (x.vlan = val))} style={{ padding: "3px 4px" }} noneLabel="– default –" />}</td>
                     <td style={S.td}><input type="checkbox" checked={!!p.poe} style={{ accentColor: ACCENT }} onChange={(e) => setP((x) => (x.poe = e.target.checked))} /></td>
                   </>}
-                  <td style={S.td}><input type="checkbox" checked={!!p.p2p} style={{ accentColor: ACCENT }} onChange={(e) => setP((x) => (x.p2p = e.target.checked))} /></td>
+                  <td style={S.td}><input type="checkbox" checked={!!p.p2p} disabled={fest} title={fest ? FEST_TIP : undefined} style={{ accentColor: ACCENT }} onChange={(e) => setP((x) => (x.p2p = e.target.checked))} /></td>
                   <td style={{ ...S.td, fontSize: 11 }}><Gegenstellen cons={cons} onSelectDevice={onSelectDevice} /></td>
-                  <td style={{ ...S.td, width: 30 }}><PortLoeschen dev={dev} p={p} mutate={mutate} /></td>
+                  <td style={{ ...S.td, width: 30 }}>{!fest && <PortLoeschen dev={dev} p={p} mutate={mutate} />}</td>
                 </tr>
               );
             })}

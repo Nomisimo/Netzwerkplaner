@@ -5,6 +5,12 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.21": [
+    "Topologie: Mehrfachauswahl. Shift+Klick (oder ⌘/Strg+Klick) nimmt Geräte dazu oder heraus, Shift+Fläche ziehen zieht einen Auswahlrahmen, ⌘/Strg+A wählt alle",
+    "Ziehen an einem gewählten Gerät verschiebt alle zusammen. Die Seitenleiste zeigt die Auswahl mit „📌 Alle anpinnen“ (Taste P), „▤ Als Stapel“, „📋 Konfig einfügen“ und „🗑 Alle löschen“ (Entf)",
+    "Geräte aus dem Katalog und aus dem Gerätebestand haben feste Hardware (🔒): Gerätetyp, Hersteller, Modell, Ports, Buchsen, P2P und PoE-Werte sind im Editor gesperrt. VLAN, IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen bleiben einstellbar. Auch „Konfig einfügen“ ändert diese Werte dort nicht mehr",
+    "Katalog: Yamaha RSio64-D (I/O-Rack, 4 MY-Slots, 2× etherCON Dante Pri/Sec) ergänzt",
+  ],
   "0.6.0-beta.20": [
     "Topologie: Neuer Schalter „Einrasten“ (standardmäßig an). Beim Ziehen rastet ein Gerät im Raster ein und richtet sich an Kanten und Mitten benachbarter Geräte aus, eine gestrichelte Hilfslinie zeigt die Ausrichtung. So entsteht ein gleichmäßiges Layout ohne Pixelschieben",
     "Alt gedrückt halten schaltet das Einrasten beim Ziehen kurz aus. Die Einstellung wird mit dem Projekt gespeichert",
