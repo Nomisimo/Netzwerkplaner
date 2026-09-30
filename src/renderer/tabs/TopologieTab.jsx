@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { removeDevices } from "../../shared/invarianten.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
 import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts } from "../../shared/model.js";
 import { layoutMindmap, NODE_W, NODE_H } from "../../shared/layout.js";
@@ -132,13 +133,7 @@ export default function TopologieTab(props) {
   const mehrereLoeschen = (ids) => {
     if (!ids.length || !confirm(`${ids.length} Geräte und ihre Verbindungen löschen?`)) return;
     const weg = new Set(ids);
-    mutate((d) => {
-      d.geraete = d.geraete.filter((g) => !weg.has(g.id));
-      d.verbindungen = d.verbindungen.filter((c) => !weg.has(c.a.dev) && !weg.has(c.b.dev));
-      if (weg.has(d.layout.rootId)) d.layout.rootId = null;
-      d.layout.stapel = (d.layout.stapel || []).map((s) => ({ ...s, ids: s.ids.filter((x) => !weg.has(x)) })).filter((s) => s.ids.length > 1);
-      for (const k of ["offsets", "fpOffsets", "pins", "fpPins", "fix", "fpFix"]) if (d.layout[k]) for (const id of weg) delete d.layout[k][id];
-    });
+    mutate((d) => removeDevices(d, weg)); // gemeinsame Kaskade: Verbindungen, Layout, Knicke, Stapel, Stromziele
     setSelection(null);
   };
   const knickOf = (c) => (drag?.kind === "knick" && drag.id === c.id ? { dx: drag.bx + drag.dx, dy: drag.by + drag.dy } : P.layout[knickKey]?.[c.id]);
