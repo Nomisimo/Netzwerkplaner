@@ -31,8 +31,11 @@ jobs:
           - name: macOS Apple Silicon
             os: macos-latest
             args: --mac --arm64
+          # Intel-DMG auf einem Intel-Runner bauen: dort entsteht ein HFS+-Image.
+          # Auf Apple-Silicon-Runnern baut electron-builder APFS-Images, die ältere
+          # macOS-Versionen als „beschädigt“ ablehnen.
           - name: macOS Intel
-            os: macos-latest
+            os: macos-15-intel
             args: --mac --x64
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +77,10 @@ jobs:
           n=$(ls dist/*.dmg | wc -l | tr -d ' ')
           if [ "$n" != "1" ]; then echo "::error::$n DMGs gebaut, erwartet 1"; exit 1; fi
           hdiutil verify dist/*.dmg
+          hdiutil imageinfo dist/*.dmg | grep -E "Apple_(HFS|APFS)" || true
+          if [[ "${{ matrix.args }}" == *x64* ]] && ! hdiutil imageinfo dist/*.dmg | grep -q "Apple_HFS"; then
+            echo "::error::Intel-DMG ist kein HFS+-Image"; exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:

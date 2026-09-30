@@ -3,6 +3,10 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.4] – 2026-09-30
+
+- macOS Intel: Das DMG wird jetzt auf einem Intel-Mac als HFS+-Image gebaut. Das bisherige APFS-Image meldete auf manchen Macs „Das Image ist beschädigt“
+
 ## [0.6.0-beta.3] – 2026-09-30
 
 - Update-Dialog (Windows): „⬆ … automatisch installieren“ lädt das Update, beendet die App, installiert und startet neu
