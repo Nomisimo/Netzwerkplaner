@@ -97,6 +97,7 @@ const KAPITEL = [
       "Die Standard-VLANs 10, 11, 20, 30, 40, 50 und 99 sind schon angelegt. „+ VLAN“ legt ein neues an.",
       "Je VLAN: ID, Name, Farbe, Zweck und Notiz sowie die Schalter IGMP-Snooping, EEE aus, QoS/DSCP und DHCP.",
       "Die Schalter fließen in die Prüfung ein: Multicast-Protokolle verlangen IGMP, Audio over IP und MA-Net3 verlangen EEE aus.",
+      "VLAN in VLAN (QinQ, IEEE 802.1ad): Unter „Äußeres VLAN“ ein S-VLAN wählen, dann läuft das VLAN als inneres C-VLAN darin und steht eingerückt darunter. Innere VLANs verschiedener S-VLANs dürfen dieselbe ID haben. Die Prüfung warnt dann und nennt die trennenden S-VLANs; gleiche IDs in derselben Ebene bleiben ein Fehler, ebenso ein Trunk-Port, der dieselbe ID zweimal führt, bekommt eine Warnung.",
     ]} />
   </> },
   { id: "pruefung", titel: "Prüfung & MA-Net", tab: ["pruefung", "Prüfung"], inhalt: () => <>

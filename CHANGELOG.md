@@ -3,6 +3,13 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.5] – 2026-09-30
+
+- VLAN in VLAN (QinQ, IEEE 802.1ad): je VLAN ein äußeres VLAN (S-VLAN) wählbar, die VLAN-Liste zeigt die Verschachtelung
+- Doppelte VLAN-IDs sind erlaubt, wenn QinQ sie trennt (verschiedene S-VLANs): Warnung mit Hinweis auf die Trennung. Gleiche IDs in derselben Ebene bleiben ein Fehler
+- Prüfung: Kreis in der Verschachtelung, fehlendes äußeres VLAN, mehr als zwei Tags und ein Trunk-Port mit zweimal derselben VLAN-ID werden gemeldet
+- Export (CSV/PDF): neue Spalte „S-VLAN (QinQ)“
+
 ## [0.6.0-beta.4] – 2026-09-30
 
 - macOS Intel: Das DMG wird jetzt auf einem Intel-Mac als HFS+-Image gebaut. Das bisherige APFS-Image meldete auf manchen Macs „Das Image ist beschädigt“
