@@ -3,6 +3,10 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.3] – 2026-09-30
+
+- Gemeinsam arbeiten: Die App nutzt für den Planer-Server kein HTTP/3 (QUIC) mehr. Hinter Reverse-Proxys, die HTTP/3 anbieten, ohne dass es durchkommt, schlug die Verbindung sonst mit „ERR_QUIC_PROTOCOL_ERROR“ fehl
+
 ## [0.7.0-beta.2] – 2026-09-30
 
 - Gemeinsam arbeiten: Die App spricht den Planer-Server jetzt über den Hauptprozess an. Damit klappt die Verbindung auch hinter Reverse-Proxys und bei Umleitungen von http:// auf https://
