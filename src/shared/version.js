@@ -5,6 +5,12 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.4": [
+    "Topologie: Neuer Linienmodus „Linien: direkt“. Jede Verbindung ist die kürzeste gerade Linie von Port zu Port, in Mindmap und Frontplatten",
+    "Frontplatten: Jedes Kabel läuft auf einer eigenen, schmalen Bahn neben den anderen, so bleiben parallele Kabel einzeln verfolgbar. Bahnen weichen Geräten aus und Kabel an derselben Karte werden nebeneinander verteilt",
+    "Frontplatten: „Kabel bündeln“ gibt es jetzt auch hier. An: die Kabel eines Switches laufen gemeinsam in einem Kanal. Aus: jedes Kabel auf eigener Bahn",
+    "Kabel zwischen zwei Geräten im selben Stapel werden als kurze Klammer seitlich am Stapel gezeichnet statt quer durch die Karten",
+  ],
   "0.7.0-beta.3": [
     "Gemeinsam arbeiten: Die App nutzt für den Planer-Server kein HTTP/3 (QUIC) mehr. Hinter Reverse-Proxys, die HTTP/3 anbieten, ohne dass es durchkommt, schlug die Verbindung sonst mit „ERR_QUIC_PROTOCOL_ERROR“ fehl",
   ],

@@ -13,7 +13,7 @@ import { endInfo, portLabel, vlanLang, geraeteTitel } from "../portinfo.js";
 import { feldZeilen } from "../../shared/felder.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
-import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren } from "../../shared/anordnung.js";
+import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren, bahnenVergeben, endenVerteilen } from "../../shared/anordnung.js";
 import { uid, ipPorts } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
 import StapelEditor from "../StapelEditor.jsx";
@@ -44,7 +44,7 @@ export default function TopologieTab(props) {
   const [tausch, setTausch] = useState(null); // { from, to, voll: [devId] } wenn Anschlüsse fehlen
   const titel = P.layout.titel || "name"; // Beschriftung der Knoten
   const setTitel = (t) => mutate((d) => { d.layout.titel = t; });
-  const linien = P.layout.linien || "rund"; // Verbindungslinien: rund oder eckig
+  const linien = P.layout.linien || "rund"; // Verbindungslinien: rund, eckig oder direkt (kürzester Weg)
   const buendeln = linien === "eckig" && !!P.layout.kabelBuendel; // Kabel bündeln (nur eckig), sonst einzeln nebeneinander
   const [paletteOpen, setPaletteOpen] = useState(true);
   const wrapRef = useRef(null);
@@ -392,12 +392,21 @@ export default function TopologieTab(props) {
       const x1 = pa.x + (sp?.start || 0), y1 = pa.y + dy * HH, x2 = pb.x + (sp?.ende || 0), y2 = pb.y - dy * HH;
       if (k) return mitKnick(x1, y1, x2, y2, "v");
       const my = (y1 + y2) / 2 + dy * (sp?.spur || 0);
-      return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "v", my) : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`, x1, y1, x2, y2, mx: (x1 + x2) / 2, my };
+      return { d: linien === "direkt" ? `M${x1},${y1} L${x2},${y2}` : linien === "eckig" ? eckPfad(x1, y1, x2, y2, "v", my) : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`, x1, y1, x2, y2, mx: (x1 + x2) / 2, my: linien === "direkt" ? (y1 + y2) / 2 : my };
     }
     const x1 = pa.x + dir * HW, y1 = pa.y + (sp?.start || 0), x2 = pb.x - dir * HW, y2 = pb.y + (sp?.ende || 0);
     if (k) return mitKnick(x1, y1, x2, y2, "h");
     const mx = (x1 + x2) / 2 + dir * (sp?.spur || 0);
-    return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "h", mx) : `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, x1, y1, x2, y2, mx, my: (y1 + y2) / 2 };
+    return { d: linien === "direkt" ? `M${x1},${y1} L${x2},${y2}` : linien === "eckig" ? eckPfad(x1, y1, x2, y2, "h", mx) : `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, x1, y1, x2, y2, mx: linien === "direkt" ? (x1 + x2) / 2 : mx, my: (y1 + y2) / 2 };
+  };
+  /* Kabel zwischen zwei Geräten desselben Stapels: als Klammer an der Außenseite
+     des Stapels statt als unsichtbar kurze Linie zwischen den Geräten. */
+  const imStapel = (a, b) => { const s0 = stapelVon(stapel, a); return s0 && s0.ids.includes(b) ? s0 : null; };
+  const klammerPfad = (pa, pb, i, seite, halb) => {
+    const x1 = pa.x + seite * halb(pa), x2 = pb.x + seite * halb(pb);
+    const xo = (seite > 0 ? Math.max(x1, x2) : Math.min(x1, x2)) + seite * (5 + i * 4);
+    const y1 = pa.y + 4 + i * 3, y2 = pb.y - 4 - i * 3;
+    return { d: eckPfad(x1, y1, x2, y2, "h", xo), x1, y1, x2, y2, mx: xo, my: (y1 + y2) / 2 };
   };
   // Griff zum Verschieben der ausgewählten Verbindung
   const knickGriff = (c, mx, my) => tool === "move" && selConn?.id === c.id && (
@@ -417,6 +426,13 @@ export default function TopologieTab(props) {
   const treeChildByConn = new Map([...T.treeConn].map(([child, c]) => [c.id, child]));
   const treeConnIds = new Set(treeChildByConn.keys());
   // Mindmap: Richtung je Kabel (vom Elternknoten aus) und Spuren, damit Kabel nicht übereinander liegen
+  const stapelKlammer = new Map(); // conn id → Nummer der Klammer im Stapel (für den Abstand)
+  for (const c of allConns) {
+    const s0 = imStapel(c.a.dev, c.b.dev);
+    if (!s0) continue;
+    const n = [...stapelKlammer.entries()].filter(([, v]) => v.stapel === s0.id).length;
+    stapelKlammer.set(c.id, { stapel: s0.id, i: n });
+  }
   const kabelWeg = new Map();
   if (!front) for (const c of allConns) {
     let from = posOf(c.a.dev), to = posOf(c.b.dev), fromEnd = c.a, toEnd = c.b;
@@ -429,7 +445,7 @@ export default function TopologieTab(props) {
     const gruppen = new Map();
     for (const c of allConns) {
       const { from, to, toEnd } = kabelWeg.get(c.id);
-      if (!from || !to) continue;
+      if (!from || !to || stapelKlammer.has(c.id)) continue;
       const seite = Math.abs(to.x - from.x) < NODE_W ? "v" + Math.sign(to.y - from.y) : "h" + Math.sign(to.x - from.x);
       const k = toEnd.dev + "|" + seite;
       if (!gruppen.has(k)) gruppen.set(k, []);
@@ -442,12 +458,45 @@ export default function TopologieTab(props) {
       liste.sort((a, b) => idx(a) - idx(b)).forEach((c, i) => plakettenReihe.set(c.id, { i, n: liste.length }));
     }
   }
-  const spuren = front ? new Map() : kabelSpuren(allConns.filter((c) => !knickOf(c)).map((c) => {
+  const spuren = front ? new Map() : kabelSpuren(allConns.filter((c) => !knickOf(c) && !stapelKlammer.has(c.id)).map((c) => {
     const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
     const senk = Math.abs(to.x - from.x) < NODE_W;
     return senk ? { id: c.id, von: fromEnd.dev, nach: toEnd.dev, seite: "v" + Math.sign(to.y - from.y), start: from.x, ziel: to.x }
       : { id: c.id, von: fromEnd.dev, nach: toEnd.dev, seite: "h" + Math.sign(to.x - from.x), start: from.y, ziel: to.y };
   }), buendeln ? "buendel" : linien === "eckig" ? "spuren" : "paare", { breite: NODE_H * 0.8 });
+
+  // Frontplatten: Enden an Karten verteilen und jedem Kabel eine eigene Bahn geben
+  const fpWeg = new Map();
+  if (front) {
+    const roh = [];
+    for (const c of allConns) {
+      const pa = posOf(c.a.dev), pb = posOf(c.b.dev);
+      if (!pa || !pb) continue;
+      const sa = slotsOf(c.a.dev)?.get(c.a.port), sb = slotsOf(c.b.dev)?.get(c.b.port);
+      roh.push({ c, pa, pb, a1: anker(pa, sa, pb), b1: anker(pb, sb, pa), sa, sb, kl: stapelKlammer.get(c.id) });
+    }
+    const enden = [];
+    for (const r of roh) {
+      if (r.kl) continue;
+      if (!r.sa) enden.push({ id: r.c.id + "|a", dev: r.c.a.dev + (r.a1.dir > 0 ? "u" : "o"), gegenX: r.b1.x });
+      if (!r.sb) enden.push({ id: r.c.id + "|b", dev: r.c.b.dev + (r.b1.dir > 0 ? "u" : "o"), gegenX: r.a1.x });
+    }
+    const versatz = endenVerteilen(enden, { abstand: 7, breite: CARD_W * 0.6 });
+    for (const r of roh) {
+      r.a1 = { ...r.a1, x: r.a1.x + (versatz.get(r.c.id + "|a") || 0) };
+      r.b1 = { ...r.b1, x: r.b1.x + (versatz.get(r.c.id + "|b") || 0) };
+      r.straight = r.pa.kind === "switch" && r.pb.kind === "switch";
+      fpWeg.set(r.c.id, r);
+    }
+    const bahn = bahnenVergeben(roh.filter((r) => !r.kl && !r.straight && !knickOf(r.c)).map((r) => ({
+      id: r.c.id, x1: r.a1.x, y1: r.a1.y, x2: r.b1.x, y2: r.b1.y,
+      gruppe: r.pa.kind === "switch" ? r.c.a.dev : r.pb.kind === "switch" ? r.c.b.dev : r.c.a.dev, devs: [r.c.a.dev, r.c.b.dev],
+    })), { abstand: 6, buendeln, hindernisse: [...L.pos].filter(([id]) => X.devById.has(id)).map(([id, p]) => {
+      const w = p.w || CARD_W, h = p.h || CARD_H, top = p.y - h / 2 - (p.kind === "card" ? TAB_H : 0);
+      return { dev: id, x0: p.x - w / 2, x1: p.x + w / 2, y0: top, y1: p.y + h / 2 };
+    }) });
+    for (const [id, y] of bahn) fpWeg.get(id).bahn = y;
+  }
 
   const H = "calc(100vh - 96px)";
   const closeCtx = useCallback(() => setCtx(null), []);
@@ -501,10 +550,10 @@ export default function TopologieTab(props) {
             <option value="vlan">Farbe: VLAN</option><option value="kat">Farbe: Bereich</option><option value="kabel">Farbe: Kabel</option>
           </select>
           <select style={{ ...S.selectSm, width: "auto" }} value={linien} onChange={(e) => mutate((d) => { d.layout.linien = e.target.value; })} title="Form der Verbindungslinien">
-            <option value="rund">Linien: rund</option><option value="eckig">Linien: eckig</option>
+            <option value="rund">Linien: rund</option><option value="eckig">Linien: eckig</option><option value="direkt">Linien: direkt</option>
           </select>
-          {linien === "eckig" && !front && <Toggle checked={buendeln} onChange={(v) => mutate((d) => { d.layout.kabelBuendel = v; })} label="Kabel bündeln"
-            title="An: Kabel teilen sich den Weg, mehrere Kabel zwischen denselben Geräten werden eine Linie mit Anzahl. Aus: jedes Kabel läuft einzeln auf eigener Spur daneben." />}
+          {linien === "eckig" && <Toggle checked={buendeln} onChange={(v) => mutate((d) => { d.layout.kabelBuendel = v; })} label="Kabel bündeln"
+            title={front ? "An: die Kabel eines Switches laufen gemeinsam in einem Kanal. Aus: jedes Kabel läuft auf eigener Bahn daneben." : "An: Kabel teilen sich den Weg, mehrere Kabel zwischen denselben Geräten werden eine Linie mit Anzahl. Aus: jedes Kabel läuft einzeln auf eigener Spur daneben."} />}
           <select style={{ ...S.selectSm, width: "auto" }} value={titel} onChange={(e) => setTitel(e.target.value)} title="Beschriftung der Geräte">
             <option value="name">Titel: Gerätename</option><option value="netzname">Titel: Netzwerkname</option><option value="typ">Titel: Typ / Modell</option>{(P.feldKatalog || []).map((f) => <option key={f.id} value={"feld:" + f.id}>Titel: {f.name}</option>)}
           </select>
@@ -546,16 +595,20 @@ export default function TopologieTab(props) {
               ))}
               {/* Verbindungen */}
               {front && allConns.map((c) => {
-                const pa = posOf(c.a.dev), pb = posOf(c.b.dev);
-                const a1 = anker(pa, slotsOf(c.a.dev)?.get(c.a.port), pb), b1 = anker(pb, slotsOf(c.b.dev)?.get(c.b.port), pa);
-                const straight = pa.kind === "switch" && pb.kind === "switch";
-                const k = Math.max(18, Math.abs(b1.y - a1.y) / 2);
+                const w = fpWeg.get(c.id);
+                if (!w) return null;
+                const { pa, pb, straight, bahn, kl } = w;
+                let { a1, b1 } = w;
                 const kn = knickOf(c);
-                const mx = (a1.x + b1.x) / 2 + (kn?.dx || 0), my = (a1.y + b1.y) / 2 + (kn?.dy || 0);
-                const dPath = kn ? (straight ? `M${a1.x},${a1.y} L${mx},${my} L${b1.x},${b1.y}` : knickPfad(a1.x, a1.y, b1.x, b1.y, { x: mx, y: my }, "v", linien))
-                  : straight ? `M${a1.x},${a1.y} L${b1.x},${b1.y}`
-                  : linien === "eckig" ? eckPfad(a1.x, a1.y, b1.x, b1.y, "v")
-                  : `M${a1.x},${a1.y} C${a1.x},${a1.y + a1.dir * k} ${b1.x},${b1.y + b1.dir * k} ${b1.x},${b1.y}`;
+                let mx = (a1.x + b1.x) / 2 + (kn?.dx || 0), my = (bahn ?? (a1.y + b1.y) / 2) + (kn?.dy || 0);
+                let dPath;
+                if (kl) { // im selben Stapel: Klammer an der rechten Seite der Karten
+                  const g = klammerPfad(pa, pb, kl.i, 1, (p) => (p.w || CARD_W) / 2);
+                  dPath = g.d; a1 = { x: g.x1, y: g.y1 }; b1 = { x: g.x2, y: g.y2 }; mx = g.mx; my = g.my;
+                } else if (kn) dPath = straight ? `M${a1.x},${a1.y} L${mx},${my} L${b1.x},${b1.y}` : knickPfad(a1.x, a1.y, b1.x, b1.y, { x: mx, y: my }, "v", linien);
+                else if (straight || linien === "direkt") dPath = `M${a1.x},${a1.y} L${b1.x},${b1.y}`;
+                else if (linien === "eckig") dPath = eckPfad(a1.x, a1.y, b1.x, b1.y, "v", my);
+                else dPath = knickPfad(a1.x, a1.y, b1.x, b1.y, { x: mx, y: my }, "v", "rund");
                 const st = edgeStyle(c);
                 const sel = selConn?.id === c.id;
                 const dim = filtering && !(matches(X.devById.get(c.a.dev)) && matches(X.devById.get(c.b.dev)));
@@ -576,7 +629,8 @@ export default function TopologieTab(props) {
                 // Baumkanten vom Elternknoten aus zeichnen
                 const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
                 const sp = spuren.get(c.id);
-                const g = edgePath(from, to, knickOf(c), sp);
+                const kl = stapelKlammer.get(c.id);
+                const g = kl ? klammerPfad(from, to, kl.i, from.side || (from.x >= 0 ? 1 : -1), () => HW) : edgePath(from, to, knickOf(c), sp);
                 // gebündelt: parallele Kabel als eine Linie, die Port-Plaketten bleiben sichtbar
                 if (sp?.versteckt && selConn?.id !== c.id) return showPorts && plakettenReihe.has(c.id) ? <g key={c.id} style={{ cursor: "pointer" }} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}><PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} /></g> : null;
                 const st = edgeStyle(c);
@@ -590,7 +644,8 @@ export default function TopologieTab(props) {
                     <path d={g.d} stroke="transparent" strokeWidth="14" fill="none" />
                     {(sel || st.errs) && <path d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
-                    {showPorts && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} />}
+                    {kl && <title>{`${da?.name} [${pName(c.a)}] ⇄ ${db?.name} [${pName(c.b)}] · im selben Stapel`}</title>}
+                    {showPorts && !kl && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} />}
                     {sp?.anzahl > 1 && <g><rect x={g.mx - 11} y={g.my - 8} width="22" height="16" rx="8" fill="#1b2026" stroke={st.color} /><text x={g.mx} y={g.my + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill="#e8eaed">{sp.anzahl}×</text><title>{sp.anzahl} Kabel gebündelt</title></g>}
                     {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill="#c8d0d8" textAnchor="middle">{c.label}</text>}
                     {knickGriff(c, g.mx, g.my)}

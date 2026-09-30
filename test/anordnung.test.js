@@ -74,3 +74,21 @@ test("Stapeln: gezogenes Gerät kommt oben in den bestehenden Stapel", () => {
   assert.deepEqual(st[0].ids, ["b", "x", "c", "a"]);
   assert.deepEqual(obenAufStapel([], "p", "q", "n1"), [{ id: "n1", name: "", ids: ["p", "q"] }]);
 });
+
+test("Frontplatten: parallele Kabel bekommen eigene Bahnen, gebündelt teilen sie eine", async () => {
+  const { bahnenVergeben, endenVerteilen, knickPfad } = await import("../src/shared/anordnung.js");
+  const k = [
+    { id: "a", x1: 0, y1: 0, x2: 200, y2: 100, gruppe: "sw" },
+    { id: "b", x1: 10, y1: 0, x2: 300, y2: 100, gruppe: "sw" },
+    { id: "c", x1: 400, y1: 0, x2: 500, y2: 100, gruppe: "sw2" },
+  ];
+  const r = bahnenVergeben(k, { abstand: 6 });
+  assert.equal(r.get("a"), 50);
+  assert.ok(Math.abs(r.get("b") - r.get("a")) >= 6); // überlappen in x → eigene Bahn
+  assert.equal(r.get("c"), 50); // kein Überlapp → Mitte
+  const g = bahnenVergeben(k, { abstand: 6, buendeln: true });
+  assert.equal(g.get("a"), g.get("b"));
+  const e = endenVerteilen([{ id: "x", dev: "d", gegenX: 300 }, { id: "y", dev: "d", gegenX: -100 }], { abstand: 6 });
+  assert.ok(e.get("y") < e.get("x"));
+  assert.equal(knickPfad(0, 0, 10, 10, { x: 5, y: 2 }, "h", "direkt"), "M0,0 L5,2 L10,10");
+});

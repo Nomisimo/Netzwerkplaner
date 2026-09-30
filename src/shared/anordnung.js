@@ -110,6 +110,7 @@ export const positionenSichern = (L) => Object.fromEntries([...L.pos].map(([id, 
 /* Verbindungslinie über einen verschobenen Knickpunkt m. dir "h": Enden
    waagrecht, "v": senkrecht. form "rund" oder "eckig". */
 export const knickPfad = (x1, y1, x2, y2, m, dir, form) => {
+  if (form === "direkt") return `M${x1},${y1} L${m.x},${m.y} L${x2},${y2}`;
   if (form === "eckig") {
     if (dir === "h") return `M${x1},${y1} L${m.x},${y1} L${m.x},${y2} L${x2},${y2}`;
     return `M${x1},${y1} L${x1},${m.y} L${x2},${m.y} L${x2},${y2}`;
@@ -154,6 +155,74 @@ export const kabelSpuren = (kabel, modus, { abstand = KABEL_ABSTAND, breite = 40
     const paare = new Map();
     for (const k of s) { const p = paar(k); if (!paare.has(p)) paare.set(p, []); paare.get(p).push(k); }
     for (const p of paare.values()) p.forEach((k, i) => { out.get(k.id).ende = mitte(i, p.length, a); });
+  }
+  return out;
+};
+
+/* Frontplatten: jedem Kabel eine eigene waagrechte Bahn zwischen seinen beiden
+   Enden geben, damit parallele Kabel einzeln verfolgbar bleiben und nicht
+   übereinander liegen. kabel: [{ id, x1, y1, x2, y2, gruppe }]. Bahnen liegen
+   möglichst in der Mitte und weichen in Schritten von `abstand` aus, wenn sich
+   waagrechte Abschnitte überschneiden würden. Mit buendeln teilen sich alle
+   Kabel einer Gruppe (z. B. eines Switches) eine Bahn wie in einem Kabelkanal.
+   hindernisse: [{ x0, x1, y0, y1, dev }] (Geräte), durch die keine Bahn laufen soll.
+   Ergebnis: Map id → y der Bahn. */
+export const bahnenVergeben = (kabel, { abstand = 6, rand = 12, buendeln = false, hindernisse = [] } = {}) => {
+  const einzeln = kabel.map((k) => {
+    let lo = Math.min(k.y1, k.y2) + rand, hi = Math.max(k.y1, k.y2) - rand;
+    if (lo > hi) lo = hi = (k.y1 + k.y2) / 2;
+    return { ids: [k.id], x0: Math.min(k.x1, k.x2), x1: Math.max(k.x1, k.x2), lo, hi, pref: (k.y1 + k.y2) / 2, gruppe: k.gruppe, devs: k.devs || [] };
+  });
+  let items = einzeln;
+  if (buendeln) {
+    const g = new Map();
+    for (const e of einzeln) {
+      const key = `${e.gruppe}|${Math.round(e.pref / 40)}`; // gleiche Quelle, gleiche Zeile
+      const x = g.get(key);
+      if (!x) { g.set(key, { ...e, ids: [...e.ids], n: 1 }); continue; }
+      x.ids.push(...e.ids); x.devs = [...x.devs, ...e.devs]; x.x0 = Math.min(x.x0, e.x0); x.x1 = Math.max(x.x1, e.x1);
+      x.lo = Math.max(x.lo, e.lo); x.hi = Math.min(x.hi, e.hi); x.pref = (x.pref * x.n + e.pref) / (x.n + 1); x.n++;
+      if (x.lo > x.hi) x.lo = x.hi = x.pref;
+    }
+    items = [...g.values()];
+  }
+  items.sort((a, b) => (a.hi - a.lo) - (b.hi - b.lo) || a.pref - b.pref || a.x0 - b.x0);
+  const belegt = [];
+  const quer = (y, it) => hindernisse.some((h) => !it.devs.includes(h.dev) && y > h.y0 - 3 && y < h.y1 + 3 && it.x0 < h.x1 && h.x0 < it.x1);
+  const frei = (y, it) => !quer(y, it) && !belegt.some((p) => it.x0 - abstand < p.x1 && p.x0 < it.x1 + abstand && Math.abs(y - p.y) < abstand - 0.01);
+  const out = new Map();
+  for (const it of items) {
+    const mitte = Math.min(it.hi, Math.max(it.lo, it.pref));
+    let y = mitte;
+    for (let k = 1, gefunden = frei(mitte, it); !gefunden && k < 200; k++) {
+      const c = mitte + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * abstand;
+      if (c < it.lo - 0.01 || c > it.hi + 0.01) { if (Math.ceil(k / 2) * abstand > it.hi - it.lo + abstand) break; continue; }
+      if (frei(c, it)) { y = c; gefunden = true; }
+    }
+    if (!frei(y, it) && quer(y, it)) { // kein freier Platz: wenigstens nicht durch ein Gerät
+      for (let k = 1; k < 200; k++) {
+        const c = mitte + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * abstand;
+        if (c < it.lo - 0.01 || c > it.hi + 0.01) { if (Math.ceil(k / 2) * abstand > it.hi - it.lo + abstand) break; continue; }
+        if (!quer(c, it)) { y = c; break; }
+      }
+    }
+    belegt.push({ x0: it.x0, x1: it.x1, y });
+    for (const id of it.ids) out.set(id, y);
+  }
+  return out;
+};
+
+/* Enden an einem Gerät ohne feste Port-Position (Karten in der Frontplatten-Ansicht)
+   nebeneinander verteilen, sortiert nach der Gegenseite, damit sich nichts kreuzt.
+   enden: [{ id, dev, gegenX }] → Map id → Versatz in x */
+export const endenVerteilen = (enden, { abstand = 6, breite = 120 } = {}) => {
+  const out = new Map();
+  const g = new Map();
+  for (const e of enden) { if (!g.has(e.dev)) g.set(e.dev, []); g.get(e.dev).push(e); }
+  for (const l of g.values()) {
+    l.sort((a, b) => a.gegenX - b.gegenX || String(a.id).localeCompare(String(b.id)));
+    const a = Math.min(abstand, breite / Math.max(1, l.length));
+    l.forEach((e, i) => out.set(e.id, (i - (l.length - 1) / 2) * a));
   }
   return out;
 };
