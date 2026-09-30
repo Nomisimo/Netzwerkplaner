@@ -99,7 +99,9 @@ export default function TopologieTab(props) {
     if (an) { delete d.layout.fix; delete d.layout.fpFix; }
     else d.layout[fixKey] = positionenSichern(Lbase);
   });
-  const togglePin = (id) => mutate((d) => {
+  // Geräte im Stapel pinnen den ganzen Stapel (über das oberste Gerät, den Anker)
+  const togglePin = (id0) => mutate((d) => {
+    const id = stapelAnker(d.layout.stapel || [], id0);
     const m = { ...(d.layout[pinKey] || {}) };
     if (m[id]) delete m[id];
     else { const p = Lbase.pos.get(id); if (p) m[id] = { x: Math.round(p.x), y: Math.round(p.y) }; }
@@ -246,6 +248,7 @@ export default function TopologieTab(props) {
       if (key === "c") setTool("connect");
       if (key === "s") setTool("stack");
       if (key === "p" && selection?.type === "dev") togglePin(selection.id);
+      if (key === "p" && selection?.type === "stapel") { const s0 = stapel.find((x) => x.id === selection.id); if (s0) togglePin(s0.ids[0]); }
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
@@ -420,7 +423,7 @@ export default function TopologieTab(props) {
                 <g key={b.id} onMouseDown={(e) => onDown(e, b.ids[0], null, b.id)} style={{ cursor: "move" }}>
                   <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke={selection?.type === "stapel" && selection.id === b.id ? ACCENT : "#8a96a3"} strokeWidth={selection?.type === "stapel" && selection.id === b.id ? 2 : 1.2} strokeDasharray="5 4" />
                   <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill="#aeb8c2" style={{ cursor: "pointer" }}>
-                    ▤ {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
+                    {pins[b.ids[0]] ? "📌 " : ""}▤ {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
                   </text>
                 </g>
               ))}
@@ -589,7 +592,7 @@ export default function TopologieTab(props) {
             return <DeviceContextMenu P={P} X={X} dev={d} x={ctx.x} y={ctx.y} status={status[d.id]} issues={devIssues.get(d.id) || []} onClose={closeCtx}
               onEdit={() => setSelection({ type: "dev", id: d.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(d.id)}
               onSetRoot={d.isSwitch && P.layout.rootId !== d.id ? () => mutate((dd) => { dd.layout.rootId = d.id; }) : null}
-              pinned={!!pins[d.id]} onPin={() => togglePin(d.id)}
+              pinned={!!pins[stapelAnker(stapel, d.id)]} onPin={() => togglePin(d.id)}
               onUnstack={stapelVon(stapel, d.id) ? () => mutate((dd) => { dd.layout.stapel = entstapeln(dd.layout.stapel, d.id); }) : null}
               onEditStack={stapelVon(stapel, d.id) ? () => setSelection({ type: "stapel", id: stapelVon(stapel, d.id).id }) : null}
               collapsed={!!P.layout.collapsed?.[d.id]} onToggleCollapse={hasKids ? () => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [d.id]: !dd.layout.collapsed?.[d.id] }; }) : null} />;
@@ -605,7 +608,7 @@ export default function TopologieTab(props) {
           </div>
           {selDev && <DeviceEditor key={selDev.id} compact P={P} X={X} dev={selDev} mutate={mutate} status={status[selDev.id]} onCheck={checkReach}
             issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />}
-          {selStapel && <StapelEditor P={P} stapelId={selStapel.id} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
+          {selStapel && <StapelEditor P={P} stapelId={selStapel.id} pinned={!!pins[selStapel.ids[0]]} onPin={() => togglePin(selStapel.ids[0])} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
           {selConn && <ConnEditor P={P} X={X} conn={selConn} mutate={mutate} onDelete={onDeleteConn} issues={connIssues.get(selConn.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} />}
         </div>
       )}
