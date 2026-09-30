@@ -298,6 +298,8 @@ export const geraetUmbauen = (P, devId, neu, { ausBestand = false } = {}) => {
     } else if (belegt.has(p.id)) { neu.ports.push({ ...p, iface: null }); portMap[p.id] = p.id; }
   });
   for (const c of P.verbindungen) for (const e of [c.a, c.b]) if (e.dev === devId && portMap[e.port]) e.port = portMap[e.port];
+  // Bei generischen Funden (Discovery) die erkannten Protokolle behalten
+  if (dev.generisch) neu.protokolle = [...new Set([...(neu.protokolle || []), ...(dev.protokolle || [])])];
   const bleibt = ausBestand
     ? { id: dev.id, bereich: neu.bereich || dev.bereich, stroeme: [] }
     : { id: dev.id, name: dev.name, netzname: dev.netzname || "", inventar: dev.inventar, bestandId: dev.bestandId, bereich: dev.bereich, notizen: dev.notizen, stroeme: [] };

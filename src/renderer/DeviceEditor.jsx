@@ -39,7 +39,47 @@ function TrunkVlans({ vlans, value, onChange }) {
   );
 }
 
-export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, bestand = [] }) {
+/* Generisches Gerät (per Discovery oder Scan gefunden): leere Maske mit den
+   Fundangaben und nur zwei Wegen weiter, Modell zuweisen oder leeres Gerät eines Typs. */
+function GenerischeMaske({ dev, status, upd, onUmbauen, onTypWaehlen, onDelete, onCheck }) {
+  const [typ, setTyp] = useState(null);
+  const ifc = dev.interfaces.find((i) => i.ip) || dev.interfaces[0];
+  const zeile = (l, v) => v ? <div style={{ display: "flex", gap: 10, fontSize: 12, padding: "3px 0" }}><span style={{ color: MUTED, width: 80 }}>{l}</span><span style={{ fontFamily: "ui-monospace,monospace", wordBreak: "break-all" }}>{v}</span></div> : null;
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input style={{ ...S.input, flex: 1, fontWeight: 700, fontSize: 15, minWidth: 0 }} value={dev.name} onChange={(e) => upd((g) => (g.name = e.target.value))} />
+        <StatusDot st={status} size={11} />
+      </div>
+      <div style={{ marginTop: 10, padding: "8px 10px", border: `1px dashed ${LINE}`, borderRadius: 8 }}>
+        <div className="sp-section-label" style={{ margin: "0 0 6px" }}>Generisches Gerät</div>
+        {zeile("IP", ifc?.ip)}
+        {zeile("MAC", ifc?.mac)}
+        {zeile("Protokolle", (dev.protokolle || []).join(", "))}
+        {zeile("Hinweis", dev.notizen)}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
+        {onUmbauen && <button style={{ ...S.primaryBtn, padding: "8px 10px" }} onClick={() => onUmbauen(dev.id)}
+          title="Katalogmodell, eigene Vorlage oder Bestandseintrag wählen. Name, IP und Verbindungen bleiben.">⇄ Modell zuweisen</button>}
+        {typ === null
+          ? <button style={{ ...S.smallBtn, padding: "8px 10px" }} onClick={() => setTyp(dev.typVorschlag || "sonstiges")}>＋ Leeres Gerät anlegen</button>
+          : <div style={{ display: "flex", gap: 6 }}>
+              <select style={{ ...S.selectSm, flex: 1 }} value={typ} onChange={(e) => setTyp(e.target.value)} autoFocus>
+                {Object.entries(TYPEN).map(([key, t]) => <option key={key} value={key}>{t.label}{key === dev.typVorschlag ? " (Vorschlag)" : ""}</option>)}
+              </select>
+              <button style={S.primaryBtn} onClick={() => onTypWaehlen && onTypWaehlen(dev.id, typ)}>Anlegen</button>
+              <button style={S.smallBtn} onClick={() => setTyp(null)}>✕</button>
+            </div>}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
+        <button style={S.smallBtn} onClick={() => onCheck && onCheck([dev.id])}>⟳ Erreichbarkeit</button>
+        <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={() => onDelete && onDelete(dev.id)}>🗑 Löschen</button>
+      </div>
+    </div>
+  );
+}
+
+export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand = [] }) {
   const [protoInput, setProtoInput] = useState("");
   const [showKatalog, setShowKatalog] = useState(false);
   const upd = (fn) => mutate((d) => fn(d.geraete.find((g) => g.id === dev.id), d));
@@ -56,6 +96,8 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
   }).filter(Boolean);
 
   const grid = compact ? "1fr 1fr" : "repeat(auto-fit,minmax(170px,1fr))";
+
+  if (dev.generisch) return <GenerischeMaske dev={dev} status={status} upd={upd} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} onDelete={onDelete} onCheck={onCheck} />;
 
   return (
     <div>

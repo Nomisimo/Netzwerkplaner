@@ -231,7 +231,7 @@ export default function App() {
       geraetUmbauen(d, devId, neu, { ausBestand });
     });
     if (konflikte.length) notify(`Gerät aus dem Bestand übernommen. IP bereits vergeben: ${konflikte.join(", ")}`, "warn");
-    else notify(ausBestand ? "Gerät aus dem Bestand übernommen, mit seinen festen IPs. Die Verbindungen sind geblieben." : "Modell übernommen. Name, IPs und Verbindungen sind geblieben.");
+    else notify(ausBestand ? "Gerät aus dem Bestand übernommen, mit seinen festen IPs. Die Verbindungen sind geblieben." : item.kind === "typ" ? "Leeres Gerät angelegt. Name, IPs und Verbindungen sind geblieben." : "Modell übernommen. Name, IPs und Verbindungen sind geblieben.");
   }, [library, mutate]);
 
   const deleteDevice = useCallback((id) => {
@@ -342,7 +342,7 @@ export default function App() {
   };
 
   const nErr = issues.filter((i) => i.sev === "error").length, nWarn = issues.filter((i) => i.sev === "warn").length;
-  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }) };
+  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }), onTypWaehlen: (id, key) => umbauen(id, { kind: "typ", key }) };
 
   return (
     <div style={S.app}>
