@@ -28,6 +28,7 @@ import SitzungDialog from "./SitzungDialog.jsx";
 import { useSitzung } from "./sync.js";
 import { diff, apply, invert, valueAt, pathKey } from "../shared/ops.js";
 import { removeDevice } from "../shared/invarianten.js";
+import { bestandSchluessel } from "../shared/bestandschluessel.js";
 
 
 const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
@@ -338,6 +339,8 @@ export default function App() {
     const ic = P.icons.find((i) => "custom:" + i.id === dev.icon);
     if (ic) setLibrary((l) => ({ ...l, icons: (l.icons || []).some((x) => x.id === ic.id) ? l.icons : [...(l.icons || []), ic] }));
   };
+  // Feste ID aus Inventar-Nr., Seriennummer oder MAC: derselbe Bestand auf zwei Rechnern hat dieselben IDs
+  const bestandId = (g) => { const k = bestandSchluessel(g); return k && !(library.bestand || []).some((b) => b.id === k) ? k : uid(); };
   const saveBestand = (dev) => {
     const g = snapshotDevice(dev, P.vlans);
     const now = new Date().toISOString();
@@ -346,7 +349,7 @@ export default function App() {
       setLibrary((l) => ({ ...l, bestand: l.bestand.map((b) => (b.id === dev.bestandId ? { ...b, name: dev.name, geraet: g, geaendert: now } : b)) }));
       notify(`„${dev.name}“ im Bestand aktualisiert.`);
     } else {
-      const bid = uid();
+      const bid = bestandId(g);
       setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), { id: bid, name: dev.name, geraet: g, angelegt: now, geaendert: now }] }));
       mutate((d) => { const x = d.geraete.find((y) => y.id === dev.id); if (x) x.bestandId = bid; });
       notify(`„${dev.name}“ im Gerätebestand gespeichert.`);
@@ -358,7 +361,7 @@ export default function App() {
     if (!neu.length) return notify("Alle Projektgeräte sind schon im Bestand.");
     if (!confirm(`${neu.length} Geräte aus diesem Projekt in den Bestand übernehmen?`)) return;
     const now = new Date().toISOString();
-    const entries = neu.map((d) => ({ id: uid(), dev: d }));
+    const entries = neu.map((d) => ({ id: bestandId(snapshotDevice(d, P.vlans)), dev: d }));
     setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...entries.map(({ id, dev }) => ({ id, name: dev.name, geraet: snapshotDevice(dev, P.vlans), angelegt: now, geaendert: now }))] }));
     mutate((d) => { for (const e of entries) { const x = d.geraete.find((y) => y.id === e.dev.id); if (x) x.bestandId = e.id; } });
     neu.forEach(rememberIcon);
