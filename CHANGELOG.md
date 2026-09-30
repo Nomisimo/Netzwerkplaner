@@ -3,6 +3,11 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.3] – 2026-09-30
+
+- Update-Dialog (Windows): „⬆ … automatisch installieren“ lädt das Update, beendet die App, installiert und startet neu
+- macOS: weiter über „⬇ herunterladen“ (Download-Seite), bis die Mac-Builds eine Apple-Signatur haben
+
 ## [0.6.0-beta.2] – 2026-09-30
 
 - Topologie: Geräte anpinnen (Taste P, Rechtsklick oder Klick auf die Nadel). Angepinnte Geräte bleiben beim automatischen Anordnen stehen
