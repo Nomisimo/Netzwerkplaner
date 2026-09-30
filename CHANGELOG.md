@@ -3,6 +3,11 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.18] – 2026-09-30
+
+- Topologie: Neuer Schalter „Einrasten“ (standardmäßig an). Beim Ziehen rastet ein Gerät im Raster ein und richtet sich an Kanten und Mitten benachbarter Geräte aus, eine gestrichelte Hilfslinie zeigt die Ausrichtung. So entsteht ein gleichmäßiges Layout ohne Pixelschieben
+- Alt gedrückt halten schaltet das Einrasten beim Ziehen kurz aus. Die Einstellung wird mit dem Projekt gespeichert
+
 ## [0.6.0-beta.17] – 2026-09-30
 
 - Ports und Interfaces sind zusammengeführt: Jeder Port trägt direkt VLAN, IP, Maske, Gateway, MAC und DHCP. Die getrennte Interface-Liste und die Zuordnung Port → Interface entfallen
