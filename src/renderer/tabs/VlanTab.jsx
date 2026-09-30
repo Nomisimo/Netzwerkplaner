@@ -4,6 +4,9 @@ import { newVlan } from "../../shared/model.js";
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
 
+// Helle Farben für neue VLANs, damit ID und Linien auf dunklem Grund lesbar bleiben
+const NEUE_FARBEN = ["#ff9f43", "#54a0ff", "#1dd1a1", "#feca57", "#ff6b6b", "#c56cf0", "#48dbfb", "#a3cb38", "#fd79a8", "#7bed9f"];
+
 function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
   const [open, setOpen] = useState(false);
   const upd = (fn) => mutate((d) => fn(d.vlans.find((x) => x.id === v.id)));
@@ -15,7 +18,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
       <div style={S.cardHead} onClick={() => setOpen((o) => !o)}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
           {tiefe > 0 && <span style={{ color: MUTED, marginLeft: -6 }} title="Inneres VLAN (C-VLAN) im äußeren VLAN darüber">↳</span>}
-          <span style={{ fontWeight: 800, fontSize: 16, minWidth: 44, color: v.farbe }} title={aussen ? `Tags: ${vlanPfad(v, P.vlans)} (außen › innen)` : undefined}>{v.vid}</span>
+          <span style={{ fontWeight: 800, fontSize: 15, minWidth: 44, textAlign: "center", color: "#fff", background: v.farbe + "33", border: `1px solid ${v.farbe}`, borderRadius: 6, padding: "1px 6px" }} title={aussen ? `VLAN-ID ${v.vid} · Tags: ${vlanPfad(v, P.vlans)} (außen › innen)` : `VLAN-ID ${v.vid}`}>{v.vid}</span>
           <div style={{ minWidth: 0 }}>
             <div style={S.cardTitle}>{v.name || "(ohne Name)"}</div>
             {v.zweck && <div style={S.cardSub}>{v.zweck}</div>}
@@ -29,8 +32,13 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
           {v.qos && <span style={S.chip}>QoS</span>}
           {v.dhcp?.aktiv && <span style={S.chip}>DHCP</span>}
           <span style={{ ...S.chip, color: SUB }}>{count} IPs</span>
-          {iss.some((i) => i.sev === "error") && <span style={{ color: ERR }}>⚠</span>}
-          {!iss.some((i) => i.sev === "error") && iss.some((i) => i.sev === "warn") && <span style={{ color: WARN }}>⚠</span>}
+          {(() => {
+            // Warndreieck nur, wenn die Prüfung für dieses VLAN etwas meldet; der Grund steht im Tooltip und aufgeklappt unten
+            const w = iss.filter((i) => i.sev === "error" || i.sev === "warn");
+            if (!w.length) return null;
+            const err = w.some((i) => i.sev === "error");
+            return <span style={{ color: err ? ERR : WARN, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }} title={w.map((i) => "• " + i.msg).join("\n")}>⚠ {w.length}</span>;
+          })()}
           <span style={{ color: MUTED }}>{open ? "▴" : "▾"}</span>
         </div>
       </div>
@@ -79,11 +87,11 @@ export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
   const baum = useMemo(() => vlanBaum(P.vlans), [P.vlans]);
   return (
     <>
-      <Section title="VLANs" subtitle="ID, Name und Switch-Einstellungen je VLAN. Die Prüfung meldet fehlendes IGMP bei Multicast-Protokollen (sACN, Dante-Multicast, MA-Net3, NDI …) und eingeschaltetes EEE bei Audio over IP."
+      <Section title="VLANs" subtitle="ID, Name und Switch-Einstellungen je VLAN. ⚠ erscheint nur, wenn Geräte im VLAN es verlangen: Multicast-Protokolle (sACN, Dante-Multicast, MA-Net3, NDI …) ohne IGMP-Snooping, Audio over IP ohne „EEE aus“, doppelte IDs oder QinQ-Fehler. Ein leeres VLAN hat keine Warnung. Maus auf ⚠ zeigt den Grund."
         right={<div style={{ display: "flex", gap: 6 }}>
           <button style={S.primaryBtn} onClick={() => mutate((d) => {
             const vid = Math.max(0, ...d.vlans.map((v) => +v.vid)) + 1;
-            d.vlans.push(newVlan({ vid, name: `VLAN ${vid}`, farbe: "#" + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0"), subnetz: vid < 256 ? `10.10.${vid}.0/24` : "" }));
+            d.vlans.push(newVlan({ vid, name: `VLAN ${vid}`, farbe: NEUE_FARBEN[d.vlans.length % NEUE_FARBEN.length], subnetz: vid < 256 ? `10.10.${vid}.0/24` : "" }));
           })}>+ VLAN</button>
         </div>}>
         {baum.length === 0 && <p style={S.empty}>Keine VLANs angelegt.</p>}
