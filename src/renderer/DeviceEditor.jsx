@@ -6,6 +6,9 @@ import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
 import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot } from "./ui.jsx";
 import { api } from "./api.js";
 import StroemeEditor from "./StroemeEditor.jsx";
+import { KonfigKopieren, KonfigEinfuegen } from "./KonfigDialog.jsx";
+import { useZwischenablage } from "./zwischenablage.js";
+import { geraetKopie } from "../shared/konfig.js";
 
 const Sub = ({ children, right }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "18px 0 8px" }}>
@@ -39,9 +42,51 @@ function TrunkVlans({ vlans, value, onChange }) {
   );
 }
 
-export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, bestand = [] }) {
+/* Generisches Gerät (per Discovery oder Scan gefunden): leere Maske mit den
+   Fundangaben und nur zwei Wegen weiter, Modell zuweisen oder leeres Gerät eines Typs. */
+function GenerischeMaske({ dev, status, upd, onUmbauen, onTypWaehlen, onDelete, onCheck }) {
+  const [typ, setTyp] = useState(null);
+  const ifc = dev.interfaces.find((i) => i.ip) || dev.interfaces[0];
+  const zeile = (l, v) => v ? <div style={{ display: "flex", gap: 10, fontSize: 12, padding: "3px 0" }}><span style={{ color: MUTED, width: 80 }}>{l}</span><span style={{ fontFamily: "ui-monospace,monospace", wordBreak: "break-all" }}>{v}</span></div> : null;
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input style={{ ...S.input, flex: 1, fontWeight: 700, fontSize: 15, minWidth: 0 }} value={dev.name} onChange={(e) => upd((g) => (g.name = e.target.value))} />
+        <StatusDot st={status} size={11} />
+      </div>
+      <div style={{ marginTop: 10, padding: "8px 10px", border: `1px dashed ${LINE}`, borderRadius: 8 }}>
+        <div className="sp-section-label" style={{ margin: "0 0 6px" }}>Generisches Gerät</div>
+        {zeile("IP", ifc?.ip)}
+        {zeile("MAC", ifc?.mac)}
+        {zeile("Protokolle", (dev.protokolle || []).join(", "))}
+        {zeile("Hinweis", dev.notizen)}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
+        {onUmbauen && <button style={{ ...S.primaryBtn, padding: "8px 10px" }} onClick={() => onUmbauen(dev.id)}
+          title="Katalogmodell, eigene Vorlage oder Bestandseintrag wählen. Name, IP und Verbindungen bleiben.">⇄ Modell zuweisen</button>}
+        {typ === null
+          ? <button style={{ ...S.smallBtn, padding: "8px 10px" }} onClick={() => setTyp(dev.typVorschlag || "sonstiges")}>＋ Leeres Gerät anlegen</button>
+          : <div style={{ display: "flex", gap: 6 }}>
+              <select style={{ ...S.selectSm, flex: 1 }} value={typ} onChange={(e) => setTyp(e.target.value)} autoFocus>
+                {Object.entries(TYPEN).map(([key, t]) => <option key={key} value={key}>{t.label}{key === dev.typVorschlag ? " (Vorschlag)" : ""}</option>)}
+              </select>
+              <button style={S.primaryBtn} onClick={() => onTypWaehlen && onTypWaehlen(dev.id, typ)}>Anlegen</button>
+              <button style={S.smallBtn} onClick={() => setTyp(null)}>✕</button>
+            </div>}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
+        <button style={S.smallBtn} onClick={() => onCheck && onCheck([dev.id])}>⟳ Erreichbarkeit</button>
+        <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={() => onDelete && onDelete(dev.id)}>🗑 Löschen</button>
+      </div>
+    </div>
+  );
+}
+
+export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand = [] }) {
   const [protoInput, setProtoInput] = useState("");
   const [showKatalog, setShowKatalog] = useState(false);
+  const [konfigDlg, setKonfigDlg] = useState(null);
+  const konfigClip = useZwischenablage("konfig");
   const upd = (fn) => mutate((d) => fn(d.geraete.find((g) => g.id === dev.id), d));
   const k = dev.katalogId ? KATALOG_GERAETE.find((x) => x.id === dev.katalogId) : null;
   const url = webUrl(dev);
@@ -56,6 +101,8 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
   }).filter(Boolean);
 
   const grid = compact ? "1fr 1fr" : "repeat(auto-fit,minmax(170px,1fr))";
+
+  if (dev.generisch) return <GenerischeMaske dev={dev} status={status} upd={upd} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} onDelete={onDelete} onCheck={onCheck} />;
 
   return (
     <div>
@@ -80,16 +127,13 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
           return <button style={{ ...S.smallBtn, ...(inB ? { borderColor: "#2ecc7188" } : {}) }} onClick={() => onSaveBestand(dev)}
             title={inB ? "Den Eintrag im Gerätebestand mit dem aktuellen Stand (Name, IPs, Ports …) überschreiben" : "Dieses konkrete Gerät mit Name, IPs, MACs und Ports im Gerätebestand speichern"}>{inB ? "⟳ Bestand aktualisieren" : "⇩ In Bestand"}</button>;
         })()}
-        <button style={S.smallBtn} onClick={() => mutate((d) => {
-          const c = clone(dev); const idMap = {};
-          c.id = uid(); c.name = dev.name + " (Kopie)";
-          c.interfaces.forEach((i) => { const n = uid(); idMap[i.id] = n; i.id = n; i.ip = ""; });
-          c.ports.forEach((p) => { p.id = uid(); p.iface = p.iface ? idMap[p.iface] : null; });
-          if (c.webUi) c.webUi.iface = idMap[c.webUi.iface] || null;
-          d.geraete.push(c);
-        })}>⧉ Duplizieren</button>
+        <button style={S.smallBtn} title="Gerät mit allen Einstellungen kopieren (ohne IP- und MAC-Adressen)" onClick={() => mutate((d) => { d.geraete.push(geraetKopie(dev)); })}>⧉ Duplizieren</button>
+        <button style={S.smallBtn} title="Einstellungen dieses Geräts kopieren, um sie in andere Geräte einzufügen. Im Dialog wählst du, welche Daten." onClick={() => setKonfigDlg("kopieren")}>⎘ Konfig kopieren</button>
+        {konfigClip && <button style={S.smallBtn} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in dieses und weitere Geräte einfügen`} onClick={() => setKonfigDlg("einfuegen")}>📋 Konfig einfügen</button>}
         <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={() => onDelete && onDelete(dev.id)}>🗑 Löschen</button>
       </div>
+      {konfigDlg === "kopieren" && <KonfigKopieren P={P} dev={dev} onClose={() => setKonfigDlg(null)} />}
+      {konfigDlg === "einfuegen" && konfigClip && <KonfigEinfuegen P={P} clip={konfigClip} ziele={[dev.id]} mutate={mutate} onClose={() => setKonfigDlg(null)} />}
 
       {issues.length > 0 && (
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>

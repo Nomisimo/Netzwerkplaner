@@ -3,6 +3,69 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.9] – 2026-09-30
+
+- Verbindungen: Ein Gerät bekommt nur so viele Kabel, wie es Anschlüsse hat. Bisher legte die App beim Verbinden einfach neue Ports an
+- Sind alle Anschlüsse belegt, fragt die App, welcher ersetzt werden soll. Im Verbindungs-Editor gibt es vor dem Wechsel auf einen belegten Port eine Rückfrage
+- Stapel lassen sich als Ganzes anpinnen: „📌 Anpinnen“ im Stapel-Fenster, Taste P bei ausgewähltem Stapel oder Rechtsklick auf ein Gerät im Stapel
+- Stapeln: Ein Gerät, das auf einen bestehenden Stapel (Gerät, Rahmen oder Name) gezogen wird, kommt oben in diesen Stapel. Bisher wurden die Geräte herausgelöst und ein neuer Stapel angelegt
+- Topologie: Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports mit VLAN untereinander am Gerät, auch bei gebündelten Kabeln. Bisher lagen zusätzliche Plaketten am Switch übereinander
+
+## [0.6.0-beta.8] – 2026-09-30
+
+- Katalog: Beim Anlegen eines Geräts oder einer Vorlage direkt ein neues VLAN anlegen und allen Ports oder einem Interface zuweisen
+- Vorlagen und Bestand merken sich ihre VLANs. Fehlt eine VLAN-ID beim Einfügen in ein Projekt, wird das VLAN dort angelegt (gilt auch für kopierte Stapel)
+
+## [0.6.0-beta.7] – 2026-09-30
+
+- VLAN-Liste: die VLAN-ID steht zugeklappt als gut lesbares Kästchen, auch bei dunklen VLAN-Farben
+- VLAN-Liste: ⚠ zeigt die Anzahl der Meldungen, die Maus darauf nennt den Grund. Die Regeln stehen oben im VLAN-Tab
+- Neue VLANs bekommen helle Farben statt Zufallsfarben
+
+## [0.6.0-beta.6] – 2026-09-30
+
+- Stapel bearbeiten: Klick auf einen Stapel öffnet ein eigenes Fenster mit Name, Reihenfolge, Geräte hinzufügen oder lösen
+- Stapel duplizieren und kopieren/einfügen, samt Verbindungen innerhalb des Stapels, auch in ein anderes Projekt
+- Gerätekonfiguration kopieren und einfügen: im Dialog wählen, welche Daten (Ports, Interfaces, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen), dann in ein oder mehrere Geräte einfügen (z. B. alle gleichen Modells)
+- Kabel einzeln nebeneinander auf eigener Spur oder gebündelt (nur bei eckigen Linien), per Schalter „Kabel bündeln“
+- macOS-Update: „⬆ … laden und öffnen“ lädt das passende DMG und öffnet es, danach die App nach „Programme“ ziehen
+- Katalog: RME Digiface Dante, Digiface Ravenna und Digiface AVB
+- Anleitung: Hinweis zu privaten Listen entfernt
+
+## [0.6.0-beta.5] – 2026-09-30
+
+- VLAN in VLAN (QinQ, IEEE 802.1ad): je VLAN ein äußeres VLAN (S-VLAN) wählbar, die VLAN-Liste zeigt die Verschachtelung
+- Doppelte VLAN-IDs sind erlaubt, wenn QinQ sie trennt (verschiedene S-VLANs): Warnung mit Hinweis auf die Trennung. Gleiche IDs in derselben Ebene bleiben ein Fehler
+- Prüfung: Kreis in der Verschachtelung, fehlendes äußeres VLAN, mehr als zwei Tags und ein Trunk-Port mit zweimal derselben VLAN-ID werden gemeldet
+- Export (CSV/PDF): neue Spalte „S-VLAN (QinQ)“
+
+## [0.6.0-beta.4] – 2026-09-30
+
+- macOS Intel: Das DMG wird jetzt auf einem Intel-Mac als HFS+-Image gebaut. Das bisherige APFS-Image meldete auf manchen Macs „Das Image ist beschädigt“
+
+## [0.6.0-beta.3] – 2026-09-30
+
+- Update-Dialog (Windows): „⬆ … automatisch installieren“ lädt das Update, beendet die App, installiert und startet neu
+- macOS: weiter über „⬇ herunterladen“ (Download-Seite), bis die Mac-Builds eine Apple-Signatur haben
+
+## [0.6.0-beta.2] – 2026-09-30
+
+- Topologie: Geräte anpinnen (Taste P, Rechtsklick oder Klick auf die Nadel). Angepinnte Geräte bleiben beim automatischen Anordnen stehen
+- „Auto-Anordnen“ lässt sich ausschalten: dann bleiben alle Geräte und Leitungen an ihrem Platz, auch ungepinnte
+- Neues Werkzeug „▤ Stapeln“ (Taste S): Geräte grafisch als Rack oder Tower übereinander darstellen, ohne Netzwerkverbindung
+- Hintergrundbild für die Topologie, z. B. ein Stage-Plot, um Geräte in der Location zu verorten; kommt mit in den Export
+- Verbindungen lassen sich am Mittelpunkt verschieben, um Leitungen aufzuräumen (Doppelklick setzt zurück)
+- Tastenkürzel: M = Bewegen, C = Verbinden, S = Stapeln, P = Anpinnen
+- VLANs: Der Button „+ Standard-VLANs“ ist entfernt
+
+## [0.6.0-beta.1] – 2026-09-30
+
+- Katalog: Cisco Catalyst 1300 C1300-24P-4X (24× 1 GbE PoE+, 195 W, 4× SFP+ 10G, Web-UI)
+- Topologie: Shift + Mausrad scrollt hoch und runter, ⌘/Strg + Mausrad nach links und rechts
+- Neu im Live-Tab: Discovery findet Geräte im Netz (Dante, NDI, Art-Net, sACN, CITP, MA-Net, dazu der Netzwerkscan) und fügt neue als generische Einträge mit IP, MAC und Name ein
+- Generische Geräte zeigen eine leere Maske mit nur zwei Wegen: „⇄ Modell zuweisen“ oder „＋ Leeres Gerät anlegen“ mit Typauswahl; IP, MAC, Protokolle und Verbindungen bleiben
+- Netzwerkscan: „+ In den Plan“ legt ebenfalls ein generisches Gerät an
+
 ## [0.5.0-beta.2] – 2026-09-30
 
 - macOS: Das Intel-DMG war beschädigt und ließ sich nicht öffnen (Fehler 3840). Jeder Mac-Build erzeugt jetzt nur noch sein DMG, und der Release prüft es vor dem Hochladen

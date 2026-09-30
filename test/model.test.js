@@ -137,3 +137,35 @@ test("Modell zuweisen aus dem Bestand übernimmt feste IPs und Namen", async () 
   assert.equal(P.vlans.find((v) => v.id === d2.interfaces[0].vlan).vid, 20);
   assert.equal(P.verbindungen.filter((c) => c.a.dev === dev.id || c.b.dev === dev.id).length, nConn);
 });
+
+test("Cisco C1300-24P-4X im Katalog: 24 RJ45 und 4 SFP+", () => {
+  const k = KATALOG_GERAETE.find((g) => g.modell.includes("C1300-24P-4X"));
+  assert.ok(k, "Modell vorhanden");
+  const d = createDevice({ katalogId: k.id, vlans: [] });
+  assert.equal(d.isSwitch, true);
+  assert.equal(d.ports.filter((p) => p.typ === "RJ45").length, 24);
+  assert.equal(d.ports.filter((p) => p.typ === "SFP+").length, 4);
+  assert.ok(d.webUi?.vorhanden);
+});
+
+test("Verbindungen: nicht mehr Kabel als Anschlüsse", async () => {
+  const { freiePorts } = await import("../src/shared/model.js");
+  const P = emptyProject();
+  const sw = createDevice({ typ: "switch_managed", vlans: P.vlans, name: "SW" });
+  const g = createDevice({ typ: "stagebox", vlans: P.vlans, name: "Box" });
+  g.ports = g.ports.slice(0, 2);
+  P.geraete.push(sw, g);
+  const n = sw.ports.length;
+  assert.ok(addConnection(P, sw.id, g.id));
+  assert.ok(addConnection(P, sw.id, g.id));
+  assert.equal(addConnection(P, sw.id, g.id), null);
+  assert.equal(g.ports.length, 2);
+  assert.equal(sw.ports.length, n);
+  assert.equal(P.verbindungen.length, 2);
+  assert.equal(freiePorts(P, g).length, 0);
+  // gezielt einen Anschluss ersetzen
+  const alt = P.verbindungen[0];
+  P.verbindungen = P.verbindungen.filter((c) => c !== alt);
+  assert.ok(addConnection(P, sw.id, g.id, { portIdB: alt.b.port }));
+  assert.equal(P.verbindungen.length, 2);
+});

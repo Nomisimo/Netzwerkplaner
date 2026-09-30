@@ -3,6 +3,7 @@ import { KABEL, TYPEN } from "../shared/constants.js";
 import { connVlan, otherEnd, webUrl, kabelLabel } from "../shared/model.js";
 import { ipSort, prefixToMaskStr, parseCidr } from "../shared/net.js";
 import { ladeLogo } from "./logo.js";
+import { vlanBaum, aeusseresVlan } from "../shared/qinq.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const fileBase = (P) => (P.meta.veranstaltung || "Netzwerkplan").replace(/[\\/:*?"<>|]+/g, "_").trim() || "Netzwerkplan";
@@ -68,8 +69,8 @@ export const deviceRows = (P, X) => P.geraete.map((d) => ({
   IPs: d.interfaces.filter((i) => i.ip).map((i) => `${i.ip}/${i.prefix}`).join(", "), Ports: d.ports.length, "Web-UI": webUrl(d) || (d.webUi?.vorhanden ? "ja (IP fehlt)" : ""),
   Protokolle: (d.protokolle || []).join(", "), "Inventar-Nr.": d.inventar?.nr || "", Seriennummer: d.inventar?.sn || "", Case: d.inventar?.case || "", Notizen: d.notizen,
 }));
-export const vlanRows = (P) => [...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => ({
-  VLAN: v.vid, Name: v.name, Zweck: v.zweck,
+export const vlanRows = (P) => vlanBaum(P.vlans).map(({ v }) => ({
+  VLAN: v.vid, "S-VLAN (QinQ)": aeusseresVlan(v, P.vlans)?.vid ?? "", Name: v.name, Zweck: v.zweck,
   IGMP: v.igmp ? "ja" : "nein", "EEE aus": v.eeeAus ? "ja" : "nein", QoS: v.qos ? "ja" : "nein", DHCP: v.dhcp?.aktiv ? "ja" : "nein", Notiz: v.notiz,
 }));
 export const switchPortRows = (P, X) => {
@@ -151,7 +152,7 @@ td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } 
   <h1${logo ? ' style="margin-top:10mm"' : ""}>${esc(m.veranstaltung)}</h1>
   <div class="meta">Netzwerkplan · Version ${esc(m.version)} · ${esc(m.datum)}${m.ort ? `<br>Ort: ${esc(m.ort)}` : ""}${m.ersteller ? `<br>Ersteller: ${esc(m.ersteller)}` : ""}${m.notiz ? `<br><br>${esc(m.notiz).replace(/\n/g, "<br>")}` : ""}</div>
   <div class="stats"><div><b>${P.geraete.length}</b>Geräte</div><div><b>${P.geraete.filter((d) => d.isSwitch).length}</b>Switches</div><div><b>${P.verbindungen.length}</b>Verbindungen</div><div><b>${P.vlans.length}</b>VLANs</div><div><b>${issues.filter((i) => i.sev === "error").length}</b>Fehler</div><div><b>${issues.filter((i) => i.sev === "warn").length}</b>Warnungen</div></div>
-  <h2>VLANs</h2>${table(vlanTable, ["VLAN", "Name", "Zweck", "IGMP", "EEE aus", "QoS", "DHCP"])}
+  <h2>VLANs</h2>${table(vlanTable, ["VLAN", "S-VLAN (QinQ)", "Name", "Zweck", "IGMP", "EEE aus", "QoS", "DHCP"])}
 </div>
 ${topo ? `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>` : ""}
 <div class="page">${head("IP-Liste")}${table(ipRows(P, X), ["IP", "CIDR", "VLAN", "Gerät", "Interface", "Gateway", "MAC", "Standort", "Modell", "Web-UI"])}</div>

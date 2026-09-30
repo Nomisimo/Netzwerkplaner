@@ -1,30 +1,41 @@
 import React, { useState, useMemo } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO } from "../../shared/constants.js";
-import { newVlan, standardVlans } from "../../shared/model.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO, VLAN_FARBEN } from "../../shared/constants.js";
+import { newVlan } from "../../shared/model.js";
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
+import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
 
-function VlanRow({ v, P, mutate, issues, count }) {
+function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
   const [open, setOpen] = useState(false);
   const upd = (fn) => mutate((d) => fn(d.vlans.find((x) => x.id === v.id)));
-  const iss = issues.filter((i) => i.vlan === v.id);
+  const iss = issues.filter((i) => i.vlan === v.id || i.vlans?.includes(v.id));
+  const aussen = aeusseresVlan(v, P.vlans);
+  const sv = istSvlan(v, P.vlans);
   return (
-    <div style={{ ...S.card, borderLeft: `4px solid ${v.farbe}` }}>
+    <div style={{ ...S.card, borderLeft: `4px solid ${v.farbe}`, marginLeft: tiefe * 28 }}>
       <div style={S.cardHead} onClick={() => setOpen((o) => !o)}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-          <span style={{ fontWeight: 800, fontSize: 16, width: 44, color: v.farbe }}>{v.vid}</span>
+          {tiefe > 0 && <span style={{ color: MUTED, marginLeft: -6 }} title="Inneres VLAN (C-VLAN) im äußeren VLAN darüber">↳</span>}
+          <span style={{ fontWeight: 800, fontSize: 15, minWidth: 44, textAlign: "center", color: "#fff", background: v.farbe + "33", border: `1px solid ${v.farbe}`, borderRadius: 6, padding: "1px 6px" }} title={aussen ? `VLAN-ID ${v.vid} · Tags: ${vlanPfad(v, P.vlans)} (außen › innen)` : `VLAN-ID ${v.vid}`}>{v.vid}</span>
           <div style={{ minWidth: 0 }}>
             <div style={S.cardTitle}>{v.name || "(ohne Name)"}</div>
             {v.zweck && <div style={S.cardSub}>{v.zweck}</div>}
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {sv && <span style={{ ...S.chip, borderColor: ACCENT, color: ACCENT }} title="Äußeres VLAN (Service-Tag, IEEE 802.1ad)">S-VLAN</span>}
+          {aussen && <span style={{ ...S.chip, color: SUB }} title="Inneres VLAN (Customer-Tag) im äußeren VLAN">in S-VLAN {aussen.vid}</span>}
           {v.igmp && <span style={S.chip}>IGMP</span>}
           {v.eeeAus && <span style={S.chip}>EEE aus</span>}
           {v.qos && <span style={S.chip}>QoS</span>}
           {v.dhcp?.aktiv && <span style={S.chip}>DHCP</span>}
           <span style={{ ...S.chip, color: SUB }}>{count} IPs</span>
-          {iss.some((i) => i.sev === "error") && <span style={{ color: ERR }}>⚠</span>}
-          {!iss.some((i) => i.sev === "error") && iss.some((i) => i.sev === "warn") && <span style={{ color: WARN }}>⚠</span>}
+          {(() => {
+            // Warndreieck nur, wenn die Prüfung für dieses VLAN etwas meldet; der Grund steht im Tooltip und aufgeklappt unten
+            const w = iss.filter((i) => i.sev === "error" || i.sev === "warn");
+            if (!w.length) return null;
+            const err = w.some((i) => i.sev === "error");
+            return <span style={{ color: err ? ERR : WARN, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }} title={w.map((i) => "• " + i.msg).join("\n")}>⚠ {w.length}</span>;
+          })()}
           <span style={{ color: MUTED }}>{open ? "▴" : "▾"}</span>
         </div>
       </div>
@@ -35,6 +46,13 @@ function VlanRow({ v, P, mutate, issues, count }) {
             <Field label="Name"><input style={S.inputSm} value={v.name} onChange={(e) => upd((x) => (x.name = e.target.value))} /></Field>
             <Field label="Farbe"><input type="color" style={{ ...S.inputSm, padding: 2, height: 31 }} value={v.farbe} onChange={(e) => upd((x) => (x.farbe = e.target.value))} /></Field>
           </div>
+          <Field label="Äußeres VLAN (QinQ, IEEE 802.1ad)" style={{ marginTop: 10 }}>
+            <select style={S.selectSm} value={v.svlan || ""} onChange={(e) => upd((x) => (x.svlan = e.target.value || null))}>
+              <option value="">– keins, normales VLAN –</option>
+              {moeglicheAeussere(v, P.vlans).sort((a, b) => a.vid - b.vid).map((o) => <option key={o.id} value={o.id}>{vlanPfad(o, P.vlans)} · {o.name}</option>)}
+            </select>
+            <div style={{ ...S.hint, marginTop: 4 }}>Läuft dieses VLAN als inneres C-VLAN in einem S-VLAN, darf seine ID auch in anderen S-VLANs vorkommen. Die Switches müssen dafür QinQ können.</div>
+          </Field>
           <Field label="Zweck / Protokolle" style={{ marginTop: 10 }}><input style={S.inputSm} value={v.zweck} onChange={(e) => upd((x) => (x.zweck = e.target.value))} /></Field>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12 }}>
             <Toggle checked={v.igmp} onChange={(b) => upd((x) => (x.igmp = b))} label="IGMP-Snooping" />
@@ -48,6 +66,7 @@ function VlanRow({ v, P, mutate, issues, count }) {
             if (!confirm(`VLAN ${v.vid} löschen? Interfaces und Ports verlieren die Zuordnung.`)) return;
             mutate((d) => {
               d.vlans = d.vlans.filter((x) => x.id !== v.id);
+              d.vlans.forEach((x) => { if (x.svlan === v.id) x.svlan = null; });
               for (const g of d.geraete) {
                 g.interfaces.forEach((i) => { if (i.vlan === v.id) i.vlan = null; });
                 g.ports.forEach((p) => { if (p.vlan === v.id) p.vlan = null; p.vlans = (p.vlans || []).filter((x) => x !== v.id); });
@@ -62,22 +81,18 @@ function VlanRow({ v, P, mutate, issues, count }) {
 
 export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
   const counts = useMemo(() => Object.fromEntries(P.vlans.map((v) => [v.id, P.geraete.reduce((s, d) => s + d.interfaces.filter((i) => i.vlan === v.id && i.ip).length, 0)])), [P]);
-  const sorted = [...P.vlans].sort((a, b) => a.vid - b.vid);
+  const baum = useMemo(() => vlanBaum(P.vlans), [P.vlans]);
   return (
     <>
-      <Section title="VLANs" subtitle="ID, Name und Switch-Einstellungen je VLAN. Die Prüfung meldet fehlendes IGMP bei Multicast-Protokollen (sACN, Dante-Multicast, MA-Net3, NDI …) und eingeschaltetes EEE bei Audio over IP."
+      <Section title="VLANs" subtitle="ID, Name und Switch-Einstellungen je VLAN. ⚠ erscheint nur, wenn Geräte im VLAN es verlangen: Multicast-Protokolle (sACN, Dante-Multicast, MA-Net3, NDI …) ohne IGMP-Snooping, Audio over IP ohne „EEE aus“, doppelte IDs oder QinQ-Fehler. Ein leeres VLAN hat keine Warnung. Maus auf ⚠ zeigt den Grund."
         right={<div style={{ display: "flex", gap: 6 }}>
-          <button style={S.secondaryBtn} onClick={() => mutate((d) => {
-            const have = new Set(d.vlans.map((v) => +v.vid));
-            d.vlans.push(...standardVlans().filter((v) => !have.has(+v.vid)));
-          })} title="Fehlende Standard-VLANs aus der Protokollrecherche ergänzen">+ Standard-VLANs</button>
           <button style={S.primaryBtn} onClick={() => mutate((d) => {
             const vid = Math.max(0, ...d.vlans.map((v) => +v.vid)) + 1;
-            d.vlans.push(newVlan({ vid, name: `VLAN ${vid}`, farbe: "#" + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0"), subnetz: vid < 256 ? `10.10.${vid}.0/24` : "" }));
+            d.vlans.push(newVlan({ vid, name: `VLAN ${vid}`, farbe: VLAN_FARBEN[d.vlans.length % VLAN_FARBEN.length], subnetz: vid < 256 ? `10.10.${vid}.0/24` : "" }));
           })}>+ VLAN</button>
         </div>}>
-        {sorted.length === 0 && <p style={S.empty}>Keine VLANs angelegt.</p>}
-        {sorted.map((v) => <VlanRow key={v.id} v={v} P={P} mutate={mutate} issues={issues} count={counts[v.id]} />)}
+        {baum.length === 0 && <p style={S.empty}>Keine VLANs angelegt.</p>}
+        {baum.map(({ v, tiefe }) => <VlanRow key={v.id} v={v} tiefe={tiefe} P={P} mutate={mutate} issues={issues} count={counts[v.id]} />)}
       </Section>
 
     </>

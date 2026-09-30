@@ -117,7 +117,11 @@ function setupAutoUpdater(win) {
   autoUpdater.on('error', (err) => { console.error('AutoUpdater:', err?.message || err); send('error', { message: err?.message || String(err) }); });
   autoUpdater.on('download-progress', (p) => send('downloading', { percent: Math.round(p.percent) }));
   autoUpdater.on('update-available', (info) => send('available', { version: info.version }));
-  autoUpdater.on('update-downloaded', (info) => { updateReady = true; send('downloaded', { version: info.version }); });
+  let sofort = false; // „Jetzt installieren“ gedrückt, bevor der Download fertig war
+  autoUpdater.on('update-downloaded', (info) => {
+    updateReady = true; send('downloaded', { version: info.version });
+    if (sofort) setTimeout(() => autoUpdater.quitAndInstall(false, true), 800);
+  });
   ipcMain.removeHandler('check-for-updates');
   ipcMain.handle('check-for-updates', () => {
     if (updateReady) { send('downloaded'); return { auto: true }; }
@@ -125,10 +129,50 @@ function setupAutoUpdater(win) {
     return { auto: true };
   });
   ipcMain.removeHandler('install-update');
-  ipcMain.handle('install-update', () => { if (updateReady) autoUpdater.quitAndInstall(); else shell.openExternal(RELEASES_URL); });
+  ipcMain.handle('install-update', () => {
+    // Fertig geladen: sofort neu starten und installieren, sonst laden und danach installieren
+    if (updateReady) { autoUpdater.quitAndInstall(false, true); return { ok: true }; }
+    sofort = true;
+    send('installing-after-download');
+    autoUpdater.checkForUpdates().catch((err) => { sofort = false; send('error', { message: err?.message || String(err) }); });
+    return { ok: true };
+  });
   setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 4000);
 }
-ipcMain.handle('check-for-updates', () => ({ auto: updaterAktiv }));
+ipcMain.handle('check-for-updates', () => ({ auto: updaterAktiv, mac: MANUAL_UPDATE && app.isPackaged }));
+
+/* macOS ohne Apple-Signatur: das passende DMG wie im Browser laden (normaler
+   Download, Gatekeeper-Schutz bleibt), öffnen und den Nutzer die App nach
+   „Programme“ ziehen lassen. Die App selbst tauscht nichts aus. */
+let macDownload = null;
+ipcMain.handle('mac-update-laden', (_e, tag) => {
+  if (!MANUAL_UPDATE || !mainWin || macDownload) return { ok: false };
+  if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/.test(tag || '')) return { ok: false };
+  const datei = `Netzwerkplaner-${tag}-mac-${process.arch === 'arm64' ? 'arm64' : 'x64'}.dmg`;
+  const url = `${RELEASES_URL}/download/v${tag}/${datei}`;
+  const send = (type, payload) => { if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('update-status', { type, ...payload }); };
+  macDownload = { url, ziel: path.join(app.getPath('downloads'), datei) };
+  const ses = mainWin.webContents.session;
+  const h = (_ev, item) => {
+    if (!macDownload || item.getURLChain()[0] !== macDownload.url) return;
+    ses.removeListener('will-download', h);
+    item.setSavePath(macDownload.ziel);
+    item.on('updated', () => { const t = item.getTotalBytes(); if (t) send('downloading', { percent: Math.round((item.getReceivedBytes() / t) * 100) }); });
+    item.once('done', async (_e2, state) => {
+      const ziel = macDownload.ziel;
+      macDownload = null;
+      if (state !== 'completed') return send('error', { message: `Download ${state}` });
+      const err = await shell.openPath(ziel);
+      if (err) return send('error', { message: err });
+      send('mac-dmg-offen', { version: tag, datei: ziel });
+    });
+  };
+  ses.on('will-download', h);
+  send('downloading', { percent: 0 });
+  mainWin.webContents.downloadURL(url);
+  return { ok: true };
+});
+ipcMain.handle('app-beenden', () => app.quit());
 ipcMain.handle('install-update', (_e, url) => shell.openExternal(/^https:\/\/github\.com\/Nomisimo\/Netzwerkplaner\//.test(url || '') ? url : RELEASES_URL));
 
 ipcMain.handle('get-recents', () => loadRecents());

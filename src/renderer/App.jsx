@@ -177,18 +177,29 @@ export default function App() {
   useEffect(() => api.onUpdateStatus((m) => {
     if (m.type === "available") { setUpdate((u) => ({ url: RELEASES_URL, ...u, tag: m.version || u?.tag })); setUpdateStatus(`Version ${m.version} wird geladen …`); }
     else if (m.type === "downloading") setUpdateStatus(`Update wird geladen … ${m.percent} %`);
+    else if (m.type === "installing-after-download") setUpdateStatus("Update wird geladen und danach automatisch installiert …");
     else if (m.type === "downloaded") { setUpdate((u) => ({ url: RELEASES_URL, ...u, tag: m.version || u?.tag, bereit: true })); setUpdateStatus(`Version ${m.version || ""} ist bereit. „Neu starten“ installiert sie.`); }
+    else if (m.type === "mac-dmg-offen") { setUpdate((u) => ({ url: RELEASES_URL, ...u, macOffen: true })); setUpdateStatus(`Version ${m.version} ist geöffnet. Netzwerkplaner beenden, im Finder-Fenster auf „Programme“ ziehen, „Ersetzen“ wählen und neu starten.`); setChangelog(true); }
     else if (m.type === "error") setUpdateStatus((s) => (/verfügbar/.test(s) ? s : "Automatisches Update nicht möglich. Download-Seite nutzen."));
   }), []);
-  const updateAusfuehren = () => (update?.bereit ? api.installUpdate() : api.installUpdate(update?.url || RELEASES_URL));
+  // Windows: electron-updater lädt und installiert selbst. macOS: Download-Seite (App nicht mit Apple-ID signiert)
+  // macOS: DMG in der App laden und öffnen, der Nutzer zieht die App nach „Programme“
+  const [autoUpdate, setAutoUpdate] = useState(false);
+  const [macUpdate, setMacUpdate] = useState(false);
+  useEffect(() => { api.checkForUpdates().then((r) => { setAutoUpdate(!!r?.auto); setMacUpdate(!!r?.mac); }).catch(() => {}); }, []);
+  const updateAusfuehren = () => {
+    if (macUpdate && update?.tag) { setChangelog(true); if (update.macOffen) return; api.macUpdateLaden(update.tag).then((r) => !r?.ok && setUpdateStatus("Download läuft schon oder ist nicht möglich. Download-Seite nutzen.")); return; }
+    return autoUpdate || update?.bereit ? api.installUpdate() : api.installUpdate(update?.url || RELEASES_URL);
+  };
 
   /* ── Geräte & Verbindungen ──────────────────────────────────────────── */
   const addDevice = useCallback((item, { connectTo, at, picker: usePicker } = {}) => {
     if (!item || usePicker) { setPicker({ connectTo }); return null; }
     const vorlage = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
       : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
-    let id = null, konflikte = [];
+    let id = null, konflikte = [], neueVlans = [], voll = null;
     mutate((d) => {
+      const vorher = new Set(d.vlans.map((v) => v.id));
       const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
       if (item.kind === "bestand") {
         dev.bestandId = vorlage.id;
@@ -207,11 +218,13 @@ export default function App() {
       if (parent) dev.bereich = parent.bereich;
       d.geraete.push(dev);
       id = dev.id;
-      if (parent) addConnection(d, parent.id, dev.id);
+      neueVlans = d.vlans.filter((v) => !vorher.has(v.id)).map((v) => `${v.vid} ${v.name}`);
+      if (parent && !addConnection(d, parent.id, dev.id)) voll = parent.name;
       else if (at) d.layout.pinned = { ...(d.layout.pinned || {}), [dev.id]: at };
     });
     if (konflikte.length) notify(`Gerät eingefügt. IP bereits belegt: ${konflikte.join(", ")} – siehe Prüfung.`, "err");
-    else notify(item.kind === "bestand" ? "Gerät aus dem Bestand eingefügt (mit IPs)." : "Gerät hinzugefügt.");
+    else if (voll) notify(`Gerät hinzugefügt, aber nicht verbunden: „${voll}“ hat keinen freien Anschluss mehr. Zum Ersetzen im Werkzeug „Verbinden“ ziehen.`, "warn");
+    else notify((item.kind === "bestand" ? "Gerät aus dem Bestand eingefügt (mit IPs)." : "Gerät hinzugefügt.") + (neueVlans.length ? ` Neues VLAN angelegt: ${neueVlans.join(", ")}.` : ""));
     return id;
   }, [library, mutate]);
 
@@ -231,7 +244,7 @@ export default function App() {
       geraetUmbauen(d, devId, neu, { ausBestand });
     });
     if (konflikte.length) notify(`Gerät aus dem Bestand übernommen. IP bereits vergeben: ${konflikte.join(", ")}`, "warn");
-    else notify(ausBestand ? "Gerät aus dem Bestand übernommen, mit seinen festen IPs. Die Verbindungen sind geblieben." : "Modell übernommen. Name, IPs und Verbindungen sind geblieben.");
+    else notify(ausBestand ? "Gerät aus dem Bestand übernommen, mit seinen festen IPs. Die Verbindungen sind geblieben." : item.kind === "typ" ? "Leeres Gerät angelegt. Name, IPs und Verbindungen sind geblieben." : "Modell übernommen. Name, IPs und Verbindungen sind geblieben.");
   }, [library, mutate]);
 
   const deleteDevice = useCallback((id) => {
@@ -342,7 +355,7 @@ export default function App() {
   };
 
   const nErr = issues.filter((i) => i.sev === "error").length, nWarn = issues.filter((i) => i.sev === "warn").length;
-  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }) };
+  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }), onTypWaehlen: (id, key) => umbauen(id, { kind: "typ", key }) };
 
   return (
     <div style={S.app}>
@@ -356,7 +369,7 @@ export default function App() {
         {version && <button onClick={() => setChangelog(true)} title="Version und Änderungen" style={{ background: "none", border: `1px solid ${LINE}`, borderRadius: 10, color: SUB, fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
           v{version.replace(/-beta\.?\d*$/i, "")}{istBeta(version) && <span style={{ marginLeft: 5, color: "#fff", background: ACCENT, borderRadius: 6, padding: "0 5px", fontSize: 9.5, fontWeight: 700 }}>BETA {(version.match(/beta\.?(\d+)/i) || [])[1] || ""}</span>}
         </button>}
-        {update?.tag && <button onClick={updateAusfuehren} title={update.bereit ? "Neu starten und Update installieren" : "Download-Seite öffnen"} style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>⬆ {update.bereit ? `${update.tag} installieren` : `${update.tag} verfügbar`}</button>}
+        {update?.tag && <button onClick={updateAusfuehren} title={autoUpdate ? "Update automatisch installieren" : macUpdate ? "Update laden und öffnen" : "Download-Seite öffnen"} style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>⬆ {autoUpdate || macUpdate ? `${update.tag} installieren` : `${update.tag} verfügbar`}</button>}
         <div style={S.headerMeta}>{P.meta.veranstaltung} · v{P.meta.version} · {P.meta.datum}{filePath && <span style={{ color: MUTED }}> · {filePath.split(/[\\/]/).pop()}</span>}</div>
         <span style={{ fontSize: 10, color: "#555" }} title="Automatisch gespeichert">💾 auto</span>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={undo} title="Rückgängig (Strg+Z)" disabled={!hist.current.undo.length}>↶</button>
@@ -423,7 +436,10 @@ export default function App() {
       {changelog && <Modal title={`Netzwerkplaner ${version}`} onClose={() => setChangelog(false)}>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
           <button style={S.secondaryBtn} onClick={() => checkUpdate(true)}>Nach Updates suchen</button>
-          {update?.bereit && <button style={S.primaryBtn} onClick={updateAusfuehren}>Neu starten und installieren</button>}
+          {update?.tag && autoUpdate && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Lädt das Update (falls nötig), beendet die App, installiert und startet neu">⬆ {update.bereit ? "Neu starten und installieren" : `${update.tag} automatisch installieren`}</button>}
+          {update?.tag && macUpdate && !update.macOffen && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Lädt das passende DMG in den Download-Ordner und öffnet es. Danach die App nach „Programme“ ziehen.">⬆ {update.tag} laden und öffnen</button>}
+          {update?.tag && macUpdate && update.macOffen && <button style={S.primaryBtn} onClick={() => api.appBeenden()} title="Beendet den Netzwerkplaner, damit du die neue Version nach „Programme“ ziehen kannst. Vorher speichern!">⏻ Netzwerkplaner beenden</button>}
+          {update?.tag && !autoUpdate && !macUpdate && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Öffnet die Download-Seite.">⬇ {update.tag} herunterladen</button>}
           <button style={S.ghostBtn} onClick={() => api.openExternal(update?.url || RELEASES_URL)}>Alle Versionen auf GitHub</button>
           <span style={{ fontSize: 12, color: update ? "#2ecc71" : SUB }}>{updateStatus}</span>
         </div>

@@ -1,12 +1,13 @@
 import { STANDARD_VLANS, DEFAULT_BEREICHE, KABEL } from "./constants.js";
 import { uid, findProtokoll, newIface, newPort } from "./catalog.js";
 import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAULT_RANGES, isValidMac } from "./net.js";
+import { qinqIssues } from "./qinq.js";
 
 export const clone = (x) => JSON.parse(JSON.stringify(x));
 
 export const newVlan = (o = {}) => ({
   id: uid(), vid: 1, name: "", farbe: "#9aa4af", subnetz: "", gateway: "", zweck: "",
-  igmp: false, querier: "", eeeAus: false, qos: false, dhcp: { aktiv: false, von: "", bis: "" }, notiz: "", ...o,
+  igmp: false, querier: "", eeeAus: false, qos: false, dhcp: { aktiv: false, von: "", bis: "" }, notiz: "", svlan: null, ...o,
 });
 
 export const standardVlans = () => STANDARD_VLANS.map((v) => newVlan(clone(v)));
@@ -224,11 +225,21 @@ export const validate = (P, X) => {
   const vlanList = P.vlans;
 
   // VLANs
-  const vids = new Map();
+  // Doppelte IDs sind erlaubt, wenn QinQ (IEEE 802.1ad) sie trennt
+  issues.push(...qinqIssues(vlanList));
   for (const v of vlanList) {
-    if (vids.has(+v.vid)) add("error", `VLAN-ID ${v.vid} ist doppelt vergeben (${vids.get(+v.vid).name} / ${v.name}).`, { vlan: v.id });
-    vids.set(+v.vid, v);
     if (+v.vid < 1 || +v.vid > 4094) add("error", `VLAN „${v.name}“: ID ${v.vid} liegt außerhalb 1–4094.`, { vlan: v.id });
+  }
+  // Trunk-Port mit zwei VLANs gleicher ID: auf der Leitung nicht unterscheidbar
+  for (const sw of P.geraete.filter((d) => d.isSwitch)) for (const p of sw.ports) {
+    if (p.modus !== "trunk") continue;
+    const seen = new Map();
+    for (const id of p.vlans || []) {
+      const v = X.vlanById.get(id);
+      if (!v) continue;
+      if (seen.has(+v.vid)) add("warn", `${sw.name} [${p.name}]: Trunk führt zweimal VLAN-ID ${v.vid} (${seen.get(+v.vid).name} / ${v.name}). Auf einem normalen Trunk sind die nicht zu unterscheiden; nur ein QinQ-Port (802.1ad) trennt sie über das S-Tag.`, { dev: sw.id, vlan: v.id });
+      else seen.set(+v.vid, v);
+    }
   }
 
   // Adressen
@@ -336,15 +347,15 @@ export const kabelLabel = (k) => KABEL[k]?.label || k || "–";
 
 /* ── Verbindung anlegen (arbeitet direkt auf einem Projekt-Entwurf) ─────── */
 const portUsed = (P, devId, portId) => P.verbindungen.some((c) => (c.a.dev === devId && c.a.port === portId) || (c.b.dev === devId && c.b.port === portId));
-const takePort = (P, dev, preferP2P, preferName) => {
-  const free = dev.ports.filter((p) => !portUsed(P, dev.id, p.id));
+export const freiePorts = (P, dev) => dev.ports.filter((p) => !portUsed(P, dev.id, p.id));
+/* Freien Port wählen. Ein Gerät hat nur so viele Anschlüsse, wie es Ports hat:
+   ist keiner frei, gibt es null (die Oberfläche fragt dann, welcher Anschluss ersetzt wird). */
+const takePort = (P, dev, preferP2P, preferName, portId) => {
+  const free = freiePorts(P, dev);
+  if (portId) return free.find((p) => p.id === portId) || null;
   const byName = preferName && free.find((p) => p.name === preferName);
   const copper = (p) => !/SFP|optical/i.test(p.typ);
-  const pick = byName || free.find((p) => !!p.p2p === preferP2P && copper(p) && (dev.isSwitch || p.name !== "Secondary")) || free.find((p) => !!p.p2p === preferP2P && (dev.isSwitch || p.name !== "Secondary")) || free.find((p) => !!p.p2p === preferP2P) || free[0];
-  if (pick) return pick;
-  const np = newPort({ name: dev.isSwitch ? String(dev.ports.length + 1) : `LAN ${dev.ports.length + 1}`, iface: dev.isSwitch ? null : dev.interfaces[0]?.id || null });
-  dev.ports.push(np);
-  return np;
+  return byName || free.find((p) => !!p.p2p === preferP2P && copper(p) && (dev.isSwitch || p.name !== "Secondary")) || free.find((p) => !!p.p2p === preferP2P && (dev.isSwitch || p.name !== "Secondary")) || free.find((p) => !!p.p2p === preferP2P) || free[0] || null;
 };
 
 export const addConnection = (P, fromId, toId, opts = {}) => {
@@ -353,9 +364,10 @@ export const addConnection = (P, fromId, toId, opts = {}) => {
   if (!a || !b || a === b) return null;
   const p2p = !a.isSwitch && !b.isSwitch && a.ports.some((p) => p.p2p && !portUsed(P, a.id, p.id)) && b.ports.some((p) => p.p2p && !portUsed(P, b.id, p.id));
   const fib = (d) => d.ports.find((p) => /SFP|optical/i.test(p.typ) && !portUsed(P, d.id, p.id));
-  const uplinkFib = a.isSwitch && b.isSwitch && !opts.portA && !opts.portB && fib(a) && fib(b);
-  const pa = uplinkFib ? fib(a) : takePort(P, a, p2p, opts.portA);
-  const pb = uplinkFib ? fib(b) : takePort(P, b, p2p, opts.portB);
+  const uplinkFib = a.isSwitch && b.isSwitch && !opts.portA && !opts.portB && !opts.portIdA && !opts.portIdB && fib(a) && fib(b);
+  const pa = uplinkFib ? fib(a) : takePort(P, a, p2p, opts.portA, opts.portIdA);
+  const pb = uplinkFib ? fib(b) : takePort(P, b, p2p, opts.portB, opts.portIdB);
+  if (!pa || !pb) return null; // kein freier Anschluss
   if (uplinkFib && !opts.kabel) opts = { ...opts, kabel: "fiber_mm" };
   const c = { id: uid(), a: { dev: a.id, port: pa.id }, b: { dev: b.id, port: pb.id }, kabel: opts.kabel || (p2p ? "p2p" : "cat6"), laenge: opts.laenge || "", label: opts.label || "", notiz: "" };
   const managed = (d) => d.isSwitch && d.typ !== "switch_unmanaged";

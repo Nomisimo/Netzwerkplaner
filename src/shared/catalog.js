@@ -1,6 +1,7 @@
 import KATALOG from "./data/katalog.json";
 import { TYPEN, KAT_VLAN } from "./constants.js";
 import { modellIcon } from "./geraeteicons.js";
+import { vlanNachVid } from "./qinq.js";
 
 export { KATALOG };
 export const uid = () => Math.random().toString(36).slice(2, 10);
@@ -185,6 +186,9 @@ export const snapshotDevice = (dev, vlans = []) => {
   for (const p of g.ports) { p.vid = vid(p.vlan); p.vids = (p.vlans || []).map(vid).filter((x) => x != null); }
   for (const s of g.stroeme || []) s.ziele = [];
   delete g.bestandId;
+  // Genutzte VLANs mitsichern, damit sie beim Einfügen in ein Projekt ohne diese VLAN-ID angelegt werden
+  const genutzt = new Set([...dev.interfaces.map((i) => i.vlan), ...dev.ports.flatMap((p) => [p.vlan, ...(p.vlans || [])])].filter(Boolean));
+  g.vlanDefs = vlans.filter((v) => genutzt.has(v.id)).map(({ vid, name, farbe, subnetz, gateway, zweck, igmp, eeeAus, qos }) => ({ vid, name, farbe, subnetz, gateway, zweck, igmp, eeeAus, qos }));
   return g;
 };
 
@@ -194,8 +198,19 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
   if (src) {
     const d = JSON.parse(JSON.stringify(src.geraet));
     const idMap = {};
+    const defs = d.vlanDefs || [];
+    delete d.vlanDefs;
+    // Fehlt im Projekt eine VLAN-ID, die das Gerät mitbringt: VLAN mit den gesicherten Daten anlegen
+    const anlegen = (vid) => {
+      const def = defs.find((x) => +x.vid === +vid);
+      if (!def) return null;
+      const v = { id: uid(), vid: +def.vid, name: def.name || `VLAN ${def.vid}`, farbe: def.farbe || "#9aa4af", subnetz: def.subnetz || "", gateway: def.gateway || "", zweck: def.zweck || "",
+        igmp: !!def.igmp, querier: "", eeeAus: !!def.eeeAus, qos: !!def.qos, dhcp: { aktiv: false, von: "", bis: "" }, notiz: "", svlan: null };
+      vlans.push(v);
+      return v.id;
+    };
     // VLAN über die VLAN-ID zuordnen; ältere Vorlagen ohne vid behalten die ID, falls sie existiert
-    const map = (oldId, vid) => (vid != null ? vlans.find((v) => +v.vid === +vid)?.id || null : vlans.some((v) => v.id === oldId) ? oldId : null);
+    const map = (oldId, vid) => (vid != null ? vlanNachVid(vlans, vid)?.id || anlegen(vid) : vlans.some((v) => v.id === oldId) ? oldId : null);
     d.interfaces = d.interfaces.map((i) => {
       const nid = uid(); idMap[i.id] = nid;
       const { vid, ...rest } = i;
@@ -213,7 +228,7 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
   const T = TYPEN[t] || TYPEN.sonstiges;
   const kat = k?.kategorie || T.kat;
   const isSwitch = !!T.isSwitch;
-  const vByVid = (vid) => vlans.find((v) => +v.vid === +vid)?.id || null;
+  const vByVid = (vid) => vlanNachVid(vlans, vid)?.id || null;
 
   const rawPorts = k ? parsePorts(k.raw["Netzwerkports (Details)"], k.raw["Netzwerkports (Anzahl)"], isSwitch)
                      : Array.from({ length: T.ports }, (_, i) => ({ name: isSwitch ? String(i + 1) : T.ports > 1 ? `LAN ${i + 1}` : "LAN", typ: "RJ45", p2p: false }));
@@ -300,6 +315,8 @@ export const geraetUmbauen = (P, devId, neu, { ausBestand = false } = {}) => {
     } else if (belegt.has(p.id)) { neu.ports.push({ ...p, iface: null }); portMap[p.id] = p.id; }
   });
   for (const c of P.verbindungen) for (const e of [c.a, c.b]) if (e.dev === devId && portMap[e.port]) e.port = portMap[e.port];
+  // Bei generischen Funden (Discovery) die erkannten Protokolle behalten
+  if (dev.generisch) neu.protokolle = [...new Set([...(neu.protokolle || []), ...(dev.protokolle || [])])];
   const bleibt = ausBestand
     ? { id: dev.id, bereich: neu.bereich || dev.bereich, stroeme: [] }
     : { id: dev.id, name: dev.name, netzname: dev.netzname || "", inventar: dev.inventar, bestandId: dev.bestandId, bereich: dev.bereich, notizen: dev.notizen, stroeme: [] };
