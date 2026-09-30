@@ -1,6 +1,6 @@
 {
   "name": "netzwerkplaner",
-  "version": "0.6.0-beta.9",
+  "version": "0.6.0-beta.10",
   "private": true,
   "description": "Offline-Netzwerkplaner für die Veranstaltungstechnik: Topologie als Mindmap, VLANs, IP-Plan, Patchliste",
   "author": "Momo",
@@ -12,6 +12,7 @@
     "start": "npm run build:dev && electron .",
     "test": "node scripts/test.js",
     "import-data": "node scripts/import-data.js",
+    "korrekturen": "node scripts/katalog-korrekturen.js",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac --arm64 --x64",
