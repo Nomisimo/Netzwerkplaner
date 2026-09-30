@@ -5,6 +5,10 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.10": [
+    "Geräte-Icons nach Modell: 75 eigene Icons für MA, Luminex, Cisco, Yamaha, SSS und Dante. Katalog-Geräte bekommen ihr Icon automatisch, die MA-Pult-Generationen sind an den Bildschirmen zu unterscheiden",
+    "Icon-Auswahl nach Hersteller gruppiert, die Maus auf einem Icon zeigt den Modellnamen",
+  ],
   "0.6.0-beta.9": [
     "Verbindungen: Ein Gerät bekommt nur so viele Kabel, wie es Anschlüsse hat. Bisher legte die App beim Verbinden einfach neue Ports an",
     "Sind alle Anschlüsse belegt, fragt die App, welcher ersetzt werden soll. Im Verbindungs-Editor gibt es vor dem Wechsel auf einen belegten Port eine Rückfrage",
