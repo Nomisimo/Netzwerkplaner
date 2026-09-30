@@ -28,6 +28,17 @@ export const stapeln = (stapel = [], a, b, neueId) => {
   else out = [...out, { id: neueId, name: "", ids: [a, b] }];
   return out;
 };
+/* Gezogenes Gerät oben auf den Stapel des Ziels legen. Hat das Ziel keinen
+   Stapel, entsteht einer mit dem gezogenen Gerät oben. Das gezogene Gerät
+   verlässt dabei seinen bisherigen Stapel; der Zielstapel bleibt erhalten. */
+export const obenAufStapel = (stapel = [], gezogen, ziel, neueId) => {
+  if (gezogen === ziel) return stapel;
+  let out = stapel.map((s) => ({ ...s, ids: s.ids.filter((x) => x !== gezogen) }));
+  const s = out.find((x) => x.ids.includes(ziel));
+  if (s) s.ids = [gezogen, ...s.ids];
+  else out = [...out, { id: neueId, name: "", ids: [gezogen, ziel] }];
+  return out.filter((x) => x.ids.length > 1);
+};
 export const entstapeln = (stapel = [], id) =>
   stapel.map((s) => ({ ...s, ids: s.ids.filter((x) => x !== id) })).filter((s) => s.ids.length > 1);
 

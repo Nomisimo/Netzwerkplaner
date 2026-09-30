@@ -11,7 +11,7 @@ import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { endInfo, portLabel, vlanKurz, vlanLang, geraeteTitel } from "../portinfo.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
-import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, stapeln, entstapeln, kabelSpuren } from "../../shared/anordnung.js";
+import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren } from "../../shared/anordnung.js";
 import { uid } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
 import StapelEditor from "../StapelEditor.jsx";
@@ -168,11 +168,37 @@ export default function TopologieTab(props) {
     if (drag.kind === "pan") setView((v) => ({ ...v, x: drag.vx + ddx, y: drag.vy + ddy })), moved !== drag.moved && setDrag({ ...drag, moved });
     else setDrag({ ...drag, dx: ddx / view.k, dy: ddy / view.k, moved });
   };
+  // Gerät oben auf einen Stapel legen. Der Stapel bleibt an seinem Platz: Das neue
+  // oberste Gerät übernimmt Pin, feste Position bzw. Lage des bisherigen Ankers.
+  const stapelOben = (neu, ziel) => mutate((d) => {
+    const vorher = d.layout.stapel || [];
+    const alt = stapelAnker(vorher, ziel);
+    d.layout.stapel = obenAufStapel(vorher, neu, ziel, uid());
+    if (alt === neu) return;
+    for (const k of ["pins", "fpPins", "fix", "fpFix"]) {
+      const m = d.layout[k];
+      if (!m?.[alt]) continue;
+      d.layout[k] = { ...m, [neu]: { ...m[alt] } };
+      if (k === "pins" || k === "fpPins") delete d.layout[k][alt];
+    }
+    if (!auto || pins[alt]) return;
+    const pa = Lbase.pos.get(alt);
+    const pn = stapelAnker(vorher, neu) !== neu ? Lroh?.pos.get(neu) : Lbase.pos.get(neu);
+    if (!pa || !pn) return;
+    const o = d.layout[offKey]?.[neu] || { dx: 0, dy: 0 };
+    d.layout[offKey] = { ...(d.layout[offKey] || {}), [neu]: { dx: Math.round(o.dx + pa.x - pn.x), dy: Math.round(o.dy + pa.y - pn.y) } };
+  });
   const onUp = (e) => {
     if (draw) {
-      const target = hitNode(toWorld(e));
+      const w = toWorld(e);
+      let target = hitNode(w);
+      // Im Stapel-Werkzeug zählt auch Rahmen oder Name eines Stapels als Ziel
+      if (!target && draw.tool === "stack") {
+        const sid = e.target?.closest?.("[data-stapel]")?.getAttribute("data-stapel");
+        target = (L.stapel || []).find((b) => b.id === sid || (w.x >= b.x && w.x <= b.x + b.w && w.y >= b.y && w.y <= b.y + b.h))?.ids[0] || null;
+      }
       if (target && target !== draw.from) {
-        if (draw.tool === "stack") mutate((d) => { d.layout.stapel = stapeln(d.layout.stapel || [], draw.from, target, uid()); });
+        if (draw.tool === "stack") stapelOben(draw.from, target);
         else connect(draw.from, target);
       }
       setDraw(null); setHover(null);
@@ -420,7 +446,7 @@ export default function TopologieTab(props) {
                 onMouseDown={(e) => { if (e.button || bgPos.fest !== false) return; e.stopPropagation(); setDrag({ kind: "bg", sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false }); }} />}
               {/* Stapel (grafische Gruppen, z. B. Rack oder Tower) */}
               {(L.stapel || []).map((b) => (
-                <g key={b.id} onMouseDown={(e) => onDown(e, b.ids[0], null, b.id)} style={{ cursor: "move" }}>
+                <g key={b.id} data-stapel={b.id} onMouseDown={(e) => onDown(e, b.ids[0], null, b.id)} style={{ cursor: "move" }}>
                   <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke={selection?.type === "stapel" && selection.id === b.id ? ACCENT : "#8a96a3"} strokeWidth={selection?.type === "stapel" && selection.id === b.id ? 2 : 1.2} strokeDasharray="5 4" />
                   <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill="#aeb8c2" style={{ cursor: "pointer" }}>
                     {pins[b.ids[0]] ? "📌 " : ""}▤ {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
