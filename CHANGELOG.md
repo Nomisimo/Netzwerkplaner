@@ -3,10 +3,15 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [0.6.0-beta.13] – 2026-09-30
+## [0.6.0-beta.14] – 2026-09-30
 
 - Katalog: 15 weitere Einträge gegen Datenblätter geprüft (49 insgesamt). Korrigiert u. a.: grandMA2 onPC command wing hat kein Ethernet (nur USB), ETC Eos Apex hat 4× etherCON und 2× SFP+ statt 3× RJ45, Yamaha XMV-D ohne separaten NETWORK-Port, MikroTik hEX nur mit passivem PoE-in (kein 802.3af)
 - Yamaha YDIF-Buchsen (MTX, MRX) werden als Punkt-zu-Punkt erkannt; die Prüfung warnt, wenn sie an einem Switch stecken
+
+## [0.6.0-beta.13] – 2026-09-30
+
+- Neue Geräte bekommen kein VLAN mehr automatisch. Bisher landeten sie je nach Kategorie z. B. in VLAN 10, 20 oder 99. Vorlagen und Bestand bringen ihre gespeicherten VLANs weiter mit
+- Topologie: Die Plakette am Kabel zeigt nur noch den Switch-Port, das VLAN steht im Tooltip
 
 ## [0.6.0-beta.12] – 2026-09-30
 

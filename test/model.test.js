@@ -32,9 +32,23 @@ test("Yamaha M7CL: Karten-Dante bzw. EtherSound als P2P", () => {
   assert.equal(es.ports.filter((x) => !x.p2p).length, 1);
 });
 
-test("Dante-Gerät bekommt Primary/Secondary in VLAN 10/11", () => {
+test("Neues Gerät bekommt kein VLAN, bis der Nutzer eins zuweist", () => {
   const P = emptyProject();
-  const d = createDevice({ katalogId: kat("Rio3224"), vlans: P.vlans });
+  for (const d of [createDevice({ katalogId: kat("Rio3224"), vlans: P.vlans }), createDevice({ typ: "node", vlans: P.vlans }), createDevice({ typ: "switch_managed", vlans: P.vlans })]) {
+    assert.deepEqual(d.interfaces.map((i) => i.vlan), d.interfaces.map(() => null), d.name);
+    assert.ok(d.ports.every((p) => !p.vlan && !p.vlans.length), d.name);
+  }
+  // Switch-Port übernimmt dann auch nichts
+  const sw = createDevice({ typ: "switch_managed", vlans: P.vlans });
+  const n = createDevice({ typ: "node", vlans: P.vlans });
+  P.geraete.push(sw, n);
+  addConnection(P, sw.id, n.id);
+  assert.ok(sw.ports.every((p) => !p.vlan));
+});
+
+test("Beispielprojekt: Dante-Gerät mit Primary/Secondary in VLAN 10/11", () => {
+  const P = emptyProject();
+  const d = createDevice({ katalogId: kat("Rio3224"), vlans: P.vlans, standardVlans: true });
   const vid = (i) => P.vlans.find((v) => v.id === i.vlan)?.vid;
   assert.deepEqual(d.interfaces.map(vid).slice(0, 2), [10, 11]);
 });
@@ -42,8 +56,8 @@ test("Dante-Gerät bekommt Primary/Secondary in VLAN 10/11", () => {
 test("Prüfung: IP-Konflikt, Subnetz, P2P am Switch, IGMP", () => {
   const P = emptyProject();
   const sw = createDevice({ typ: "switch_managed", vlans: P.vlans });
-  const a = createDevice({ katalogId: kat("grandMA3 light"), vlans: P.vlans });
-  const b = createDevice({ katalogId: kat("LumiNode 12"), vlans: P.vlans });
+  const a = createDevice({ katalogId: kat("grandMA3 light"), vlans: P.vlans, standardVlans: true });
+  const b = createDevice({ katalogId: kat("LumiNode 12"), vlans: P.vlans, standardVlans: true });
   const x32 = createDevice({ katalogId: KATALOG_GERAETE.find((g) => /AES50/.test(g.raw["Netzwerkports (Details)"])).id, vlans: P.vlans });
   P.geraete.push(sw, a, b, x32);
   a.interfaces[0].ip = "10.10.20.10"; b.interfaces[0].ip = "10.10.20.10";
@@ -64,6 +78,7 @@ test("Switch-Port übernimmt VLAN, Uplink wird Trunk", () => {
   const s1 = createDevice({ typ: "switch_managed", vlans: P.vlans });
   const s2 = createDevice({ typ: "switch_managed", vlans: P.vlans });
   const n = createDevice({ typ: "node", vlans: P.vlans });
+  n.interfaces[0].vlan = P.vlans.find((v) => v.vid === 20).id;
   P.geraete.push(s1, s2, n);
   addConnection(P, s1.id, s2.id); addConnection(P, s2.id, n.id);
   assert.equal(s1.ports[0].modus, "trunk");
