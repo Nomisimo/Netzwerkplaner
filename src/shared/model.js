@@ -1,12 +1,13 @@
 import { STANDARD_VLANS, DEFAULT_BEREICHE, KABEL } from "./constants.js";
 import { uid, findProtokoll, newIface, newPort } from "./catalog.js";
 import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAULT_RANGES, isValidMac } from "./net.js";
+import { qinqIssues } from "./qinq.js";
 
 export const clone = (x) => JSON.parse(JSON.stringify(x));
 
 export const newVlan = (o = {}) => ({
   id: uid(), vid: 1, name: "", farbe: "#9aa4af", subnetz: "", gateway: "", zweck: "",
-  igmp: false, querier: "", eeeAus: false, qos: false, dhcp: { aktiv: false, von: "", bis: "" }, notiz: "", ...o,
+  igmp: false, querier: "", eeeAus: false, qos: false, dhcp: { aktiv: false, von: "", bis: "" }, notiz: "", svlan: null, ...o,
 });
 
 export const standardVlans = () => STANDARD_VLANS.map((v) => newVlan(clone(v)));
@@ -224,11 +225,21 @@ export const validate = (P, X) => {
   const vlanList = P.vlans;
 
   // VLANs
-  const vids = new Map();
+  // Doppelte IDs sind erlaubt, wenn QinQ (IEEE 802.1ad) sie trennt
+  issues.push(...qinqIssues(vlanList));
   for (const v of vlanList) {
-    if (vids.has(+v.vid)) add("error", `VLAN-ID ${v.vid} ist doppelt vergeben (${vids.get(+v.vid).name} / ${v.name}).`, { vlan: v.id });
-    vids.set(+v.vid, v);
     if (+v.vid < 1 || +v.vid > 4094) add("error", `VLAN „${v.name}“: ID ${v.vid} liegt außerhalb 1–4094.`, { vlan: v.id });
+  }
+  // Trunk-Port mit zwei VLANs gleicher ID: auf der Leitung nicht unterscheidbar
+  for (const sw of P.geraete.filter((d) => d.isSwitch)) for (const p of sw.ports) {
+    if (p.modus !== "trunk") continue;
+    const seen = new Map();
+    for (const id of p.vlans || []) {
+      const v = X.vlanById.get(id);
+      if (!v) continue;
+      if (seen.has(+v.vid)) add("warn", `${sw.name} [${p.name}]: Trunk führt zweimal VLAN-ID ${v.vid} (${seen.get(+v.vid).name} / ${v.name}). Auf einem normalen Trunk sind die nicht zu unterscheiden; nur ein QinQ-Port (802.1ad) trennt sie über das S-Tag.`, { dev: sw.id, vlan: v.id });
+      else seen.set(+v.vid, v);
+    }
   }
 
   // Adressen

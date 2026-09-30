@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, TYPEN, KATEGORIEN } from "../shared/constants.js";
 import { KATALOG_GERAETE } from "../shared/catalog.js";
 import { IconView, ICON_NAMES } from "./icons.jsx";
+import { vlanBaum, vlanPfad } from "../shared/qinq.js";
 
 export function Section({ title, subtitle, right, children, style }) {
   return (
@@ -80,7 +81,7 @@ export function VlanSelect({ vlans, value, onChange, style, allowNone = true, no
   return (
     <select style={{ ...S.selectSm, ...style }} value={value || ""} onChange={(e) => onChange(e.target.value || null)}>
       {allowNone && <option value="">{noneLabel}</option>}
-      {[...vlans].sort((a, b) => a.vid - b.vid).map((v) => <option key={v.id} value={v.id}>{v.vid} · {v.name}</option>)}
+      {vlanBaum(vlans).map(({ v }) => <option key={v.id} value={v.id}>{vlanPfad(v, vlans)} · {v.name}</option>)}
     </select>
   );
 }

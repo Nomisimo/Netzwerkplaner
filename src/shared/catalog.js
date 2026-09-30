@@ -1,5 +1,6 @@
 import KATALOG from "./data/katalog.json";
 import { TYPEN, KAT_VLAN } from "./constants.js";
+import { vlanNachVid } from "./qinq.js";
 
 export { KATALOG };
 export const uid = () => Math.random().toString(36).slice(2, 10);
@@ -193,7 +194,7 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
     const d = JSON.parse(JSON.stringify(src.geraet));
     const idMap = {};
     // VLAN über die VLAN-ID zuordnen; ältere Vorlagen ohne vid behalten die ID, falls sie existiert
-    const map = (oldId, vid) => (vid != null ? vlans.find((v) => +v.vid === +vid)?.id || null : vlans.some((v) => v.id === oldId) ? oldId : null);
+    const map = (oldId, vid) => (vid != null ? vlanNachVid(vlans, vid)?.id || null : vlans.some((v) => v.id === oldId) ? oldId : null);
     d.interfaces = d.interfaces.map((i) => {
       const nid = uid(); idMap[i.id] = nid;
       const { vid, ...rest } = i;
@@ -211,7 +212,7 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
   const T = TYPEN[t] || TYPEN.sonstiges;
   const kat = k?.kategorie || T.kat;
   const isSwitch = !!T.isSwitch;
-  const vByVid = (vid) => vlans.find((v) => +v.vid === +vid)?.id || null;
+  const vByVid = (vid) => vlanNachVid(vlans, vid)?.id || null;
 
   const rawPorts = k ? parsePorts(k.raw["Netzwerkports (Details)"], k.raw["Netzwerkports (Anzahl)"], isSwitch)
                      : Array.from({ length: T.ports }, (_, i) => ({ name: isSwitch ? String(i + 1) : T.ports > 1 ? `LAN ${i + 1}` : "LAN", typ: "RJ45", p2p: false }));
