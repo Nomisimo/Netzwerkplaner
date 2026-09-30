@@ -347,15 +347,15 @@ export const kabelLabel = (k) => KABEL[k]?.label || k || "–";
 
 /* ── Verbindung anlegen (arbeitet direkt auf einem Projekt-Entwurf) ─────── */
 const portUsed = (P, devId, portId) => P.verbindungen.some((c) => (c.a.dev === devId && c.a.port === portId) || (c.b.dev === devId && c.b.port === portId));
-const takePort = (P, dev, preferP2P, preferName) => {
-  const free = dev.ports.filter((p) => !portUsed(P, dev.id, p.id));
+export const freiePorts = (P, dev) => dev.ports.filter((p) => !portUsed(P, dev.id, p.id));
+/* Freien Port wählen. Ein Gerät hat nur so viele Anschlüsse, wie es Ports hat:
+   ist keiner frei, gibt es null (die Oberfläche fragt dann, welcher Anschluss ersetzt wird). */
+const takePort = (P, dev, preferP2P, preferName, portId) => {
+  const free = freiePorts(P, dev);
+  if (portId) return free.find((p) => p.id === portId) || null;
   const byName = preferName && free.find((p) => p.name === preferName);
   const copper = (p) => !/SFP|optical/i.test(p.typ);
-  const pick = byName || free.find((p) => !!p.p2p === preferP2P && copper(p) && (dev.isSwitch || p.name !== "Secondary")) || free.find((p) => !!p.p2p === preferP2P && (dev.isSwitch || p.name !== "Secondary")) || free.find((p) => !!p.p2p === preferP2P) || free[0];
-  if (pick) return pick;
-  const np = newPort({ name: dev.isSwitch ? String(dev.ports.length + 1) : `LAN ${dev.ports.length + 1}`, iface: dev.isSwitch ? null : dev.interfaces[0]?.id || null });
-  dev.ports.push(np);
-  return np;
+  return byName || free.find((p) => !!p.p2p === preferP2P && copper(p) && (dev.isSwitch || p.name !== "Secondary")) || free.find((p) => !!p.p2p === preferP2P && (dev.isSwitch || p.name !== "Secondary")) || free.find((p) => !!p.p2p === preferP2P) || free[0] || null;
 };
 
 export const addConnection = (P, fromId, toId, opts = {}) => {
@@ -364,9 +364,10 @@ export const addConnection = (P, fromId, toId, opts = {}) => {
   if (!a || !b || a === b) return null;
   const p2p = !a.isSwitch && !b.isSwitch && a.ports.some((p) => p.p2p && !portUsed(P, a.id, p.id)) && b.ports.some((p) => p.p2p && !portUsed(P, b.id, p.id));
   const fib = (d) => d.ports.find((p) => /SFP|optical/i.test(p.typ) && !portUsed(P, d.id, p.id));
-  const uplinkFib = a.isSwitch && b.isSwitch && !opts.portA && !opts.portB && fib(a) && fib(b);
-  const pa = uplinkFib ? fib(a) : takePort(P, a, p2p, opts.portA);
-  const pb = uplinkFib ? fib(b) : takePort(P, b, p2p, opts.portB);
+  const uplinkFib = a.isSwitch && b.isSwitch && !opts.portA && !opts.portB && !opts.portIdA && !opts.portIdB && fib(a) && fib(b);
+  const pa = uplinkFib ? fib(a) : takePort(P, a, p2p, opts.portA, opts.portIdA);
+  const pb = uplinkFib ? fib(b) : takePort(P, b, p2p, opts.portB, opts.portIdB);
+  if (!pa || !pb) return null; // kein freier Anschluss
   if (uplinkFib && !opts.kabel) opts = { ...opts, kabel: "fiber_mm" };
   const c = { id: uid(), a: { dev: a.id, port: pa.id }, b: { dev: b.id, port: pb.id }, kabel: opts.kabel || (p2p ? "p2p" : "cat6"), laenge: opts.laenge || "", label: opts.label || "", notiz: "" };
   const managed = (d) => d.isSwitch && d.typ !== "switch_unmanaged";

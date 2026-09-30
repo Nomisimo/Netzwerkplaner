@@ -55,6 +55,7 @@ const KAPITEL = [
       "„Auto-Anordnen“ aus: alle Geräte und Leitungen bleiben, wo sie sind, auch die nicht angepinnten. Ziehen verschiebt dann nur das eine Gerät. Wieder an: die automatische Anordnung gilt wieder, Pins bleiben.",
       "„▤ Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Das ist keine Netzwerkverbindung. Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
       "Klick auf Rahmen oder Namen eines Stapels öffnet „Stapel bearbeiten“: Name, Reihenfolge (▲▼), Geräte hinzufügen oder lösen. „⧉ Duplizieren“ legt alle Geräte mit ihren Einstellungen und Verbindungen untereinander als neuen Stapel an (ohne IP- und MAC-Adressen). „⎘ Kopieren“ legt den Stapel in die Zwischenablage, „📋 Stapel einfügen“ in der Werkzeugleiste fügt ihn ein, auch in einem anderen Projekt.",
+      "Ein Gerät bekommt nur so viele Kabel, wie es Anschlüsse hat. Sind alle belegt, fragt „Verbinden“, welchen Anschluss du ersetzen willst; die alte Verbindung dort fällt weg. Mehr Ports gibt es nur im Editor mit „+ Port“.",
       "Verbindungen aufräumen: Verbindung anklicken und den roten Punkt in der Mitte ziehen. Doppelklick auf den Punkt setzt sie zurück.",
       "„🖼 Hintergrund“: ein Bild (Stage-Plot, Hallenplan) unter die Geräte legen, um sie in der Location zu verorten. Deckkraft und Größe einstellen, zum Platzieren „Bild mit der Maus verschieben“ einschalten. Das Bild kommt mit in den Export.",
     ]} />

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
-import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection } from "../../shared/model.js";
+import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts } from "../../shared/model.js";
 import { layoutMindmap, NODE_W, NODE_H } from "../../shared/layout.js";
 import { SvgIcon, IconView } from "../icons.jsx";
 import { Toggle, VlanSelect, Dot } from "../ui.jsx";
@@ -15,6 +15,7 @@ import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, stapeln
 import { uid } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
 import StapelEditor from "../StapelEditor.jsx";
+import PortTauschen from "../PortTauschen.jsx";
 import { stapelEinfuegen } from "../../shared/konfig.js";
 import { useZwischenablage } from "../zwischenablage.js";
 
@@ -36,6 +37,7 @@ export default function TopologieTab(props) {
   const [ctx, setCtx] = useState(null);
   const [bgOpen, setBgOpen] = useState(false);
   const stapelClip = useZwischenablage("stapel");
+  const [tausch, setTausch] = useState(null); // { from, to, voll: [devId] } wenn Anschlüsse fehlen
   const titel = P.layout.titel || "name"; // Beschriftung der Knoten
   const setTitel = (t) => mutate((d) => { d.layout.titel = t; });
   const linien = P.layout.linien || "rund"; // Verbindungslinien: rund oder eckig
@@ -204,9 +206,15 @@ export default function TopologieTab(props) {
     setDrag(null);
   };
 
-  const connect = (fromId, toId) => {
+  const connect = (fromId, toId, ports = {}) => {
+    // Nur so viele Kabel, wie das Gerät Anschlüsse hat: sonst fragen, welcher ersetzt wird
+    const voll = [fromId, toId].filter((id) => !ports[id] && X.devById.get(id) && !freiePorts(P, X.devById.get(id)).length);
+    if (voll.length) { setTausch({ from: fromId, to: toId, voll }); return; }
     let newId = null;
-    mutate((d) => { newId = addConnection(d, fromId, toId); });
+    mutate((d) => {
+      for (const [dev, port] of Object.entries(ports)) d.verbindungen = d.verbindungen.filter((c) => !((c.a.dev === dev && c.a.port === port) || (c.b.dev === dev && c.b.port === port)));
+      newId = addConnection(d, fromId, toId, { portIdA: ports[fromId], portIdB: ports[toId] });
+    });
     if (newId) setSelection({ type: "conn", id: newId });
   };
 
@@ -573,6 +581,7 @@ export default function TopologieTab(props) {
             {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
+          {tausch && <PortTauschen P={P} X={X} voll={tausch.voll} onClose={() => setTausch(null)} onOk={(w) => { const t = tausch; setTausch(null); connect(t.from, t.to, w); }} />}
           {bgOpen && <HintergrundPanel bg={bg} bounds={Lbase.bounds} onClose={() => setBgOpen(false)} onChange={(fn) => mutate((d) => { d.layout[bgKey] = fn(d.layout[bgKey] ? { ...d.layout[bgKey] } : null); })} />}
           {ctx && X.devById.get(ctx.id) && (() => {
             const d = X.devById.get(ctx.id);

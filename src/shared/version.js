@@ -5,6 +5,10 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.9": [
+    "Verbindungen: Ein Gerät bekommt nur so viele Kabel, wie es Anschlüsse hat. Bisher legte die App beim Verbinden einfach neue Ports an",
+    "Sind alle Anschlüsse belegt, fragt die App, welcher ersetzt werden soll. Im Verbindungs-Editor gibt es vor dem Wechsel auf einen belegten Port eine Rückfrage",
+  ],
   "0.6.0-beta.8": [
     "Katalog: Beim Anlegen eines Geräts oder einer Vorlage direkt ein neues VLAN anlegen und allen Ports oder einem Interface zuweisen",
     "Vorlagen und Bestand merken sich ihre VLANs. Fehlt eine VLAN-ID beim Einfügen in ein Projekt, wird das VLAN dort angelegt (gilt auch für kopierte Stapel)",
