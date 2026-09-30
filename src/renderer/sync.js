@@ -18,7 +18,13 @@ const mitLokalerAnsicht = (doc, lokal) => {
 export const ladeEinstellungen = () => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch { return {}; } };
 export const speichereEinstellungen = (e) => { try { localStorage.setItem(LS, JSON.stringify(e)); } catch { /* egal */ } };
 
+// Leitet der Server (Reverse-Proxy) http:// auf https:// um, merken wir uns das für den WebSocket
+const umleitung = new Map();
 const httpBasis = (server) => {
+  const b = roheBasis(server);
+  return umleitung.get(b) || b;
+};
+const roheBasis = (server) => {
   // „192.168.1.10“ → http://192.168.1.10:3001; mit http(s):// davor gilt die Adresse wie eingegeben
   // (z. B. hinter einem Reverse-Proxy: http://planer.example.de → Port 80, https → wss)
   let s = String(server || "").trim().replace(/\/+$/, "");
@@ -29,12 +35,39 @@ const httpBasis = (server) => {
 };
 const wsUrl = (server) => httpBasis(server).replace(/^http/, "ws") + "/ws";
 
+// Mögliche Adressen: wie eingegeben; ein reiner Hostname ohne Port kann auch hinter einem Reverse-Proxy stehen
+const kandidaten = (server) => {
+  const roh = String(server || "").trim().replace(/\/+$/, "");
+  const b = [httpBasis(server)];
+  if (!/^https?:\/\//.test(roh) && !/:\d+$/.test(roh)) b.push(`https://${roh}`, `http://${roh}`);
+  return [...new Set(b)];
+};
+
+// Eine HTTP-Anfrage; in der App über den Hauptprozess (kein CORS, folgt Umleitungen, echte Fehlermeldung)
+const hole = async (basis, p, init, headers) => {
+  if (window.electronAPI?.serverFetch) {
+    const r = await window.electronAPI.serverFetch({ url: basis + p, method: init.method || "GET", headers, body: init.body });
+    if (r.fehler) throw new Error(r.fehler);
+    return r;
+  }
+  const x = await fetch(basis + p, { ...init, headers });
+  return { ok: x.ok, status: x.status, url: x.url, text: await x.text() };
+};
+
 export const serverApi = (server, token) => {
-  const basis = httpBasis(server);
   const req = async (p, init = {}) => {
-    const r = await fetch(basis + p, { ...init, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers || {}) } });
-    const body = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(body.error === "Unauthorized" ? "Server-Token falsch" : body.error || `HTTP ${r.status}`);
+    const headers = { ...(init.body ? { "Content-Type": "application/json" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers || {}) };
+    let r, basis, fehler;
+    for (const k of kandidaten(server)) {
+      try { r = await hole(k, p, init, headers); basis = k; break; } catch (e) { fehler ??= e; }
+    }
+    if (!r) throw new Error(`${fehler?.message || "keine Antwort"} (${httpBasis(server)})`);
+    // Tatsächliche Adresse merken (anderer Kandidat oder Umleitung http → https), gilt dann auch für den WebSocket
+    const ziel = r.url && r.url.endsWith(p) ? r.url.slice(0, -p.length) : basis;
+    if (ziel !== roheBasis(server)) umleitung.set(roheBasis(server), ziel);
+    let body = {};
+    try { body = JSON.parse(r.text); } catch { if (r.ok) throw new Error(`Unter ${ziel} antwortet kein Planer-Server`); }
+    if (!r.ok) throw new Error(body.error === "Unauthorized" ? "Server-Token falsch" : body.error || `HTTP ${r.status} von ${ziel}`);
     return body;
   };
   return {

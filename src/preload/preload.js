@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   appVersion:        () => ipcRenderer.invoke('app-version'),
   fetchReleases:     () => ipcRenderer.invoke('fetch-releases'),
+  serverFetch:       (req) => ipcRenderer.invoke('server-fetch', req),
   checkForUpdates:   () => ipcRenderer.invoke('check-for-updates'),
   installUpdate:     (url) => ipcRenderer.invoke('install-update', url),
   macUpdateLaden:    (tag) => ipcRenderer.invoke('mac-update-laden', tag),

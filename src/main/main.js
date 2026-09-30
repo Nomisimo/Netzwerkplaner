@@ -99,6 +99,19 @@ ipcMain.handle('fetch-releases', async () => {
   } catch { return null; }
 });
 
+// Anfragen an den Planer-Server laufen über den Hauptprozess: kein CORS-Preflight,
+// damit klappt es auch hinter Reverse-Proxys, die OPTIONS nicht durchreichen.
+ipcMain.handle('server-fetch', async (_e, { url, method, headers, body }) => {
+  if (!/^https?:\/\//.test(url || '')) return { ok: false, status: 0, fehler: 'Ungültige Adresse' };
+  try {
+    const { net: enet } = require('electron');
+    const r = await enet.fetch(url, { method: method || 'GET', headers: headers || {}, body: body ?? undefined, redirect: 'follow' });
+    return { ok: r.ok, status: r.status, url: r.url, text: await r.text() };
+  } catch (e) {
+    return { ok: false, status: 0, fehler: String(e?.message || e) };
+  }
+});
+
 /* ── Updates wie im Stromplaner ──────────────────────────────────────────
    Windows: electron-updater lädt die neue Version im Hintergrund und installiert
    sie nach Bestätigung. macOS: die App ist nicht mit Apple-Developer-ID signiert,
