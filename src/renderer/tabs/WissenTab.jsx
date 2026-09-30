@@ -6,6 +6,26 @@ import { ARTIKEL } from "../../shared/wissen.js";
 import { fmtMbit } from "../../shared/analyse.js";
 import { Section, Dot } from "../ui.jsx";
 import { api } from "../api.js";
+import ProtokollPoster from "../ProtokollPoster.jsx";
+
+// Wikipedia-Artikel, soweit vorhanden
+const WIKI = {
+  dante: "https://en.wikipedia.org/wiki/Dante_(networking)",
+  artnet: "https://en.wikipedia.org/wiki/Art-Net",
+  sacn: "https://en.wikipedia.org/wiki/Architecture_for_Control_Networks",
+  ndi: "https://en.wikipedia.org/wiki/Network_Device_Interface",
+  osc: "https://de.wikipedia.org/wiki/Open_Sound_Control",
+  igmp: "https://de.wikipedia.org/wiki/Internet_Group_Management_Protocol",
+  qos: "https://de.wikipedia.org/wiki/Differentiated_Services",
+  ptp: "https://de.wikipedia.org/wiki/Precision_Time_Protocol",
+  eee: "https://en.wikipedia.org/wiki/Energy-Efficient_Ethernet",
+  stp: "https://de.wikipedia.org/wiki/Spanning_Tree_Protocol",
+  vlan: "https://de.wikipedia.org/wiki/Virtual_Local_Area_Network",
+  jumbo: "https://de.wikipedia.org/wiki/Jumbo_Frame",
+  osi: "https://de.wikipedia.org/wiki/OSI-Modell",
+  mdns: "https://de.wikipedia.org/wiki/Zeroconf",
+};
+const WikiLink = ({ id }) => WIKI[id] ? <a href="#" style={{ color: "#8ec5ff", fontSize: 12, fontWeight: 400, whiteSpace: "nowrap" }} onClick={(e) => { e.preventDefault(); api.openExternal(WIKI[id]); }}>Wikipedia ↗</a> : null;
 
 // Recherche-Einträge (hardware/fokus) je Kernprotokoll
 const RECHERCHE_NAMEN = { dante: ["Dante"], manet: ["MA-Net3", "MA-Net2", "MA-Net1"], artnet: ["Art-Net 4"], sacn: ["sACN (ANSI E1.31)"], ndi: ["NDI (NDI 5/6)"], osc: ["OSC (Open Sound Control)"], citp: ["CITP / MSEx"] };
@@ -38,6 +58,9 @@ function Block({ b }) {
   if (b.t === "hint") return <div style={{ ...P, borderLeft: `3px solid ${WARN}`, background: "#2a2418", padding: "8px 12px", borderRadius: 4 }}>{b.x}</div>;
   if (b.t === "table" && b.zeilen === "refs") return <Tabelle kopf={b.kopf} zeilen={(KATALOG.kernprotokolle || []).map((r) => [r.Protokoll, r.Ports, r.Multicast, r.Discovery || "–"])} />;
   if (b.t === "table") return <Tabelle kopf={b.kopf} zeilen={b.zeilen} />;
+  if (b.t === "poster") return <ProtokollPoster />;
+  if (b.t === "mdns") return <Tabelle kopf={["Service-Typ", "Protokoll", "Zweck"]} zeilen={(KATALOG.mdns || []).map((m) => [<span style={{ fontFamily: "monospace" }}>{m["Service-Typ"]}</span>, m.Protokoll, m.Zweck])} />;
+  if (b.t === "infra") return <Tabelle kopf={["Protokoll", "Port / Schicht", "Rolle im Veranstaltungsnetz"]} zeilen={(KATALOG.infrastruktur || []).map((m) => [m.Protokoll, m["Port / Schicht"], m["Rolle im Veranstaltungsnetz"]])} />;
   if (b.t === "qos") return <Tabelle kopf={["System", "DSCP", "Hinweis"]} zeilen={(KATALOG.qos || []).map((q) => [q.System, q["DSCP-Werte"], q.Hinweis])} />;
   return null;
 }
@@ -126,7 +149,7 @@ export default function WissenTab() {
         <div className="sp-section-label" style={{ padding: "0 12px", marginTop: 12 }}>Kernprotokolle</div>
         {KERN.map((x) => <Nav key={x.id} id={"p-" + x.id} color={x.farbe}>{x.name}</Nav>)}
       </div>
-      <Section title={art?.titel || k?.name || "Switch-Einstellungen je Hersteller"} subtitle={art?.kurz || (k ? `${k.kategorie} · Werte mit „≈“ sind Richtwerte für die Planung.` : "Empfehlungen aus der Fokus-Recherche mit Quelle. Werte vor dem Einsatz am konkreten Modell prüfen.")}>
+      <Section title={art?.titel || k?.name || "Switch-Einstellungen je Hersteller"} right={<WikiLink id={art?.id || k?.id} />} subtitle={art?.kurz || (k ? `${k.kategorie} · Werte mit „≈“ sind Richtwerte für die Planung.` : "Empfehlungen aus der Fokus-Recherche mit Quelle. Werte vor dem Einsatz am konkreten Modell prüfen.")}>
         {art && art.bloecke.map((b, i) => <Block key={i} b={b} />)}
         {k && <ProtokollSeite k={k} />}
         {sel === "switches" && <SwitchSeite />}

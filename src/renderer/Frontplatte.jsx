@@ -3,7 +3,7 @@ import { ACCENT, OK, ERR, MUTED, TYPEN, katColor } from "../shared/constants.js"
 import { mainIp } from "../shared/model.js";
 import { CARD_W, CARD_H, TAB_H } from "../shared/frontplatte.js";
 import { SvgIcon } from "./icons.jsx";
-import { endInfo, portLabel, vlanLang } from "./portinfo.js";
+import { endInfo, portLabel, vlanLang, geraeteTitel } from "./portinfo.js";
 
 /* Darstellung für die Frontplatten-Ansicht (Stil Luminex Araneo) */
 
@@ -93,7 +93,7 @@ export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, wo
   const pf = plattenFarbe(d);
   const ip = mainIp(d);
   const x0 = p.x - p.w / 2, y0 = p.y - p.h / 2;
-  const name = (titel === "netzname" && d.netzname) || (titel === "inventar" && d.inventar?.nr) || d.name;
+  const name = geraeteTitel(d, titel);
   const label = [name, ip || (d.typ === "switch_unmanaged" ? "unmanaged" : "keine IP"), d.modell].filter(Boolean).join(" · ");
   return (
     <g opacity={dim ? 0.2 : 1} onMouseDown={onDown} onContextMenu={onContextMenu} style={{ cursor: tool === "connect" ? "crosshair" : "pointer" }}>
@@ -135,7 +135,7 @@ export function FrontCard({ d, p, P, farbe, tab, sel, hover, hit, dim, status, w
   const x0 = p.x - CARD_W / 2, y0 = p.y - CARD_H / 2;
   const col = katColor(d.kategorie);
   const ip = mainIp(d);
-  const name = (titel === "netzname" && d.netzname) || (titel === "inventar" && d.inventar?.nr) || d.name;
+  const name = geraeteTitel(d, titel);
   const zeile2 = [ip || (d.interfaces.some((i) => i.dhcp) ? "DHCP" : ""), d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ");
   const tabW = tab ? Math.max(46, tab.length * 6 + 14) : 0;
   return (

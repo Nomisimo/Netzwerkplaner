@@ -3,6 +3,25 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.5.0-beta.2] – 2026-09-30
+
+- macOS: Das Intel-DMG war beschädigt und ließ sich nicht öffnen (Fehler 3840). Jeder Mac-Build erzeugt jetzt nur noch sein DMG, und der Release prüft es vor dem Hochladen
+- „⇄ Modell zuweisen“ mit einem Gerät aus dem eigenen Gerätebestand übernimmt dessen feste IPs, Namen, Netzwerknamen und Inventar genau wie beim Einfügen; die Verbindungen bleiben
+
+## [0.5.0-beta.1] – 2026-09-30
+
+- Bibliothek heißt jetzt einheitlich „Katalog“; Geräte lassen sich direkt im Katalog anlegen (Bestand und eigene Vorlagen)
+- Gerätebestand als CSV exportieren und importieren, z. B. aus einer anderen Installation oder einer eigenen Excel-Liste
+- „⇄ Modell zuweisen“: ein generisches Gerät nachträglich zu einem Katalogmodell machen, IPs, VLANs und Verbindungen bleiben erhalten
+- Topologie: Linien rund oder eckig, Titel wahlweise Gerätename, Netzwerkname, Typ/Modell oder Inventar-Nr.; ohne Netzwerkname erscheint der Typ
+- MA-Net Gold-Standards in der Prüfung: 1 GbE, eigenes VLAN, keine 100-Mbit-Geräte, IGMP, EEE aus, kurze Switch-Ketten, kein 192.168.33.x, Generationen trennen
+- VLANs vereinfacht: nur noch ID, Name, Farbe, Zweck, Notiz und die Schalter IGMP, EEE aus, QoS und DHCP
+- Wissen: Protokoll-Poster „OSI-Modell & Ports“, mDNS-Dienste und Infrastruktur-Protokolle (aus dem Katalog verschoben), Wikipedia-Links
+- Anleitung neu: ein Kapitel je Tab mit Screenshots, dazu die Analyse-Werkzeuge (Wireshark-Filter, Cisco-Befehle)
+- Updates wie im Stromplaner: Windows lädt neue Versionen im Hintergrund und installiert nach Neustart, macOS öffnet die Download-Seite
+- Eigenes Logo neben dem App-Namen, auch in den PDF-Exporten; App-Icon oben links
+- Entfernt: Patchliste, Analyse-Tab (Rechner und Prüfungen laufen in der Prüfung weiter), Kabellängen, IP-Plan
+
 ## [0.4.0-beta.1] – 2026-09-29
 
 - Neuer Tab „Live“: Online-Status aller Geräte, Netzwerkscan mit Abgleich gegen den Plan (fehlt, nicht im Plan, MAC weicht ab)

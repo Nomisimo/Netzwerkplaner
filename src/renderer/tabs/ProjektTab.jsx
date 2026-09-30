@@ -16,13 +16,12 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
   const setMeta = (k, v) => mutate((d) => (d.meta[k] = v));
   const n = (s) => issues.filter((i) => i.sev === s).length;
   const ips = P.geraete.reduce((s, d) => s + d.interfaces.filter((i) => i.ip).length, 0);
-  const len = P.verbindungen.reduce((s, c) => s + (+c.laenge || 0), 0);
   const perKat = Object.keys(KATEGORIEN).map((k) => [k, P.geraete.filter((d) => d.kategorie === k).length]).filter(([, c]) => c);
 
   return (
     <>
       {P.geraete.length === 0 && (
-        <Section title="Willkommen im Netzwerkplaner" subtitle="Offline-Planung für Veranstaltungsnetze: Topologie als Mindmap, VLANs, IP-Plan, Patchliste und Prüfungen in einer Projektdatei.">
+        <Section title="Willkommen im Netzwerkplaner" subtitle="Offline-Planung für Veranstaltungsnetze: Topologie als Mindmap oder Frontplatten, VLANs, IP-Adressen und Prüfungen in einer Projektdatei.">
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button style={S.primaryBtn} onClick={() => goTab("topologie")}>Leeres Projekt: zur Topologie</button>
             <button style={S.secondaryBtn} onClick={loadDemo}>Beispielprojekt laden</button>
@@ -45,8 +44,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }}>
           <Stat label="Geräte" value={P.geraete.length} onClick={() => goTab("geraete")} />
           <Stat label="Switches" value={P.geraete.filter((d) => d.isSwitch).length} />
-          <Stat label="Verbindungen" value={P.verbindungen.length} onClick={() => goTab("patch")} />
-          <Stat label="Kabel gesamt" value={`${len} m`} />
+          <Stat label="Verbindungen" value={P.verbindungen.length} onClick={() => goTab("topologie")} />
           <Stat label="VLANs" value={P.vlans.length} onClick={() => goTab("vlans")} />
           <Stat label="IP-Adressen" value={ips} onClick={() => goTab("vlans")} />
           <Stat label="Fehler" value={n("error")} color={n("error") ? ERR : OK} onClick={() => goTab("pruefung")} />

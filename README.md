@@ -1,6 +1,6 @@
 # ⌬ Netzwerkplaner
 
-Offline-Planungswerkzeug für Netzwerke in der Veranstaltungstechnik (Ton, Licht, Video, Intercom, Steuerung). Die Topologie wird als **Mindmap** gezeichnet: Core-Switch in der Mitte, Switches und Endgeräte als Äste. VLANs, IP-Plan, Patchliste und Prüfungen liegen in einer Projektdatei. Design und Aufbau orientieren sich am [Stromplaner](https://github.com/MrPancaketwtch/Stromplaner).
+Offline-Planungswerkzeug für Netzwerke in der Veranstaltungstechnik (Ton, Licht, Video, Intercom, Steuerung). Die Topologie wird als **Mindmap** gezeichnet: Core-Switch in der Mitte, Switches und Endgeräte als Äste. VLANs, IP-Adressen und Prüfungen liegen in einer Projektdatei. Design und Aufbau orientieren sich am [Stromplaner](https://github.com/MrPancaketwtch/Stromplaner).
 
 Electron-Desktop-App für **macOS und Windows**, läuft komplett ohne Server und ohne Internet.
 
@@ -11,18 +11,19 @@ Electron-Desktop-App für **macOS und Windows**, läuft komplett ohne Server und
 | Tab | Inhalt |
 |---|---|
 | **Projekt** | Veranstaltung, Ort, Version, Standorte/Äste, Übersicht, Beispielprojekt |
-| **Topologie** | Zwei Ansichten: Mindmap und Frontplatten (Stil Luminex Araneo, Ports in VLAN-Farbe, Geräte als Karten am Port). Auto-Layout, Geräte per Drag & Drop, Werkzeug „Verbinden“, Äste ein-/ausklappen, Verschieben mit Ast, Farbe nach VLAN/Bereich/Kabel, Filter & Suche, Web-UI-Links, Erreichbarkeits-Status |
-| **Geräte** | Liste mit Filter, Editor für Interfaces (IP/Maske/VLAN/Gateway/MAC/DHCP), physische Ports (Access/Trunk, PoE, Punkt-zu-Punkt), Web-UI, Protokolle, Notizen, eigene Icons |
-| **VLANs & IP-Plan** | VLANs mit Subnetz, Gateway, IGMP-Querier, EEE, QoS, DHCP-Bereich; IP-Raster je VLAN mit Konflikten und nächster freier Adresse |
-| **Patchliste** | Nach Switch oder als Gesamtliste, Kabeltyp, Länge, Label, Kabelsummen |
-| **Analyse** | Datenströme je Gerät → Leitungslast je Verbindung, Multicast/Broadcast je VLAN, Dante-Hops mit Latenz-Empfehlung, Bandbreiten- und Laufzeitrechner, Analyse-Werkzeuge (Wireshark-Filter, Switch-Befehle) |
+| **Topologie** | Zwei Ansichten: Mindmap und Frontplatten (Stil Luminex Araneo, Ports in VLAN-Farbe, Geräte als Karten am Port). Auto-Layout, Geräte per Drag & Drop, Werkzeug „Verbinden“, Äste ein-/ausklappen, Verschieben mit Ast, Farbe nach VLAN/Bereich/Kabel, Linien rund oder eckig, Titel nach Name/Netzwerkname/Typ/Inventar, Filter & Suche, Web-UI-Links, Erreichbarkeits-Status |
+| **Geräte** | Liste mit Filter, Editor für Interfaces (IP/Maske/VLAN/Gateway/MAC/DHCP), physische Ports (Access/Trunk, PoE, Punkt-zu-Punkt), Web-UI, Protokolle, Notizen, eigene Icons, „Modell zuweisen“ für generische Geräte |
+| **VLANs** | ID, Name, Farbe, Zweck, Notiz; Schalter IGMP-Snooping, EEE aus, QoS, DHCP |
 | **Live** | Werkzeuge fürs laufende Netz, je Protokoll ein Untertab: Online-Status aller Geräte, Netzwerkscan mit Soll/Ist-Abgleich gegen den Plan, Switches per SNMP (Link, VLAN je Port, PoE, LLDP-Nachbarn, Abweichungen zum Plan), sACN-Monitor (Quellen, Priorität, fps, Kanalwerte, Universe Discovery), Art-Net (ArtPoll-Nodes, Universen, Kanalwerte), Dante und NDI (Geräte per mDNS), MA-Net (Verkehr je Sender), OSC-Protokoll, CITP-Teilnehmer, PTP-Clock (Master, Domain, Konflikte) |
-| **Wissen** | IGMP, QoS/DSCP, Bandbreite, Latenz, PTP, EEE, STP, VLANs, Adressen, Redundanz, Switch-Einstellungen je Hersteller; Seiten zu Dante, MA-Net 1–3, Art-Net, sACN, NDI, OSC, CITP |
-| **Prüfung** | IP-Konflikte, Adressen außerhalb des Subnetzes, VLAN-Mismatch an Switch-Ports, Trunks, Punkt-zu-Punkt-Protokolle (AES50, SLink, HDBaseT …) am Switch, Multicast ohne IGMP, EEE bei Audio over IP, PoE-Budget, doppelte Ports |
-| **Bibliothek** | Gerätebestand (eigene Geräte mit IPs, direkt einfügbar), Protokollreferenz (Ports, Multicast, Anforderungen, Datenstand), Gerätekatalog, eigene Vorlagen, mDNS/QoS/Infrastruktur, Icons |
+| **Wissen** | IGMP, QoS/DSCP, Bandbreite, Latenz, PTP, EEE, STP, VLANs, Adressen, Redundanz, Switch-Einstellungen je Hersteller, Protokoll-Poster (OSI-Modell & Ports), mDNS-Dienste, Infrastruktur-Protokolle, Wikipedia-Links; Seiten zu Dante, MA-Net 1–3, Art-Net, sACN, NDI, OSC, CITP |
+| **Prüfung** | IP-Konflikte, VLAN-Mismatch an Switch-Ports, Trunks, Punkt-zu-Punkt-Protokolle (AES50, SLink, HDBaseT …) am Switch, Multicast ohne IGMP, EEE bei Audio over IP, PoE-Budget, doppelte Ports, Leitungslast und Dante-Hops aus den Datenströmen, MA-Net Gold-Standards |
+| **Katalog** | Gerätebestand (eigene Geräte mit IPs, direkt einfügbar, neu anlegen, CSV-Import/-Export), eigene Vorlagen, Herstellergeräte, Protokollreferenz (Ports, Multicast, Anforderungen, Datenstand), Icons |
+| **Anleitung** | Ein Kapitel je Tab mit Screenshots, Analyse-Werkzeuge (Wireshark-Filter, Cisco-Befehle) |
 
-**Exporte:** PDF-Dokumentation (A4 quer), Excel (IP-Liste, VLANs, Patchliste, Switch-Ports, Geräte, Prüfung), CSV-IP-Liste, Topologie als SVG/PNG.
-**Dateien:** Projekte als `.netplan` (JSON, Doppelklick öffnet die App), Autospeichern, „zuletzt geöffnet“, Bibliothek (eigene Vorlagen + Icons) im App-Datenordner.
+**Exporte:** PDF-Dokumentation (A4 quer), Excel (IP-Liste, VLANs, Verbindungen, Switch-Ports, Geräte, Prüfung), CSV-IP-Liste, Topologie als SVG/PNG.
+**Dateien:** Projekte als `.netplan` (JSON, Doppelklick öffnet die App), Autospeichern, „zuletzt geöffnet“, Katalog (Bestand, eigene Vorlagen, Icons) im App-Datenordner. Eigenes Logo für Kopf und PDF.
+**Updates:** Windows lädt neue Versionen im Hintergrund (electron-updater), macOS zeigt einen Hinweis mit Link zur Download-Seite.
+**Private Daten:** Echte Gerätelisten gehören in den Ordner `lokal/` (per `.gitignore` gesperrt) und nie ins Repository.
 **Erreichbarkeit:** TCP-Prüfung auf den Web-UI-Port, sonst ICMP-Ping aus dem Hauptprozess; einmalig oder alle 15 s.
 
 ## Entwicklung

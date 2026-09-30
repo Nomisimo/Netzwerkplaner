@@ -9,3 +9,10 @@ Thumbs.db
 .env
 .vscode/
 .idea/
+
+# Private, ausschließlich lokale Importdateien (echte Gerätelisten). NIEMALS committen oder hochladen.
+lokal/
+private/
+*Netzwerkliste*
+Bestand_*.csv
+*.local.csv

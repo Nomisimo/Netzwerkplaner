@@ -39,7 +39,7 @@ function TrunkVlans({ vlans, value, onChange }) {
   );
 }
 
-export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, bestand = [] }) {
+export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, bestand = [] }) {
   const [protoInput, setProtoInput] = useState("");
   const [showKatalog, setShowKatalog] = useState(false);
   const upd = (fn) => mutate((d) => fn(d.geraete.find((g) => g.id === dev.id), d));
@@ -73,7 +73,8 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         <button style={S.smallBtn} onClick={() => onCheck && onCheck([dev.id])} title="Ping bzw. TCP-Prüfung auf den Web-UI-Port">⟳ Erreichbarkeit</button>
         {X && <button style={{ ...S.smallBtn, ...(isRoot ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={() => mutate((d) => { d.layout.rootId = isRoot ? null : dev.id; })}
           title="Dieses Gerät als Mitte der Mindmap verwenden">{isRoot ? "★ Core (Mitte)" : "☆ Als Core setzen"}</button>}
-        <button style={S.smallBtn} onClick={() => onSaveVorlage && onSaveVorlage(dev)} title="Als eigene Gerätevorlage (ohne IPs) in der Bibliothek speichern">＋ Vorlage</button>
+        {onUmbauen && <button style={S.smallBtn} onClick={() => onUmbauen(dev.id)} title="Dieses Gerät auf ein Katalogmodell, eine eigene Vorlage oder einen Bestandseintrag umstellen. Name, Netzwerkname, IPs und Verbindungen bleiben.">⇄ Modell zuweisen</button>}
+        <button style={S.smallBtn} onClick={() => onSaveVorlage && onSaveVorlage(dev)} title="Als eigene Gerätevorlage (ohne IPs) im Katalog speichern">＋ Vorlage</button>
         {onSaveBestand && (() => {
           const inB = dev.bestandId && bestand.some((b) => b.id === dev.bestandId);
           return <button style={{ ...S.smallBtn, ...(inB ? { borderColor: "#2ecc7188" } : {}) }} onClick={() => onSaveBestand(dev)}

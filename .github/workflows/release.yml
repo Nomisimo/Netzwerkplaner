@@ -64,12 +64,25 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
+      # Jeder Mac-Job darf genau ein DMG liefern, sonst überschreiben sich gleichnamige
+      # Dateien beim Zusammenführen der Artefakte und das DMG ist kaputt (Fehler 3840).
+      - name: DMG prüfen
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          ls -l dist/*.dmg
+          n=$(ls dist/*.dmg | wc -l | tr -d ' ')
+          if [ "$n" != "1" ]; then echo "::error::$n DMGs gebaut, erwartet 1"; exit 1; fi
+          hdiutil verify dist/*.dmg
+
       - uses: actions/upload-artifact@v4
         with:
           name: installer-${{ strategy.job-index }}
+          # latest.yml braucht das automatische Update unter Windows
           path: |
             dist/*.exe
             dist/*.dmg
+            dist/latest.yml
           if-no-files-found: error
 
   release:

@@ -31,12 +31,11 @@ export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevic
         <End end={conn.b} k="b" />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
-        <Field label="Kabel">
+        <Field label="Kabel" style={{ gridColumn: "1 / -1" }}>
           <select style={S.selectSm} value={conn.kabel} onChange={(e) => upd((c) => (c.kabel = e.target.value))}>
             {Object.entries(KABEL).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </Field>
-        <Field label="Länge (m)"><input type="number" min="0" style={S.inputSm} value={conn.laenge} onChange={(e) => upd((c) => (c.laenge = e.target.value))} /></Field>
         <Field label="Kabelbezeichnung" style={{ gridColumn: "1 / -1" }}><input style={S.inputSm} value={conn.label} placeholder="z. B. NET-FOH-01" onChange={(e) => upd((c) => (c.label = e.target.value))} /></Field>
         <Field label="Notiz" style={{ gridColumn: "1 / -1" }}><input style={S.inputSm} value={conn.notiz || ""} onChange={(e) => upd((c) => (c.notiz = e.target.value))} /></Field>
       </div>

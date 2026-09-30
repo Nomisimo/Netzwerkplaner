@@ -96,7 +96,7 @@ export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = []
                     <td style={{ padding: "3px 4px 3px 0", whiteSpace: "nowrap", fontWeight: 600 }}>{portLabel(port)}<div style={{ fontSize: 10, color: MUTED, fontWeight: 400 }}>{port.typ}{port.poe ? " · PoE" : ""}</div></td>
                     <td style={{ padding: "3px 4px" }}>
                       {c ? <>→ <b>{other?.dev.name}</b> <span style={{ color: MUTED }}>{portLabel(other?.port)}</span></> : <span style={{ color: MUTED }}>frei</span>}
-                      {c?.kabel && <div style={{ fontSize: 10, color: MUTED }}>{[c.label, c.laenge ? `${c.laenge} m` : ""].filter(Boolean).join(" · ")}</div>}
+                      {c?.label && <div style={{ fontSize: 10, color: MUTED }}>{c.label}</div>}
                     </td>
                     <td style={{ padding: "3px 0", textAlign: "right", whiteSpace: "nowrap" }} title={vlanLang(self)}>
                       {self && (self.kind === "trunk"
