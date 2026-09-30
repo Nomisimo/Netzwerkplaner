@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, TYPEN, KATEGORIEN } from "../shared/constants.js";
 import { KATALOG_GERAETE } from "../shared/catalog.js";
-import { IconView, ICON_NAMES } from "./icons.jsx";
+import { IconView, ICON_GRUPPEN, ICON_LABEL } from "./icons.jsx";
 import { vlanBaum, vlanPfad } from "../shared/qinq.js";
 
 export function Section({ title, subtitle, right, children, style }) {
@@ -107,7 +107,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
   const items = useMemo(() => {
     const gen = Object.entries(TYPEN).map(([k, t]) => ({ kind: "typ", key: k, title: t.label, sub: "Generischer Typ", icon: t.icon, kat: t.kat }));
     const own = vorlagen.map((v) => ({ kind: "vorlage", key: v.id, title: v.name, sub: `Eigene Vorlage · ${v.geraet.hersteller || ""} ${v.geraet.modell || ""}`, icon: v.geraet.icon, kat: v.geraet.kategorie }));
-    const kg = KATALOG_GERAETE.filter((g) => !nurFokus || g.fokus).map((g) => ({ kind: "katalog", key: g.id, title: `${g.hersteller} ${g.modell}`, sub: g.geraetetyp + (g.raw["Web-UI"] !== "Nein" ? " · Web-UI" : ""), icon: TYPEN[g.typ]?.icon, kat: g.kategorie, search: `${g.raw.Protokolle} ${g.raw.Funktion}` }));
+    const kg = KATALOG_GERAETE.filter((g) => !nurFokus || g.fokus).map((g) => ({ kind: "katalog", key: g.id, title: `${g.hersteller} ${g.modell}`, sub: g.geraetetyp + (g.raw["Web-UI"] !== "Nein" ? " · Web-UI" : ""), icon: g.icon, kat: g.kategorie, search: `${g.raw.Protokolle} ${g.raw.Funktion}` }));
     const best = bestand.map((b) => ({ kind: "bestand", key: b.id, title: b.name, sub: ["Bestand", [b.geraet.hersteller, b.geraet.modell].filter(Boolean).join(" "), b.geraet.interfaces.filter((i) => i.ip).map((i) => i.ip).join(", "), b.geraet.inventar?.nr].filter(Boolean).join(" · "), icon: b.geraet.icon, kat: b.geraet.kategorie, search: `${b.geraet.netzname || ""} ${b.geraet.inventar?.sn || ""}` }));
     return [...best, ...own, ...kg, ...gen].filter((i) => (!kat || i.kat === kat) && (!ql || `${i.title} ${i.sub} ${i.search || ""}`.toLowerCase().includes(ql)));
   }, [ql, kat, vorlagen, bestand, nurFokus]);
@@ -152,14 +152,21 @@ export function IconPicker({ value, onChange, customIcons, color }) {
         <IconView icon={value} customIcons={customIcons} color={color} /> ▾
       </button>
       {open && (
-        <div style={{ position: "absolute", zIndex: 50, top: "100%", left: 0, marginTop: 4, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, width: 300, display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, boxShadow: "0 8px 24px rgba(0,0,0,.5)" }}
+        <div style={{ position: "absolute", zIndex: 50, top: "100%", left: 0, marginTop: 4, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, width: 320, maxHeight: 380, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.5)" }}
           onMouseLeave={() => setOpen(false)}>
-          {[...ICON_NAMES, ...customIcons.map((c) => "custom:" + c.id)].map((n) => (
-            <button key={n} title={n.startsWith("custom:") ? customIcons.find((c) => "custom:" + c.id === n)?.name : n}
-              onClick={() => { onChange(n); setOpen(false); }}
-              style={{ background: n === value ? ACCENT + "33" : "transparent", border: `1px solid ${n === value ? ACCENT : "transparent"}`, borderRadius: 6, padding: 6, cursor: "pointer" }}>
-              <IconView icon={n} customIcons={customIcons} color={color} size={24} />
-            </button>
+          {[...ICON_GRUPPEN, ...(customIcons.length ? [{ titel: "Eigene Icons", icons: customIcons.map((c) => "custom:" + c.id) }] : [])].map((g) => (
+            <div key={g.titel}>
+              <div style={{ fontSize: 11, color: "#8a939d", margin: "6px 2px 4px" }}>{g.titel}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
+                {g.icons.map((n) => (
+                  <button key={n} title={n.startsWith("custom:") ? customIcons.find((c) => "custom:" + c.id === n)?.name : ICON_LABEL[n] || n}
+                    onClick={() => { onChange(n); setOpen(false); }}
+                    style={{ background: n === value ? ACCENT + "33" : "transparent", border: `1px solid ${n === value ? ACCENT : "transparent"}`, borderRadius: 6, padding: 6, cursor: "pointer" }}>
+                    <IconView icon={n} customIcons={customIcons} color={color} size={24} />
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}

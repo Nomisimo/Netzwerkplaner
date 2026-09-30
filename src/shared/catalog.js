@@ -1,5 +1,6 @@
 import KATALOG from "./data/katalog.json";
 import { TYPEN, KAT_VLAN } from "./constants.js";
+import { modellIcon } from "./geraeteicons.js";
 import { vlanNachVid } from "./qinq.js";
 
 export { KATALOG };
@@ -130,6 +131,7 @@ export const KATALOG_GERAETE = KATALOG.geraete.map((g) => ({
   geraetetyp: g.Gerätetyp,
   typ: typFuerGeraetetyp(g.Gerätetyp),
   kategorie: katFuer(g),
+  icon: modellIcon(g.Hersteller, g.Modell) || TYPEN[typFuerGeraetetyp(g.Gerätetyp)]?.icon || "sonstiges", // Modell-Icon, sonst das des Typs
   raw: g,
 }));
 
@@ -271,10 +273,10 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
     hersteller: k?.hersteller || "",
     modell: k?.modell || "",
     katalogId: k?.id || null,
-    icon: TYPEN[t]?.icon || "sonstiges",
+    icon: (k && modellIcon(k.hersteller, k.modell)) || TYPEN[t]?.icon || "sonstiges",
     bereich: "",
     isSwitch,
-    poeBudget: isSwitch ? 0 : undefined,
+    poeBudget: isSwitch ? (poe && +k?.raw["PoE-Budget W"]) || 0 : undefined, // Budget aus dem Katalog, 0 = keine Prüfung
     poeBedarf: !isSwitch && poe ? 13 : 0,
     poePse: isSwitch && poe,
     interfaces,
