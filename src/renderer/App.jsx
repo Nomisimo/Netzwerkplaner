@@ -89,11 +89,12 @@ export default function App() {
     fn(next);
     const ops = diff(prev, next);
     if (!ops.length) return;
-    // Tippen in dasselbe Feld innerhalb kurzer Zeit ist ein Undo-Schritt
+    // Tippen in dasselbe Feld ist ein Undo-Schritt (solange das Eingabefeld den Fokus hat oder kurz danach)
     const h = hist.current, last = h.undo[h.undo.length - 1], jetzt = Date.now();
+    const el = /INPUT|TEXTAREA/.test(document.activeElement?.tagName) ? document.activeElement : null;
     const einFeld = (o) => o.length === 1 && o[0].op === "set";
-    if (last && einFeld(ops) && einFeld(last.ops) && jetzt - last.t < 1500 && pathKey(ops[0].path) === pathKey(last.ops[0].path)) { last.ops = [{ ...ops[0], old: last.ops[0].old }]; last.t = jetzt; }
-    else { h.undo.push({ ops, t: jetzt }); if (h.undo.length > 80) h.undo.shift(); }
+    if (last && einFeld(ops) && einFeld(last.ops) && (jetzt - last.t < 1500 || (el && last.el === el)) && pathKey(ops[0].path) === pathKey(last.ops[0].path)) { last.ops = [{ ...ops[0], old: last.ops[0].old }]; last.t = jetzt; }
+    else { h.undo.push({ ops, t: jetzt, el }); if (h.undo.length > 80) h.undo.shift(); }
     h.redo = [];
     Pref.current = next;
     setP(next);
