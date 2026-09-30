@@ -72,7 +72,7 @@ const KAPITEL = [
       "„Farbe“: Verbindungen nach VLAN, Bereich oder Kabeltyp einfärben.",
       "„Linien: rund / eckig“: geschwungene oder rechtwinklige Verbindungslinien. Mehrere Kabel zwischen denselben Geräten liegen nebeneinander.",
       "„Kabel bündeln“ (nur bei eckigen Linien): an = Kabel teilen sich den Weg, parallele Kabel werden eine Linie mit Anzahl (z. B. 2×). Aus = jedes Kabel läuft einzeln auf eigener Spur.",
-      "„Titel“: in den Kästen den Gerätenamen, den Netzwerknamen (Hostname), den Typ bzw. das Modell oder die Inventarnummer zeigen. Ohne Netzwerknamen steht dort der Typ.",
+      "„Titel“: in den Kästen den Gerätenamen, den Netzwerknamen (Hostname), den Typ bzw. das Modell oder den Wert eines eigenen Felds (z. B. Inventar-Nr.) zeigen. Ohne Netzwerknamen steht dort der Typ.",
       "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports untereinander am Gerät, auch bei gebündelten Kabeln. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
       "„⟳ Status“ prüft alle Geräte mit IP (Web-UI-Port, sonst Ping). Mit „alle 15 s“ läuft das zyklisch, sofern der Rechner im selben Netz hängt.",
     ]} />
@@ -80,10 +80,10 @@ const KAPITEL = [
   { id: "geraete", titel: "Geräte & Editor", tab: ["geraete", "Geräte"], inhalt: () => <>
     <Bild id="geraete" text="Tab Geräte: alle Geräte als Tabelle, Klick öffnet den Editor" />
     <Liste items={[
-      "Klick auf ein Gerät öffnet den Editor: Name, Netzwerkname (Hostname), Hersteller/Modell, Standort, Inventar (Nr., Seriennummer, Case), Interfaces, Ports, Web-UI, Protokolle und Notizen.",
+      "Klick auf ein Gerät öffnet den Editor: Name, Netzwerkname (Hostname), Hersteller/Modell, Standort, eigene Felder, Interfaces, Ports, Web-UI, Protokolle und Notizen.",
       "Interfaces: IP, Maske, VLAN, Gateway, MAC und DHCP. ⟳ neben der IP schlägt die nächste freie Adresse im VLAN vor, „⟳ IPs vergeben“ füllt alle leeren Interfaces auf einmal.",
       "Ports: Access- oder Trunk-VLANs, PoE und Punkt-zu-Punkt (AES50, SLink, HDBaseT …).",
-      "„⇄ Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs, VLANs und Inventar erhalten. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und Inventar, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
+      "„⇄ Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs, VLANs und eigene Felder erhalten. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und eigene Felder, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
       "„im Katalog speichern“ legt das Gerät als eigene Vorlage oder im Gerätebestand ab.",
       "„⧉ Duplizieren“ kopiert das Gerät mit allen Einstellungen, aber ohne IP- und MAC-Adressen.",
       "„⎘ Konfig kopieren“: im Dialog wählen, was mitkommt (Port-Einstellungen, Interfaces, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen). Bei jedem anderen Gerät dann „📋 Konfig einfügen“, Teile und Zielgeräte wählen („Gleiches Modell“, „Gleicher Typ“, „Alle Switches“) und einfügen. Namen, IPs, MACs und Verbindungen der Ziele bleiben. Ports werden nach Namen zugeordnet, sonst nach Reihenfolge.",
@@ -137,13 +137,14 @@ const KAPITEL = [
   </> },
   { id: "katalog", titel: "Katalog", tab: ["bibliothek", "Katalog"], inhalt: () => <>
     <H>Gerätebestand</H>
-    <Bild id="katalog-bestand" text="Gerätebestand: deine eigenen Geräte mit Inventardaten" />
+    <Bild id="katalog-bestand" text="Gerätebestand: deine eigenen Geräte mit eigenen Feldern" />
     <Liste items={[
-      "Der Bestand enthält deine realen Geräte mit Namen, Netzwerknamen, IPs und Inventardaten. „+ ins Projekt“ setzt ein Gerät samt Adressen ein.",
+      "Der Bestand enthält deine realen Geräte mit Namen, Netzwerknamen, IPs und eigenen Feldern. „+ ins Projekt“ setzt ein Gerät samt Adressen ein.",
       "„+ Neues Gerät“ legt ein Gerät direkt im Katalog an, ohne es ins Projekt zu setzen: Grundtyp wählen und im Editor ausfüllen.",
       "„Neues VLAN für dieses Gerät“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“): VLAN-ID und Namen eingeben, wählen, ob es alle Ports (Access) oder ein Interface bekommt, und „＋ Anlegen und zuweisen“. Das VLAN wird mit dem Gerät gespeichert. Fügst du das Gerät in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
       "„⇩ Projektgeräte übernehmen“ kopiert alle Geräte des offenen Projekts in den Bestand.",
-      "„Export CSV“ und „Import“ tauschen den Bestand mit anderen Netzwerkplaner-Installationen oder mit einer eigenen Excel-Liste aus (Spalten: Name; Netzwerkname; Hersteller; Modell; Typ; IP1; VLAN1; MAC1 … Inventar-Nr.; Seriennummer). Modelle werden über Katalog-ID oder Modellname erkannt.",
+      "„Export CSV“ und „Import“ tauschen den Bestand mit anderen Netzwerkplaner-Installationen oder mit einer eigenen Excel-Liste aus (Spalten: Name; Netzwerkname; Hersteller; Modell; Typ; IP1; VLAN1; MAC1 …, danach eine Spalte je eigenem Feld). Unbekannte Spalten werden beim Import zu eigenen Feldern. Modelle werden über Katalog-ID oder Modellname erkannt.",
+      "„Eigene Felder“: Felder wie Inventar-Nr., Seriennummer, Case oder Eigentümer einmal anlegen, danach im Geräte-Editor mit „+ Feld …“ bei einem Gerät einfügen und ausfüllen. Umbenennen und Löschen wirkt auf alle Geräte in Projekt, Bestand und Vorlagen.",
     ]} />
     <Bild id="katalog-neu" text="Neues Gerät im Katalog anlegen" />
     <H>Eigene Vorlagen, Herstellergeräte, Protokolle, Icons</H>

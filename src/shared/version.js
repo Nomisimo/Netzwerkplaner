@@ -5,6 +5,11 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.13": [
+    "Eigene Felder: Im Katalog unter „Eigene Felder“ beliebige Gerätefelder anlegen (z. B. Inventar-Nr., Seriennummer, Case, Eigentümer), im Geräte-Editor mit „+ Feld …“ einfügen und ausfüllen",
+    "Die festen Felder Inventar-Nr., Seriennummer und Case sind entfernt. Vorhandene Werte aus älteren Projekten und aus dem Gerätebestand werden beim Öffnen in gleichnamige eigene Felder übernommen",
+    "Eigene Felder stehen in Geräteliste (Excel/PDF), Bestands-CSV, Suche, Tooltip und Rechtsklick-Menü und lassen sich in der Topologie als Titel anzeigen. Unbekannte CSV-Spalten werden beim Import zu eigenen Feldern",
+  ],
   "0.6.0-beta.12": [
     "Beim Start spielt die App während der Splash-Animation einen kurzen Sound",
   ],

@@ -3,6 +3,12 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.13] – 2026-09-30
+
+- Eigene Felder: Im Katalog unter „Eigene Felder“ beliebige Gerätefelder anlegen (z. B. Inventar-Nr., Seriennummer, Case, Eigentümer), im Geräte-Editor mit „+ Feld …“ einfügen und ausfüllen
+- Die festen Felder Inventar-Nr., Seriennummer und Case sind entfernt. Vorhandene Werte aus älteren Projekten und aus dem Gerätebestand werden beim Öffnen in gleichnamige eigene Felder übernommen
+- Eigene Felder stehen in Geräteliste (Excel/PDF), Bestands-CSV, Suche, Tooltip und Rechtsklick-Menü und lassen sich in der Topologie als Titel anzeigen. Unbekannte CSV-Spalten werden beim Import zu eigenen Feldern
+
 ## [0.6.0-beta.12] – 2026-09-30
 
 - Beim Start spielt die App während der Splash-Animation einen kurzen Sound

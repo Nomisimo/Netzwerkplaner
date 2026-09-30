@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY } from "../shared/constants.js";
 import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl } from "../shared/model.js";
 import { createDevice, uid, snapshotDevice, geraetUmbauen } from "../shared/catalog.js";
+import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
 import { DevicePicker, Modal } from "./ui.jsx";
@@ -41,7 +42,7 @@ export default function App() {
   const [picker, setPicker] = useState(null); // { connectTo }
   const [status, setStatus] = useState({});
   const [autoStatus, setAutoStatus] = useState(false);
-  const [library, setLibrary] = useState({ vorlagen: [], bestand: [], icons: [] });
+  const [library, setLibrary] = useState({ vorlagen: [], bestand: [], icons: [], felder: [] });
   const [libLoaded, setLibLoaded] = useState(false);
   const [filePath, setFilePath] = useState(() => localStorage.getItem("netzwerkplaner_file") || null);
   const [recents, setRecents] = useState([]);
@@ -106,7 +107,7 @@ export default function App() {
 
   // Bibliothek (eigene Vorlagen + Icons) aus dem App-Datenordner
   useEffect(() => {
-    api.loadLibrary().then((l) => { if (l) setLibrary({ vorlagen: [], bestand: [], icons: [], ...l }); setLibLoaded(true); });
+    api.loadLibrary().then((l) => { if (l) setLibrary(migrateLibrary(l)); setLibLoaded(true); });
     api.getRecents().then(setRecents);
     api.appVersion().then(setVersion);
     api.onOpenFile((r) => r && loadFromFile(r));
@@ -133,7 +134,15 @@ export default function App() {
 
   const X = useMemo(() => buildIndex(P), [P]);
   const issues = useMemo(() => [...validate(P, X), ...analyseIssues(P, X), ...maNetIssues(P, X)], [P, X]);
-  const Pv = useMemo(() => ({ ...P, icons: allIcons }), [P, allIcons]);
+  // Eigene Felder, die in Geräten vorkommen (fremde Projektdatei, im Editor neu angelegt), in den Katalog übernehmen
+  useEffect(() => {
+    if (!libLoaded) return;
+    const geraete = [...P.geraete, ...(library.bestand || []).map((b) => b.geraet), ...(library.vorlagen || []).map((v) => v.geraet)];
+    const add = fehlendeFeldDefs(library.felder || [], geraete);
+    if (add.length) setLibrary((l) => ({ ...l, felder: [...(l.felder || []), ...add] }));
+  }, [P.geraete, libLoaded, library]);
+
+  const Pv = useMemo(() => ({ ...P, icons: allIcons, feldKatalog: library.felder || [] }), [P, allIcons, library.felder]);
 
   /* ── Erreichbarkeit ─────────────────────────────────────────────────── */
   const checkReach = useCallback(async (ids) => {
@@ -268,7 +277,7 @@ export default function App() {
     if (!name) return;
     const g = snapshotDevice(dev, P.vlans);
     g.interfaces.forEach((i) => { i.ip = ""; i.mac = ""; });
-    g.notizen = ""; g.netzname = ""; g.inventar = { nr: "", sn: "", case: "" };
+    g.notizen = ""; g.netzname = ""; (g.felder || []).forEach((f) => { f.wert = ""; }); // Vorlage behält die Felder, ohne Werte
     setLibrary((l) => ({ ...l, vorlagen: [...(l.vorlagen || []), { id: uid(), name, geraet: g }] }));
     if (dev.icon?.startsWith("custom:")) { const ic = P.icons.find((i) => "custom:" + i.id === dev.icon); if (ic) setLibrary((l) => ({ ...l, icons: (l.icons || []).some((x) => x.id === ic.id) ? l.icons : [...(l.icons || []), ic] })); }
     notify(`Vorlage „${name}“ gespeichert.`);
@@ -346,8 +355,8 @@ export default function App() {
     setShowExport(false);
     const base = fileBase(P);
     try {
-      if (kind === "pdf") { const t = await needTopo(); await api.exportPdf(buildPdfHtml(P, X, issues, t), `${base} – Netzwerkplan`); }
-      if (kind === "xlsx") await api.saveFile(buildXlsxBase64(P, X, issues), `${base} – Netzwerkplan.xlsx`, [{ name: "Excel", extensions: ["xlsx"] }], "base64");
+      if (kind === "pdf") { const t = await needTopo(); await api.exportPdf(buildPdfHtml(Pv, X, issues, t), `${base} – Netzwerkplan`); }
+      if (kind === "xlsx") await api.saveFile(buildXlsxBase64(Pv, X, issues), `${base} – Netzwerkplan.xlsx`, [{ name: "Excel", extensions: ["xlsx"] }], "base64");
       if (kind === "csv") await api.saveFile(buildIpCsv(P, X), `${base} – IP-Liste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
       if (kind === "svg") { const t = await needTopo(); await api.saveFile(t.svg, `${base} – Topologie.svg`, [{ name: "SVG", extensions: ["svg"] }]); }
       if (kind === "png") { const t = await needTopo(); await api.saveFile(await svgToPngBase64(t.svg, t.w, t.h), `${base} – Topologie.png`, [{ name: "PNG", extensions: ["png"] }], "base64"); }

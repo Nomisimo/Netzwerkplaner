@@ -288,12 +288,12 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
 };
 
 /* Vorhandenes Gerät nachträglich auf ein Katalogmodell / eine Vorlage umbauen.
-   Name, Netzwerkname, Inventar, Standort, Notizen, IPs (je Interface in Reihenfolge)
+   Name, Netzwerkname, eigene Felder, Standort, Notizen, IPs (je Interface in Reihenfolge)
    und alle Verbindungen bleiben erhalten; Ports, Protokolle, Web-UI, Icon und
    Herstellerdaten kommen aus dem neuen Modell. Verbundene Ports, die das neue
    Modell nicht hat, werden angehängt statt gelöscht. */
 // ausBestand: Gerät aus dem eigenen Gerätebestand – dessen feste IPs, Name, Netzwerkname
-// und Inventar gelten, vom alten Gerät bleiben nur Position und Verbindungen.
+// und eigene Felder gelten, vom alten Gerät bleiben nur Position und Verbindungen.
 export const geraetUmbauen = (P, devId, neu, { ausBestand = false } = {}) => {
   const dev = P.geraete.find((g) => g.id === devId);
   if (!dev) return null;
@@ -319,7 +319,7 @@ export const geraetUmbauen = (P, devId, neu, { ausBestand = false } = {}) => {
   if (dev.generisch) neu.protokolle = [...new Set([...(neu.protokolle || []), ...(dev.protokolle || [])])];
   const bleibt = ausBestand
     ? { id: dev.id, bereich: neu.bereich || dev.bereich, stroeme: [] }
-    : { id: dev.id, name: dev.name, netzname: dev.netzname || "", inventar: dev.inventar, bestandId: dev.bestandId, bereich: dev.bereich, notizen: dev.notizen, stroeme: [] };
+    : { id: dev.id, name: dev.name, netzname: dev.netzname || "", felder: dev.felder || [], bestandId: dev.bestandId, bereich: dev.bereich, notizen: dev.notizen, stroeme: [] };
   for (const k of Object.keys(dev)) delete dev[k];
   Object.assign(dev, neu, bleibt);
   if (!dev.bestandId) delete dev.bestandId;
