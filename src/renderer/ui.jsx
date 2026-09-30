@@ -68,10 +68,10 @@ export const StatusDot = ({ st, size = 9 }) => {
   return <Dot color={c} size={size} title={t} />;
 };
 
-export function Toggle({ checked, onChange, label, title }) {
+export function Toggle({ checked, onChange, label, title, disabled }) {
   return (
-    <label title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: "#c8d0d8", userSelect: "none" }}>
-      <input type="checkbox" checked={!!checked} onChange={(e) => onChange(e.target.checked)} style={{ accentColor: ACCENT }} />
+    <label title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: disabled ? "default" : "pointer", fontSize: 12, color: "#c8d0d8", userSelect: "none", opacity: disabled ? 0.55 : 1 }}>
+      <input type="checkbox" checked={!!checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} style={{ accentColor: ACCENT }} />
       {label}
     </label>
   );

@@ -52,6 +52,7 @@ const KAPITEL = [
     <Bild id="topologie-hintergrund" text="Stage-Plot als Hintergrund, angepinntes Pult und ein Stapel aus zwei Nodes" />
     <Liste items={[
       "📌 Anpinnen (Taste P oder Rechtsklick): das Gerät bleibt stehen, wenn sich die Anordnung durch neue Geräte oder Verbindungen ändert. Sein Ast wandert mit ihm. Klick auf die Nadel löst es wieder.",
+      "Mehrere Geräte wählen: Shift+Klick (oder ⌘/Strg+Klick) nimmt ein Gerät dazu oder heraus, Shift+Fläche ziehen zieht einen Auswahlrahmen, ⌘/Strg+A wählt alle. Ziehen an einem gewählten Gerät verschiebt alle zusammen. In der Seitenleiste: alle anpinnen (Taste P), als Stapel zusammenfassen, Konfiguration in alle einfügen, alle löschen (Entf).",
       "„Einrasten“ an: Beim Ziehen rastet ein Gerät im Raster ein und richtet sich an Kanten und Mitten benachbarter Geräte aus (gestrichelte Hilfslinie). Alt gedrückt halten = frei ziehen. Der Schalter gilt für das ganze Projekt.",
       "„Auto-Anordnen“ aus: alle Geräte und Leitungen bleiben, wo sie sind, auch die nicht angepinnten. Ziehen verschiebt dann nur das eine Gerät. Wieder an: die automatische Anordnung gilt wieder, Pins bleiben.",
       "„▤ Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Zieht man es auf ein Gerät in einem Stapel oder auf den Stapelrahmen, kommt es oben in diesen Stapel. Der Stapel bleibt dabei an seinem Platz. Das ist keine Netzwerkverbindung. Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
@@ -86,6 +87,7 @@ const KAPITEL = [
       "Switch-Ports: Access- oder Trunk-VLANs, PoE und Punkt-zu-Punkt (AES50, SLink, HDBaseT …). Die IP des Switches steht am Anschluss „Management“ ohne Buchse („+ Management“).",
       "„⇄ Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs, VLANs und eigene Felder erhalten. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und eigene Felder, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
       "„im Katalog speichern“ legt das Gerät als eigene Vorlage oder im Gerätebestand ab.",
+      "🔒 Geräte aus dem Katalog (Herstellermodelle) und aus dem Gerätebestand haben feste Hardware: Gerätetyp, Hersteller, Modell, Ports, Buchsen, P2P und PoE-Werte lassen sich im Editor nicht ändern. Einstellbar bleiben Name, VLAN, IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen. Ein anderes Modell setzt man mit „⇄ Modell zuweisen“. Generische und selbst angelegte Geräte bleiben frei bearbeitbar.",
       "„⧉ Duplizieren“ kopiert das Gerät mit allen Einstellungen, aber ohne IP- und MAC-Adressen.",
       "„⎘ Konfig kopieren“: im Dialog wählen, was mitkommt (Port-Einstellungen mit VLAN und Maske, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen). Bei jedem anderen Gerät dann „📋 Konfig einfügen“, Teile und Zielgeräte wählen („Gleiches Modell“, „Gleicher Typ“, „Alle Switches“) und einfügen. Namen, IPs, MACs und Verbindungen der Ziele bleiben. Ports werden nach Namen zugeordnet, sonst nach Reihenfolge.",
     ]} />

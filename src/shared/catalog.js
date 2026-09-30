@@ -183,6 +183,10 @@ export const newPort = (o = {}) => ({
   ip: "", prefix: 24, gateway: "", mac: "", dhcp: false, ...o,
 });
 // Anschlüsse mit Buchse (verkabelbar, auf der Frontplatte)
+/* Geräte aus dem Katalog (Herstellermodell) oder aus dem Gerätebestand haben feste
+   Hardware: Ports, Buchsen und Netzwerkkarten ändert man nur über „Modell zuweisen“
+   oder im Katalog. Einstellbar bleiben VLAN, IP, Modus, PoE je Port und alles Übrige. */
+export const hardwareFest = (d) => !!d && !d.generisch && !!(d.katalogId || d.bestandId);
 export const physPorts = (d) => (d.ports || []).filter((p) => !p.virtuell);
 // Anschlüsse mit IP-Konfiguration: bei Endgeräten jeder Ethernet-Port, bei Switches die Management-Anschlüsse
 export const ipPorts = (d) => (d.ports || []).filter((p) => p.virtuell || p.ip || p.dhcp || (!d.isSwitch && !p.p2p));

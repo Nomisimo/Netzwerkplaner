@@ -2,7 +2,7 @@
    Die Zwischenablage enthält reine Daten (kein Projektbezug außer VLANs).
    VLANs werden mit id und VLAN-ID gemerkt: im selben Projekt gilt die id,
    in einem anderen Projekt die VLAN-ID. */
-import { uid, createDevice, snapshotDevice, newPort, ipPorts } from "./catalog.js";
+import { uid, createDevice, snapshotDevice, newPort, ipPorts, hardwareFest } from "./catalog.js";
 import { vlanNachVid } from "./qinq.js";
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -69,6 +69,7 @@ export const konfigAnwenden = (ziel, clip, teile, vlans) => {
   const res = { teile: [], fehlendePorts: 0 };
   const hat = (k) => teile.includes(k) && d[k] !== undefined;
   const zielFuer = []; // Quell-Port-Index → Zielport
+  const fest = hardwareFest(ziel); // Buchsen, P2P und PoE-Werte des Modells bleiben
   if (hat("ports")) {
     const namen = new Map(ziel.ports.map((p) => [p.name, p]));
     const frei = new Set(ziel.ports);
@@ -87,7 +88,7 @@ export const konfigAnwenden = (ziel, clip, teile, vlans) => {
     paare.forEach(([s, p], n) => {
       zielFuer[n] = p;
       if (!p) { res.fehlendePorts++; return; }
-      const werte = { typ: s.virtuell ? undefined : s.typ, modus: s.modus, poe: s.poe, p2p: s.p2p, prefix: s.prefix, gateway: s.gateway, dhcp: s.dhcp,
+      const werte = { typ: s.virtuell || fest ? undefined : s.typ, modus: s.modus, poe: s.poe, p2p: fest ? undefined : s.p2p, prefix: s.prefix, gateway: s.gateway, dhcp: s.dhcp,
         vlan: vlanAuf(s.vlan, vlans), vlans: s.vlans && s.vlans.map((r) => vlanAuf(r, vlans)).filter(Boolean) };
       for (const [k, v] of Object.entries(werte)) if (v !== undefined) p[k] = v;
     });
@@ -97,7 +98,7 @@ export const konfigAnwenden = (ziel, clip, teile, vlans) => {
   if (hat("protokolle")) { ziel.protokolle = [...d.protokolle]; res.teile.push("protokolle"); }
   if (hat("stroeme")) { ziel.stroeme = d.stroeme.map((s) => ({ ...clone(s), id: uid(), ziele: [], iface: portAuf(s.iface) })); res.teile.push("stroeme"); }
   if (hat("webUi") && d.webUi) { ziel.webUi = { ...(ziel.webUi || {}), vorhanden: d.webUi.vorhanden, url: d.webUi.url, iface: ziel.webUi?.iface || ipPorts(ziel)[0]?.id || null }; res.teile.push("webUi"); }
-  if (hat("poe")) {
+  if (hat("poe") && !fest) {
     if (ziel.isSwitch) { ziel.poeBudget = d.poe.poeBudget || 0; if (d.poe.poePse != null) ziel.poePse = d.poe.poePse; }
     else ziel.poeBedarf = d.poe.poeBedarf || 0;
     res.teile.push("poe");
