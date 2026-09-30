@@ -50,6 +50,7 @@ test("Multicast ohne IGMP flutet und Überlast wird gemeldet", () => {
   const sw = createDevice({ typ: "switch_managed", vlans: P.vlans, name: "SW" });
   const a = createDevice({ typ: "lichtpult", vlans: P.vlans, name: "Pult" });
   const b = createDevice({ typ: "node", vlans: P.vlans, name: "Node" });
+  a.interfaces[0].vlan = b.interfaces[0].vlan = v20.id;
   P.geraete.push(sw, a, b);
   addConnection(P, sw.id, a.id);
   addConnection(P, sw.id, b.id);

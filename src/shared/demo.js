@@ -9,7 +9,7 @@ export const demoProject = () => {
   const V = (vid) => P.vlans.find((v) => v.vid === vid);
   const kat = (s) => KATALOG_GERAETE.find((g) => `${g.hersteller} ${g.modell}`.toLowerCase().includes(s.toLowerCase()))?.id || null;
   const add = (name, bereich, { katalog, typ } = {}) => {
-    const d = createDevice({ katalogId: katalog ? kat(katalog) : null, typ, vlans: P.vlans, name });
+    const d = createDevice({ katalogId: katalog ? kat(katalog) : null, typ, vlans: P.vlans, name, standardVlans: true });
     d.bereich = bereich;
     P.geraete.push(d);
     return d;

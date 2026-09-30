@@ -8,7 +8,7 @@ import DeviceEditor from "../DeviceEditor.jsx";
 import ConnEditor from "../ConnEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
-import { endInfo, portLabel, vlanKurz, vlanLang, geraeteTitel } from "../portinfo.js";
+import { endInfo, portLabel, vlanLang, geraeteTitel } from "../portinfo.js";
 import { feldZeilen } from "../../shared/felder.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
@@ -679,8 +679,8 @@ const eckPfad = (x1, y1, x2, y2, dir, mid) => {
   return `M${x1},${y1} L${x1},${my - sy1 * rr} Q${x1},${my} ${x1 + sx * rr},${my} L${x2 - sx * rr},${my} Q${x2},${my} ${x2},${my + sy2 * rr} L${x2},${y2}`;
 };
 
-/* Port- und VLAN-Plakette an einer Verbindung: sitzt am Geräte-Ende und zeigt,
-   an welchem Switch-Port das Gerät steckt und welches VLAN dort anliegt. */
+/* Port-Plakette an einer Verbindung: sitzt am Geräte-Ende und zeigt, an welchem
+   Switch-Port das Gerät steckt. Das VLAN steht nur im Tooltip, nicht am Kabel. */
 const CW = 5.9; // geschätzte Zeichenbreite bei 10 px
 function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
   const a = endInfo(c, fromEnd, X), b = endInfo(c, toEnd, X);
@@ -692,9 +692,6 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
   else if (sw) seg.push({ t: portLabel(sw.port) + (sw.port.poe ? " ⚡" : ""), fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
   else seg.push({ t: `${portLabel(a.port)} ⇄ ${portLabel(b.port)}`, fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
   const info = sw && sw.managed ? sw : a.vlans.length ? a : b;
-  if (info.kind === "trunk") seg.push({ t: vlanKurz(info), fill: "#d8dde322", stroke: "#d8dde3", col: "#e8eaed" });
-  else if (info.vlans[0]) seg.push({ t: `VLAN ${info.vlans[0].vid}`, fill: info.vlans[0].farbe + "40", stroke: info.vlans[0].farbe, col: "#fff" });
-  else seg.push({ t: "kein VLAN", fill: "#ff5d5d22", stroke: "#ff5d5d", col: "#ffb3b3" });
   if (sw && !ep.sw && ep.dev.ports.length > 1 && !/^\d+$/.test(ep.port.name)) seg.push({ t: ep.port.name, fill: "transparent", stroke: "transparent", col: SUB });
   const widths = seg.map((s) => Math.round(s.t.length * CW + 10));
   const total = widths.reduce((x, y) => x + y, 0);
