@@ -5,6 +5,10 @@ const os = require('os');
 const net = require('net');
 const { execFile } = require('child_process');
 
+// Kein HTTP/3 (QUIC): Reverse-Proxys bieten es oft an, ohne dass UDP 443 durchkommt,
+// dann scheitern Anfragen mit ERR_QUIC_PROTOCOL_ERROR statt auf HTTP/2 zurückzufallen.
+app.commandLine.appendSwitch('disable-quic');
+
 const root = app.getAppPath();
 let mainWin = null;
 let pendingOpen = null; // Datei, die vor dem Fensterstart per Doppelklick geöffnet wurde

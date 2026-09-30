@@ -5,6 +5,9 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.3": [
+    "Gemeinsam arbeiten: Die App nutzt für den Planer-Server kein HTTP/3 (QUIC) mehr. Hinter Reverse-Proxys, die HTTP/3 anbieten, ohne dass es durchkommt, schlug die Verbindung sonst mit „ERR_QUIC_PROTOCOL_ERROR“ fehl",
+  ],
   "0.7.0-beta.2": [
     "Gemeinsam arbeiten: Die App spricht den Planer-Server jetzt über den Hauptprozess an. Damit klappt die Verbindung auch hinter Reverse-Proxys und bei Umleitungen von http:// auf https://",
     "Ein Servername ohne http:// und ohne Port (z. B. planer.example.de) wird zuerst auf Port 3001, dann per https:// und http:// probiert. IP:Port (z. B. 192.168.178.10:3002) geht weiterhin direkt",
