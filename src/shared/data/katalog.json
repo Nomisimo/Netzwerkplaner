@@ -545,14 +545,16 @@
    "Gerätetyp": "Lichtpult",
    "Anwendung": "Licht",
    "Funktion": "Flaggschiff der Eos-Familie",
-   "Netzwerkports (Anzahl)": "3",
-   "Netzwerkports (Details)": "3× RJ45 1 GbE (eines mit PoE-Ausgang für Nodes/Wings)",
+   "Netzwerkports (Anzahl)": "6",
+   "Netzwerkports (Details)": "4× etherCON 1 GbE, 2× SFP+ 10G",
    "Weitere Anschlüsse": "4× DMX/RDM 5-pol, MIDI, LTC, USB, 3× DisplayPort",
    "Protokolle": "sACN (E1.31), Art-Net, DMX512, RDM, OSC, MIDI, MSC, LTC, ETCNet3",
    "Web-UI": "Nein",
    "Konfiguration / Software": "Eos Software / ETC Nomad",
    "PoE": "Ja (PSE, 1 Port)",
-   "Hinweis": "Portanzahl lt. Datenblatt prüfen"
+   "Hinweis": "PoE-Ausgang auf der Herstellerseite nicht angegeben",
+   "Quelle": "https://etcconnect.com/apex",
+   "Datenstand": "Herstellerdoku geprüft 09/2026"
   },
   {
    "Hersteller": "ETC",
@@ -591,13 +593,15 @@
    "Anwendung": "Licht",
    "Funktion": "Einstiegspult für kleine Bühnen",
    "Netzwerkports (Anzahl)": "1",
-   "Netzwerkports (Details)": "1× RJ45",
+   "Netzwerkports (Details)": "1× RJ45 (sACN, Art-Net, OSC)",
    "Weitere Anschlüsse": "2× DMX 5-pol, Audio-In, USB, HDMI",
    "Protokolle": "sACN (E1.31), Art-Net, DMX512, RDM",
    "Web-UI": "Nein",
    "Konfiguration / Software": "–",
    "PoE": "Nein",
-   "Hinweis": ""
+   "Hinweis": "",
+   "Quelle": "https://www.fullcompass.com/common/files/27304-ETCColorSourceSeriesDatasheet.pdf",
+   "Datenstand": "Herstellerdatenblatt (Händlerkopie) geprüft 09/2026"
   },
   {
    "Hersteller": "ETC",
@@ -606,13 +610,15 @@
    "Anwendung": "Licht",
    "Funktion": "sACN/Art-Net ↔ DMX/RDM Gateway",
    "Netzwerkports (Anzahl)": "1",
-   "Netzwerkports (Details)": "1× RJ45 (etherCON-Variante erhältlich)",
+   "Netzwerkports (Details)": "1× RJ45 (vorne oder hinten; Variante -T mit Klemmleiste)",
    "Weitere Anschlüsse": "4× DMX/RDM 5-pol",
    "Protokolle": "sACN (E1.31), Art-Net, DMX512, RDM, RDMnet",
-   "Web-UI": "Ja",
+   "Web-UI": "Nein",
    "Konfiguration / Software": "Web-UI / ETC Concert",
-   "PoE": "Ja (PD)",
-   "Hinweis": ""
+   "PoE": "Ja (PD, IEEE 802.3af, max. 7 W; alternativ 12–24 V DC)",
+   "Hinweis": "Konfiguration am Gerätedisplay oder mit ETC Concert",
+   "Quelle": "https://media.musson.com/mti/docs/r/e/response_mk2_four_gateways_datasheet_reve.pdf",
+   "Datenstand": "Herstellerdatenblatt (Händlerkopie) geprüft 09/2026"
   },
   {
    "Hersteller": "ETC",
@@ -657,7 +663,9 @@
    "Web-UI": "Teilweise",
    "Konfiguration / Software": "MagicQ PC, MagicQ Remote (Web)",
    "PoE": "Nein",
-   "Hinweis": "Anzahl Ports lt. Datenblatt prüfen"
+   "Hinweis": "Die 4 Netzwerkports hängen an einem eingebauten Switch",
+   "Quelle": "https://uk.chamsyslighting.com/?p=5240",
+   "Datenstand": "Herstellerdoku geprüft 09/2026"
   },
   {
    "Hersteller": "ChamSys",
@@ -2250,13 +2258,15 @@
    "Anwendung": "Netzwerk",
    "Funktion": "Günstiger 24-Port-Switch",
    "Netzwerkports (Anzahl)": "26",
-   "Netzwerkports (Details)": "24× RJ45 1 GbE, 2× SFP+",
+   "Netzwerkports (Details)": "24× RJ45 1 GbE, 2× SFP+ 10G",
    "Weitere Anschlüsse": "Konsole",
    "Protokolle": "IEEE 802.1Q VLAN, IGMP, LLDP, STP/RSTP",
    "Web-UI": "Ja",
    "Konfiguration / Software": "WebFig / WinBox / CLI (RouterOS/SwOS)",
-   "PoE": "Nein",
-   "Hinweis": ""
+   "PoE": "Nein (nur passives PoE-in 10–30 V zur Eigenversorgung)",
+   "Hinweis": "Dual-Boot RouterOS oder SwitchOS",
+   "Quelle": "https://mikrotik.com/product/CRS326-24G-2SplusRM",
+   "Datenstand": "Herstellerdoku geprüft 09/2026"
   },
   {
    "Hersteller": "MikroTik",
@@ -2270,8 +2280,10 @@
    "Protokolle": "DHCP, DNS, IEEE 802.1Q VLAN, NAT, VPN",
    "Web-UI": "Ja",
    "Konfiguration / Software": "WebFig / WinBox",
-   "PoE": "Ja (PoE-in)",
-   "Hinweis": ""
+   "PoE": "Ja (passives PoE-in 8–30 V, kein IEEE 802.3af/at; kein PoE-out)",
+   "Hinweis": "Passives PoE: ein normaler PoE-Switch (802.3af/at) versorgt das Gerät nicht",
+   "Quelle": "https://mikrotik.com/product/RB750Gr3",
+   "Datenstand": "Herstellerdoku geprüft 09/2026"
   },
   {
    "Hersteller": "Cisco",
@@ -2871,19 +2883,19 @@
    "Gerätetyp": "Bedienwing (PC)",
    "Anwendung": "Licht",
    "Funktion": "Bedienoberfläche für grandMA2 onPC (abgekündigt).",
-   "Netzwerkports (Anzahl)": "1",
-   "Netzwerkports (Details)": "1× etherCON (MA-Net2/Art-Net/sACN; PC-Anbindung per USB)",
-   "Weitere Anschlüsse": "DMX Out, USB, MIDI, LTC, DVI",
-   "Protokolle": "MA-Net2, Art-Net, sACN (E1.31), DMX512",
+   "Netzwerkports (Anzahl)": "0",
+   "Netzwerkports (Details)": "– (USB Typ B zum PC, kein Ethernet)",
+   "Weitere Anschlüsse": "2× DMX Out, 1× DMX In, MIDI In/Out, LTC In, USB Typ B",
+   "Protokolle": "DMX512, MIDI, LTC (SMPTE)",
    "Web-UI": "Nein",
    "Web-UI URL/Port": "",
-   "Default-IP": "nicht dokumentiert (Setup → Network; alle Stationen im gleichen Subnetz)",
+   "Default-IP": "–",
    "Konfiguration / Software": "grandMA2 onPC",
    "PoE": "Nein",
    "PoE-Budget W": "",
-   "Hinweis": "Ausstattung nicht gegen Datenblatt geprüft.",
-   "Quelle": "https://www.malighting.com/product-archive/products/grandma2/",
-   "Datenstand": "Fachwissen, vor Einsatz prüfen",
+   "Hinweis": "Netzwerk läuft über den PC mit grandMA2 onPC",
+   "Quelle": "https://help2.malighting.com/Page/grandMA2/grandMA2_wing_technical_data/en/3.9",
+   "Datenstand": "Herstellerdoku geprüft 09/2026",
    "Fokus": "Ja"
   },
   {
@@ -3071,8 +3083,8 @@
    "PoE": "Nein",
    "PoE-Budget W": "",
    "Hinweis": "Wing-Anbindung nicht verifiziert.",
-   "Quelle": "https://www.malighting.com/product-archive/products/dot2/",
-   "Datenstand": "Fachwissen, vor Einsatz prüfen",
+   "Quelle": "https://www.malighting.com/product-archive/product/dot2-xl-f-120212",
+   "Datenstand": "Herstellerdoku geprüft 09/2026",
    "Fokus": "Ja"
   },
   {
@@ -5182,7 +5194,7 @@
    "Anwendung": "Ton",
    "Funktion": "Dante-Erweiterungskarte 64×64 für TF-Serie.",
    "Netzwerkports (Anzahl)": "2",
-   "Netzwerkports (Details)": "2× etherCON (Dante Pri/Sec)",
+   "Netzwerkports (Details)": "2× etherCON 1 GbE (Dante Pri/Sec)",
    "Weitere Anschlüsse": "–",
    "Protokolle": "Dante, AES67",
    "Web-UI": "Nein",
@@ -5192,8 +5204,8 @@
    "PoE": "Nein",
    "PoE-Budget W": "",
    "Hinweis": "Nicht gegen Datenblatt geprüft.",
-   "Quelle": "https://usa.yamaha.com/products/proaudio/interfaces/",
-   "Datenstand": "Fachwissen, vor Einsatz prüfen",
+   "Quelle": "https://www.la-bs.com/Objets/NY64D_dt.pdf",
+   "Datenstand": "Herstellerdatenblatt (Händlerkopie) geprüft 09/2026",
    "Fokus": "Ja"
   },
   {
@@ -5203,7 +5215,7 @@
    "Anwendung": "Ton / Bühne",
    "Funktion": "Dante-Stagebox 3. Generation (32/16 In).",
    "Netzwerkports (Anzahl)": "2",
-   "Netzwerkports (Details)": "2× etherCON (Dante Pri/Sec)",
+   "Netzwerkports (Details)": "2× etherCON 1 GbE (Dante Pri/Sec)",
    "Weitere Anschlüsse": "32/16 Mic-In, 16/8 Out, AES/EBU (3224)",
    "Protokolle": "Dante, AES67, Yamaha HA-Remote",
    "Web-UI": "Nein",
@@ -5213,8 +5225,8 @@
    "PoE": "Nein",
    "PoE-Budget W": "",
    "Hinweis": "UNIT-ID-Schalter am Gerät bestimmt Gerätename/Remote-Zuordnung.",
-   "Quelle": "https://usa.yamaha.com/products/proaudio/interfaces/",
-   "Datenstand": "Fachwissen, vor Einsatz prüfen",
+   "Quelle": "https://fr.yamaha.com/fr/business/audio/products/interfaces/r-series-adda-3/specs.html",
+   "Datenstand": "Herstellerdoku geprüft 09/2026",
    "Fokus": "Ja"
   },
   {
@@ -5224,7 +5236,7 @@
    "Anwendung": "Ton / Bühne",
    "Funktion": "Dante-Stagebox 2. Generation.",
    "Netzwerkports (Anzahl)": "2",
-   "Netzwerkports (Details)": "2× etherCON (Dante Pri/Sec)",
+   "Netzwerkports (Details)": "2× etherCON 1 GbE (Dante Pri/Sec)",
    "Weitere Anschlüsse": "32/16 Mic-In, 16/8 Out, AES/EBU (3224)",
    "Protokolle": "Dante, AES67, Yamaha HA-Remote",
    "Web-UI": "Nein",
@@ -5234,8 +5246,8 @@
    "PoE": "Nein",
    "PoE-Budget W": "",
    "Hinweis": "UNIT-ID-Schalter am Gerät bestimmt Gerätename/Remote-Zuordnung.",
-   "Quelle": "https://usa.yamaha.com/products/proaudio/interfaces/",
-   "Datenstand": "Fachwissen, vor Einsatz prüfen",
+   "Quelle": "https://in.yamaha.com/en/products/proaudio/interfaces/r_series_adda_2/specs.html",
+   "Datenstand": "Herstellerdoku geprüft 09/2026",
    "Fokus": "Ja"
   },
   {
@@ -5266,7 +5278,7 @@
    "Anwendung": "Ton / Bühne",
    "Funktion": "Kompakte Dante-Stagebox für TF/DM3/QL.",
    "Netzwerkports (Anzahl)": "2",
-   "Netzwerkports (Details)": "2× etherCON (Dante Pri/Sec)",
+   "Netzwerkports (Details)": "2× etherCON 1 GbE (Dante Pri/Sec)",
    "Weitere Anschlüsse": "16 Mic-In, 8 Out",
    "Protokolle": "Dante, AES67, Yamaha HA-Remote",
    "Web-UI": "Nein",
@@ -5276,8 +5288,8 @@
    "PoE": "Nein",
    "PoE-Budget W": "",
    "Hinweis": "UNIT-ID-Schalter am Gerät bestimmt Gerätename/Remote-Zuordnung.",
-   "Quelle": "https://usa.yamaha.com/products/proaudio/interfaces/",
-   "Datenstand": "Fachwissen, vor Einsatz prüfen",
+   "Quelle": "https://usa.yamaha.com/products/proaudio/interfaces/tio1608-d2/specs.html",
+   "Datenstand": "Herstellerdoku geprüft 09/2026",
    "Fokus": "Ja"
   },
   {
@@ -5412,8 +5424,8 @@
    "Gerätetyp": "DSP / Endstufe",
    "Anwendung": "Ton",
    "Funktion": "Mehrkanal-Installationsendstufe mit Dante.",
-   "Netzwerkports (Anzahl)": "1–3",
-   "Netzwerkports (Details)": "2× RJ45 (Dante Pri/Sec), 1× RJ45 NETWORK",
+   "Netzwerkports (Anzahl)": "2",
+   "Netzwerkports (Details)": "2× RJ45 (Dante Pri/Sec, Steuerung ebenfalls über Dante)",
    "Weitere Anschlüsse": "Euroblock-Ausgänge, analog In",
    "Protokolle": "Dante, AES67, Yamaha RCP (SCP), OSC (DME7)",
    "Web-UI": "Nein",
@@ -5422,9 +5434,9 @@
    "Konfiguration / Software": "ProVisionaire Edit / Control / Touch",
    "PoE": "Nein",
    "PoE-Budget W": "",
-   "Hinweis": "Remote-Control per TCP 49280 (MTX: 2 gleichzeitige Verbindungen, DME7: bis 8). Portausstattung nicht gegen Datenblatt geprüft.",
-   "Quelle": "https://data.yamaha.com/files/download/other_assets/8/1623778/DME7_remote_control_protocol_spec_v100_en.pdf",
-   "Datenstand": "Fachwissen, vor Einsatz prüfen",
+   "Hinweis": "Kein separater NETWORK-Port",
+   "Quelle": "https://data.yamaha.com/files/download/other_assets/9/330449/XMV8280-D.pdf",
+   "Datenstand": "Herstellerdoku geprüft 09/2026",
    "Fokus": "Ja"
   },
   {
@@ -5434,7 +5446,7 @@
    "Anwendung": "Ton",
    "Funktion": "Matrix-Prozessor (MTX5-D mit Dante, MTX3 mit YDIF).",
    "Netzwerkports (Anzahl)": "1–3",
-   "Netzwerkports (Details)": "MTX5-D: 2× RJ45 (Dante Pri/Sec) + 1× RJ45 NETWORK; MTX3: 1× RJ45 NETWORK",
+   "Netzwerkports (Details)": "MTX5-D: 2× RJ45 (Dante Pri/Sec 1000BASE-T, Steuerung über Dante), 1× YDIF (RJ45, Punkt-zu-Punkt); MTX3: 1× RJ45 Network (100BASE-TX), 1× YDIF (RJ45, Punkt-zu-Punkt)",
    "Weitere Anschlüsse": "YDIF, Euroblock, GPI, RS-232",
    "Protokolle": "Dante, AES67, Yamaha RCP (SCP), OSC (DME7)",
    "Web-UI": "Nein",
@@ -5443,9 +5455,9 @@
    "Konfiguration / Software": "ProVisionaire Edit / Control / Touch",
    "PoE": "Nein",
    "PoE-Budget W": "",
-   "Hinweis": "Remote-Control per TCP 49280 (MTX: 2 gleichzeitige Verbindungen, DME7: bis 8). Portausstattung nicht gegen Datenblatt geprüft.",
-   "Quelle": "https://data.yamaha.com/files/download/other_assets/8/1623778/DME7_remote_control_protocol_spec_v100_en.pdf",
-   "Datenstand": "Fachwissen, vor Einsatz prüfen",
+   "Hinweis": "YDIF nutzt RJ45-Buchsen, ist aber kein Ethernet: nie an einen Switch",
+   "Quelle": "https://es.yamaha.com/files/download/brochure/9/328899/MTX3_MTX5D.pdf",
+   "Datenstand": "Herstellerdoku geprüft 09/2026",
    "Fokus": "Ja"
   },
   {
@@ -6001,18 +6013,18 @@
    "Anwendung": "Ton",
    "Funktion": "Analog-Line/Mic-Eingang ins Dante-Netz.",
    "Netzwerkports (Anzahl)": "1",
-   "Netzwerkports (Details)": "1× RJ45 1 GbE (Dante, PoE-PD)",
+   "Netzwerkports (Details)": "1× RJ45 (Dante, PoE-PD)",
    "Weitere Anschlüsse": "1× XLR female",
    "Protokolle": "Dante, PTP, mDNS/DNS-SD",
    "Web-UI": "Nein",
    "Web-UI URL/Port": "",
    "Default-IP": "DHCP, sonst Link-Local 169.254.x.x",
    "Konfiguration / Software": "Dante Controller",
-   "PoE": "Ja (PD, IEEE 802.3af)",
+   "PoE": "Ja (PD, IEEE 802.3af Class 1)",
    "PoE-Budget W": "",
    "Hinweis": "Keine Redundanz (kein Secondary). AES67-Unterstützung je Modell prüfen.",
-   "Quelle": "https://www.getdante.com/products/network-audio-adapters/",
-   "Datenstand": "Fachwissen, vor Einsatz prüfen",
+   "Quelle": "https://my.pvs.global/products/d/adp-dai-au-1x0---audinate-dante-avio---analog-input-adapter-1-channel",
+   "Datenstand": "Händlerdatenblatt geprüft 09/2026",
    "Fokus": "Ja"
   },
   {

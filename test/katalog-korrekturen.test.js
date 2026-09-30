@@ -30,3 +30,8 @@ test("Switch aus dem Katalog bringt sein PoE-Budget mit", () => {
   assert.equal(createDevice({ katalogId: id("SWR2310-10G / -18GT / -28GT") }).poeBudget, 0);
   assert.equal(createDevice({ katalogId: id("grandMA3 xPort Node 4Port / 8Port") }).poeBudget, undefined);
 });
+
+test("YDIF-Buchsen gelten als Punkt-zu-Punkt", () => {
+  const p = parsePorts("2× RJ45 (Dante Pri/Sec 1000BASE-T), 1× YDIF (RJ45, Punkt-zu-Punkt)", "", false);
+  assert.deepEqual(p.map((x) => x.p2p), [false, false, true]);
+});
