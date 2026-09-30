@@ -43,3 +43,23 @@ test("Knickpfad läuft durch den Knickpunkt", () => {
   assert.equal(knickPfad(0, 0, 100, 50, { x: 70, y: 10 }, "h", "eckig"), "M0,0 L70,0 L70,50 L100,50");
   assert.match(knickPfad(0, 0, 100, 50, { x: 70, y: 10 }, "h", "rund"), / 70,10 C/);
 });
+
+test("Kabel: einzeln auf eigenen Spuren, gebündelt als eine Linie", async () => {
+  const { kabelSpuren } = await import("../src/shared/anordnung.js");
+  const k = [
+    { id: "a", von: "sw", nach: "x", seite: "h1", start: 0, ziel: -100 },
+    { id: "b", von: "sw", nach: "y", seite: "h1", start: 0, ziel: 100 },
+    { id: "c", von: "sw", nach: "y", seite: "h1", start: 0, ziel: 100 },
+  ];
+  const sp = kabelSpuren(k, "spuren");
+  assert.ok(sp.get("a").start < sp.get("b").start && sp.get("b").start < sp.get("c").start);
+  assert.notEqual(sp.get("b").ende, sp.get("c").ende);
+  assert.notEqual(sp.get("b").spur, sp.get("c").spur);
+  const bu = kabelSpuren(k, "buendel");
+  assert.equal(bu.get("b").anzahl, 2);
+  assert.equal(bu.get("c").versteckt, true);
+  assert.equal(bu.get("a").start, 0);
+  const pa = kabelSpuren(k, "paare");
+  assert.equal(pa.get("a").start, 0);
+  assert.equal(pa.get("b").start, -pa.get("c").start);
+});

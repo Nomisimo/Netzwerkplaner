@@ -53,7 +53,8 @@ const KAPITEL = [
     <Liste items={[
       "📌 Anpinnen (Taste P oder Rechtsklick): das Gerät bleibt stehen, wenn sich die Anordnung durch neue Geräte oder Verbindungen ändert. Sein Ast wandert mit ihm. Klick auf die Nadel löst es wieder.",
       "„Auto-Anordnen“ aus: alle Geräte und Leitungen bleiben, wo sie sind, auch die nicht angepinnten. Ziehen verschiebt dann nur das eine Gerät. Wieder an: die automatische Anordnung gilt wieder, Pins bleiben.",
-      "„▤ Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Das ist keine Netzwerkverbindung. Doppelklick auf den Stapelnamen benennt ihn um, Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
+      "„▤ Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Das ist keine Netzwerkverbindung. Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
+      "Klick auf Rahmen oder Namen eines Stapels öffnet „Stapel bearbeiten“: Name, Reihenfolge (▲▼), Geräte hinzufügen oder lösen. „⧉ Duplizieren“ legt alle Geräte mit ihren Einstellungen und Verbindungen untereinander als neuen Stapel an (ohne IP- und MAC-Adressen). „⎘ Kopieren“ legt den Stapel in die Zwischenablage, „📋 Stapel einfügen“ in der Werkzeugleiste fügt ihn ein, auch in einem anderen Projekt.",
       "Verbindungen aufräumen: Verbindung anklicken und den roten Punkt in der Mitte ziehen. Doppelklick auf den Punkt setzt sie zurück.",
       "„🖼 Hintergrund“: ein Bild (Stage-Plot, Hallenplan) unter die Geräte legen, um sie in der Location zu verorten. Deckkraft und Größe einstellen, zum Platzieren „Bild mit der Maus verschieben“ einschalten. Das Bild kommt mit in den Export.",
     ]} />
@@ -67,7 +68,8 @@ const KAPITEL = [
     <Bild id="topologie-eckig" text="Linien eckig, Farbe nach VLAN, Port & VLAN an jeder Verbindung" />
     <Liste items={[
       "„Farbe“: Verbindungen nach VLAN, Bereich oder Kabeltyp einfärben.",
-      "„Linien: rund / eckig“: geschwungene oder rechtwinklige Verbindungslinien.",
+      "„Linien: rund / eckig“: geschwungene oder rechtwinklige Verbindungslinien. Mehrere Kabel zwischen denselben Geräten liegen nebeneinander.",
+      "„Kabel bündeln“ (nur bei eckigen Linien): an = Kabel teilen sich den Weg, parallele Kabel werden eine Linie mit Anzahl (z. B. 2×). Aus = jedes Kabel läuft einzeln auf eigener Spur.",
       "„Titel“: in den Kästen den Gerätenamen, den Netzwerknamen (Hostname), den Typ bzw. das Modell oder die Inventarnummer zeigen. Ohne Netzwerknamen steht dort der Typ.",
       "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
       "„⟳ Status“ prüft alle Geräte mit IP (Web-UI-Port, sonst Ping). Mit „alle 15 s“ läuft das zyklisch, sofern der Rechner im selben Netz hängt.",
@@ -81,6 +83,8 @@ const KAPITEL = [
       "Ports: Access- oder Trunk-VLANs, PoE und Punkt-zu-Punkt (AES50, SLink, HDBaseT …).",
       "„⇄ Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs, VLANs und Inventar erhalten. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und Inventar, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
       "„im Katalog speichern“ legt das Gerät als eigene Vorlage oder im Gerätebestand ab.",
+      "„⧉ Duplizieren“ kopiert das Gerät mit allen Einstellungen, aber ohne IP- und MAC-Adressen.",
+      "„⎘ Konfig kopieren“: im Dialog wählen, was mitkommt (Port-Einstellungen, Interfaces, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen). Bei jedem anderen Gerät dann „📋 Konfig einfügen“, Teile und Zielgeräte wählen („Gleiches Modell“, „Gleicher Typ“, „Alle Switches“) und einfügen. Namen, IPs, MACs und Verbindungen der Ziele bleiben. Ports werden nach Namen zugeordnet, sonst nach Reihenfolge.",
     ]} />
     <Bild id="geraet-editor" text="Geräte-Editor in der Topologie" />
     <H>Generische Geräte aus der Discovery</H>
@@ -137,7 +141,6 @@ const KAPITEL = [
       "„+ Neues Gerät“ legt ein Gerät direkt im Katalog an, ohne es ins Projekt zu setzen: Grundtyp wählen und im Editor ausfüllen.",
       "„⇩ Projektgeräte übernehmen“ kopiert alle Geräte des offenen Projekts in den Bestand.",
       "„Export CSV“ und „Import“ tauschen den Bestand mit anderen Netzwerkplaner-Installationen oder mit einer eigenen Excel-Liste aus (Spalten: Name; Netzwerkname; Hersteller; Modell; Typ; IP1; VLAN1; MAC1 … Inventar-Nr.; Seriennummer). Modelle werden über Katalog-ID oder Modellname erkannt.",
-      "Private Listen gehören nur auf deinen Rechner. Dateien in einem Ordner „lokal/“ im Projektordner lädt Git nie hoch.",
     ]} />
     <Bild id="katalog-neu" text="Neues Gerät im Katalog anlegen" />
     <H>Eigene Vorlagen, Herstellergeräte, Protokolle, Icons</H>
@@ -162,7 +165,7 @@ const KAPITEL = [
     <Liste items={[
       "„⇩ Export“: PDF-Dokumentation (Deckblatt, Topologie, VLANs, IP-Liste, Switch-Ports, Geräte, Prüfung), Excel mit IP-Liste, VLANs, Ports und Verbindungen, CSV-IP-Liste und die Topologie als SVG oder PNG.",
       "„+ Logo“ neben dem App-Namen: eigenes Firmenlogo hochladen. Es erscheint im Kopf der App und auf jeder PDF-Seite. ✕ entfernt es wieder. Das Logo bleibt nur auf diesem Rechner.",
-      "Updates: Beim Start sucht die App nach einer neuen Version. Unter Windows lädt sie das Update im Hintergrund, „⬆ … installieren“ startet neu und installiert. Unter macOS öffnet der Hinweis die Download-Seite.",
+      "Updates: Beim Start sucht die App nach einer neuen Version. Unter Windows lädt sie das Update im Hintergrund, „⬆ … installieren“ startet neu und installiert. Unter macOS lädt „⬆ … laden und öffnen“ das passende DMG in den Download-Ordner und öffnet es. Dann „Netzwerkplaner beenden“, die App im Finder-Fenster auf „Programme“ ziehen, „Ersetzen“ wählen und neu starten. Ganz ohne Zutun geht es auf dem Mac erst mit einer Apple-Signatur.",
       "Der Knopf mit der Versionsnummer zeigt alle Änderungen und „Nach Updates suchen“.",
     ]} />
   </> },

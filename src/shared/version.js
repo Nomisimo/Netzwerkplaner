@@ -5,6 +5,15 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.6": [
+    "Stapel bearbeiten: Klick auf einen Stapel öffnet ein eigenes Fenster mit Name, Reihenfolge, Geräte hinzufügen oder lösen",
+    "Stapel duplizieren und kopieren/einfügen, samt Verbindungen innerhalb des Stapels, auch in ein anderes Projekt",
+    "Gerätekonfiguration kopieren und einfügen: im Dialog wählen, welche Daten (Ports, Interfaces, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen), dann in ein oder mehrere Geräte einfügen (z. B. alle gleichen Modells)",
+    "Kabel einzeln nebeneinander auf eigener Spur oder gebündelt (nur bei eckigen Linien), per Schalter „Kabel bündeln“",
+    "macOS-Update: „⬆ … laden und öffnen“ lädt das passende DMG und öffnet es, danach die App nach „Programme“ ziehen",
+    "Katalog: RME Digiface Dante, Digiface Ravenna und Digiface AVB",
+    "Anleitung: Hinweis zu privaten Listen entfernt",
+  ],
   "0.6.0-beta.5": [
     "VLAN in VLAN (QinQ, IEEE 802.1ad): je VLAN ein äußeres VLAN (S-VLAN) wählbar, die VLAN-Liste zeigt die Verschachtelung",
     "Doppelte VLAN-IDs sind erlaubt, wenn QinQ sie trennt (verschiedene S-VLANs): Warnung mit Hinweis auf die Trennung. Gleiche IDs in derselben Ebene bleiben ein Fehler",
