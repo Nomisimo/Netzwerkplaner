@@ -110,3 +110,39 @@ export const knickPfad = (x1, y1, x2, y2, m, dir, form) => {
   const a = (y1 + m.y) / 2, b = (m.y + y2) / 2;
   return `M${x1},${y1} C${x1},${a} ${m.x},${a} ${m.x},${m.y} C${m.x},${b} ${x2},${b} ${x2},${y2}`;
 };
+
+/* Kabel nebeneinander statt übereinander. kabel: [{ id, von, nach, seite,
+   start, ziel }] mit seite = Richtung ab dem Quellgerät ("h1", "h-1", "v1", "v-1"),
+   start/ziel = Lage quer zur Laufrichtung (bei "h" die y-Werte).
+   modus:
+   - "paare":   mehrere Kabel zwischen denselben Geräten liegen parallel (runde Linien)
+   - "spuren":  jedes Kabel eigene Spur, auch am Abzweig (eckige Linien, einzeln)
+   - "buendel": Kabel teilen sich den Weg, parallele Kabel werden eine Linie mit Anzahl
+   Ergebnis je id: { start, ende, spur } als Versatz in px, dazu anzahl und versteckt. */
+export const KABEL_ABSTAND = 7;
+export const kabelSpuren = (kabel, modus, { abstand = KABEL_ABSTAND, breite = 40 } = {}) => {
+  const out = new Map(kabel.map((k) => [k.id, { start: 0, ende: 0, spur: 0, anzahl: 1, versteckt: false }]));
+  const gruppe = (key) => { const m = new Map(); for (const k of kabel) { const g = key(k); if (!m.has(g)) m.set(g, []); m.get(g).push(k); } return [...m.values()]; };
+  const paar = (k) => [k.von, k.nach].sort().join("|");
+  const mitte = (i, n, a) => (i - (n - 1) / 2) * a;
+  if (modus === "buendel") {
+    for (const g of gruppe(paar)) g.forEach((k, i) => { if (i === 0) out.get(k.id).anzahl = g.length; else out.get(k.id).versteckt = true; });
+    return out;
+  }
+  if (modus === "paare") {
+    for (const g of gruppe(paar)) g.forEach((k, i) => { const o = out.get(k.id); o.start = o.ende = mitte(i, g.length, abstand); });
+    return out;
+  }
+  for (const g of gruppe((k) => `${k.von}|${k.seite}`)) {
+    const s = [...g].sort((a, b) => a.ziel - b.ziel || String(a.id).localeCompare(String(b.id)));
+    const a = Math.min(abstand, breite / Math.max(1, s.length));
+    s.forEach((k, i) => { out.get(k.id).start = mitte(i, s.length, a); });
+    // Abzweig: nach oben laufende biegen von oben nach unten ab, nach unten laufende umgekehrt, so kreuzt nichts
+    const hoch = s.filter((k) => k.ziel < k.start), runter = s.filter((k) => k.ziel >= k.start).reverse();
+    for (const t of [hoch, runter]) t.forEach((k, i) => { out.get(k.id).spur = mitte(i, t.length, abstand); });
+    const paare = new Map();
+    for (const k of s) { const p = paar(k); if (!paare.has(p)) paare.set(p, []); paare.get(p).push(k); }
+    for (const p of paare.values()) p.forEach((k, i) => { out.get(k.id).ende = mitte(i, p.length, a); });
+  }
+  return out;
+};

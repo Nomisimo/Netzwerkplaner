@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fetchReleases:     () => ipcRenderer.invoke('fetch-releases'),
   checkForUpdates:   () => ipcRenderer.invoke('check-for-updates'),
   installUpdate:     (url) => ipcRenderer.invoke('install-update', url),
+  macUpdateLaden:    (tag) => ipcRenderer.invoke('mac-update-laden', tag),
+  appBeenden:        () => ipcRenderer.invoke('app-beenden'),
   onUpdateStatus:    (cb) => { const h = (_, msg) => cb(msg); ipcRenderer.on('update-status', h); return () => ipcRenderer.removeListener('update-status', h); },
   saveProject:       (args) => ipcRenderer.invoke('save-project', args),
   openProject:       () => ipcRenderer.invoke('open-project'),

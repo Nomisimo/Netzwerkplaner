@@ -11,9 +11,12 @@ import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { endInfo, portLabel, vlanKurz, vlanLang, geraeteTitel } from "../portinfo.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
-import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, stapeln, entstapeln } from "../../shared/anordnung.js";
+import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, stapeln, entstapeln, kabelSpuren } from "../../shared/anordnung.js";
 import { uid } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
+import StapelEditor from "../StapelEditor.jsx";
+import { stapelEinfuegen } from "../../shared/konfig.js";
+import { useZwischenablage } from "../zwischenablage.js";
 
 const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: "#9aa4af", p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
@@ -32,9 +35,11 @@ export default function TopologieTab(props) {
   const [showPorts, setShowPorts] = useState(true);
   const [ctx, setCtx] = useState(null);
   const [bgOpen, setBgOpen] = useState(false);
+  const stapelClip = useZwischenablage("stapel");
   const titel = P.layout.titel || "name"; // Beschriftung der Knoten
   const setTitel = (t) => mutate((d) => { d.layout.titel = t; });
   const linien = P.layout.linien || "rund"; // Verbindungslinien: rund oder eckig
+  const buendeln = linien === "eckig" && !!P.layout.kabelBuendel; // Kabel bündeln (nur eckig), sonst einzeln nebeneinander
   const [paletteOpen, setPaletteOpen] = useState(true);
   const wrapRef = useRef(null);
   const fitted = useRef(false);
@@ -144,11 +149,11 @@ export default function TopologieTab(props) {
     return () => el.removeEventListener("wheel", h);
   }, []);
 
-  const onDown = (e, nodeId, conn = null) => {
+  const onDown = (e, nodeId, conn = null, stapelId = null) => {
     if (e.button !== 0) return;
     e.stopPropagation();
     if (nodeId && (tool === "connect" || tool === "stack")) { const w = toWorld(e); setDraw({ from: nodeId, x: w.x, y: w.y, tool }); return; }
-    if (nodeId) setDrag({ kind: "node", id: stapelAnker(stapel, nodeId), klick: nodeId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false, conn });
+    if (nodeId) setDrag({ kind: "node", id: stapelAnker(stapel, nodeId), klick: nodeId, stapel: stapelId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false, conn });
     else setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false });
   };
   const onMove = (e) => {
@@ -188,7 +193,7 @@ export default function TopologieTab(props) {
           d.layout[pinKey] = pn;
           if (!auto) d.layout[fixKey] = fx;
         });
-      } else setSelection(drag.conn ? { type: "conn", id: drag.conn.id } : { type: "dev", id: drag.klick || drag.id });
+      } else setSelection(drag.conn ? { type: "conn", id: drag.conn.id } : drag.stapel ? { type: "stapel", id: drag.stapel } : { type: "dev", id: drag.klick || drag.id });
     } else if (drag.kind === "knick") {
       const { id, bx, by, dx, dy } = drag;
       if (drag.moved) mutate((d) => { d.layout[knickKey] = { ...(d.layout[knickKey] || {}), [id]: { dx: Math.round(bx + dx), dy: Math.round(by + dy) } }; });
@@ -222,7 +227,9 @@ export default function TopologieTab(props) {
     const k = (e) => {
       if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
       if ((e.key === "Delete" || e.key === "Backspace") && selection) {
-        if (selection.type === "dev") onDeleteDevice(selection.id); else onDeleteConn(selection.id);
+        if (selection.type === "dev") onDeleteDevice(selection.id);
+        else if (selection.type === "stapel") { mutate((d) => { d.layout.stapel = (d.layout.stapel || []).filter((x) => x.id !== selection.id); }); setSelection(null); }
+        else onDeleteConn(selection.id);
       }
       if (e.key === "Escape") { setSelection(null); setDraw(null); }
       if (e.metaKey || e.ctrlKey || e.altKey) return; // ⌘C / Strg+C usw. nicht abfangen
@@ -234,7 +241,7 @@ export default function TopologieTab(props) {
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
-  }, [selection, onDeleteDevice, onDeleteConn, setSelection, togglePin]);
+  }, [selection, onDeleteDevice, onDeleteConn, setSelection, togglePin, mutate]);
 
   /* ── Filter & Suche ─────────────────────────────────────────────────── */
   const ql = q.trim().toLowerCase();
@@ -267,7 +274,7 @@ export default function TopologieTab(props) {
     return { color: errs ? ERR : color, width, dash: p2p ? KABEL.p2p.dash : KABEL[c.kabel]?.dash || "", errs, trunk: cv.kind === "trunk" };
   };
 
-  const edgePath = (pa, pb, k) => {
+  const edgePath = (pa, pb, k, sp) => {
     const dir = pb.x >= pa.x ? 1 : -1;
     const mitKnick = (x1, y1, x2, y2, r) => {
       const m = { x: (x1 + x2) / 2 + (k?.dx || 0), y: (y1 + y2) / 2 + (k?.dy || 0) };
@@ -275,15 +282,15 @@ export default function TopologieTab(props) {
     };
     if (Math.abs(pb.x - pa.x) < NODE_W) {
       const dy = pb.y >= pa.y ? 1 : -1;
-      const x1 = pa.x, y1 = pa.y + dy * HH, x2 = pb.x, y2 = pb.y - dy * HH;
+      const x1 = pa.x + (sp?.start || 0), y1 = pa.y + dy * HH, x2 = pb.x + (sp?.ende || 0), y2 = pb.y - dy * HH;
       if (k) return mitKnick(x1, y1, x2, y2, "v");
-      const my = (y1 + y2) / 2;
-      return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "v") : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`, x1, y1, x2, y2, mx: (x1 + x2) / 2, my };
+      const my = (y1 + y2) / 2 + dy * (sp?.spur || 0);
+      return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "v", my) : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`, x1, y1, x2, y2, mx: (x1 + x2) / 2, my };
     }
-    const x1 = pa.x + dir * HW, y1 = pa.y, x2 = pb.x - dir * HW, y2 = pb.y;
+    const x1 = pa.x + dir * HW, y1 = pa.y + (sp?.start || 0), x2 = pb.x - dir * HW, y2 = pb.y + (sp?.ende || 0);
     if (k) return mitKnick(x1, y1, x2, y2, "h");
-    const mx = (x1 + x2) / 2;
-    return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "h") : `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, x1, y1, x2, y2, mx, my: (y1 + y2) / 2 };
+    const mx = (x1 + x2) / 2 + dir * (sp?.spur || 0);
+    return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "h", mx) : `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, x1, y1, x2, y2, mx, my: (y1 + y2) / 2 };
   };
   // Griff zum Verschieben der ausgewählten Verbindung
   const knickGriff = (c, mx, my) => tool === "move" && selConn?.id === c.id && (
@@ -297,10 +304,24 @@ export default function TopologieTab(props) {
 
   const selDev = selection?.type === "dev" ? X.devById.get(selection.id) : null;
   const selConn = selection?.type === "conn" ? P.verbindungen.find((c) => c.id === selection.id) : null;
+  const selStapel = selection?.type === "stapel" ? stapel.find((x) => x.id === selection.id) : null;
 
   const allConns = P.verbindungen.filter((c) => posOf(c.a.dev) && posOf(c.b.dev));
   const treeChildByConn = new Map([...T.treeConn].map(([child, c]) => [c.id, child]));
   const treeConnIds = new Set(treeChildByConn.keys());
+  // Mindmap: Richtung je Kabel (vom Elternknoten aus) und Spuren, damit Kabel nicht übereinander liegen
+  const kabelWeg = new Map();
+  if (!front) for (const c of allConns) {
+    let from = posOf(c.a.dev), to = posOf(c.b.dev), fromEnd = c.a, toEnd = c.b;
+    if (treeConnIds.has(c.id) && treeChildByConn.get(c.id) === c.a.dev) { [from, to] = [to, from]; [fromEnd, toEnd] = [toEnd, fromEnd]; }
+    kabelWeg.set(c.id, { from, to, fromEnd, toEnd });
+  }
+  const spuren = front ? new Map() : kabelSpuren(allConns.filter((c) => !knickOf(c)).map((c) => {
+    const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
+    const senk = Math.abs(to.x - from.x) < NODE_W;
+    return senk ? { id: c.id, von: fromEnd.dev, nach: toEnd.dev, seite: "v" + Math.sign(to.y - from.y), start: from.x, ziel: to.x }
+      : { id: c.id, von: fromEnd.dev, nach: toEnd.dev, seite: "h" + Math.sign(to.x - from.x), start: from.y, ziel: to.y };
+  }), buendeln ? "buendel" : linien === "eckig" ? "spuren" : "paare", { breite: NODE_H * 0.8 });
 
   const H = "calc(100vh - 96px)";
   const closeCtx = useCallback(() => setCtx(null), []);
@@ -341,6 +362,8 @@ export default function TopologieTab(props) {
             ))}
           </div>
           <button style={S.ghostBtn} onClick={fit} title="Alles einpassen">⤢ Einpassen</button>
+          {stapelClip && <button style={S.ghostBtn} onClick={() => { let neu = null; mutate((d) => { neu = stapelEinfuegen(d, stapelClip); }); if (neu?.stapelId) setSelection({ type: "stapel", id: neu.stapelId }); else if (neu?.ids[0]) setSelection({ type: "dev", id: neu.ids[0] }); }}
+            title={`Kopierten Stapel „${stapelClip.name || "Stapel"}“ (${stapelClip.geraete.length} Geräte) einfügen`}>📋 Stapel einfügen</button>}
           <button style={S.ghostBtn} onClick={() => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; })} title="Verschiebungen von Geräten und Verbindungen zurücksetzen. Angepinnte Geräte und Stapel bleiben.">↺ Auto-Layout</button>
           <Toggle checked={auto} onChange={setAuto} label="Auto-Anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
           <button style={{ ...S.ghostBtn, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan">🖼 Hintergrund</button>
@@ -352,6 +375,8 @@ export default function TopologieTab(props) {
           <select style={{ ...S.selectSm, width: "auto" }} value={linien} onChange={(e) => mutate((d) => { d.layout.linien = e.target.value; })} title="Form der Verbindungslinien">
             <option value="rund">Linien: rund</option><option value="eckig">Linien: eckig</option>
           </select>
+          {linien === "eckig" && !front && <Toggle checked={buendeln} onChange={(v) => mutate((d) => { d.layout.kabelBuendel = v; })} label="Kabel bündeln"
+            title="An: Kabel teilen sich den Weg, mehrere Kabel zwischen denselben Geräten werden eine Linie mit Anzahl. Aus: jedes Kabel läuft einzeln auf eigener Spur daneben." />}
           <select style={{ ...S.selectSm, width: "auto" }} value={titel} onChange={(e) => setTitel(e.target.value)} title="Beschriftung der Geräte">
             <option value="name">Titel: Gerätename</option><option value="netzname">Titel: Netzwerkname</option><option value="typ">Titel: Typ / Modell</option><option value="inventar">Titel: Inventar-Nr.</option>
           </select>
@@ -384,11 +409,10 @@ export default function TopologieTab(props) {
                 onMouseDown={(e) => { if (e.button || bgPos.fest !== false) return; e.stopPropagation(); setDrag({ kind: "bg", sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false }); }} />}
               {/* Stapel (grafische Gruppen, z. B. Rack oder Tower) */}
               {(L.stapel || []).map((b) => (
-                <g key={b.id} onMouseDown={(e) => onDown(e, b.ids[0])} style={{ cursor: "move" }}>
-                  <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke="#8a96a3" strokeWidth="1.2" strokeDasharray="5 4" />
-                  <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill="#aeb8c2" style={{ cursor: "text" }}
-                    onDoubleClick={(e) => { e.stopPropagation(); const n = prompt("Name des Stapels:", b.name || ""); if (n !== null) mutate((d) => { const s = (d.layout.stapel || []).find((x) => x.id === b.id); if (s) s.name = n.trim(); }); }}>
-                    ▤ {b.name || "Stapel"} · {b.ids.length}<title>Doppelklick = umbenennen</title>
+                <g key={b.id} onMouseDown={(e) => onDown(e, b.ids[0], null, b.id)} style={{ cursor: "move" }}>
+                  <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke={selection?.type === "stapel" && selection.id === b.id ? ACCENT : "#8a96a3"} strokeWidth={selection?.type === "stapel" && selection.id === b.id ? 2 : 1.2} strokeDasharray="5 4" />
+                  <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill="#aeb8c2" style={{ cursor: "pointer" }}>
+                    ▤ {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
                   </text>
                 </g>
               ))}
@@ -420,13 +444,12 @@ export default function TopologieTab(props) {
                 );
               })}
               {!front && allConns.map((c) => {
-                const pa = posOf(c.a.dev), pb = posOf(c.b.dev);
                 const tree = treeConnIds.has(c.id);
                 // Baumkanten vom Elternknoten aus zeichnen
-                let from = pa, to = pb, fromEnd = c.a, toEnd = c.b;
-                const childOf = treeChildByConn.get(c.id);
-                if (tree && childOf === c.a.dev) { from = pb; to = pa; fromEnd = c.b; toEnd = c.a; }
-                const g = edgePath(from, to, knickOf(c));
+                const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
+                const sp = spuren.get(c.id);
+                if (sp?.versteckt && selConn?.id !== c.id) return null; // gebündelt: parallele Kabel als eine Linie
+                const g = edgePath(from, to, knickOf(c), sp);
                 const st = edgeStyle(c);
                 const sel = selConn?.id === c.id;
                 const da = X.devById.get(c.a.dev), db = X.devById.get(c.b.dev);
@@ -439,6 +462,7 @@ export default function TopologieTab(props) {
                     {(sel || st.errs) && <path d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
                     {showPorts && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} />}
+                    {sp?.anzahl > 1 && <g><rect x={g.mx - 11} y={g.my - 8} width="22" height="16" rx="8" fill="#1b2026" stroke={st.color} /><text x={g.mx} y={g.my + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill="#e8eaed">{sp.anzahl}×</text><title>{sp.anzahl} Kabel gebündelt</title></g>}
                     {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill="#c8d0d8" textAnchor="middle">{c.label}</text>}
                     {knickGriff(c, g.mx, g.my)}
                   </g>
@@ -558,19 +582,21 @@ export default function TopologieTab(props) {
               onSetRoot={d.isSwitch && P.layout.rootId !== d.id ? () => mutate((dd) => { dd.layout.rootId = d.id; }) : null}
               pinned={!!pins[d.id]} onPin={() => togglePin(d.id)}
               onUnstack={stapelVon(stapel, d.id) ? () => mutate((dd) => { dd.layout.stapel = entstapeln(dd.layout.stapel, d.id); }) : null}
+              onEditStack={stapelVon(stapel, d.id) ? () => setSelection({ type: "stapel", id: stapelVon(stapel, d.id).id }) : null}
               collapsed={!!P.layout.collapsed?.[d.id]} onToggleCollapse={hasKids ? () => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [d.id]: !dd.layout.collapsed?.[d.id] }; }) : null} />;
           })()}
         </div>
       </div>
 
       {/* Inspector */}
-      {(selDev || selConn) && (
+      {(selDev || selConn || selStapel) && (
         <div style={{ width: 420, background: PANEL, borderLeft: `1px solid ${LINE}`, overflowY: "auto", padding: 14, flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
             <button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}>✕</button>
           </div>
           {selDev && <DeviceEditor key={selDev.id} compact P={P} X={X} dev={selDev} mutate={mutate} status={status[selDev.id]} onCheck={checkReach}
             issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />}
+          {selStapel && <StapelEditor P={P} stapelId={selStapel.id} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
           {selConn && <ConnEditor P={P} X={X} conn={selConn} mutate={mutate} onDelete={onDeleteConn} issues={connIssues.get(selConn.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} />}
         </div>
       )}
