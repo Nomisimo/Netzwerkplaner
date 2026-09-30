@@ -3,12 +3,17 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [0.6.0-beta.15] – 2026-09-30
+## [0.6.0-beta.17] – 2026-09-30
 
 - Ports und Interfaces sind zusammengeführt: Jeder Port trägt direkt VLAN, IP, Maske, Gateway, MAC und DHCP. Die getrennte Interface-Liste und die Zuordnung Port → Interface entfallen
 - Switches haben ihre Management-IP als Anschluss „Management“ ohne Buchse. Er erscheint nicht auf der Frontplatte und lässt sich nicht verkabeln
 - Ältere Projektdateien, Vorlagen, Bestand und kopierte Konfigurationen werden beim Öffnen umgestellt, ohne Daten zu verlieren. Teilten sich mehrere Ports ein Interface, bekommt der erste Port IP und MAC, die übrigen VLAN, Maske und Gateway
 - „⟳ IPs vergeben“ vergibt je Gerät eine Adresse pro VLAN, damit z. B. der zweite Port eines Daisy-Chain-Geräts keine eigene IP bekommt
+
+## [0.6.0-beta.16] – 2026-09-30
+
+- Katalog: 15 weitere Einträge gegen Datenblätter geprüft (49 insgesamt). Korrigiert u. a.: grandMA2 onPC command wing hat kein Ethernet (nur USB), ETC Eos Apex hat 4× etherCON und 2× SFP+ statt 3× RJ45, Yamaha XMV-D ohne separaten NETWORK-Port, MikroTik hEX nur mit passivem PoE-in (kein 802.3af)
+- Yamaha YDIF-Buchsen (MTX, MRX) werden als Punkt-zu-Punkt erkannt; die Prüfung warnt, wenn sie an einem Switch stecken
 
 ## [0.6.0-beta.14] – 2026-09-30
 
