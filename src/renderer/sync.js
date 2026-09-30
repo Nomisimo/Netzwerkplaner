@@ -19,9 +19,12 @@ export const ladeEinstellungen = () => { try { return JSON.parse(localStorage.ge
 export const speichereEinstellungen = (e) => { try { localStorage.setItem(LS, JSON.stringify(e)); } catch { /* egal */ } };
 
 const httpBasis = (server) => {
+  // „192.168.1.10“ → http://192.168.1.10:3001; mit http(s):// davor gilt die Adresse wie eingegeben
+  // (z. B. hinter einem Reverse-Proxy: http://planer.example.de → Port 80, https → wss)
   let s = String(server || "").trim().replace(/\/+$/, "");
-  if (!/^https?:\/\//.test(s)) s = `http://${s}`;
-  if (!/:\d+$/.test(s.replace(/^https?:\/\//, ""))) s += ":3001";
+  if (/^https?:\/\//.test(s)) return s;
+  s = `http://${s}`;
+  if (!/:\d+$/.test(s.slice(7))) s += ":3001";
   return s;
 };
 const wsUrl = (server) => httpBasis(server).replace(/^http/, "ws") + "/ws";
