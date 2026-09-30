@@ -3,6 +3,11 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.8] – 2026-09-30
+
+- Katalog: Beim Anlegen eines Geräts oder einer Vorlage direkt ein neues VLAN anlegen und allen Ports oder einem Interface zuweisen
+- Vorlagen und Bestand merken sich ihre VLANs. Fehlt eine VLAN-ID beim Einfügen in ein Projekt, wird das VLAN dort angelegt (gilt auch für kopierte Stapel)
+
 ## [0.6.0-beta.7] – 2026-09-30
 
 - VLAN-Liste: die VLAN-ID steht zugeklappt als gut lesbares Kästchen, auch bei dunklen VLAN-Farben

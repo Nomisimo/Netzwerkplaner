@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { S, TYPEN } from "../shared/constants.js";
-import { emptyProject, buildIndex } from "../shared/model.js";
+import { S, TYPEN, LINE, SUB, ERR, VLAN_FARBEN } from "../shared/constants.js";
+import { emptyProject, buildIndex, newVlan } from "../shared/model.js";
 import { createDevice, snapshotDevice, uid } from "../shared/catalog.js";
 import { Modal, Field } from "./ui.jsx";
 import DeviceEditor from "./DeviceEditor.jsx";
@@ -46,9 +46,55 @@ export default function GeraetAnlegen({ P, ziel, onSave, onClose }) {
           {Object.entries(TYPEN).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
         </select>
       </Field>
+      <NeuesVlan key={typ} S0={S0} dev={dev} mutate={mutate} />
       <div style={{ marginTop: 12 }}>
         <DeviceEditor P={S0} X={X0} dev={dev} mutate={mutate} compact={false} />
       </div>
     </Modal>
+  );
+}
+
+/* Neues VLAN direkt beim Anlegen des Geräts erzeugen und zuweisen. Das VLAN
+   wird mit dem Gerät gespeichert und beim Einfügen in ein Projekt angelegt,
+   wenn es dort noch keine VLAN mit dieser ID gibt. */
+function NeuesVlan({ S0, dev, mutate }) {
+  const naechste = () => { let n = 100; const belegt = new Set(S0.vlans.map((v) => +v.vid)); while (belegt.has(n)) n++; return n; };
+  const [vid, setVid] = useState(naechste);
+  const [name, setName] = useState("");
+  const [ziel, setZiel] = useState(dev.isSwitch ? "ports" : dev.interfaces[0] ? "if:0" : "nur");
+  const [info, setInfo] = useState("");
+  const vorhanden = S0.vlans.find((v) => +v.vid === +vid);
+  const ungueltig = !(+vid >= 1 && +vid <= 4094);
+  const anlegen = () => {
+    if (ungueltig) return;
+    mutate((d) => {
+      let v = d.vlans.find((x) => +x.vid === +vid && !x.svlan);
+      if (!v) { v = newVlan({ vid: +vid, name: name.trim() || `VLAN ${vid}`, farbe: VLAN_FARBEN[d.vlans.length % VLAN_FARBEN.length], subnetz: +vid < 256 ? `10.10.${vid}.0/24` : "" }); d.vlans.push(v); }
+      const g = d.geraete[0];
+      if (ziel === "ports") g.ports.forEach((p) => { if (p.modus !== "trunk") p.vlan = v.id; });
+      else if (ziel.startsWith("if:")) { const i = g.interfaces[+ziel.slice(3)]; if (i) i.vlan = v.id; }
+    });
+    setInfo(vorhanden ? `VLAN ${vid} gab es schon und ist jetzt zugewiesen.` : `VLAN ${vid} angelegt${ziel === "nur" ? ". Im Editor unten den Ports oder Interfaces zuweisen." : " und zugewiesen."}`);
+    setName(""); setVid(naechste() === +vid ? +vid + 1 : naechste());
+  };
+  return (
+    <div style={{ marginTop: 12, border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
+      <div className="sp-section-label" style={{ marginTop: 0 }}>Neues VLAN für dieses Gerät</div>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+        <Field label="VLAN-ID"><input type="number" min="1" max="4094" style={{ ...S.inputSm, width: 90 }} value={vid} onChange={(e) => setVid(e.target.value)} /></Field>
+        <Field label="Name"><input style={{ ...S.inputSm, width: 180 }} value={vorhanden ? vorhanden.name : name} disabled={!!vorhanden} placeholder={`VLAN ${vid}`} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Zuweisen an">
+          <select style={{ ...S.selectSm, width: 220 }} value={ziel} onChange={(e) => setZiel(e.target.value)}>
+            {dev.ports.length > 0 && <option value="ports">Alle Ports (Access)</option>}
+            {dev.interfaces.map((i, n) => <option key={i.id} value={`if:${n}`}>Interface „{i.name}“</option>)}
+            <option value="nur">Nur anlegen</option>
+          </select>
+        </Field>
+        <button style={S.primaryBtn} disabled={ungueltig} onClick={anlegen}>{vorhanden ? "Zuweisen" : "＋ Anlegen und zuweisen"}</button>
+      </div>
+      {ungueltig && <div style={{ color: ERR, fontSize: 12, marginTop: 6 }}>Die VLAN-ID muss zwischen 1 und 4094 liegen.</div>}
+      {info && <div style={{ color: SUB, fontSize: 12, marginTop: 6 }}>{info}</div>}
+      <div style={{ ...S.hint, marginTop: 6 }}>Das VLAN wird mit dem Gerät gespeichert. Beim Einfügen in ein Projekt ohne diese VLAN-ID legt der Netzwerkplaner es dort an.</div>
+    </div>
   );
 }

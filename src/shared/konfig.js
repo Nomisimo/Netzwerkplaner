@@ -2,7 +2,7 @@
    Die Zwischenablage enthält reine Daten (kein Projektbezug außer VLANs).
    VLANs werden mit id und VLAN-ID gemerkt: im selben Projekt gilt die id,
    in einem anderen Projekt die VLAN-ID. */
-import { uid, createDevice } from "./catalog.js";
+import { uid, createDevice, snapshotDevice } from "./catalog.js";
 import { vlanNachVid } from "./qinq.js";
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -115,12 +115,9 @@ export const stapelAus = (P, stapelId) => {
   const devs = s.ids.map((id) => P.geraete.find((g) => g.id === id)).filter(Boolean);
   const di = new Map(devs.map((g, n) => [g.id, n]));
   const pi = (end) => devs[di.get(end.dev)].ports.findIndex((p) => p.id === end.port);
-  const vid = (id) => P.vlans.find((v) => v.id === id)?.vid ?? null;
   const geraete = devs.map((g) => {
-    const c = clone(g);
-    for (const i of c.interfaces) { i.vid = vid(i.vlan); i.ip = ""; i.mac = ""; }
-    for (const p of c.ports) { p.vid = vid(p.vlan); p.vids = (p.vlans || []).map(vid).filter((x) => x != null); }
-    delete c.bestandId;
+    const c = snapshotDevice(g, P.vlans); // mit VLAN-IDs und VLAN-Daten, damit es auch in anderen Projekten passt
+    for (const i of c.interfaces) { i.ip = ""; i.mac = ""; }
     return c;
   });
   const verbindungen = P.verbindungen.filter((c) => di.has(c.a.dev) && di.has(c.b.dev)).map((c) => {

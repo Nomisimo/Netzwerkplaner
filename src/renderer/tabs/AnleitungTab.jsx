@@ -139,6 +139,7 @@ const KAPITEL = [
     <Liste items={[
       "Der Bestand enthält deine realen Geräte mit Namen, Netzwerknamen, IPs und Inventardaten. „+ ins Projekt“ setzt ein Gerät samt Adressen ein.",
       "„+ Neues Gerät“ legt ein Gerät direkt im Katalog an, ohne es ins Projekt zu setzen: Grundtyp wählen und im Editor ausfüllen.",
+      "„Neues VLAN für dieses Gerät“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“): VLAN-ID und Namen eingeben, wählen, ob es alle Ports (Access) oder ein Interface bekommt, und „＋ Anlegen und zuweisen“. Das VLAN wird mit dem Gerät gespeichert. Fügst du das Gerät in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
       "„⇩ Projektgeräte übernehmen“ kopiert alle Geräte des offenen Projekts in den Bestand.",
       "„Export CSV“ und „Import“ tauschen den Bestand mit anderen Netzwerkplaner-Installationen oder mit einer eigenen Excel-Liste aus (Spalten: Name; Netzwerkname; Hersteller; Modell; Typ; IP1; VLAN1; MAC1 … Inventar-Nr.; Seriennummer). Modelle werden über Katalog-ID oder Modellname erkannt.",
     ]} />
