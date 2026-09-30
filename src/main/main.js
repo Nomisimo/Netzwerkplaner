@@ -117,7 +117,11 @@ function setupAutoUpdater(win) {
   autoUpdater.on('error', (err) => { console.error('AutoUpdater:', err?.message || err); send('error', { message: err?.message || String(err) }); });
   autoUpdater.on('download-progress', (p) => send('downloading', { percent: Math.round(p.percent) }));
   autoUpdater.on('update-available', (info) => send('available', { version: info.version }));
-  autoUpdater.on('update-downloaded', (info) => { updateReady = true; send('downloaded', { version: info.version }); });
+  let sofort = false; // „Jetzt installieren“ gedrückt, bevor der Download fertig war
+  autoUpdater.on('update-downloaded', (info) => {
+    updateReady = true; send('downloaded', { version: info.version });
+    if (sofort) setTimeout(() => autoUpdater.quitAndInstall(false, true), 800);
+  });
   ipcMain.removeHandler('check-for-updates');
   ipcMain.handle('check-for-updates', () => {
     if (updateReady) { send('downloaded'); return { auto: true }; }
@@ -125,7 +129,14 @@ function setupAutoUpdater(win) {
     return { auto: true };
   });
   ipcMain.removeHandler('install-update');
-  ipcMain.handle('install-update', () => { if (updateReady) autoUpdater.quitAndInstall(); else shell.openExternal(RELEASES_URL); });
+  ipcMain.handle('install-update', () => {
+    // Fertig geladen: sofort neu starten und installieren, sonst laden und danach installieren
+    if (updateReady) { autoUpdater.quitAndInstall(false, true); return { ok: true }; }
+    sofort = true;
+    send('installing-after-download');
+    autoUpdater.checkForUpdates().catch((err) => { sofort = false; send('error', { message: err?.message || String(err) }); });
+    return { ok: true };
+  });
   setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 4000);
 }
 ipcMain.handle('check-for-updates', () => ({ auto: updaterAktiv }));
