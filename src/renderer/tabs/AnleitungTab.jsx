@@ -46,6 +46,7 @@ const KAPITEL = [
       "„🔗 Verbinden“ (Taste C): von Gerät zu Gerät ziehen. Switch-Ports übernehmen das VLAN des Endgeräts. Switch-zu-Switch-Verbindungen werden Trunks mit allen VLANs.",
       "„✥ Bewegen“ (Taste V): Geräte ziehen, der ganze Ast zieht mit. „↺ Auto-Layout“ setzt alles zurück, „⊟ Äste“ klappt Äste ein.",
       "Rechtsklick auf ein Gerät zeigt Ports, Verbindungen und IPs. Entf löscht die Auswahl.",
+      "Mausrad zoomt. Shift + Mausrad schiebt die Fläche hoch und runter, ⌘ (Mac) bzw. Strg (Windows) + Mausrad schiebt sie nach links und rechts.",
     ]} />
     <H>Frontplatten-Ansicht</H>
     <Bild id="topologie-frontplatten" text="Frontplatten: Switches mit echten Ports, Geräte als Karten an den Ports" />
@@ -73,6 +74,13 @@ const KAPITEL = [
       "„im Katalog speichern“ legt das Gerät als eigene Vorlage oder im Gerätebestand ab.",
     ]} />
     <Bild id="geraet-editor" text="Geräte-Editor in der Topologie" />
+    <H>Generische Geräte aus der Discovery</H>
+    <Bild id="geraet-generisch" text="Leere Maske eines gefundenen Geräts" />
+    <Liste items={[
+      "Geräte, die Discovery oder Netzwerkscan eingefügt haben, zeigen eine leere Maske mit IP, MAC, Protokollen und Fundhinweis.",
+      "„⇄ Modell zuweisen“ macht daraus ein Katalogmodell, eine eigene Vorlage oder ein Gerät aus dem Bestand.",
+      "„＋ Leeres Gerät anlegen“ fragt nur nach dem Gerätetyp (vorausgewählt ist der Vorschlag der Discovery) und öffnet danach den normalen Editor. Name, IP, MAC, Protokolle und Verbindungen bleiben.",
+    ]} />
   </> },
   { id: "vlans", titel: "VLANs", tab: ["vlans", "VLANs"], inhalt: () => <>
     <Bild id="vlans" text="VLAN mit Zweck und Switch-Schaltern" />
@@ -102,6 +110,13 @@ const KAPITEL = [
       "Online-Status: welche geplanten Geräte antworten. Netzwerkscan: ein Subnetz nach aktiven Adressen durchsuchen, gefundene IPs zeigen den Gerätenamen aus dem Plan.",
       "Switches (SNMP): Portstatus und Zähler der managed Switches lesen.",
       "Protokoll-Monitore für sACN, Art-Net, Dante, MA-Net, NDI, OSC, CITP und PTP-Clock hören im Netz mit. Das funktioniert nur in der Desktop-App und nur im selben Netz.",
+    ]} />
+    <H>Discovery: Geräte automatisch finden</H>
+    <Bild id="live-discovery" text="Discovery: gefundene Geräte, neu oder schon im Plan" />
+    <Liste items={[
+      "„▶ Geräte suchen“ startet die Monitore für Dante, NDI, Art-Net, sACN, CITP und MA-Net und fragt aktiv nach (ArtPoll, mDNS). „Subnetz scannen …“ ergänzt Geräte, die kein Showprotokoll sprechen.",
+      "Die Funde werden je IP zusammengeführt: Name im Netz, MAC, Protokolle, Quellen und ein Typvorschlag. „im Plan“ heißt, IP oder MAC stehen schon im Projekt.",
+      "„+ Einfügen“ bzw. „+ Alle neuen einfügen“ setzt neue Geräte als generische Einträge in den Plan. Danach im Editor „⇄ Modell zuweisen“ oder „＋ Leeres Gerät anlegen“.",
     ]} />
   </> },
   { id: "katalog", titel: "Katalog", tab: ["bibliothek", "Katalog"], inhalt: () => <>

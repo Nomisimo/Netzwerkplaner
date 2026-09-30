@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { S, OK, ERR, WARN, INFO, MUTED, SUB } from "../../shared/constants.js";
 import { compareScan, scanTargets } from "../../shared/live.js";
 import { inSubnet } from "../../shared/net.js";
-import { createDevice, newIface } from "../../shared/catalog.js";
+import { fundZuGeraet } from "../../shared/discovery.js";
 import { useMonitor } from "./store.js";
 import { Table, td, Hint, Empty, Pill, mono } from "./common.jsx";
 
@@ -37,15 +37,10 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
 
   const uebernehmen = (h) => {
     mutate((d) => {
-      const dev = createDevice({ typ: "sonstiges", vlans: d.vlans, name: (h.name || "").split(".")[0] || `Gerät ${h.ip}` });
-      let ifc = dev.interfaces[0];
-      if (!ifc) { ifc = newIface(); dev.interfaces.push(ifc); }
-      ifc.ip = h.ip; ifc.mac = h.mac || "";
-      const v = d.vlans.find((v) => v.subnetz && inSubnet(h.ip, v.subnetz));
-      if (v) ifc.vlan = v.id;
-      d.geraete.push(dev);
+      const ports = h.open || [];
+      d.geraete.push(fundZuGeraet({ ip: h.ip, mac: h.mac || "", name: String(h.name || "").replace(/\.local\.?$/i, "").split(".")[0], protokolle: [], typ: null, quellen: ["Scan"], ports }, d.vlans));
     });
-    notify?.(`${h.ip} als Gerät in den Plan übernommen.`);
+    notify?.(`${h.ip} als generisches Gerät in den Plan übernommen.`);
   };
 
   const pct = snap?.progress?.total ? Math.round((snap.progress.done / snap.progress.total) * 100) : 0;

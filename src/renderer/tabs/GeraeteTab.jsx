@@ -8,7 +8,7 @@ import DeviceEditor from "../DeviceEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
 
-export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, bestand }) {
+export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand }) {
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [vlan, setVlan] = useState(null);
@@ -96,7 +96,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
         <Section style={{ position: "sticky", top: 100, maxHeight: "calc(100vh - 120px)", overflowY: "auto" }}
           right={<button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}>✕</button>} title=" ">
           <DeviceEditor key={sel.id} P={P} X={X} dev={sel} mutate={mutate} status={status[sel.id]} onCheck={checkReach} issues={devIssues(sel.id)}
-            onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} bestand={bestand} />
+            onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />
         </Section>
       )}
     </div>

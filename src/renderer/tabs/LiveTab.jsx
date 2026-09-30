@@ -4,6 +4,7 @@ import { api, isElectron } from "../api.js";
 import { useMonitor } from "../live/store.js";
 import StatusView from "../live/StatusView.jsx";
 import ScanView from "../live/ScanView.jsx";
+import DiscoveryView from "../live/DiscoveryView.jsx";
 import SwitchView from "../live/SwitchView.jsx";
 import { SacnView, ArtnetView } from "../live/LichtViews.jsx";
 import { DanteView, NdiView, ManetView, OscView, CitpView, PtpView } from "../live/ProtokollViews.jsx";
@@ -11,6 +12,7 @@ import { DanteView, NdiView, ManetView, OscView, CitpView, PtpView } from "../li
 // Untertabs: [Schlüssel, Beschriftung, Monitor im Hauptprozess]
 const SUBS = [
   ["status", "Online-Status", null],
+  ["discovery", "Discovery", null],
   ["scan", "Netzwerkscan", "scan"],
   ["switch", "Switches (SNMP)", "snmp"],
   ["sacn", "sACN", "sacn"],
@@ -63,6 +65,7 @@ export default function LiveTab(props) {
 
       <div style={{ ...S.section, padding: 18 }}>
         {sub === "status" && <StatusView {...p} />}
+        {sub === "discovery" && <DiscoveryView {...p} />}
         {sub === "scan" && <ScanView {...p} />}
         {sub === "switch" && <SwitchView {...p} />}
         {sub === "sacn" && <SacnView {...p} />}

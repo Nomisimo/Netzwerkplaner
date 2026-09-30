@@ -3,6 +3,14 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.1] – 2026-09-30
+
+- Katalog: Cisco Catalyst 1300 C1300-24P-4X (24× 1 GbE PoE+, 195 W, 4× SFP+ 10G, Web-UI)
+- Topologie: Shift + Mausrad scrollt hoch und runter, ⌘/Strg + Mausrad nach links und rechts
+- Neu im Live-Tab: Discovery findet Geräte im Netz (Dante, NDI, Art-Net, sACN, CITP, MA-Net, dazu der Netzwerkscan) und fügt neue als generische Einträge mit IP, MAC und Name ein
+- Generische Geräte zeigen eine leere Maske mit nur zwei Wegen: „⇄ Modell zuweisen“ oder „＋ Leeres Gerät anlegen“ mit Typauswahl; IP, MAC, Protokolle und Verbindungen bleiben
+- Netzwerkscan: „+ In den Plan“ legt ebenfalls ein generisches Gerät an
+
 ## [0.5.0-beta.2] – 2026-09-30
 
 - macOS: Das Intel-DMG war beschädigt und ließ sich nicht öffnen (Fehler 3840). Jeder Mac-Build erzeugt jetzt nur noch sein DMG, und der Release prüft es vor dem Hochladen

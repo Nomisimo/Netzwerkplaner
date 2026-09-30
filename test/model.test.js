@@ -137,3 +137,13 @@ test("Modell zuweisen aus dem Bestand übernimmt feste IPs und Namen", async () 
   assert.equal(P.vlans.find((v) => v.id === d2.interfaces[0].vlan).vid, 20);
   assert.equal(P.verbindungen.filter((c) => c.a.dev === dev.id || c.b.dev === dev.id).length, nConn);
 });
+
+test("Cisco C1300-24P-4X im Katalog: 24 RJ45 und 4 SFP+", () => {
+  const k = KATALOG_GERAETE.find((g) => g.modell.includes("C1300-24P-4X"));
+  assert.ok(k, "Modell vorhanden");
+  const d = createDevice({ katalogId: k.id, vlans: [] });
+  assert.equal(d.isSwitch, true);
+  assert.equal(d.ports.filter((p) => p.typ === "RJ45").length, 24);
+  assert.equal(d.ports.filter((p) => p.typ === "SFP+").length, 4);
+  assert.ok(d.webUi?.vorhanden);
+});
