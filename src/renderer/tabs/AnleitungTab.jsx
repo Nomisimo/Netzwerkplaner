@@ -53,8 +53,10 @@ const KAPITEL = [
     <Liste items={[
       "📌 Anpinnen (Taste P oder Rechtsklick): das Gerät bleibt stehen, wenn sich die Anordnung durch neue Geräte oder Verbindungen ändert. Sein Ast wandert mit ihm. Klick auf die Nadel löst es wieder.",
       "„Auto-Anordnen“ aus: alle Geräte und Leitungen bleiben, wo sie sind, auch die nicht angepinnten. Ziehen verschiebt dann nur das eine Gerät. Wieder an: die automatische Anordnung gilt wieder, Pins bleiben.",
-      "„▤ Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Das ist keine Netzwerkverbindung. Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
+      "„▤ Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Zieht man es auf ein Gerät in einem Stapel oder auf den Stapelrahmen, kommt es oben in diesen Stapel. Der Stapel bleibt dabei an seinem Platz. Das ist keine Netzwerkverbindung. Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
       "Klick auf Rahmen oder Namen eines Stapels öffnet „Stapel bearbeiten“: Name, Reihenfolge (▲▼), Geräte hinzufügen oder lösen. „⧉ Duplizieren“ legt alle Geräte mit ihren Einstellungen und Verbindungen untereinander als neuen Stapel an (ohne IP- und MAC-Adressen). „⎘ Kopieren“ legt den Stapel in die Zwischenablage, „📋 Stapel einfügen“ in der Werkzeugleiste fügt ihn ein, auch in einem anderen Projekt.",
+      "Ein Stapel lässt sich als Ganzes anpinnen: „📌 Anpinnen“ im Stapel-Fenster, Taste P bei ausgewähltem Stapel oder Rechtsklick auf eines seiner Geräte. Vor dem Namen steht dann 📌.",
+      "Ein Gerät bekommt nur so viele Kabel, wie es Anschlüsse hat. Sind alle belegt, fragt „Verbinden“, welchen Anschluss du ersetzen willst; die alte Verbindung dort fällt weg. Mehr Ports gibt es nur im Editor mit „+ Port“.",
       "Verbindungen aufräumen: Verbindung anklicken und den roten Punkt in der Mitte ziehen. Doppelklick auf den Punkt setzt sie zurück.",
       "„🖼 Hintergrund“: ein Bild (Stage-Plot, Hallenplan) unter die Geräte legen, um sie in der Location zu verorten. Deckkraft und Größe einstellen, zum Platzieren „Bild mit der Maus verschieben“ einschalten. Das Bild kommt mit in den Export.",
     ]} />
@@ -71,7 +73,7 @@ const KAPITEL = [
       "„Linien: rund / eckig“: geschwungene oder rechtwinklige Verbindungslinien. Mehrere Kabel zwischen denselben Geräten liegen nebeneinander.",
       "„Kabel bündeln“ (nur bei eckigen Linien): an = Kabel teilen sich den Weg, parallele Kabel werden eine Linie mit Anzahl (z. B. 2×). Aus = jedes Kabel läuft einzeln auf eigener Spur.",
       "„Titel“: in den Kästen den Gerätenamen, den Netzwerknamen (Hostname), den Typ bzw. das Modell oder die Inventarnummer zeigen. Ohne Netzwerknamen steht dort der Typ.",
-      "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
+      "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports untereinander am Gerät, auch bei gebündelten Kabeln. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
       "„⟳ Status“ prüft alle Geräte mit IP (Web-UI-Port, sonst Ping). Mit „alle 15 s“ läuft das zyklisch, sofern der Rechner im selben Netz hängt.",
     ]} />
   </> },

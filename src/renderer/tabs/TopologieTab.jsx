@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
-import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection } from "../../shared/model.js";
+import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts } from "../../shared/model.js";
 import { layoutMindmap, NODE_W, NODE_H } from "../../shared/layout.js";
 import { SvgIcon, IconView } from "../icons.jsx";
 import { Toggle, VlanSelect, Dot } from "../ui.jsx";
@@ -11,10 +11,11 @@ import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { endInfo, portLabel, vlanKurz, vlanLang, geraeteTitel } from "../portinfo.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
-import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, stapeln, entstapeln, kabelSpuren } from "../../shared/anordnung.js";
+import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren } from "../../shared/anordnung.js";
 import { uid } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
 import StapelEditor from "../StapelEditor.jsx";
+import PortTauschen from "../PortTauschen.jsx";
 import { stapelEinfuegen } from "../../shared/konfig.js";
 import { useZwischenablage } from "../zwischenablage.js";
 
@@ -36,6 +37,7 @@ export default function TopologieTab(props) {
   const [ctx, setCtx] = useState(null);
   const [bgOpen, setBgOpen] = useState(false);
   const stapelClip = useZwischenablage("stapel");
+  const [tausch, setTausch] = useState(null); // { from, to, voll: [devId] } wenn Anschlüsse fehlen
   const titel = P.layout.titel || "name"; // Beschriftung der Knoten
   const setTitel = (t) => mutate((d) => { d.layout.titel = t; });
   const linien = P.layout.linien || "rund"; // Verbindungslinien: rund oder eckig
@@ -97,7 +99,9 @@ export default function TopologieTab(props) {
     if (an) { delete d.layout.fix; delete d.layout.fpFix; }
     else d.layout[fixKey] = positionenSichern(Lbase);
   });
-  const togglePin = (id) => mutate((d) => {
+  // Geräte im Stapel pinnen den ganzen Stapel (über das oberste Gerät, den Anker)
+  const togglePin = (id0) => mutate((d) => {
+    const id = stapelAnker(d.layout.stapel || [], id0);
     const m = { ...(d.layout[pinKey] || {}) };
     if (m[id]) delete m[id];
     else { const p = Lbase.pos.get(id); if (p) m[id] = { x: Math.round(p.x), y: Math.round(p.y) }; }
@@ -164,11 +168,37 @@ export default function TopologieTab(props) {
     if (drag.kind === "pan") setView((v) => ({ ...v, x: drag.vx + ddx, y: drag.vy + ddy })), moved !== drag.moved && setDrag({ ...drag, moved });
     else setDrag({ ...drag, dx: ddx / view.k, dy: ddy / view.k, moved });
   };
+  // Gerät oben auf einen Stapel legen. Der Stapel bleibt an seinem Platz: Das neue
+  // oberste Gerät übernimmt Pin, feste Position bzw. Lage des bisherigen Ankers.
+  const stapelOben = (neu, ziel) => mutate((d) => {
+    const vorher = d.layout.stapel || [];
+    const alt = stapelAnker(vorher, ziel);
+    d.layout.stapel = obenAufStapel(vorher, neu, ziel, uid());
+    if (alt === neu) return;
+    for (const k of ["pins", "fpPins", "fix", "fpFix"]) {
+      const m = d.layout[k];
+      if (!m?.[alt]) continue;
+      d.layout[k] = { ...m, [neu]: { ...m[alt] } };
+      if (k === "pins" || k === "fpPins") delete d.layout[k][alt];
+    }
+    if (!auto || pins[alt]) return;
+    const pa = Lbase.pos.get(alt);
+    const pn = stapelAnker(vorher, neu) !== neu ? Lroh?.pos.get(neu) : Lbase.pos.get(neu);
+    if (!pa || !pn) return;
+    const o = d.layout[offKey]?.[neu] || { dx: 0, dy: 0 };
+    d.layout[offKey] = { ...(d.layout[offKey] || {}), [neu]: { dx: Math.round(o.dx + pa.x - pn.x), dy: Math.round(o.dy + pa.y - pn.y) } };
+  });
   const onUp = (e) => {
     if (draw) {
-      const target = hitNode(toWorld(e));
+      const w = toWorld(e);
+      let target = hitNode(w);
+      // Im Stapel-Werkzeug zählt auch Rahmen oder Name eines Stapels als Ziel
+      if (!target && draw.tool === "stack") {
+        const sid = e.target?.closest?.("[data-stapel]")?.getAttribute("data-stapel");
+        target = (L.stapel || []).find((b) => b.id === sid || (w.x >= b.x && w.x <= b.x + b.w && w.y >= b.y && w.y <= b.y + b.h))?.ids[0] || null;
+      }
       if (target && target !== draw.from) {
-        if (draw.tool === "stack") mutate((d) => { d.layout.stapel = stapeln(d.layout.stapel || [], draw.from, target, uid()); });
+        if (draw.tool === "stack") stapelOben(draw.from, target);
         else connect(draw.from, target);
       }
       setDraw(null); setHover(null);
@@ -204,9 +234,15 @@ export default function TopologieTab(props) {
     setDrag(null);
   };
 
-  const connect = (fromId, toId) => {
+  const connect = (fromId, toId, ports = {}) => {
+    // Nur so viele Kabel, wie das Gerät Anschlüsse hat: sonst fragen, welcher ersetzt wird
+    const voll = [fromId, toId].filter((id) => !ports[id] && X.devById.get(id) && !freiePorts(P, X.devById.get(id)).length);
+    if (voll.length) { setTausch({ from: fromId, to: toId, voll }); return; }
     let newId = null;
-    mutate((d) => { newId = addConnection(d, fromId, toId); });
+    mutate((d) => {
+      for (const [dev, port] of Object.entries(ports)) d.verbindungen = d.verbindungen.filter((c) => !((c.a.dev === dev && c.a.port === port) || (c.b.dev === dev && c.b.port === port)));
+      newId = addConnection(d, fromId, toId, { portIdA: ports[fromId], portIdB: ports[toId] });
+    });
     if (newId) setSelection({ type: "conn", id: newId });
   };
 
@@ -238,6 +274,7 @@ export default function TopologieTab(props) {
       if (key === "c") setTool("connect");
       if (key === "s") setTool("stack");
       if (key === "p" && selection?.type === "dev") togglePin(selection.id);
+      if (key === "p" && selection?.type === "stapel") { const s0 = stapel.find((x) => x.id === selection.id); if (s0) togglePin(s0.ids[0]); }
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
@@ -313,8 +350,27 @@ export default function TopologieTab(props) {
   const kabelWeg = new Map();
   if (!front) for (const c of allConns) {
     let from = posOf(c.a.dev), to = posOf(c.b.dev), fromEnd = c.a, toEnd = c.b;
-    if (treeConnIds.has(c.id) && treeChildByConn.get(c.id) === c.a.dev) { [from, to] = [to, from]; [fromEnd, toEnd] = [toEnd, fromEnd]; }
+    if (treeConnIds.has(c.id) ? treeChildByConn.get(c.id) === c.a.dev : !X.devById.get(c.a.dev)?.isSwitch && X.devById.get(c.b.dev)?.isSwitch) { [from, to] = [to, from]; [fromEnd, toEnd] = [toEnd, fromEnd]; }
     kabelWeg.set(c.id, { from, to, fromEnd, toEnd });
+  }
+  // Mehrere Kabel am selben Gerät und auf derselben Seite: Port-Plaketten am Gerät untereinander
+  const plakettenReihe = new Map();
+  if (!front && showPorts) {
+    const gruppen = new Map();
+    for (const c of allConns) {
+      const { from, to, toEnd } = kabelWeg.get(c.id);
+      if (!from || !to) continue;
+      const seite = Math.abs(to.x - from.x) < NODE_W ? "v" + Math.sign(to.y - from.y) : "h" + Math.sign(to.x - from.x);
+      const k = toEnd.dev + "|" + seite;
+      if (!gruppen.has(k)) gruppen.set(k, []);
+      gruppen.get(k).push(c);
+    }
+    for (const liste of gruppen.values()) {
+      if (liste.length < 2) continue;
+      const ports = X.devById.get(kabelWeg.get(liste[0].id).toEnd.dev)?.ports || [];
+      const idx = (c) => ports.findIndex((p) => p.id === kabelWeg.get(c.id).toEnd.port);
+      liste.sort((a, b) => idx(a) - idx(b)).forEach((c, i) => plakettenReihe.set(c.id, { i, n: liste.length }));
+    }
   }
   const spuren = front ? new Map() : kabelSpuren(allConns.filter((c) => !knickOf(c)).map((c) => {
     const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
@@ -409,10 +465,10 @@ export default function TopologieTab(props) {
                 onMouseDown={(e) => { if (e.button || bgPos.fest !== false) return; e.stopPropagation(); setDrag({ kind: "bg", sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false }); }} />}
               {/* Stapel (grafische Gruppen, z. B. Rack oder Tower) */}
               {(L.stapel || []).map((b) => (
-                <g key={b.id} onMouseDown={(e) => onDown(e, b.ids[0], null, b.id)} style={{ cursor: "move" }}>
+                <g key={b.id} data-stapel={b.id} onMouseDown={(e) => onDown(e, b.ids[0], null, b.id)} style={{ cursor: "move" }}>
                   <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke={selection?.type === "stapel" && selection.id === b.id ? ACCENT : "#8a96a3"} strokeWidth={selection?.type === "stapel" && selection.id === b.id ? 2 : 1.2} strokeDasharray="5 4" />
                   <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill="#aeb8c2" style={{ cursor: "pointer" }}>
-                    ▤ {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
+                    {pins[b.ids[0]] ? "📌 " : ""}▤ {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
                   </text>
                 </g>
               ))}
@@ -448,8 +504,9 @@ export default function TopologieTab(props) {
                 // Baumkanten vom Elternknoten aus zeichnen
                 const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
                 const sp = spuren.get(c.id);
-                if (sp?.versteckt && selConn?.id !== c.id) return null; // gebündelt: parallele Kabel als eine Linie
                 const g = edgePath(from, to, knickOf(c), sp);
+                // gebündelt: parallele Kabel als eine Linie, die Port-Plaketten bleiben sichtbar
+                if (sp?.versteckt && selConn?.id !== c.id) return showPorts && plakettenReihe.has(c.id) ? <g key={c.id} style={{ cursor: "pointer" }} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}><PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} /></g> : null;
                 const st = edgeStyle(c);
                 const sel = selConn?.id === c.id;
                 const da = X.devById.get(c.a.dev), db = X.devById.get(c.b.dev);
@@ -461,7 +518,7 @@ export default function TopologieTab(props) {
                     <path d={g.d} stroke="transparent" strokeWidth="14" fill="none" />
                     {(sel || st.errs) && <path d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
-                    {showPorts && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} />}
+                    {showPorts && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} />}
                     {sp?.anzahl > 1 && <g><rect x={g.mx - 11} y={g.my - 8} width="22" height="16" rx="8" fill="#1b2026" stroke={st.color} /><text x={g.mx} y={g.my + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill="#e8eaed">{sp.anzahl}×</text><title>{sp.anzahl} Kabel gebündelt</title></g>}
                     {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill="#c8d0d8" textAnchor="middle">{c.label}</text>}
                     {knickGriff(c, g.mx, g.my)}
@@ -573,6 +630,7 @@ export default function TopologieTab(props) {
             {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
+          {tausch && <PortTauschen P={P} X={X} voll={tausch.voll} onClose={() => setTausch(null)} onOk={(w) => { const t = tausch; setTausch(null); connect(t.from, t.to, w); }} />}
           {bgOpen && <HintergrundPanel bg={bg} bounds={Lbase.bounds} onClose={() => setBgOpen(false)} onChange={(fn) => mutate((d) => { d.layout[bgKey] = fn(d.layout[bgKey] ? { ...d.layout[bgKey] } : null); })} />}
           {ctx && X.devById.get(ctx.id) && (() => {
             const d = X.devById.get(ctx.id);
@@ -580,7 +638,7 @@ export default function TopologieTab(props) {
             return <DeviceContextMenu P={P} X={X} dev={d} x={ctx.x} y={ctx.y} status={status[d.id]} issues={devIssues.get(d.id) || []} onClose={closeCtx}
               onEdit={() => setSelection({ type: "dev", id: d.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(d.id)}
               onSetRoot={d.isSwitch && P.layout.rootId !== d.id ? () => mutate((dd) => { dd.layout.rootId = d.id; }) : null}
-              pinned={!!pins[d.id]} onPin={() => togglePin(d.id)}
+              pinned={!!pins[stapelAnker(stapel, d.id)]} onPin={() => togglePin(d.id)}
               onUnstack={stapelVon(stapel, d.id) ? () => mutate((dd) => { dd.layout.stapel = entstapeln(dd.layout.stapel, d.id); }) : null}
               onEditStack={stapelVon(stapel, d.id) ? () => setSelection({ type: "stapel", id: stapelVon(stapel, d.id).id }) : null}
               collapsed={!!P.layout.collapsed?.[d.id]} onToggleCollapse={hasKids ? () => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [d.id]: !dd.layout.collapsed?.[d.id] }; }) : null} />;
@@ -596,7 +654,7 @@ export default function TopologieTab(props) {
           </div>
           {selDev && <DeviceEditor key={selDev.id} compact P={P} X={X} dev={selDev} mutate={mutate} status={status[selDev.id]} onCheck={checkReach}
             issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />}
-          {selStapel && <StapelEditor P={P} stapelId={selStapel.id} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
+          {selStapel && <StapelEditor P={P} stapelId={selStapel.id} pinned={!!pins[selStapel.ids[0]]} onPin={() => togglePin(selStapel.ids[0])} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
           {selConn && <ConnEditor P={P} X={X} conn={selConn} mutate={mutate} onDelete={onDeleteConn} issues={connIssues.get(selConn.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} />}
         </div>
       )}
@@ -623,7 +681,7 @@ const eckPfad = (x1, y1, x2, y2, dir, mid) => {
 /* Port- und VLAN-Plakette an einer Verbindung: sitzt am Geräte-Ende und zeigt,
    an welchem Switch-Port das Gerät steckt und welches VLAN dort anliegt. */
 const CW = 5.9; // geschätzte Zeichenbreite bei 10 px
-function PortBadge({ c, g, fromEnd, toEnd, X, extra }) {
+function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
   const a = endInfo(c, fromEnd, X), b = endInfo(c, toEnd, X);
   if (!a || !b) return null;
   const sw = a.sw ? a : b.sw ? b : null;
@@ -644,6 +702,10 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra }) {
   let x0, y0;
   if (vertical) { const dy = g.y2 >= g.y1 ? 1 : -1; x0 = g.x2 + 6; y0 = g.y2 - dy * 20 - 7; }
   else { x0 = dir > 0 ? g.x2 - 8 - total : g.x2 + 8; y0 = extra ? g.y2 + 5 : g.y2 - 18; } // Querverbindungen unter die Linie, damit sie die Baumkante nicht verdecken
+  if (reihe && ziel) { // mehrere Kabel an diesem Gerät: Plaketten untereinander neben dem Gerät
+    if (vertical) y0 = g.y2 - (g.y2 >= g.y1 ? 1 : -1) * (20 + reihe.i * 16) - 7;
+    else y0 = ziel.y - (reihe.n * 16) / 2 + reihe.i * 16 + 1;
+  }
   const tip = [
     sw ? `${sw.dev.name} · Port ${sw.port.name} (${sw.port.typ}${sw.port.poe ? ", PoE" : ""})` : `${a.dev.name} · ${a.port.name}`,
     `→ ${ep.dev.name} · ${ep.port.name}${ep.ifc?.ip ? ` (${ep.ifc.ip})` : ""}`,

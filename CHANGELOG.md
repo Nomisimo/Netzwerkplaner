@@ -3,6 +3,14 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.9] – 2026-09-30
+
+- Verbindungen: Ein Gerät bekommt nur so viele Kabel, wie es Anschlüsse hat. Bisher legte die App beim Verbinden einfach neue Ports an
+- Sind alle Anschlüsse belegt, fragt die App, welcher ersetzt werden soll. Im Verbindungs-Editor gibt es vor dem Wechsel auf einen belegten Port eine Rückfrage
+- Stapel lassen sich als Ganzes anpinnen: „📌 Anpinnen“ im Stapel-Fenster, Taste P bei ausgewähltem Stapel oder Rechtsklick auf ein Gerät im Stapel
+- Stapeln: Ein Gerät, das auf einen bestehenden Stapel (Gerät, Rahmen oder Name) gezogen wird, kommt oben in diesen Stapel. Bisher wurden die Geräte herausgelöst und ein neuer Stapel angelegt
+- Topologie: Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports mit VLAN untereinander am Gerät, auch bei gebündelten Kabeln. Bisher lagen zusätzliche Plaketten am Switch übereinander
+
 ## [0.6.0-beta.8] – 2026-09-30
 
 - Katalog: Beim Anlegen eines Geräts oder einer Vorlage direkt ein neues VLAN anlegen und allen Ports oder einem Interface zuweisen

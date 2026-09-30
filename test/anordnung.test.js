@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { anordnen, stapeln, entstapeln, stapelAnker, positionenSichern, knickPfad } from "../src/shared/anordnung.js";
+import { anordnen, stapeln, obenAufStapel, entstapeln, stapelAnker, positionenSichern, knickPfad } from "../src/shared/anordnung.js";
 import { NODE_H } from "../src/shared/layout.js";
 
 const L = () => ({ pos: new Map([["core", { x: 0, y: 0 }], ["sw", { x: 300, y: 0 }], ["a", { x: 600, y: -40 }], ["b", { x: 600, y: 40 }]]), bounds: {} });
@@ -62,4 +62,15 @@ test("Kabel: einzeln auf eigenen Spuren, gebündelt als eine Linie", async () =>
   const pa = kabelSpuren(k, "paare");
   assert.equal(pa.get("a").start, 0);
   assert.equal(pa.get("b").start, -pa.get("c").start);
+});
+
+test("Stapeln: gezogenes Gerät kommt oben in den bestehenden Stapel", () => {
+  let st = [{ id: "s1", name: "Rack", ids: ["a", "b"] }, { id: "s2", name: "", ids: ["x", "y"] }];
+  st = obenAufStapel(st, "c", "b", "neu");
+  assert.deepEqual(st.find((s) => s.id === "s1"), { id: "s1", name: "Rack", ids: ["c", "a", "b"] });
+  st = obenAufStapel(st, "x", "a", "neu"); // x verlässt s2, s2 löst sich auf
+  assert.deepEqual(st, [{ id: "s1", name: "Rack", ids: ["x", "c", "a", "b"] }]);
+  st = obenAufStapel(st, "b", "c", "neu"); // innerhalb des Stapels nach oben
+  assert.deepEqual(st[0].ids, ["b", "x", "c", "a"]);
+  assert.deepEqual(obenAufStapel([], "p", "q", "n1"), [{ id: "n1", name: "", ids: ["p", "q"] }]);
 });

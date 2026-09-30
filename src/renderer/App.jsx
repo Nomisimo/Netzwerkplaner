@@ -197,7 +197,7 @@ export default function App() {
     if (!item || usePicker) { setPicker({ connectTo }); return null; }
     const vorlage = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
       : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
-    let id = null, konflikte = [], neueVlans = [];
+    let id = null, konflikte = [], neueVlans = [], voll = null;
     mutate((d) => {
       const vorher = new Set(d.vlans.map((v) => v.id));
       const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
@@ -219,10 +219,11 @@ export default function App() {
       d.geraete.push(dev);
       id = dev.id;
       neueVlans = d.vlans.filter((v) => !vorher.has(v.id)).map((v) => `${v.vid} ${v.name}`);
-      if (parent) addConnection(d, parent.id, dev.id);
+      if (parent && !addConnection(d, parent.id, dev.id)) voll = parent.name;
       else if (at) d.layout.pinned = { ...(d.layout.pinned || {}), [dev.id]: at };
     });
     if (konflikte.length) notify(`Gerät eingefügt. IP bereits belegt: ${konflikte.join(", ")} – siehe Prüfung.`, "err");
+    else if (voll) notify(`Gerät hinzugefügt, aber nicht verbunden: „${voll}“ hat keinen freien Anschluss mehr. Zum Ersetzen im Werkzeug „Verbinden“ ziehen.`, "warn");
     else notify((item.kind === "bestand" ? "Gerät aus dem Bestand eingefügt (mit IPs)." : "Gerät hinzugefügt.") + (neueVlans.length ? ` Neues VLAN angelegt: ${neueVlans.join(", ")}.` : ""));
     return id;
   }, [library, mutate]);

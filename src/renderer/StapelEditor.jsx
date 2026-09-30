@@ -9,7 +9,7 @@ import { ablegen, useZwischenablage } from "./zwischenablage.js";
 
 /* Bearbeitungsfenster eines Stapels (Rack, Tower): Name, Reihenfolge,
    Geräte hinzufügen oder lösen, kopieren, duplizieren, Konfiguration in alle einfügen. */
-export default function StapelEditor({ P, stapelId, mutate, onSelectDevice, onSelectStapel, onClose }) {
+export default function StapelEditor({ P, stapelId, mutate, onSelectDevice, onSelectStapel, onClose, pinned, onPin }) {
   const s = (P.layout.stapel || []).find((x) => x.id === stapelId);
   const konfigClip = useZwischenablage("konfig");
   const [konfigDlg, setKonfigDlg] = useState(false);
@@ -35,6 +35,7 @@ export default function StapelEditor({ P, stapelId, mutate, onSelectDevice, onSe
       </Field>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+        {onPin && <button style={{ ...S.smallBtn, ...(pinned ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={onPin} title="Taste P · Der ganze Stapel bleibt stehen, wenn sich die Anordnung ändert. Ziehen verschiebt ihn trotzdem.">{pinned ? "📌 Angepinnt" : "📌 Anpinnen"}</button>}
         <button style={S.smallBtn} onClick={duplizieren} title="Alle Geräte des Stapels mit ihren Einstellungen und den Verbindungen untereinander als neuen Stapel anlegen (ohne IP- und MAC-Adressen)">⧉ Duplizieren</button>
         <button style={S.smallBtn} onClick={() => { const c = stapelAus(P, stapelId); if (c) { ablegen(c); setKopiert(true); setTimeout(() => setKopiert(false), 1500); } }}
           title="Stapel in die Zwischenablage. Einfügen in der Werkzeugleiste mit „📋 Stapel einfügen“, auch in einem anderen Projekt.">{kopiert ? "✓ Kopiert" : "⎘ Kopieren"}</button>
