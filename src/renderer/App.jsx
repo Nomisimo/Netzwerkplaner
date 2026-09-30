@@ -24,6 +24,10 @@ const APP_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(APP_ICON_SVG)}`;
 import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } from "../shared/version.js";
 import AnleitungTab from "./tabs/AnleitungTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
+import SitzungDialog from "./SitzungDialog.jsx";
+import { useSitzung } from "./sync.js";
+import { diff, apply, invert, valueAt, pathKey } from "../shared/ops.js";
+import { removeDevice } from "../shared/invarianten.js";
 
 
 const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
@@ -36,7 +40,7 @@ const loadAutosave = () => {
 export default function App() {
   const [P, setP] = useState(loadAutosave);
   const Pref = useRef(P);
-  const hist = useRef({ undo: [], redo: [] });
+  const hist = useRef({ undo: [], redo: [] }); // Transaktionen als Operationen (nur eigene Änderungen)
   const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || t === "patch" || t === "analyse" ? "projekt" : t; });
   const [selection, setSelection] = useState(null);
   const [picker, setPicker] = useState(null); // { connectTo }
@@ -65,23 +69,57 @@ export default function App() {
   const svgRef = useRef(null);
 
   const notify = (msg, kind = "ok") => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200); };
+  const sitzung = useSitzung({ Pref, setP, notify, version });
+  const [showSitzung, setShowSitzung] = useState(false);
+  // Projekt ersetzen geht nur außerhalb einer Sitzung
+  // Neue Sitzung: eigene Undo-Schritte von vorher passen nicht zum Stand der Sitzung
+  useEffect(() => { hist.current = { undo: [], redo: [] }; }, [sitzung.zustand?.info?.id]);
+  const sitzungVerlassenOk = () => {
+    if (!sitzung.zustand) return true;
+    if (!confirm("Dafür musst du die gemeinsame Sitzung verlassen. Dein aktueller Stand bleibt als lokale Kopie. Verlassen?")) return false;
+    sitzung.verlassen();
+    return true;
+  };
 
   /* ── Zustand ändern (synchron, mit Undo) ─────────────────────────────── */
   const mutate = useCallback((fn) => {
-    const next = clone(Pref.current);
+    const prev = Pref.current;
+    const next = clone(prev);
     fn(next);
-    hist.current.undo.push(Pref.current);
-    if (hist.current.undo.length > 80) hist.current.undo.shift();
-    hist.current.redo = [];
+    const ops = diff(prev, next);
+    if (!ops.length) return;
+    // Tippen in dasselbe Feld innerhalb kurzer Zeit ist ein Undo-Schritt
+    const h = hist.current, last = h.undo[h.undo.length - 1], jetzt = Date.now();
+    const einFeld = (o) => o.length === 1 && o[0].op === "set";
+    if (last && einFeld(ops) && einFeld(last.ops) && jetzt - last.t < 1500 && pathKey(ops[0].path) === pathKey(last.ops[0].path)) { last.ops = [{ ...ops[0], old: last.ops[0].old }]; last.t = jetzt; }
+    else { h.undo.push({ ops, t: jetzt }); if (h.undo.length > 80) h.undo.shift(); }
+    h.redo = [];
     Pref.current = next;
     setP(next);
+    sitzung.senden(ops);
   }, []);
   const replaceProject = useCallback((next, keepHistory) => {
     if (!keepHistory) hist.current = { undo: [], redo: [] };
     Pref.current = next; setP(next); setSelection(null); setStatus({});
   }, []);
-  const undo = () => { const h = hist.current; if (!h.undo.length) return; h.redo.push(Pref.current); const p = h.undo.pop(); Pref.current = p; setP(p); };
-  const redo = () => { const h = hist.current; if (!h.redo.length) return; h.undo.push(Pref.current); const p = h.redo.pop(); Pref.current = p; setP(p); };
+  // Undo/Redo nimmt nur eigene Änderungen zurück. Felder, die inzwischen jemand anderes geändert hat, bleiben.
+  const schritt = (von, nach) => {
+    const e = von.pop();
+    if (!e) return;
+    const cur = Pref.current;
+    const inv = invert(e.ops);
+    // `old` des inversen Ops ist der Wert, den wir damals geschrieben haben; steht dort etwas anderes, hat es jemand geändert
+    const ok = inv.filter((o) => (o.op !== "set" && o.op !== "del") || JSON.stringify(valueAt(cur, o.path)) === JSON.stringify(o.old));
+    const next = clone(cur);
+    const verworfen = apply(next, ok).length + inv.length - ok.length;
+    const angewendet = diff(cur, next);
+    nach.push({ ops: angewendet, t: 0 });
+    Pref.current = next; setP(next);
+    sitzung.senden(angewendet);
+    if (verworfen) notify(`${inv.length - verworfen} von ${inv.length} Änderungen zurückgenommen, der Rest wurde inzwischen von anderen geändert.`, "warn");
+  };
+  const undo = () => schritt(hist.current.undo, hist.current.redo);
+  const redo = () => schritt(hist.current.redo, hist.current.undo);
 
   useEffect(() => {
     const k = (e) => {
@@ -206,6 +244,15 @@ export default function App() {
     if (!item || usePicker) { setPicker({ connectTo }); return null; }
     const vorlage = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
       : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
+    if (sitzung.aktiv) { // In der Sitzung vergibt der Server Namen, Port und IDs
+      sitzung.intent("addDevice", { item: { kind: item.kind, key: item.key, objekt: vorlage }, connectTo, at }).then((r) => {
+        setSelection({ type: "dev", id: r.id });
+        if (r.konflikte?.length) notify(`Gerät eingefügt. IP bereits belegt: ${r.konflikte.join(", ")} – siehe Prüfung.`, "err");
+        else if (r.voll) notify(`Gerät hinzugefügt, aber nicht verbunden: „${r.voll}“ hat keinen freien Anschluss mehr.`, "warn");
+        else notify("Gerät hinzugefügt." + (r.neueVlans?.length ? ` Neues VLAN angelegt: ${r.neueVlans.join(", ")}.` : ""));
+      }).catch(() => {});
+      return null;
+    }
     let id = null, konflikte = [], neueVlans = [], voll = null;
     mutate((d) => {
       const vorher = new Set(d.vlans.map((v) => v.id));
@@ -242,6 +289,12 @@ export default function App() {
     const quelle = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
       : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
     const ausBestand = item.kind === "bestand" && !!quelle;
+    if (sitzung.aktiv) {
+      sitzung.intent("umbauen", { dev: devId, item: { kind: item.kind, key: item.key, objekt: quelle } }).then((r) => {
+        notify(r.konflikte?.length ? `Übernommen. IP bereits vergeben: ${r.konflikte.join(", ")}` : "Modell übernommen. Name, IPs und Verbindungen sind geblieben.", r.konflikte?.length ? "warn" : "ok");
+      }).catch(() => {});
+      return;
+    }
     let konflikte = [];
     mutate((d) => {
       const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: quelle, mitAdressen: ausBestand });
@@ -259,12 +312,8 @@ export default function App() {
   const deleteDevice = useCallback((id) => {
     const d = Pref.current.geraete.find((g) => g.id === id);
     if (!d || !confirm(`„${d.name}“ und alle Verbindungen löschen?`)) return;
-    mutate((p) => {
-      p.geraete = p.geraete.filter((g) => g.id !== id);
-      p.verbindungen = p.verbindungen.filter((c) => c.a.dev !== id && c.b.dev !== id);
-      if (p.layout.rootId === id) p.layout.rootId = null;
-      delete p.layout.offsets[id];
-    });
+    if (sitzung.aktiv) sitzung.intent("loescheGeraete", { ids: [id] }).catch(() => {});
+    else mutate((p) => removeDevice(p, id)); // räumt auch Stapel, Positionen, Knicke und Stromziele auf
     setSelection(null);
   }, [mutate]);
   const deleteConn = useCallback((id) => {
@@ -336,15 +385,15 @@ export default function App() {
       notify(`„${r.name}“ geöffnet.`);
     } catch (e) { notify("Datei konnte nicht gelesen werden: " + e.message, "err"); }
   };
-  const openProject = async () => loadFromFile(await api.openProject());
-  const openRecent = async (p) => { setShowRecents(false); loadFromFile(await api.openRecent(p)); };
+  const openProject = async () => { if (sitzungVerlassenOk()) loadFromFile(await api.openProject()); };
+  const openRecent = async (p) => { setShowRecents(false); if (sitzungVerlassenOk()) loadFromFile(await api.openRecent(p)); };
   const save = async (saveAs) => {
     const json = JSON.stringify({ ...Pref.current, gespeichert: new Date().toISOString(), app: `Netzwerkplaner ${version}` }, null, 1);
     const r = await api.saveProject(json, fileBase(Pref.current), saveAs ? null : filePath);
     if (r) { setFilePath(r.filePath || null); if (r.recents) setRecents(r.recents); notify(`Gespeichert${r.filePath ? ": " + r.filePath : ""}`); }
   };
-  const newProject = () => { if (confirm("Neues leeres Projekt beginnen? Nicht gespeicherte Änderungen gehen verloren.")) { replaceProject(emptyProject()); setFilePath(null); setTab("projekt"); } };
-  const loadDemo = () => { if (P.geraete.length && !confirm("Aktuelles Projekt durch das Beispielprojekt ersetzen?")) return; replaceProject(demoProject()); setFilePath(null); setTab("topologie"); };
+  const newProject = () => { if (sitzungVerlassenOk() && confirm("Neues leeres Projekt beginnen? Nicht gespeicherte Änderungen gehen verloren.")) { replaceProject(emptyProject()); setFilePath(null); setTab("projekt"); } };
+  const loadDemo = () => { if (!sitzungVerlassenOk()) return; if (P.geraete.length && !confirm("Aktuelles Projekt durch das Beispielprojekt ersetzen?")) return; replaceProject(demoProject()); setFilePath(null); setTab("topologie"); };
 
   /* ── Exporte ────────────────────────────────────────────────────────── */
   const needTopo = async () => {
@@ -383,6 +432,9 @@ export default function App() {
         <span style={{ fontSize: 10, color: "#555" }} title="Automatisch gespeichert">💾 auto</span>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={undo} title="Rückgängig (Strg+Z)" disabled={!hist.current.undo.length}>↶</button>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={redo} title="Wiederholen (Strg+Umschalt+Z)" disabled={!hist.current.redo.length}>↷</button>
+        <button style={{ ...S.ghostBtn, ...(sitzung.zustand ? { borderColor: sitzung.zustand.veraltet ? ERR : sitzung.zustand.status === "online" ? "#2ecc71" : WARN } : {}) }} onClick={() => setShowSitzung(true)} title="Gemeinsam arbeiten über den Planer-Server">
+          👥 {sitzung.zustand ? (sitzung.zustand.veraltet ? "Sitzung beendet" : `${sitzung.zustand.users?.length || 0} online${sitzung.zustand.ausstehend ? ` · ${sitzung.zustand.ausstehend} ausstehend` : ""}`) : "Sitzung"}
+        </button>
         <button style={S.ghostBtn} onClick={openProject}>↥ Öffnen</button>
         {isElectron && <div style={{ position: "relative" }}>
           <button style={{ ...S.ghostBtn, padding: "4px 5px" }} title="Zuletzt geöffnet" onClick={() => setShowRecents((v) => !v)}>⏱</button>
@@ -454,6 +506,7 @@ export default function App() {
         </div>
         {Object.entries(CHANGELOG).map(([v, items]) => <div key={v}><div className="sp-section-label">Version {v}{v === version ? " (installiert)" : ""}</div><ul style={{ margin: "0 0 12px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13 }}>{items.map((t, i) => <li key={i}>{t}</li>)}</ul></div>)}
       </Modal>}
+      {showSitzung && <SitzungDialog sitzung={sitzung} projektName={P.meta.veranstaltung} onClose={() => setShowSitzung(false)} onKopieSpeichern={() => save(true)} />}
       {toast && <div style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", background: "#1b2026", border: `1px solid ${toast.kind === "err" ? ERR : toast.kind === "warn" ? WARN : ACCENT}`, color: "#e8eaed", padding: "9px 16px", borderRadius: 8, fontSize: 13, zIndex: 2000, boxShadow: "0 8px 24px rgba(0,0,0,.5)", maxWidth: "80vw" }}>{toast.msg}</div>}
     </div>
   );
