@@ -17,7 +17,7 @@ const Row = ({ k, children }) => (
 const Head = ({ children }) => <div style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: SUB, margin: "10px 0 4px", fontWeight: 700 }}>{children}</div>;
 
 /* Kontextmenü (Rechtsklick) mit allen wichtigen Infos zu einem Gerät */
-export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = [], onClose, onEdit, onCheck, onDelete, onSetRoot, onToggleCollapse, collapsed }) {
+export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = [], onClose, onEdit, onCheck, onDelete, onSetRoot, onToggleCollapse, collapsed, pinned, onPin, onUnstack }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ left: x, top: y });
   const [kopiert, setKopiert] = useState("");
@@ -138,6 +138,8 @@ export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = []
         {ip && <button style={S.smallBtn} onClick={() => copy(ip, "main")}>{kopiert === "main" ? "✓ kopiert" : "IP kopieren"}</button>}
         {onCheck && ip && <button style={S.smallBtn} onClick={act(() => onCheck([dev.id]))}>⟳ Status</button>}
         {onToggleCollapse && <button style={S.smallBtn} onClick={act(onToggleCollapse)}>{collapsed ? "Ast ausklappen" : "Ast einklappen"}</button>}
+        {onPin && <button style={S.smallBtn} onClick={act(onPin)} title="Angepinnte Geräte bleiben beim automatischen Anordnen stehen (Taste P)">{pinned ? "📌 Lösen" : "📌 Anpinnen"}</button>}
+        {onUnstack && <button style={S.smallBtn} onClick={act(onUnstack)}>▤ Aus Stapel lösen</button>}
         {onSetRoot && <button style={S.smallBtn} onClick={act(onSetRoot)}>Als Core</button>}
         <span style={{ flex: 1 }} />
         {onDelete && <button style={{ ...S.dangerBtn, padding: "3px 8px" }} onClick={act(onDelete)}>Löschen</button>}
