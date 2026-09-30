@@ -69,6 +69,8 @@ Katalog und Protokolle stammen aus dem Projektordner (`hardware/geraete.json`, `
 npm run import-data -- /pfad/zum/projektordner
 ```
 
+Gegen Datenblätter geprüfte Werte stehen in `src/shared/data/katalog-korrekturen.json` (mit Quelle je Gerät). Der Import legt sie automatisch über die Rohdaten; nach einer Änderung nur an dieser Datei reicht `npm run korrekturen`.
+
 Die Prüfregeln (Multicast → IGMP, Punkt-zu-Punkt, nur L2 …) werden aus den Spalten der Protokolltabelle abgeleitet und wachsen damit automatisch mit.
 
 > Hinweis: Viele Katalog- und Protokollwerte stammen aus Fachwissen und sind nicht datenblattgeprüft (Spalte „Datenstand“ bzw. „Hinweis“). Vor dem Einsatz gegen die Herstellerdoku prüfen.

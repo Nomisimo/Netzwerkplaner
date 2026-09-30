@@ -1,0 +1,214 @@
+{
+ "hinweis": "Gegen Datenblätter geprüfte Werte. Werden nach jedem Import (npm run import-data) über die Katalogdaten gelegt, damit sie nicht verloren gehen. Anwenden ohne Import: npm run korrekturen",
+ "stand": "2026-09-30",
+ "korrekturen": [
+  {
+   "Hersteller": "MA Lighting", "Modell": "grandMA3 xPort Node 4Port / 8Port",
+   "felder": {
+    "Netzwerkports (Anzahl)": "1",
+    "Netzwerkports (Details)": "1× etherCON",
+    "PoE": "Ja (PD, IEEE 802.3af, max. 12 W; alternativ 100–240 V AC)",
+    "Hinweis": "Nur ein Netzwerkport, kein Durchschleifen"
+   },
+   "Quelle": "https://help.malighting.com/grandMA3/2.3/HTML/key_xport_nodes_technical_data-1.html"
+  },
+  {
+   "Hersteller": "MA Lighting", "Modell": "MA 4Port Node / MA 8Port Node (inkl. onPC)",
+   "felder": { "Netzwerkports (Details)": "1× etherCON 1 GbE (MA-Net2/Art-Net/sACN)" },
+   "Quelle": "https://malighting.com/product-archive/product/ma-8port-node-onpc-130214/"
+  },
+  {
+   "Hersteller": "MA Lighting", "Modell": "grandMA2 replay unit",
+   "felder": {},
+   "Quelle": "https://malighting.com/product-archive/product/grandma2-replay-unit-120115/"
+  },
+  {
+   "Hersteller": "MA Lighting", "Modell": "MA VPU (basic / light / plus)",
+   "felder": {
+    "Netzwerkports (Anzahl)": "2",
+    "Netzwerkports (Details)": "2× etherCON 1 GbE (alle Varianten gleich)"
+   },
+   "Quelle": "https://help2.malighting.com/Page/grandMA2/comparison-VPU-plus-VPU-basic-VPU-light/en/3.9"
+  },
+  {
+   "Hersteller": "MA Lighting", "Modell": "dot2 Node4",
+   "felder": { "PoE": "Nein (Netzteil 120/230 V)" },
+   "Quelle": "https://www.malighting.com/product-archive/product/dot2-node4-1k-130215/"
+  },
+  {
+   "Hersteller": "Luminex", "Modell": "GigaCore 26i (Gen1)",
+   "felder": {
+    "Netzwerkports (Details)": "24× RJ45 1 GbE, 2× SFP 1 GbE (dazu 4 Combo-Ports 21–24 wahlweise RJ45 oder SFP, also 6 SFP-Schächte)",
+    "Hinweis": "26 Ports gleichzeitig nutzbar: 24 RJ45 + 2 SFP oder 20 RJ45 + 6 SFP"
+   },
+   "Quelle": "https://acamericas.com/products/gigacore-26i/"
+  },
+  {
+   "Hersteller": "Luminex", "Modell": "GigaCore 18t",
+   "felder": {},
+   "Quelle": "https://luminex.be/?p=18091"
+  },
+  {
+   "Hersteller": "Luminex", "Modell": "GigaCore 16Xt (Gen1)",
+   "felder": { "Hinweis": "PoE über optionales Netzteilmodul, bis 160 W verteilt auf die 10 Frontports" },
+   "Quelle": "https://www.avbroadcast.fr/media/productfile/l/u/luminex-gigacora14r-brochure.pdf"
+  },
+  {
+   "Hersteller": "Luminex", "Modell": "GigaCore 12 / 14R (Gen1)",
+   "felder": { "Hinweis": "PoE über optionales Netzteilmodul, bis 160 W verteilt auf die 10 Frontports" },
+   "Quelle": "https://www.avbroadcast.fr/media/productfile/l/u/luminex-gigacora14r-brochure.pdf"
+  },
+  {
+   "Hersteller": "Luminex", "Modell": "GigaCore 16RFO (Gen1)",
+   "felder": { "Hinweis": "PoE über optionales Netzteilmodul, bis 160 W verteilt auf die 10 Frontports" },
+   "Quelle": "https://www.avbroadcast.fr/media/productfile/l/u/luminex-gigacora14r-brochure.pdf"
+  },
+  {
+   "Hersteller": "Luminex", "Modell": "Ethernet-DMX2 / Ethernet-DMX8 MKII (Legacy)",
+   "felder": {
+    "Netzwerkports (Anzahl)": "2 (DMX8 MkII)",
+    "Netzwerkports (Details)": "DMX8 MkII: 2× etherCON 100 Mbit (vorne und hinten)",
+    "PoE": "Ja (PD, nur mit optionalem PoE-Modul LU 01 00046)",
+    "Hinweis": "Werte für die DMX8 MkII geprüft, DMX2 nicht"
+   },
+   "Quelle": "https://www.luminex.be/product/ethernet-dmx8-mkii/"
+  },
+  {
+   "Hersteller": "Cisco", "Modell": "SG350-10P / SG350-10MP / SG350-28P (Bestand)",
+   "felder": {
+    "Netzwerkports (Details)": "SG350-10P/-10MP: 8× RJ45 1 GbE PoE+, 2× Combo (RJ45/SFP 1G); SG350-28P: 24× RJ45 1 GbE PoE+, 4× SFP 1G (2 davon Combo)",
+    "PoE": "Ja (PSE, PoE+; 10P 62 W, 10MP 124 W, 28P 195 W)",
+    "PoE-Budget W": "62",
+    "Hinweis": "Budget-Wert gilt für die SG350-10P, bei anderen Varianten im Gerät anpassen"
+   },
+   "Quelle": "https://www.cisco.com/c/zh_tw/support/smb/product-support/small-business/switches-sg350-comparison.html"
+  },
+  {
+   "Hersteller": "Cisco", "Modell": "Catalyst IE3300-8P2S / IE3300-8T2S",
+   "felder": {
+    "PoE": "Ja (PSE, PoE/PoE+, nur 8P2S: 240 W, 360 W mit Erweiterungsmodul; Netzteil muss reichen)",
+    "PoE-Budget W": "240"
+   },
+   "Quelle": "https://www.cisco.com/c/en/us/products/collateral/switches/catalyst-ie3300-rugged-series/catalyst-ie3300-rugged-series-ds.html"
+  },
+  {
+   "Hersteller": "Yamaha", "Modell": "DM3 / DM3 Standard",
+   "felder": {
+    "Netzwerkports (Details)": "DM3: 2× etherCON (Dante Pri/Sec), 1× RJ45 Network; DM3 Standard: 1× RJ45 Network"
+   },
+   "Quelle": "https://manual.yamaha.com/pa/mixers/dm3/rm/en-US/6203378827.html"
+  },
+  {
+   "Hersteller": "Yamaha", "Modell": "RIVAGE PM5 / PM3 (mit DSP-RX / DSP-RX-EX)",
+   "felder": {
+    "Netzwerkports (Details)": "Dante über HY144-D (2× etherCON Pri/Sec), 1× RJ45 Network, 2× RJ45 Konsolen-Ring (Pult–DSP-Engine)",
+    "Hinweis": "Der Konsolen-Ring (CONSOLE NETWORK) ist die direkte Ring-Verbindung zwischen Pult und DSP-Engine, nicht über den Switch führen"
+   },
+   "Quelle": "https://manual.yamaha.com/pa/mixers/RIVAGE_PM_series/en-US/6348510347.html"
+  },
+  {
+   "Hersteller": "Yamaha", "Modell": "RUio16-D",
+   "felder": {
+    "Netzwerkports (Anzahl)": "2",
+    "Netzwerkports (Details)": "2× etherCON (Dante Pri/Sec)",
+    "PoE": "Nein (Versorgung 5 V / 1,5 A)"
+   },
+   "Quelle": "https://usa.yamaha.com/products/proaudio/interfaces/r_series_usb/specs.html"
+  },
+  {
+   "Hersteller": "Yamaha", "Modell": "PC-D / PC-DI (z. B. PC412-DI, PC406-D)",
+   "felder": {
+    "Netzwerkports (Anzahl)": "3",
+    "Netzwerkports (Details)": "2× etherCON (Dante Pri/Sec; PC-DI: RJ45), 1× RJ45 Network",
+    "Hinweis": "NETWORK-Port für ProVisionaire; Dante-Ports bei PC-D als etherCON, bei PC-DI als RJ45"
+   },
+   "Quelle": "https://manual.yamaha.com/pa/power_amps/pc-d_di/en/02_function_en.html"
+  },
+  {
+   "Hersteller": "Yamaha", "Modell": "DME7",
+   "felder": {
+    "Netzwerkports (Anzahl)": "3",
+    "Netzwerkports (Details)": "2× etherCON (Dante Pri/Sec), 1× RJ45 Network (10/100)",
+    "Hinweis": "Zusätzlich DCP-Buchse für Wandbedienfelder (kein Ethernet-Netz)"
+   },
+   "Quelle": "https://manual.yamaha.com/pa/processor/dme7/en/02_function_en.html"
+  },
+  {
+   "Hersteller": "Yamaha", "Modell": "SWR2310-10G / -18GT / -28GT",
+   "felder": {
+    "Netzwerkports (Details)": "SWR2310-10G: 8× RJ45 1 GbE, 2× SFP 1G; SWR2310-18GT: 16× RJ45 1 GbE, 2× SFP+ 10G; SWR2310-28GT: 24× RJ45 1 GbE, 4× SFP+ 10G",
+    "PoE": "Nein"
+   },
+   "Quelle": "https://au.yamaha.com/en/products/proaudio/network_switches/swr2310/index.html"
+  },
+  {
+   "Hersteller": "Yamaha", "Modell": "SWR2100P-5G / SWR2100P-10G",
+   "felder": {
+    "Netzwerkports (Details)": "SWR2100P-5G: 5× RJ45 1 GbE (4 davon PoE+); SWR2100P-10G: 10× RJ45 1 GbE (9 davon PoE+)",
+    "PoE": "Ja (PSE, IEEE 802.3at, max. 30 W je Port, 70 W gesamt)",
+    "PoE-Budget W": "70"
+   },
+   "Quelle": "https://usa.yamaha.com/products/proaudio/network_switches/swr2100p/specs.html"
+  },
+  {
+   "Hersteller": "Yamaha", "Modell": "SWX2320-16MT / SWX3220",
+   "felder": {
+    "Netzwerkports (Details)": "SWX2320/3220-16MT: 12× RJ45 Multigigabit (bis 10G), 4× SFP+ 10G; SWX3220-16TMs: 4× RJ45 Multigigabit, 12× SFP+ 10G",
+    "PoE": "Nein"
+   },
+   "Quelle": "https://usa.yamaha.com/products/proaudio/network_switches/swx3220_swx2320/index.html"
+  },
+  {
+   "Hersteller": "Schnick-Schnack-Systems", "Modell": "Systemnetzteil 4E",
+   "felder": { "Web-UI": "Ja" },
+   "Quelle": "https://schnick.schnack.systems/en/products/controller/system-power-supply-4e"
+  },
+  {
+   "Hersteller": "Netgear", "Modell": "M4250-10G2XF-PoE+",
+   "felder": {
+    "Netzwerkports (Anzahl)": "12",
+    "Netzwerkports (Details)": "8× RJ45 1 GbE PoE+, 2× RJ45 1 GbE, 2× SFP+ 10G",
+    "PoE": "Ja (PSE, PoE+, 240 W)",
+    "PoE-Budget W": "240"
+   },
+   "Quelle": "https://thomann.co.uk/netgear_av_m4250_12_port_10g2xf_poe.htm",
+   "Datenstand": "Händlerdatenblatt geprüft 09/2026"
+  },
+  {
+   "Hersteller": "Netgear", "Modell": "M4250-26G4F-PoE+ / -26G4XF-PoE+",
+   "felder": {
+    "PoE": "Ja (PSE, PoE+, 480 W)",
+    "PoE-Budget W": "480"
+   },
+   "Quelle": "https://www.thomann.dk/netgear_av_m4250_30_port_26g4xf_poe.htm",
+   "Datenstand": "Händlerdatenblatt geprüft 09/2026 (26G4XF)"
+  },
+  {
+   "Hersteller": "Netgear", "Modell": "M4300-52G-PoE+",
+   "felder": {
+    "PoE": "Ja (PSE, PoE+, 480 W mit 550-W-Netzteil)",
+    "PoE-Budget W": "480"
+   },
+   "Quelle": "https://www.netgear.com/de/business/wired/switches/fully-managed/m4300-52g-poe-plus-550w-psu/"
+  },
+  {
+   "Hersteller": "Netgear", "Modell": "M4350-24X4V",
+   "felder": {
+    "PoE": "Ja (PSE, PoE+, 576 W; bis 720 W mit zweitem Netzteil)",
+    "PoE-Budget W": "576"
+   },
+   "Quelle": "https://my.pvs.global/products/d/ng-xsm4328cv-100nes---netgear-av-line-m4350-24x4v-poeplus576w-(max-720w)",
+   "Datenstand": "Händlerdatenblatt geprüft 09/2026"
+  },
+  {
+   "Hersteller": "Ubiquiti", "Modell": "UniFi USW-Pro-24-PoE",
+   "felder": {
+    "Netzwerkports (Details)": "24× RJ45 1 GbE, davon 16 PoE+ und 8 PoE++, 2× SFP+ 10G",
+    "PoE": "Ja (PSE, 16× PoE+ und 8× PoE++, 400 W)",
+    "PoE-Budget W": "400"
+   },
+   "Quelle": "https://b2b.100mega.com/en/227959-ubiquiti-unifi-switch-pro-24-poe",
+   "Datenstand": "Händlerdatenblatt geprüft 09/2026"
+  }
+ ]
+}

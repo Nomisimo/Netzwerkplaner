@@ -12,6 +12,7 @@
     "start": "npm run build:dev && electron .",
     "test": "node scripts/test.js",
     "import-data": "node scripts/import-data.js",
+    "korrekturen": "node scripts/katalog-korrekturen.js",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac --arm64 --x64",

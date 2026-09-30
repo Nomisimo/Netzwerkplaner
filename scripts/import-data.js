@@ -102,6 +102,10 @@ if (fs.existsSync(fokusFile)) {
   console.log(`Fokus-Katalog: ${entfernt} alte Einträge durch Fokus-Daten ersetzt, ${ersetzt + neu} Fokus-Geräte; ${pErs} Protokolle ersetzt, ${pNeu} neu; ${out.kernprotokolle.length} Kernprotokolle, ${out.switch_empfehlungen.length} Switch-Empfehlungen`);
 }
 
+// Geprüfte Werte aus katalog-korrekturen.json gewinnen gegen die Rohdaten
+const nKorr = require("./katalog-korrekturen.js").anwenden(out);
+console.log(`${nKorr} geprüfte Korrekturen angewendet`);
+
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
 console.log(`katalog.json: ${out.geraete.length} Geräte, ${out.hersteller.length} Hersteller, ${out.protokolle.length} Protokolle`);

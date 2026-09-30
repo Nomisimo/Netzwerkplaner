@@ -276,7 +276,7 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
     icon: (k && modellIcon(k.hersteller, k.modell)) || TYPEN[t]?.icon || "sonstiges",
     bereich: "",
     isSwitch,
-    poeBudget: isSwitch ? 0 : undefined,
+    poeBudget: isSwitch ? (poe && +k?.raw["PoE-Budget W"]) || 0 : undefined, // Budget aus dem Katalog, 0 = keine Prüfung
     poeBedarf: !isSwitch && poe ? 13 : 0,
     poePse: isSwitch && poe,
     interfaces,
