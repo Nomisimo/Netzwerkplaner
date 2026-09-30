@@ -5,6 +5,10 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.13": [
+    "Neue Geräte bekommen kein VLAN mehr automatisch. Bisher landeten sie je nach Kategorie z. B. in VLAN 10, 20 oder 99. Vorlagen und Bestand bringen ihre gespeicherten VLANs weiter mit",
+    "Topologie: Die Plakette am Kabel zeigt nur noch den Switch-Port, das VLAN steht im Tooltip",
+  ],
   "0.6.0-beta.12": [
     "Beim Start spielt die App während der Splash-Animation einen kurzen Sound",
   ],
