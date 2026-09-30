@@ -44,9 +44,18 @@ const KAPITEL = [
       "Einen Typ aus der Palette links auf die Fläche ziehen. Auf ein vorhandenes Gerät gezogen, wird das neue Gerät an den nächsten freien Port angeschlossen.",
       "„+ Aus Katalog …“ öffnet die Suche über Herstellermodelle, eigene Vorlagen und deinen Gerätebestand. Ist ein Gerät ausgewählt, hängt das neue direkt daran.",
       "„🔗 Verbinden“ (Taste C): von Gerät zu Gerät ziehen. Switch-Ports übernehmen das VLAN des Endgeräts. Switch-zu-Switch-Verbindungen werden Trunks mit allen VLANs.",
-      "„✥ Bewegen“ (Taste V): Geräte ziehen, der ganze Ast zieht mit. „↺ Auto-Layout“ setzt alles zurück, „⊟ Äste“ klappt Äste ein.",
+      "„✥ Bewegen“ (Taste M): Geräte ziehen, der ganze Ast zieht mit. „↺ Auto-Layout“ setzt die Verschiebungen zurück, „⊟ Äste“ klappt Äste ein.",
       "Rechtsklick auf ein Gerät zeigt Ports, Verbindungen und IPs. Entf löscht die Auswahl.",
       "Mausrad zoomt. Shift + Mausrad schiebt die Fläche hoch und runter, ⌘ (Mac) bzw. Strg (Windows) + Mausrad schiebt sie nach links und rechts.",
+    ]} />
+    <H>Anpinnen, Auto-Anordnen, Stapel, Hintergrund</H>
+    <Bild id="topologie-hintergrund" text="Stage-Plot als Hintergrund, angepinntes Pult und ein Stapel aus zwei Nodes" />
+    <Liste items={[
+      "📌 Anpinnen (Taste P oder Rechtsklick): das Gerät bleibt stehen, wenn sich die Anordnung durch neue Geräte oder Verbindungen ändert. Sein Ast wandert mit ihm. Klick auf die Nadel löst es wieder.",
+      "„Auto-Anordnen“ aus: alle Geräte und Leitungen bleiben, wo sie sind, auch die nicht angepinnten. Ziehen verschiebt dann nur das eine Gerät. Wieder an: die automatische Anordnung gilt wieder, Pins bleiben.",
+      "„▤ Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Das ist keine Netzwerkverbindung. Doppelklick auf den Stapelnamen benennt ihn um, Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
+      "Verbindungen aufräumen: Verbindung anklicken und den roten Punkt in der Mitte ziehen. Doppelklick auf den Punkt setzt sie zurück.",
+      "„🖼 Hintergrund“: ein Bild (Stage-Plot, Hallenplan) unter die Geräte legen, um sie in der Location zu verorten. Deckkraft und Größe einstellen, zum Platzieren „Bild mit der Maus verschieben“ einschalten. Das Bild kommt mit in den Export.",
     ]} />
     <H>Frontplatten-Ansicht</H>
     <Bild id="topologie-frontplatten" text="Frontplatten: Switches mit echten Ports, Geräte als Karten an den Ports" />
@@ -85,7 +94,7 @@ const KAPITEL = [
   { id: "vlans", titel: "VLANs", tab: ["vlans", "VLANs"], inhalt: () => <>
     <Bild id="vlans" text="VLAN mit Zweck und Switch-Schaltern" />
     <Liste items={[
-      "Die Standard-VLANs 10, 11, 20, 30, 40, 50 und 99 sind schon angelegt. „+ Standard-VLANs“ ergänzt fehlende, „+ VLAN“ legt ein neues an.",
+      "Die Standard-VLANs 10, 11, 20, 30, 40, 50 und 99 sind schon angelegt. „+ VLAN“ legt ein neues an.",
       "Je VLAN: ID, Name, Farbe, Zweck und Notiz sowie die Schalter IGMP-Snooping, EEE aus, QoS/DSCP und DHCP.",
       "Die Schalter fließen in die Prüfung ein: Multicast-Protokolle verlangen IGMP, Audio over IP und MA-Net3 verlangen EEE aus.",
     ]} />

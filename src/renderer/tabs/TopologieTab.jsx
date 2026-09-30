@@ -11,6 +11,9 @@ import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { endInfo, portLabel, vlanKurz, vlanLang, geraeteTitel } from "../portinfo.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
+import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, stapeln, entstapeln } from "../../shared/anordnung.js";
+import { uid } from "../../shared/catalog.js";
+import HintergrundPanel from "../HintergrundPanel.jsx";
 
 const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: "#9aa4af", p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
@@ -28,6 +31,7 @@ export default function TopologieTab(props) {
   const [q, setQ] = useState("");
   const [showPorts, setShowPorts] = useState(true);
   const [ctx, setCtx] = useState(null);
+  const [bgOpen, setBgOpen] = useState(false);
   const titel = P.layout.titel || "name"; // Beschriftung der Knoten
   const setTitel = (t) => mutate((d) => { d.layout.titel = t; });
   const linien = P.layout.linien || "rund"; // Verbindungslinien: rund oder eckig
@@ -40,8 +44,19 @@ export default function TopologieTab(props) {
   const setAnsicht = (a) => { mutate((d) => { d.layout.ansicht = a; }); fitted.current = false; };
   const LM = useMemo(() => (front ? null : layoutMindmap(P, T)), [P, T, front]);
   const F = useMemo(() => (front ? layoutFrontplatten(P, T, X) : null), [P, T, X, front]);
-  const L = front ? F : LM;
   const offKey = front ? "fpOffsets" : "offsets";
+  const pinKey = front ? "fpPins" : "pins";         // angepinnte Geräte (feste Position)
+  const fixKey = front ? "fpFix" : "fix";           // alle Positionen bei „Auto-Anordnen aus“
+  const knickKey = front ? "fpKnicke" : "knicke";   // verschobene Verbindungen (Versatz zur Mitte)
+  const bgKey = front ? "fpHintergrund" : "hintergrund";
+  const auto = P.layout.autoAnordnen !== false;
+  const pins = P.layout[pinKey] || {};
+  const stapel = P.layout.stapel || [];
+  const eltern = useMemo(() => { const m = new Map(); for (const [id, ch] of T.children) for (const c of ch) m.set(c, id); return m; }, [T]);
+  const Lroh = front ? F : LM;
+  const ziele = useMemo(() => ({ ...(auto ? {} : P.layout[fixKey] || {}), ...pins }), [auto, P.layout, fixKey, pinKey]);
+  const ordnung = { eltern, stapel, tab: front ? TAB_H : 0, kopf: front ? 18 : 0 };
+  const Lbase = useMemo(() => anordnen(Lroh, { ziele, ...ordnung }), [Lroh, ziele, eltern, stapel, front]);
 
   // Probleme je Gerät / Verbindung
   const devIssues = useMemo(() => {
@@ -55,26 +70,37 @@ export default function TopologieTab(props) {
     return m;
   }, [issues]);
 
-  // Live-Position während des Ziehens (Ast zieht mit)
-  const moving = useMemo(() => {
-    if (!drag || drag.kind !== "node" || !drag.moved) return null;
-    const p = L.pos.get(drag.id);
-    if (front) return new Set(p?.lose || p?.kind === "card" && p.head !== drag.id ? [drag.id] : F.members.get(drag.id) || [drag.id]);
-    const ids = p?.lose ? [drag.id] : subtreeIds(T, drag.id);
-    return new Set(ids);
-  }, [drag, T, L]);
-  const posOf = (id) => {
-    const p = L.pos.get(id);
-    if (!p) return null;
-    if (moving && moving.has(id)) return { ...p, x: p.x + drag.dx, y: p.y + drag.dy };
-    return p;
-  };
-  // Port-Slots einer Frontplatte (ziehen mit)
-  const slotsOf = (id) => {
-    const m = F?.slots.get(id);
-    if (!m || !(moving && moving.has(id))) return m;
-    return new Map([...m].map(([k, s]) => [k, { ...s, ax: s.ax + drag.dx, ay: s.ay + drag.dy }]));
-  };
+  // Live-Position während des Ziehens: das gezogene Gerät bekommt vorläufig ein festes Ziel,
+  // nicht fixierte Äste folgen ihm, angepinnte Geräte bleiben stehen.
+  const L = useMemo(() => {
+    if (!drag || drag.kind !== "node" || !drag.moved) return Lbase;
+    const p = Lbase.pos.get(drag.id);
+    if (!p) return Lbase;
+    const extra = { [drag.id]: { x: p.x + drag.dx, y: p.y + drag.dy } };
+    if (front) for (const m of F.members.get(drag.id) || []) if (m !== drag.id && ziele[m]) extra[m] = { x: ziele[m].x + drag.dx, y: ziele[m].y + drag.dy };
+    return anordnen(Lroh, { ziele: { ...ziele, ...extra }, ...ordnung });
+  }, [Lbase, drag, Lroh, ziele]);
+  const posOf = (id) => L.pos.get(id) || null;
+  const slotsOf = (id) => L.slots?.get(id);
+
+  // Auto-Anordnen aus: fehlt für diese Ansicht noch ein Stand, jetzt sichern
+  useEffect(() => {
+    if (!auto && !P.layout[fixKey] && Lbase.pos.size) mutate((d) => { d.layout[fixKey] = positionenSichern(Lbase); });
+  }, [auto, fixKey]);
+  const setAuto = (an) => mutate((d) => {
+    d.layout.autoAnordnen = an;
+    if (an) { delete d.layout.fix; delete d.layout.fpFix; }
+    else d.layout[fixKey] = positionenSichern(Lbase);
+  });
+  const togglePin = (id) => mutate((d) => {
+    const m = { ...(d.layout[pinKey] || {}) };
+    if (m[id]) delete m[id];
+    else { const p = Lbase.pos.get(id); if (p) m[id] = { x: Math.round(p.x), y: Math.round(p.y) }; }
+    d.layout[pinKey] = m;
+  });
+  const knickOf = (c) => (drag?.kind === "knick" && drag.id === c.id ? { dx: drag.bx + drag.dx, dy: drag.by + drag.dy } : P.layout[knickKey]?.[c.id]);
+  const bg = P.layout[bgKey];
+  const bgPos = bg && (drag?.kind === "bg" ? { ...bg, x: bg.x + drag.dx, y: bg.y + drag.dy } : bg);
 
   const fit = useCallback(() => {
     const el = wrapRef.current;
@@ -121,8 +147,8 @@ export default function TopologieTab(props) {
   const onDown = (e, nodeId, conn = null) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    if (nodeId && tool === "connect") { const w = toWorld(e); setDraw({ from: nodeId, x: w.x, y: w.y }); return; }
-    if (nodeId) setDrag({ kind: "node", id: nodeId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false, conn });
+    if (nodeId && (tool === "connect" || tool === "stack")) { const w = toWorld(e); setDraw({ from: nodeId, x: w.x, y: w.y, tool }); return; }
+    if (nodeId) setDrag({ kind: "node", id: stapelAnker(stapel, nodeId), klick: nodeId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false, conn });
     else setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false });
   };
   const onMove = (e) => {
@@ -136,20 +162,39 @@ export default function TopologieTab(props) {
   const onUp = (e) => {
     if (draw) {
       const target = hitNode(toWorld(e));
-      if (target && target !== draw.from) connect(draw.from, target);
+      if (target && target !== draw.from) {
+        if (draw.tool === "stack") mutate((d) => { d.layout.stapel = stapeln(d.layout.stapel || [], draw.from, target, uid()); });
+        else connect(draw.from, target);
+      }
       setDraw(null); setHover(null);
       return;
     }
     if (!drag) return;
     if (drag.kind === "node") {
       if (drag.moved) {
-        const id = drag.id, dx = drag.dx, dy = drag.dy;
+        const id = drag.id, dx = drag.dx, dy = drag.dy, p = Lbase.pos.get(id);
+        const mit = front ? (F.members.get(id) || []).filter((m) => m !== id) : [];
+        const r = (z) => ({ x: Math.round(z.x + dx), y: Math.round(z.y + dy) });
         mutate((d) => {
-          d.layout[offKey] = d.layout[offKey] || {};
-          const o = d.layout[offKey][id] || { dx: 0, dy: 0 };
-          d.layout[offKey][id] = { dx: Math.round(o.dx + dx), dy: Math.round(o.dy + dy) };
+          const pn = { ...(d.layout[pinKey] || {}) }, fx = { ...(d.layout[fixKey] || {}) };
+          if (pn[id]) pn[id] = r(p);
+          else if (!auto) fx[id] = r(p);
+          else {
+            d.layout[offKey] = d.layout[offKey] || {};
+            const o = d.layout[offKey][id] || { dx: 0, dy: 0 };
+            d.layout[offKey][id] = { dx: Math.round(o.dx + dx), dy: Math.round(o.dy + dy) };
+          }
+          for (const m of mit) { if (pn[m]) pn[m] = r(pn[m]); if (!auto && fx[m]) fx[m] = r(fx[m]); }
+          d.layout[pinKey] = pn;
+          if (!auto) d.layout[fixKey] = fx;
         });
-      } else setSelection(drag.conn ? { type: "conn", id: drag.conn.id } : { type: "dev", id: drag.id });
+      } else setSelection(drag.conn ? { type: "conn", id: drag.conn.id } : { type: "dev", id: drag.klick || drag.id });
+    } else if (drag.kind === "knick") {
+      const { id, bx, by, dx, dy } = drag;
+      if (drag.moved) mutate((d) => { d.layout[knickKey] = { ...(d.layout[knickKey] || {}), [id]: { dx: Math.round(bx + dx), dy: Math.round(by + dy) } }; });
+    } else if (drag.kind === "bg") {
+      const { dx, dy } = drag;
+      if (drag.moved) mutate((d) => { const b = d.layout[bgKey]; if (b) { b.x = Math.round(b.x + dx); b.y = Math.round(b.y + dy); } });
     } else if (!drag.moved) setSelection(null);
     setDrag(null);
   };
@@ -180,12 +225,16 @@ export default function TopologieTab(props) {
         if (selection.type === "dev") onDeleteDevice(selection.id); else onDeleteConn(selection.id);
       }
       if (e.key === "Escape") { setSelection(null); setDraw(null); }
-      if (e.key === "v") setTool("move");
-      if (e.key === "c") setTool("connect");
+      if (e.metaKey || e.ctrlKey || e.altKey) return; // ⌘C / Strg+C usw. nicht abfangen
+      const key = e.key.toLowerCase();
+      if (key === "m" || key === "v") setTool("move");
+      if (key === "c") setTool("connect");
+      if (key === "s") setTool("stack");
+      if (key === "p" && selection?.type === "dev") togglePin(selection.id);
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
-  }, [selection, onDeleteDevice, onDeleteConn, setSelection]);
+  }, [selection, onDeleteDevice, onDeleteConn, setSelection, togglePin]);
 
   /* ── Filter & Suche ─────────────────────────────────────────────────── */
   const ql = q.trim().toLowerCase();
@@ -218,18 +267,33 @@ export default function TopologieTab(props) {
     return { color: errs ? ERR : color, width, dash: p2p ? KABEL.p2p.dash : KABEL[c.kabel]?.dash || "", errs, trunk: cv.kind === "trunk" };
   };
 
-  const edgePath = (pa, pb) => {
+  const edgePath = (pa, pb, k) => {
     const dir = pb.x >= pa.x ? 1 : -1;
+    const mitKnick = (x1, y1, x2, y2, r) => {
+      const m = { x: (x1 + x2) / 2 + (k?.dx || 0), y: (y1 + y2) / 2 + (k?.dy || 0) };
+      return { d: knickPfad(x1, y1, x2, y2, m, r, linien), x1, y1, x2, y2, mx: m.x, my: m.y };
+    };
     if (Math.abs(pb.x - pa.x) < NODE_W) {
       const dy = pb.y >= pa.y ? 1 : -1;
       const x1 = pa.x, y1 = pa.y + dy * HH, x2 = pb.x, y2 = pb.y - dy * HH;
+      if (k) return mitKnick(x1, y1, x2, y2, "v");
       const my = (y1 + y2) / 2;
-      return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "v") : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`, x1, y1, x2, y2 };
+      return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "v") : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`, x1, y1, x2, y2, mx: (x1 + x2) / 2, my };
     }
     const x1 = pa.x + dir * HW, y1 = pa.y, x2 = pb.x - dir * HW, y2 = pb.y;
+    if (k) return mitKnick(x1, y1, x2, y2, "h");
     const mx = (x1 + x2) / 2;
-    return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "h") : `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, x1, y1, x2, y2 };
+    return { d: linien === "eckig" ? eckPfad(x1, y1, x2, y2, "h") : `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, x1, y1, x2, y2, mx, my: (y1 + y2) / 2 };
   };
+  // Griff zum Verschieben der ausgewählten Verbindung
+  const knickGriff = (c, mx, my) => tool === "move" && selConn?.id === c.id && (
+    <g className="np-ui" style={{ cursor: "move" }} onMouseDown={(e) => { if (e.button) return; e.stopPropagation(); const k = P.layout[knickKey]?.[c.id] || { dx: 0, dy: 0 }; setDrag({ kind: "knick", id: c.id, bx: k.dx, by: k.dy, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false }); }}
+      onDoubleClick={(e) => { e.stopPropagation(); mutate((d) => { const m = { ...(d.layout[knickKey] || {}) }; delete m[c.id]; d.layout[knickKey] = m; }); }}>
+      <circle cx={mx} cy={my} r="11" fill="transparent" />
+      <circle cx={mx} cy={my} r="6" fill={ACCENT} stroke="#fff" strokeWidth="1.5" />
+      <title>Ziehen = Verbindung verschieben · Doppelklick = zurücksetzen</title>
+    </g>
+  );
 
   const selDev = selection?.type === "dev" ? X.devById.get(selection.id) : null;
   const selConn = selection?.type === "conn" ? P.verbindungen.find((c) => c.id === selection.id) : null;
@@ -272,12 +336,14 @@ export default function TopologieTab(props) {
             ))}
           </div>
           <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }}>
-            {[["move", "✥ Bewegen", "V"], ["connect", "🔗 Verbinden", "C"]].map(([k, l, key]) => (
-              <button key={k} title={`Taste ${key}`} onClick={() => setTool(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, ...(tool === k ? { background: ACCENT, color: "#fff" } : {}) }}>{l}</button>
+            {[["move", "✥ Bewegen", "M"], ["connect", "🔗 Verbinden", "C"], ["stack", "▤ Stapeln", "S"]].map(([k, l, key]) => (
+              <button key={k} title={k === "stack" ? "Taste S · von einem Gerät auf ein anderes ziehen: stapelt sie grafisch (Rack, Tower). Keine Netzwerkverbindung." : `Taste ${key}`} onClick={() => setTool(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, ...(tool === k ? { background: ACCENT, color: "#fff" } : {}) }}>{l}</button>
             ))}
           </div>
           <button style={S.ghostBtn} onClick={fit} title="Alles einpassen">⤢ Einpassen</button>
-          <button style={S.ghostBtn} onClick={() => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; })} title="Manuelle Verschiebungen zurücksetzen">↺ Auto-Layout</button>
+          <button style={S.ghostBtn} onClick={() => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; })} title="Verschiebungen von Geräten und Verbindungen zurücksetzen. Angepinnte Geräte und Stapel bleiben.">↺ Auto-Layout</button>
+          <Toggle checked={auto} onChange={setAuto} label="Auto-Anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
+          <button style={{ ...S.ghostBtn, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan">🖼 Hintergrund</button>
           <button style={S.ghostBtn} onClick={() => mutate((d) => { const any = Object.values(d.layout.collapsed || {}).some(Boolean); d.layout.collapsed = any ? {} : Object.fromEntries([...T.children].filter(([id, ch]) => ch.length && !T.roots.includes(id)).map(([id]) => [id, true])); })}>⊟ Äste</button>
           <span style={{ width: 1, height: 22, background: LINE }} />
           <select style={{ ...S.selectSm, width: "auto" }} value={colorBy} onChange={(e) => setColorBy(e.target.value)} title="Farbe der Verbindungen">
@@ -300,7 +366,7 @@ export default function TopologieTab(props) {
           <Toggle checked={autoStatus} onChange={setAutoStatus} label="alle 15 s" title="Erreichbarkeit zyklisch prüfen" />
         </div>
 
-        <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FP_BG : "#12161a", cursor: tool === "connect" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
+        <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FP_BG : "#12161a", cursor: tool !== "move" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
           onMouseDown={(e) => onDown(e, null)} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { setDrag(null); setDraw(null); }}
           onWheel={onWheel} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
           <svg ref={svgRef} width="100%" height="100%" style={{ display: "block", userSelect: "none" }} xmlns="http://www.w3.org/2000/svg" fontFamily="'Segoe UI',system-ui,sans-serif">
@@ -312,13 +378,30 @@ export default function TopologieTab(props) {
             </defs>
             <rect className="np-ui" width="100%" height="100%" fill="url(#np-grid)" />
             <g id="np-world" transform={`translate(${view.x},${view.y}) scale(${view.k})`} data-bounds={JSON.stringify(L.bounds)} data-bg={front ? FP_BG : "#15191e"}>
+              {/* Hintergrundbild (z. B. Stage-Plot) */}
+              {bgPos?.src && <image href={bgPos.src} x={bgPos.x} y={bgPos.y} width={bgPos.w} height={bgPos.h} opacity={bgPos.deckkraft ?? 0.5} preserveAspectRatio="none"
+                style={{ cursor: bgPos.fest === false && tool === "move" ? "move" : undefined, pointerEvents: bgPos.fest === false && tool === "move" ? "auto" : "none" }}
+                onMouseDown={(e) => { if (e.button || bgPos.fest !== false) return; e.stopPropagation(); setDrag({ kind: "bg", sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false }); }} />}
+              {/* Stapel (grafische Gruppen, z. B. Rack oder Tower) */}
+              {(L.stapel || []).map((b) => (
+                <g key={b.id} onMouseDown={(e) => onDown(e, b.ids[0])} style={{ cursor: "move" }}>
+                  <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke="#8a96a3" strokeWidth="1.2" strokeDasharray="5 4" />
+                  <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill="#aeb8c2" style={{ cursor: "text" }}
+                    onDoubleClick={(e) => { e.stopPropagation(); const n = prompt("Name des Stapels:", b.name || ""); if (n !== null) mutate((d) => { const s = (d.layout.stapel || []).find((x) => x.id === b.id); if (s) s.name = n.trim(); }); }}>
+                    ▤ {b.name || "Stapel"} · {b.ids.length}<title>Doppelklick = umbenennen</title>
+                  </text>
+                </g>
+              ))}
               {/* Verbindungen */}
               {front && allConns.map((c) => {
                 const pa = posOf(c.a.dev), pb = posOf(c.b.dev);
                 const a1 = anker(pa, slotsOf(c.a.dev)?.get(c.a.port), pb), b1 = anker(pb, slotsOf(c.b.dev)?.get(c.b.port), pa);
                 const straight = pa.kind === "switch" && pb.kind === "switch";
                 const k = Math.max(18, Math.abs(b1.y - a1.y) / 2);
-                const dPath = straight ? `M${a1.x},${a1.y} L${b1.x},${b1.y}`
+                const kn = knickOf(c);
+                const mx = (a1.x + b1.x) / 2 + (kn?.dx || 0), my = (a1.y + b1.y) / 2 + (kn?.dy || 0);
+                const dPath = kn ? (straight ? `M${a1.x},${a1.y} L${mx},${my} L${b1.x},${b1.y}` : knickPfad(a1.x, a1.y, b1.x, b1.y, { x: mx, y: my }, "v", linien))
+                  : straight ? `M${a1.x},${a1.y} L${b1.x},${b1.y}`
                   : linien === "eckig" ? eckPfad(a1.x, a1.y, b1.x, b1.y, "v")
                   : `M${a1.x},${a1.y} C${a1.x},${a1.y + a1.dir * k} ${b1.x},${b1.y + b1.dir * k} ${b1.x},${b1.y}`;
                 const st = edgeStyle(c);
@@ -332,6 +415,7 @@ export default function TopologieTab(props) {
                     <path d={dPath} stroke={st.color} strokeWidth={straight ? Math.max(2, st.width - 1) : 1.8} fill="none" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
                     <circle cx={a1.x} cy={a1.y} r="2.2" fill={st.color} /><circle cx={b1.x} cy={b1.y} r="2.2" fill={st.color} />
                     {c.label && <text x={(a1.x + b1.x) / 2 + 4} y={(a1.y + b1.y) / 2} fontSize="10" fill="#c8d0d8">{c.label}</text>}
+                    {knickGriff(c, mx, my)}
                   </g>
                 );
               })}
@@ -342,7 +426,7 @@ export default function TopologieTab(props) {
                 let from = pa, to = pb, fromEnd = c.a, toEnd = c.b;
                 const childOf = treeChildByConn.get(c.id);
                 if (tree && childOf === c.a.dev) { from = pb; to = pa; fromEnd = c.b; toEnd = c.a; }
-                const g = edgePath(from, to);
+                const g = edgePath(from, to, knickOf(c));
                 const st = edgeStyle(c);
                 const sel = selConn?.id === c.id;
                 const da = X.devById.get(c.a.dev), db = X.devById.get(c.b.dev);
@@ -356,11 +440,12 @@ export default function TopologieTab(props) {
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
                     {showPorts && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} />}
                     {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill="#c8d0d8" textAnchor="middle">{c.label}</text>}
+                    {knickGriff(c, g.mx, g.my)}
                   </g>
                 );
               })}
               {draw && posOf(draw.from) && (
-                <line x1={posOf(draw.from).x} y1={posOf(draw.from).y} x2={draw.x} y2={draw.y} stroke={ACCENT} strokeWidth="2" strokeDasharray="6 4" />
+                <line x1={posOf(draw.from).x} y1={posOf(draw.from).y} x2={draw.x} y2={draw.y} stroke={draw.tool === "stack" ? "#aeb8c2" : ACCENT} strokeWidth="2" strokeDasharray="6 4" />
               )}
 
               {/* Geräte */}
@@ -405,7 +490,7 @@ export default function TopologieTab(props) {
                 const side = p.side || (p.x >= 0 ? 1 : -1);
                 return (
                   <g key={id} transform={`translate(${p.x - HW},${p.y - HH})`} opacity={dim ? 0.2 : 1}
-                    onMouseDown={(e) => onDown(e, id)} style={{ cursor: tool === "connect" ? "crosshair" : "pointer" }}
+                    onMouseDown={(e) => onDown(e, id)} style={{ cursor: tool !== "move" ? "crosshair" : "pointer" }}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtx({ id, x: e.clientX, y: e.clientY }); }}>
                     {(sel || hover === id || hit) && <rect x="-4" y="-4" width={NODE_W + 8} height={NODE_H + 8} rx="11" fill="none" stroke={sel ? ACCENT : hover === id ? OK : "#fff"} strokeWidth="2" opacity=".9" />}
                     <rect width={NODE_W} height={NODE_H} rx="8" fill={isRoot ? "#262d36" : "#1f242b"} stroke={isRoot ? ACCENT : worst || LINE} strokeWidth={isRoot || worst ? 1.6 : 1} />
@@ -438,6 +523,20 @@ export default function TopologieTab(props) {
                   </g>
                 );
               })}
+              {/* Pins */}
+              {Object.keys(pins).map((id) => {
+                const p = posOf(id);
+                if (!p) return null;
+                const w = p.w || NODE_W, top = p.y - (p.h || NODE_H) / 2 - (p.kind === "card" ? TAB_H : 0);
+                return (
+                  <g key={"pin" + id} className="np-ui" transform={`translate(${p.x - w / 2 - 7},${top - 7})`} style={{ cursor: "pointer" }}
+                    onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); togglePin(id); }}>
+                    <circle cx="7" cy="7" r="8" fill="#1b2026" stroke={ACCENT} />
+                    <text x="7" y="11" fontSize="10" textAnchor="middle">📌</text>
+                    <title>Angepinnt: bleibt beim automatischen Anordnen stehen. Klick = lösen</title>
+                  </g>
+                );
+              })}
               {P.geraete.length === 0 && (
                 <g className="np-ui">
                   <text x="0" y="-10" textAnchor="middle" fill={SUB} fontSize="16" fontWeight="600">Noch keine Geräte</text>
@@ -447,15 +546,18 @@ export default function TopologieTab(props) {
             </g>
           </svg>
           <div style={{ position: "absolute", left: 10, bottom: 8, fontSize: 11, color: MUTED, pointerEvents: "none" }}>
-            {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"} · Rechtsklick = Geräteinfos · Entf = löschen
+            {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
+          {bgOpen && <HintergrundPanel bg={bg} bounds={Lbase.bounds} onClose={() => setBgOpen(false)} onChange={(fn) => mutate((d) => { d.layout[bgKey] = fn(d.layout[bgKey] ? { ...d.layout[bgKey] } : null); })} />}
           {ctx && X.devById.get(ctx.id) && (() => {
             const d = X.devById.get(ctx.id);
             const hasKids = (T.children.get(d.id) || []).length > 0 && !T.roots.includes(d.id);
             return <DeviceContextMenu P={P} X={X} dev={d} x={ctx.x} y={ctx.y} status={status[d.id]} issues={devIssues.get(d.id) || []} onClose={closeCtx}
               onEdit={() => setSelection({ type: "dev", id: d.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(d.id)}
               onSetRoot={d.isSwitch && P.layout.rootId !== d.id ? () => mutate((dd) => { dd.layout.rootId = d.id; }) : null}
+              pinned={!!pins[d.id]} onPin={() => togglePin(d.id)}
+              onUnstack={stapelVon(stapel, d.id) ? () => mutate((dd) => { dd.layout.stapel = entstapeln(dd.layout.stapel, d.id); }) : null}
               collapsed={!!P.layout.collapsed?.[d.id]} onToggleCollapse={hasKids ? () => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [d.id]: !dd.layout.collapsed?.[d.id] }; }) : null} />;
           })()}
         </div>

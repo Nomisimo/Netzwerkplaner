@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO } from "../../shared/constants.js";
-import { newVlan, standardVlans } from "../../shared/model.js";
+import { newVlan } from "../../shared/model.js";
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 
 function VlanRow({ v, P, mutate, issues, count }) {
@@ -67,10 +67,6 @@ export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
     <>
       <Section title="VLANs" subtitle="ID, Name und Switch-Einstellungen je VLAN. Die Prüfung meldet fehlendes IGMP bei Multicast-Protokollen (sACN, Dante-Multicast, MA-Net3, NDI …) und eingeschaltetes EEE bei Audio over IP."
         right={<div style={{ display: "flex", gap: 6 }}>
-          <button style={S.secondaryBtn} onClick={() => mutate((d) => {
-            const have = new Set(d.vlans.map((v) => +v.vid));
-            d.vlans.push(...standardVlans().filter((v) => !have.has(+v.vid)));
-          })} title="Fehlende Standard-VLANs aus der Protokollrecherche ergänzen">+ Standard-VLANs</button>
           <button style={S.primaryBtn} onClick={() => mutate((d) => {
             const vid = Math.max(0, ...d.vlans.map((v) => +v.vid)) + 1;
             d.vlans.push(newVlan({ vid, name: `VLAN ${vid}`, farbe: "#" + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0"), subnetz: vid < 256 ? `10.10.${vid}.0/24` : "" }));

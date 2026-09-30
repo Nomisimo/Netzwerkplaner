@@ -5,6 +5,15 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.2": [
+    "Topologie: Geräte anpinnen (Taste P, Rechtsklick oder Klick auf die Nadel). Angepinnte Geräte bleiben beim automatischen Anordnen stehen",
+    "„Auto-Anordnen“ lässt sich ausschalten: dann bleiben alle Geräte und Leitungen an ihrem Platz, auch ungepinnte",
+    "Neues Werkzeug „▤ Stapeln“ (Taste S): Geräte grafisch als Rack oder Tower übereinander darstellen, ohne Netzwerkverbindung",
+    "Hintergrundbild für die Topologie, z. B. ein Stage-Plot, um Geräte in der Location zu verorten; kommt mit in den Export",
+    "Verbindungen lassen sich am Mittelpunkt verschieben, um Leitungen aufzuräumen (Doppelklick setzt zurück)",
+    "Tastenkürzel: M = Bewegen, C = Verbinden, S = Stapeln, P = Anpinnen",
+    "VLANs: Der Button „+ Standard-VLANs“ ist entfernt",
+  ],
   "0.6.0-beta.1": [
     "Katalog: Cisco Catalyst 1300 C1300-24P-4X (24× 1 GbE PoE+, 195 W, 4× SFP+ 10G, Web-UI)",
     "Topologie: Shift + Mausrad scrollt hoch und runter, ⌘/Strg + Mausrad nach links und rechts",
