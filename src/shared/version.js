@@ -5,6 +5,11 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.2": [
+    "Gemeinsam arbeiten: Die App spricht den Planer-Server jetzt über den Hauptprozess an. Damit klappt die Verbindung auch hinter Reverse-Proxys und bei Umleitungen von http:// auf https://",
+    "Ein Servername ohne http:// und ohne Port (z. B. planer.example.de) wird zuerst auf Port 3001, dann per https:// und http:// probiert. IP:Port (z. B. 192.168.178.10:3002) geht weiterhin direkt",
+    "Ist der Server nicht erreichbar, nennt die Meldung jetzt den genauen Grund und die verwendete Adresse statt nur „Failed to fetch“",
+  ],
   "0.7.0-beta.1": [
     "Gemeinsam arbeiten: Über den neuen Knopf „👥 Sitzung“ oben verbindet sich die App mit einem Planer-Server (Docker, eigenes Repo Planer-Server). Mehrere Personen bearbeiten denselben Plan gleichzeitig, Änderungen erscheinen sofort bei allen",
     "Sitzung anlegen aus dem aktuellen Projekt (optional mit Sitzungscode) oder einer laufenden Sitzung beitreten. Server als IP (Port 3001) oder als volle Adresse mit http:// bzw. https:// eintragen, dazu optional das Server-Token",

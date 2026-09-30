@@ -3,6 +3,12 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.2] – 2026-09-30
+
+- Gemeinsam arbeiten: Die App spricht den Planer-Server jetzt über den Hauptprozess an. Damit klappt die Verbindung auch hinter Reverse-Proxys und bei Umleitungen von http:// auf https://
+- Ein Servername ohne http:// und ohne Port (z. B. planer.example.de) wird zuerst auf Port 3001, dann per https:// und http:// probiert. IP:Port (z. B. 192.168.178.10:3002) geht weiterhin direkt
+- Ist der Server nicht erreichbar, nennt die Meldung jetzt den genauen Grund und die verwendete Adresse statt nur „Failed to fetch“
+
 ## [0.7.0-beta.1] – 2026-09-30
 
 - Gemeinsam arbeiten: Über den neuen Knopf „👥 Sitzung“ oben verbindet sich die App mit einem Planer-Server (Docker, eigenes Repo Planer-Server). Mehrere Personen bearbeiten denselben Plan gleichzeitig, Änderungen erscheinen sofort bei allen

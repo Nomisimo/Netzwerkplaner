@@ -48,7 +48,7 @@ function Verbinden({ sitzung, projektName, onClose }) {
     <div>
       <p style={{ marginTop: 0, fontSize: 13, color: SUB }}>Mehrere Personen bearbeiten denselben Plan gleichzeitig über den Planer-Server (Docker). Änderungen erscheinen sofort bei allen.</p>
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 10 }}>
-        <Field label="Server (IP oder Adresse; ohne http:// gilt Port 3001)"><input style={S.inputSm} value={e.server} onChange={(x) => set("server", x.target.value)} placeholder="192.168.1.10 oder http://planer.example.de" spellCheck={false} /></Field>
+        <Field label="Server (IP, IP:Port oder Adresse wie https://planer.example.de)"><input style={S.inputSm} value={e.server} onChange={(x) => set("server", x.target.value)} placeholder="192.168.1.10 oder http://planer.example.de" spellCheck={false} /></Field>
         <Field label="Server-Token (optional)"><input style={S.inputSm} type="password" value={e.token} onChange={(x) => set("token", x.target.value)} /></Field>
         <Field label="Dein Name"><input style={S.inputSm} value={e.name} onChange={(x) => set("name", x.target.value)} placeholder="z. B. Momo" /></Field>
       </div>
