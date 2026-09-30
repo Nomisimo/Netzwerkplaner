@@ -219,6 +219,13 @@ I.cisco_8 = rect(3.5, 8.5, 17, 7, { rx: 0.8 }) + led(5, 10.2) + led(5, 11.6, 0.5
 I.cisco_16 = (() => { const r = rack(1); return r.s + led(3.6, 10.6) + led(3.6, 12, 0.5) + ciscoRows(5.6, 10.4, 8, 1.35, 2, 1) + sfp(18.2, 10.4, 1.8, 0.8) + sfp(18.2, 12.3, 1.8, 0.8); })();
 I.cisco_24 = (() => { const r = rack(1); return r.s + led(3.6, 10.6) + led(3.6, 12, 0.5) + ciscoRows(5.3, 10.4, 12, 0.98, 2, 0.8, 0.6) + sfp(18.6, 10.4, 1.4, 0.7) + sfp(18.6, 12.3, 1.4, 0.7) + sfp(20.1, 10.4, 1.2, 0.7) + sfp(20.1, 12.3, 1.2, 0.7); })();
 I.cisco_48 = (() => { const r = rack(1); return r.s + led(3.6, 10.6) + led(3.6, 12, 0.5) + ciscoRows(5, 10.4, 20, 0.66, 2, 0.5, 0.5) + sfp(19.1, 10.4, 1.1, 0.7) + sfp(19.1, 12.3, 1.1, 0.7) + sfp(20.4, 10.4, 1, 0.7) + sfp(20.4, 12.3, 1, 0.7); })();
+// Catalyst 1300 24P-4X: 24 PoE+-Ports in zwei Reihen, PoE-Blitz, vier SFP+-Käfige (10G) als 2×2-Block
+I.cisco_c1300_24p4x = (() => {
+  const r = rack(1);
+  return r.s + led(3.6, 10.1) + led(3.6, 11.3, 0.5) + path_("M4.1 12.3L3.3 13.8H4.2L3.6 15.3", 0.5) +
+    ciscoRows(5.4, 10.4, 12, 0.92, 2, 0.72, 0.5) +
+    rect(17.2, 9.9, 4, 4.3, { rx: 0.2, sw: 0.5 }) + sfp(17.6, 10.5, 1.4, 1.2) + sfp(19.4, 10.5, 1.4, 1.2) + sfp(17.6, 12.4, 1.4, 1.2) + sfp(19.4, 12.4, 1.4, 1.2);
+})();
 // Catalyst 9000: Ports links, Netzwerkmodul-Schacht rechts, Blau-Beacon oben links
 I.cisco_9k = (() => { const r = rack(1); return r.s + ring(3.8, 10.6, 0.5, 0.5, 0.8) + led(3.8, 12.6, 0.5) + ciscoRows(5.3, 10.4, 16, 0.7, 2, 0.5, 0.4) + rect(17.4, 9.8, 3.6, 4.4, { rx: 0.2, sw: 0.6 }) + sfp(17.9, 10.6, 1.2, 0.7) + sfp(19.4, 10.6, 1.2, 0.7) + sfp(17.9, 12.4, 1.2, 0.7) + sfp(19.4, 12.4, 1.2, 0.7); })();
 // Meraki MS: glatte Front, große Status-LED

@@ -31,3 +31,8 @@ test("Gerät aus dem Katalog übernimmt das Modell-Icon", () => {
   assert.equal(createDevice({ katalogId: k.id }).icon, "ma2_light");
   assert.equal(createDevice({ typ: "lichtpult" }).icon, "lichtpult");
 });
+
+test("Catalyst C1300-24P-4X hat ein eigenes Icon", () => {
+  assert.equal(modellIcon("Cisco", "Catalyst 1300 C1300-24P-4X"), "cisco_c1300_24p4x");
+  assert.equal(modellIcon("Cisco", "Catalyst 1300 C1300-24P-4G"), "cisco_24");
+});
