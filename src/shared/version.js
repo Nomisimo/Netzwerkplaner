@@ -5,6 +5,10 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.11": [
+    "Katalog: Yamaha M7CL-32 / M7CL-48 (Dante über Dante-MY16-AUD2-Karte) und M7CL-48ES (EtherSound onboard) ergänzt",
+    "EtherSound-Ports gelten als Punkt-zu-Punkt-Verbindung, die Prüfung warnt, wenn sie an einem normalen Switch stecken",
+  ],
   "0.6.0-beta.10": [
     "Geräte-Icons nach Modell: 75 eigene Icons für MA, Luminex, Cisco, Yamaha, SSS und Dante. Katalog-Geräte bekommen ihr Icon automatisch, die MA-Pult-Generationen sind an den Bildschirmen zu unterscheiden",
     "Icon-Auswahl nach Hersteller gruppiert, die Maus auf einem Icon zeigt den Modellnamen",
