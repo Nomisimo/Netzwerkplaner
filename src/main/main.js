@@ -14,7 +14,7 @@ function createWindow() {
   const splash = new BrowserWindow({
     width: 380, height: 240, frame: false, resizable: false, center: true,
     alwaysOnTop: true, skipTaskbar: true, backgroundColor: '#1c2127',
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, autoplayPolicy: 'no-user-gesture-required' },
   });
   splash.loadFile(path.join(__dirname, 'splash.html'));
 
@@ -38,7 +38,9 @@ function createWindow() {
     splash.webContents.executeJavaScript('document.body.style.opacity="0"').catch(() => {});
     setTimeout(() => {
       mainWin.show(); mainWin.focus(); mainWin.webContents.focus();
-      if (!splash.isDestroyed()) splash.close();
+      // Splash erst verstecken, damit der Start-Sound (ca. 3 s) ausklingen kann
+      if (!splash.isDestroyed()) splash.hide();
+      setTimeout(() => { if (!splash.isDestroyed()) splash.close(); }, 2500);
       if (pendingOpen) { sendOpenFile(pendingOpen); pendingOpen = null; }
     }, 250);
   };

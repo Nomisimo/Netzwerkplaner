@@ -5,6 +5,9 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.12": [
+    "Beim Start spielt die App während der Splash-Animation einen kurzen Sound",
+  ],
   "0.6.0-beta.11": [
     "Katalog: Yamaha M7CL-32 / M7CL-48 (Dante über Dante-MY16-AUD2-Karte) und M7CL-48ES (EtherSound onboard) ergänzt",
     "EtherSound-Ports gelten als Punkt-zu-Punkt-Verbindung, die Prüfung warnt, wenn sie an einem normalen Switch stecken",

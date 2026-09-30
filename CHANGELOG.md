@@ -3,6 +3,10 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.12] – 2026-09-30
+
+- Beim Start spielt die App während der Splash-Animation einen kurzen Sound
+
 ## [0.6.0-beta.10] – 2026-09-30
 
 - Geräte-Icons nach Modell: 75 eigene Icons für MA, Luminex, Cisco, Yamaha, SSS und Dante. Katalog-Geräte bekommen ihr Icon automatisch, die MA-Pult-Generationen sind an den Bildschirmen zu unterscheiden
