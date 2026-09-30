@@ -8,7 +8,7 @@ export const CHANGELOG = {
   "0.6.0-beta.10": [
     "Geräte-Icons nach Modell: 75 eigene Icons für MA, Luminex, Cisco, Yamaha, SSS und Dante. Katalog-Geräte bekommen ihr Icon automatisch, die MA-Pult-Generationen sind an den Bildschirmen zu unterscheiden",
     "Icon-Auswahl nach Hersteller gruppiert, die Maus auf einem Icon zeigt den Modellnamen",
-    "Katalog: 27 Einträge gegen Datenblätter geprüft und korrigiert, u. a. grandMA3 xPort Node (nur 1 Netzwerkport), Yamaha RUio16-D (2× etherCON Dante statt 1× RJ45), PC-D und DME7 (NETWORK-Port fehlte), Netgear M4250-10G2XF (12 statt 10 Ports), PoE-Budgets für Cisco, Yamaha, Netgear und UniFi",
+    "Katalog: 34 Einträge gegen Datenblätter geprüft und korrigiert, u. a. grandMA3 xPort Node (nur 1 Netzwerkport), Yamaha RUio16-D (2× etherCON Dante statt 1× RJ45), PC-D und DME7 (NETWORK-Port fehlte), Netgear M4250-10G2XF (12 statt 10 Ports), PoE-Budgets für Cisco, Yamaha, Netgear und UniFi. Catalyst 9300 und GigaCore 30i rechnen jetzt mit dem Budget eines Netzteils statt dem Maximum mit zwei",
     "Switches aus dem Katalog bringen ihr PoE-Budget mit, die Prüfung meldet damit ein überschrittenes Budget ohne Handarbeit. Bisher stand das Budget immer auf 0 (keine Prüfung)",
   ],
   "0.6.0-beta.9": [
