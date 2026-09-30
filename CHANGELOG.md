@@ -3,6 +3,10 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.10] – 2026-09-30
+
+- Beim Start spielt die App während der Splash-Animation einen kurzen Sound
+
 ## [0.6.0-beta.9] – 2026-09-30
 
 - Verbindungen: Ein Gerät bekommt nur so viele Kabel, wie es Anschlüsse hat. Bisher legte die App beim Verbinden einfach neue Ports an

@@ -1,6 +1,6 @@
 {
   "name": "netzwerkplaner",
-  "version": "0.6.0-beta.9",
+  "version": "0.6.0-beta.10",
   "private": true,
   "description": "Offline-Netzwerkplaner für die Veranstaltungstechnik: Topologie als Mindmap, VLANs, IP-Plan, Patchliste",
   "author": "Momo",
