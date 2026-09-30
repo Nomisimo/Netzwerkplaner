@@ -122,3 +122,6 @@ export const S = {
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" },
   modalBox:     { background: "#1e2530", border: "1px solid #2e3a4a", borderRadius: 10, padding: "22px 24px", color: "#e8eaf0", maxHeight: "86vh", overflow: "auto", boxShadow: "0 16px 48px rgba(0,0,0,.6)" },
 };
+
+// Helle Farben für neue VLANs, damit ID und Linien auf dunklem Grund lesbar bleiben
+export const VLAN_FARBEN = ["#ff9f43", "#54a0ff", "#1dd1a1", "#feca57", "#ff6b6b", "#c56cf0", "#48dbfb", "#a3cb38", "#fd79a8", "#7bed9f"];

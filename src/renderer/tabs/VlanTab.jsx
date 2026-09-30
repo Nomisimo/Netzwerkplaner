@@ -1,11 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO, VLAN_FARBEN } from "../../shared/constants.js";
 import { newVlan } from "../../shared/model.js";
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
-
-// Helle Farben für neue VLANs, damit ID und Linien auf dunklem Grund lesbar bleiben
-const NEUE_FARBEN = ["#ff9f43", "#54a0ff", "#1dd1a1", "#feca57", "#ff6b6b", "#c56cf0", "#48dbfb", "#a3cb38", "#fd79a8", "#7bed9f"];
 
 function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
   const [open, setOpen] = useState(false);
@@ -91,7 +88,7 @@ export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
         right={<div style={{ display: "flex", gap: 6 }}>
           <button style={S.primaryBtn} onClick={() => mutate((d) => {
             const vid = Math.max(0, ...d.vlans.map((v) => +v.vid)) + 1;
-            d.vlans.push(newVlan({ vid, name: `VLAN ${vid}`, farbe: NEUE_FARBEN[d.vlans.length % NEUE_FARBEN.length], subnetz: vid < 256 ? `10.10.${vid}.0/24` : "" }));
+            d.vlans.push(newVlan({ vid, name: `VLAN ${vid}`, farbe: VLAN_FARBEN[d.vlans.length % VLAN_FARBEN.length], subnetz: vid < 256 ? `10.10.${vid}.0/24` : "" }));
           })}>+ VLAN</button>
         </div>}>
         {baum.length === 0 && <p style={S.empty}>Keine VLANs angelegt.</p>}

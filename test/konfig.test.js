@@ -96,3 +96,22 @@ test("Katalog: RME Digiface Dante, Ravenna und AVB", () => {
   assert.deepEqual(d.ports.slice(0, 2).map((p) => p.name), ["Primary", "Secondary"]);
   assert.ok(d.protokolle.includes("Dante"));
 });
+
+test("Vorlage mit eigenem VLAN: beim Einfügen fehlt die ID im Projekt, VLAN wird angelegt", async () => {
+  const { snapshotDevice } = await import("../src/shared/catalog.js");
+  const A = projekt();
+  const neu = newVlan({ vid: 123, name: "Kamera", farbe: "#ff9f43" });
+  A.vlans.push(neu);
+  const g = createDevice({ typ: "switch_managed", vlans: A.vlans });
+  g.ports[0].vlan = neu.id; g.ports[1].vlan = A.vlans[0].id;
+  const snap = snapshotDevice(g, A.vlans);
+  const B = projekt();
+  const d = createDevice({ eigeneVorlage: { geraet: snap }, vlans: B.vlans });
+  const v = B.vlans.find((x) => x.vid === 123);
+  assert.ok(v);
+  assert.equal(v.name, "Kamera");
+  assert.equal(d.ports[0].vlan, v.id);
+  assert.equal(d.ports[1].vlan, B.vlans[0].id);
+  assert.equal(B.vlans.length, 4);
+  assert.equal(d.vlanDefs, undefined);
+});

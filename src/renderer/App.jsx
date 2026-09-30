@@ -197,8 +197,9 @@ export default function App() {
     if (!item || usePicker) { setPicker({ connectTo }); return null; }
     const vorlage = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
       : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
-    let id = null, konflikte = [];
+    let id = null, konflikte = [], neueVlans = [];
     mutate((d) => {
+      const vorher = new Set(d.vlans.map((v) => v.id));
       const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
       if (item.kind === "bestand") {
         dev.bestandId = vorlage.id;
@@ -217,11 +218,12 @@ export default function App() {
       if (parent) dev.bereich = parent.bereich;
       d.geraete.push(dev);
       id = dev.id;
+      neueVlans = d.vlans.filter((v) => !vorher.has(v.id)).map((v) => `${v.vid} ${v.name}`);
       if (parent) addConnection(d, parent.id, dev.id);
       else if (at) d.layout.pinned = { ...(d.layout.pinned || {}), [dev.id]: at };
     });
     if (konflikte.length) notify(`Gerät eingefügt. IP bereits belegt: ${konflikte.join(", ")} – siehe Prüfung.`, "err");
-    else notify(item.kind === "bestand" ? "Gerät aus dem Bestand eingefügt (mit IPs)." : "Gerät hinzugefügt.");
+    else notify((item.kind === "bestand" ? "Gerät aus dem Bestand eingefügt (mit IPs)." : "Gerät hinzugefügt.") + (neueVlans.length ? ` Neues VLAN angelegt: ${neueVlans.join(", ")}.` : ""));
     return id;
   }, [library, mutate]);
 

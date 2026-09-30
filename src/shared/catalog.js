@@ -184,6 +184,9 @@ export const snapshotDevice = (dev, vlans = []) => {
   for (const p of g.ports) { p.vid = vid(p.vlan); p.vids = (p.vlans || []).map(vid).filter((x) => x != null); }
   for (const s of g.stroeme || []) s.ziele = [];
   delete g.bestandId;
+  // Genutzte VLANs mitsichern, damit sie beim Einfügen in ein Projekt ohne diese VLAN-ID angelegt werden
+  const genutzt = new Set([...dev.interfaces.map((i) => i.vlan), ...dev.ports.flatMap((p) => [p.vlan, ...(p.vlans || [])])].filter(Boolean));
+  g.vlanDefs = vlans.filter((v) => genutzt.has(v.id)).map(({ vid, name, farbe, subnetz, gateway, zweck, igmp, eeeAus, qos }) => ({ vid, name, farbe, subnetz, gateway, zweck, igmp, eeeAus, qos }));
   return g;
 };
 
@@ -193,8 +196,19 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
   if (src) {
     const d = JSON.parse(JSON.stringify(src.geraet));
     const idMap = {};
+    const defs = d.vlanDefs || [];
+    delete d.vlanDefs;
+    // Fehlt im Projekt eine VLAN-ID, die das Gerät mitbringt: VLAN mit den gesicherten Daten anlegen
+    const anlegen = (vid) => {
+      const def = defs.find((x) => +x.vid === +vid);
+      if (!def) return null;
+      const v = { id: uid(), vid: +def.vid, name: def.name || `VLAN ${def.vid}`, farbe: def.farbe || "#9aa4af", subnetz: def.subnetz || "", gateway: def.gateway || "", zweck: def.zweck || "",
+        igmp: !!def.igmp, querier: "", eeeAus: !!def.eeeAus, qos: !!def.qos, dhcp: { aktiv: false, von: "", bis: "" }, notiz: "", svlan: null };
+      vlans.push(v);
+      return v.id;
+    };
     // VLAN über die VLAN-ID zuordnen; ältere Vorlagen ohne vid behalten die ID, falls sie existiert
-    const map = (oldId, vid) => (vid != null ? vlanNachVid(vlans, vid)?.id || null : vlans.some((v) => v.id === oldId) ? oldId : null);
+    const map = (oldId, vid) => (vid != null ? vlanNachVid(vlans, vid)?.id || anlegen(vid) : vlans.some((v) => v.id === oldId) ? oldId : null);
     d.interfaces = d.interfaces.map((i) => {
       const nid = uid(); idMap[i.id] = nid;
       const { vid, ...rest } = i;
