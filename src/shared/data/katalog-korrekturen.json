@@ -318,6 +318,145 @@
     "Hinweis": "Budget-Wert für ein Netzteil; mit zweitem Netzteil im Gerät auf 1000 W setzen"
    },
    "Quelle": "https://www.luminex.be/wp-content/uploads/2022/09/Product-specification-sheet-GigaCore-30i-1G-v1.0.0.pdf"
+  },
+  {
+   "Hersteller": "Yamaha",
+   "Modell": "XMV4280-D / XMV8280-D",
+   "felder": {
+    "Netzwerkports (Anzahl)": "2",
+    "Netzwerkports (Details)": "2× RJ45 (Dante Pri/Sec, Steuerung ebenfalls über Dante)",
+    "Hinweis": "Kein separater NETWORK-Port"
+   },
+   "Quelle": "https://data.yamaha.com/files/download/other_assets/9/330449/XMV8280-D.pdf"
+  },
+  {
+   "Hersteller": "Yamaha",
+   "Modell": "MTX5-D / MTX3",
+   "felder": {
+    "Netzwerkports (Details)": "MTX5-D: 2× RJ45 (Dante Pri/Sec 1000BASE-T, Steuerung über Dante), 1× YDIF (RJ45, Punkt-zu-Punkt); MTX3: 1× RJ45 Network (100BASE-TX), 1× YDIF (RJ45, Punkt-zu-Punkt)",
+    "Hinweis": "YDIF nutzt RJ45-Buchsen, ist aber kein Ethernet: nie an einen Switch"
+   },
+   "Quelle": "https://es.yamaha.com/files/download/brochure/9/328899/MTX3_MTX5D.pdf"
+  },
+  {
+   "Hersteller": "Yamaha",
+   "Modell": "Rio3224-D3 / Rio1608-D3",
+   "felder": {
+    "Netzwerkports (Details)": "2× etherCON 1 GbE (Dante Pri/Sec)"
+   },
+   "Quelle": "https://fr.yamaha.com/fr/business/audio/products/interfaces/r-series-adda-3/specs.html"
+  },
+  {
+   "Hersteller": "Yamaha",
+   "Modell": "Rio3224-D2 / Rio1608-D2",
+   "felder": {
+    "Netzwerkports (Details)": "2× etherCON 1 GbE (Dante Pri/Sec)"
+   },
+   "Quelle": "https://in.yamaha.com/en/products/proaudio/interfaces/r_series_adda_2/specs.html"
+  },
+  {
+   "Hersteller": "Yamaha",
+   "Modell": "Tio1608-D2 / Tio1608-D",
+   "felder": {
+    "Netzwerkports (Details)": "2× etherCON 1 GbE (Dante Pri/Sec)"
+   },
+   "Quelle": "https://usa.yamaha.com/products/proaudio/interfaces/tio1608-d2/specs.html"
+  },
+  {
+   "Hersteller": "Yamaha",
+   "Modell": "NY64-D",
+   "felder": {
+    "Netzwerkports (Details)": "2× etherCON 1 GbE (Dante Pri/Sec)"
+   },
+   "Quelle": "https://www.la-bs.com/Objets/NY64D_dt.pdf",
+   "Datenstand": "Herstellerdatenblatt (Händlerkopie) geprüft 09/2026"
+  },
+  {
+   "Hersteller": "Audinate",
+   "Modell": "Dante AVIO Analog Input 1ch (ADP-DAI-AU-1X0)",
+   "felder": {
+    "Netzwerkports (Details)": "1× RJ45 (Dante, PoE-PD)",
+    "PoE": "Ja (PD, IEEE 802.3af Class 1)"
+   },
+   "Quelle": "https://my.pvs.global/products/d/adp-dai-au-1x0---audinate-dante-avio---analog-input-adapter-1-channel",
+   "Datenstand": "Händlerdatenblatt geprüft 09/2026"
+  },
+  {
+   "Hersteller": "MA Lighting",
+   "Modell": "grandMA2 onPC command wing",
+   "felder": {
+    "Netzwerkports (Anzahl)": "0",
+    "Netzwerkports (Details)": "– (USB Typ B zum PC, kein Ethernet)",
+    "Protokolle": "DMX512, MIDI, LTC (SMPTE)",
+    "Hinweis": "Netzwerk läuft über den PC mit grandMA2 onPC",
+    "Weitere Anschlüsse": "2× DMX Out, 1× DMX In, MIDI In/Out, LTC In, USB Typ B",
+    "Default-IP": "–"
+   },
+   "Quelle": "https://help2.malighting.com/Page/grandMA2/grandMA2_wing_technical_data/en/3.9"
+  },
+  {
+   "Hersteller": "MA Lighting",
+   "Modell": "dot2 XL-F / XL-B, F-wing / B-wing",
+   "felder": {},
+   "Quelle": "https://www.malighting.com/product-archive/product/dot2-xl-f-120212"
+  },
+  {
+   "Hersteller": "ETC",
+   "Modell": "Eos Apex 20 / 10 / 5",
+   "felder": {
+    "Netzwerkports (Anzahl)": "6",
+    "Netzwerkports (Details)": "4× etherCON 1 GbE, 2× SFP+ 10G",
+    "Hinweis": "PoE-Ausgang auf der Herstellerseite nicht angegeben"
+   },
+   "Quelle": "https://etcconnect.com/apex"
+  },
+  {
+   "Hersteller": "ETC",
+   "Modell": "ColorSource 40 AV",
+   "felder": {
+    "Netzwerkports (Details)": "1× RJ45 (sACN, Art-Net, OSC)"
+   },
+   "Quelle": "https://www.fullcompass.com/common/files/27304-ETCColorSourceSeriesDatasheet.pdf",
+   "Datenstand": "Herstellerdatenblatt (Händlerkopie) geprüft 09/2026"
+  },
+  {
+   "Hersteller": "ETC",
+   "Modell": "Response Mk2 DMX Gateway (4-Port)",
+   "felder": {
+    "Netzwerkports (Details)": "1× RJ45 (vorne oder hinten; Variante -T mit Klemmleiste)",
+    "PoE": "Ja (PD, IEEE 802.3af, max. 7 W; alternativ 12–24 V DC)",
+    "Web-UI": "Nein",
+    "Hinweis": "Konfiguration am Gerätedisplay oder mit ETC Concert"
+   },
+   "Quelle": "https://media.musson.com/mti/docs/r/e/response_mk2_four_gateways_datasheet_reve.pdf",
+   "Datenstand": "Herstellerdatenblatt (Händlerkopie) geprüft 09/2026"
+  },
+  {
+   "Hersteller": "ChamSys",
+   "Modell": "MagicQ MQ500M Stadium",
+   "felder": {
+    "Hinweis": "Die 4 Netzwerkports hängen an einem eingebauten Switch"
+   },
+   "Quelle": "https://uk.chamsyslighting.com/?p=5240"
+  },
+  {
+   "Hersteller": "MikroTik",
+   "Modell": "CRS326-24G-2S+",
+   "felder": {
+    "Netzwerkports (Details)": "24× RJ45 1 GbE, 2× SFP+ 10G",
+    "PoE": "Nein (nur passives PoE-in 10–30 V zur Eigenversorgung)",
+    "Hinweis": "Dual-Boot RouterOS oder SwitchOS"
+   },
+   "Quelle": "https://mikrotik.com/product/CRS326-24G-2SplusRM"
+  },
+  {
+   "Hersteller": "MikroTik",
+   "Modell": "hEX RB750Gr3",
+   "felder": {
+    "PoE": "Ja (passives PoE-in 8–30 V, kein IEEE 802.3af/at; kein PoE-out)",
+    "Hinweis": "Passives PoE: ein normaler PoE-Switch (802.3af/at) versorgt das Gerät nicht"
+   },
+   "Quelle": "https://mikrotik.com/product/RB750Gr3"
   }
  ]
 }

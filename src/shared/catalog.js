@@ -137,7 +137,7 @@ export const KATALOG_GERAETE = KATALOG.geraete.map((g) => ({
 
 /* Ports aus „Netzwerkports (Details)“ ableiten. Beispiel:
    "2× etherCON (Dante Pri/Sec), 1× RJ45 Network" → Primary, Secondary, Network */
-const P2P_RE = /AES50|Ultranet|SLink|gigaACE|fibreACE|\bDX\b|HDBaseT|DIGITAL LINK|TWINLANe|Ring|P3-Link|StageConnect|EtherSound/i;
+const P2P_RE = /AES50|YDIF|Ultranet|SLink|gigaACE|fibreACE|\bDX\b|HDBaseT|DIGITAL LINK|TWINLANe|Ring|P3-Link|StageConnect|EtherSound/i;
 const portTyp = (s) => (/SFP28/i.test(s) ? "SFP28" : /SFP\+/i.test(s) ? "SFP+" : /SFP|Glas|opticalCON/i.test(s) ? (/opticalCON/i.test(s) ? "opticalCON" : "SFP") : /etherCON/i.test(s) ? "etherCON" : "RJ45");
 
 export const parsePorts = (details, anzahl, isSwitch) => {
