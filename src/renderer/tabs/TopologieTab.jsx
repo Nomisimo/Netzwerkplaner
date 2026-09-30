@@ -350,8 +350,27 @@ export default function TopologieTab(props) {
   const kabelWeg = new Map();
   if (!front) for (const c of allConns) {
     let from = posOf(c.a.dev), to = posOf(c.b.dev), fromEnd = c.a, toEnd = c.b;
-    if (treeConnIds.has(c.id) && treeChildByConn.get(c.id) === c.a.dev) { [from, to] = [to, from]; [fromEnd, toEnd] = [toEnd, fromEnd]; }
+    if (treeConnIds.has(c.id) ? treeChildByConn.get(c.id) === c.a.dev : !X.devById.get(c.a.dev)?.isSwitch && X.devById.get(c.b.dev)?.isSwitch) { [from, to] = [to, from]; [fromEnd, toEnd] = [toEnd, fromEnd]; }
     kabelWeg.set(c.id, { from, to, fromEnd, toEnd });
+  }
+  // Mehrere Kabel am selben Gerät und auf derselben Seite: Port-Plaketten am Gerät untereinander
+  const plakettenReihe = new Map();
+  if (!front && showPorts) {
+    const gruppen = new Map();
+    for (const c of allConns) {
+      const { from, to, toEnd } = kabelWeg.get(c.id);
+      if (!from || !to) continue;
+      const seite = Math.abs(to.x - from.x) < NODE_W ? "v" + Math.sign(to.y - from.y) : "h" + Math.sign(to.x - from.x);
+      const k = toEnd.dev + "|" + seite;
+      if (!gruppen.has(k)) gruppen.set(k, []);
+      gruppen.get(k).push(c);
+    }
+    for (const liste of gruppen.values()) {
+      if (liste.length < 2) continue;
+      const ports = X.devById.get(kabelWeg.get(liste[0].id).toEnd.dev)?.ports || [];
+      const idx = (c) => ports.findIndex((p) => p.id === kabelWeg.get(c.id).toEnd.port);
+      liste.sort((a, b) => idx(a) - idx(b)).forEach((c, i) => plakettenReihe.set(c.id, { i, n: liste.length }));
+    }
   }
   const spuren = front ? new Map() : kabelSpuren(allConns.filter((c) => !knickOf(c)).map((c) => {
     const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
@@ -485,8 +504,9 @@ export default function TopologieTab(props) {
                 // Baumkanten vom Elternknoten aus zeichnen
                 const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
                 const sp = spuren.get(c.id);
-                if (sp?.versteckt && selConn?.id !== c.id) return null; // gebündelt: parallele Kabel als eine Linie
                 const g = edgePath(from, to, knickOf(c), sp);
+                // gebündelt: parallele Kabel als eine Linie, die Port-Plaketten bleiben sichtbar
+                if (sp?.versteckt && selConn?.id !== c.id) return showPorts && plakettenReihe.has(c.id) ? <g key={c.id} style={{ cursor: "pointer" }} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}><PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} /></g> : null;
                 const st = edgeStyle(c);
                 const sel = selConn?.id === c.id;
                 const da = X.devById.get(c.a.dev), db = X.devById.get(c.b.dev);
@@ -498,7 +518,7 @@ export default function TopologieTab(props) {
                     <path d={g.d} stroke="transparent" strokeWidth="14" fill="none" />
                     {(sel || st.errs) && <path d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
-                    {showPorts && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} />}
+                    {showPorts && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} />}
                     {sp?.anzahl > 1 && <g><rect x={g.mx - 11} y={g.my - 8} width="22" height="16" rx="8" fill="#1b2026" stroke={st.color} /><text x={g.mx} y={g.my + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill="#e8eaed">{sp.anzahl}×</text><title>{sp.anzahl} Kabel gebündelt</title></g>}
                     {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill="#c8d0d8" textAnchor="middle">{c.label}</text>}
                     {knickGriff(c, g.mx, g.my)}
@@ -661,7 +681,7 @@ const eckPfad = (x1, y1, x2, y2, dir, mid) => {
 /* Port- und VLAN-Plakette an einer Verbindung: sitzt am Geräte-Ende und zeigt,
    an welchem Switch-Port das Gerät steckt und welches VLAN dort anliegt. */
 const CW = 5.9; // geschätzte Zeichenbreite bei 10 px
-function PortBadge({ c, g, fromEnd, toEnd, X, extra }) {
+function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
   const a = endInfo(c, fromEnd, X), b = endInfo(c, toEnd, X);
   if (!a || !b) return null;
   const sw = a.sw ? a : b.sw ? b : null;
@@ -682,6 +702,10 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra }) {
   let x0, y0;
   if (vertical) { const dy = g.y2 >= g.y1 ? 1 : -1; x0 = g.x2 + 6; y0 = g.y2 - dy * 20 - 7; }
   else { x0 = dir > 0 ? g.x2 - 8 - total : g.x2 + 8; y0 = extra ? g.y2 + 5 : g.y2 - 18; } // Querverbindungen unter die Linie, damit sie die Baumkante nicht verdecken
+  if (reihe && ziel) { // mehrere Kabel an diesem Gerät: Plaketten untereinander neben dem Gerät
+    if (vertical) y0 = g.y2 - (g.y2 >= g.y1 ? 1 : -1) * (20 + reihe.i * 16) - 7;
+    else y0 = ziel.y - (reihe.n * 16) / 2 + reihe.i * 16 + 1;
+  }
   const tip = [
     sw ? `${sw.dev.name} · Port ${sw.port.name} (${sw.port.typ}${sw.port.poe ? ", PoE" : ""})` : `${a.dev.name} · ${a.port.name}`,
     `→ ${ep.dev.name} · ${ep.port.name}${ep.ifc?.ip ? ` (${ep.ifc.ip})` : ""}`,

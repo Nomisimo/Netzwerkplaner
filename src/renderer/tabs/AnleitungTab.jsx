@@ -73,7 +73,7 @@ const KAPITEL = [
       "„Linien: rund / eckig“: geschwungene oder rechtwinklige Verbindungslinien. Mehrere Kabel zwischen denselben Geräten liegen nebeneinander.",
       "„Kabel bündeln“ (nur bei eckigen Linien): an = Kabel teilen sich den Weg, parallele Kabel werden eine Linie mit Anzahl (z. B. 2×). Aus = jedes Kabel läuft einzeln auf eigener Spur.",
       "„Titel“: in den Kästen den Gerätenamen, den Netzwerknamen (Hostname), den Typ bzw. das Modell oder die Inventarnummer zeigen. Ohne Netzwerknamen steht dort der Typ.",
-      "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
+      "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports untereinander am Gerät, auch bei gebündelten Kabeln. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
       "„⟳ Status“ prüft alle Geräte mit IP (Web-UI-Port, sonst Ping). Mit „alle 15 s“ läuft das zyklisch, sofern der Rechner im selben Netz hängt.",
     ]} />
   </> },
