@@ -190,7 +190,9 @@ export const snapshotDevice = (dev, vlans = []) => {
   return g;
 };
 
-export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, mitAdressen = false }) => {
+// Neue Geräte bekommen kein VLAN, bis der Nutzer eins zuweist. standardVlans: true ordnet
+// nach Kategorie zu (KAT_VLAN, Management 99) – nur für das Beispielprojekt gedacht.
+export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, mitAdressen = false, standardVlans = false }) => {
   const k = katalogId ? KATALOG_GERAETE.find((x) => x.id === katalogId) : null;
   const src = eigeneVorlage || null;
   if (src) {
@@ -226,7 +228,7 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
   const T = TYPEN[t] || TYPEN.sonstiges;
   const kat = k?.kategorie || T.kat;
   const isSwitch = !!T.isSwitch;
-  const vByVid = (vid) => vlanNachVid(vlans, vid)?.id || null;
+  const vByVid = (vid) => (standardVlans ? vlanNachVid(vlans, vid)?.id || null : null);
 
   const rawPorts = k ? parsePorts(k.raw["Netzwerkports (Details)"], k.raw["Netzwerkports (Anzahl)"], isSwitch)
                      : Array.from({ length: T.ports }, (_, i) => ({ name: isSwitch ? String(i + 1) : T.ports > 1 ? `LAN ${i + 1}` : "LAN", typ: "RJ45", p2p: false }));
