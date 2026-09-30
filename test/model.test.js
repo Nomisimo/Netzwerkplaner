@@ -24,6 +24,14 @@ test("Ports aus Katalogtext", () => {
   assert.ok(parsePorts("1× RJ45 Network, 4× AES50 (etherCON)", "", false).filter((x) => x.p2p).length === 4);
 });
 
+test("Yamaha M7CL: Karten-Dante bzw. EtherSound als P2P", () => {
+  const m7 = createDevice({ katalogId: kat("M7CL-32 / M7CL-48"), vlans: emptyProject().vlans });
+  assert.deepEqual(m7.ports.map((x) => x.name), ["NETWORK", "Primary", "Secondary"]);
+  const es = createDevice({ katalogId: kat("M7CL-48ES"), vlans: emptyProject().vlans });
+  assert.equal(es.ports.filter((x) => x.p2p && x.typ === "etherCON").length, 3);
+  assert.equal(es.ports.filter((x) => !x.p2p).length, 1);
+});
+
 test("Neues Gerät bekommt kein VLAN, bis der Nutzer eins zuweist", () => {
   const P = emptyProject();
   for (const d of [createDevice({ katalogId: kat("Rio3224"), vlans: P.vlans }), createDevice({ typ: "node", vlans: P.vlans }), createDevice({ typ: "switch_managed", vlans: P.vlans })]) {
