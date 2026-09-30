@@ -5,9 +5,12 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
-  "0.6.0-beta.18": [
+  "0.6.0-beta.20": [
     "Topologie: Neuer Schalter „Einrasten“ (standardmäßig an). Beim Ziehen rastet ein Gerät im Raster ein und richtet sich an Kanten und Mitten benachbarter Geräte aus, eine gestrichelte Hilfslinie zeigt die Ausrichtung. So entsteht ein gleichmäßiges Layout ohne Pixelschieben",
     "Alt gedrückt halten schaltet das Einrasten beim Ziehen kurz aus. Die Einstellung wird mit dem Projekt gespeichert",
+  ],
+  "0.6.0-beta.19": [
+    "Live › Scan: Mit „✕ Leeren“ lässt sich das letzte Scan-Ergebnis verwerfen. Das Subnetz bleibt eingetragen, ein neuer Scan startet mit leerer Liste",
   ],
   "0.6.0-beta.17": [
     "Ports und Interfaces sind zusammengeführt: Jeder Port trägt direkt VLAN, IP, Maske, Gateway, MAC und DHCP. Die getrennte Interface-Liste und die Zuordnung Port → Interface entfallen",

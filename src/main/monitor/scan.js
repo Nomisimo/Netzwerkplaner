@@ -117,6 +117,13 @@ async function create(opts = {}, ctx) {
     action(name, args = {}) {
       if (name === 'scan') { run(args); return true; }
       if (name === 'cancel') { cancel = true; return true; }
+      // Ergebnis verwerfen; das Subnetz bleibt als Vorschlag stehen
+      if (name === 'clear') {
+        if (running) return false;
+        hosts = []; progress = { done: 0, total: 0 }; started = 0; finished = 0; err = '';
+        ctx.dirty();
+        return true;
+      }
       return false;
     },
     stop() { cancel = true; },

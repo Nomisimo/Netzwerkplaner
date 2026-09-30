@@ -32,7 +32,8 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
   }, [targets, interfaces]);
 
   const run = () => mon.action("scan", { cidr: cidr.trim(), ports: ports.split(/[,; ]+/).map(Number).filter((p) => p > 0 && p < 65536) });
-  const cmp = useMemo(() => (snap?.hosts ? compareScan(P, snap.hosts, snap.cidr) : null), [P, snap?.hosts, snap?.cidr]);
+  const hatErgebnis = !!snap?.hosts && (snap.running || snap.finished > 0);
+  const cmp = useMemo(() => (hatErgebnis ? compareScan(P, snap.hosts, snap.cidr) : null), [P, hatErgebnis, snap?.hosts, snap?.cidr]);
   const rows = cmp ? cmp.rows.filter((r) => !filter || r.status === filter) : [];
 
   const uebernehmen = (h) => {
@@ -42,6 +43,8 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
     });
     notify?.(`${h.ip} als generisches Gerät in den Plan übernommen.`);
   };
+
+  const leeren = () => { setFilter(""); mon.action("clear"); };
 
   const pct = snap?.progress?.total ? Math.round((snap.progress.done / snap.progress.total) * 100) : 0;
   return (
@@ -59,6 +62,7 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
         {snap?.running
           ? <button style={S.secondaryBtn} onClick={() => mon.action("cancel")}>■ Abbrechen</button>
           : <button style={S.primaryBtn} onClick={run} disabled={!cidr.trim()}>▶ Scan starten</button>}
+        {(cmp || snap?.err) && !snap.running && <button style={S.secondaryBtn} onClick={leeren} title="Scan-Ergebnis verwerfen">✕ Leeren</button>}
       </div>
       {targets.length > 0 && (
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: -6, marginBottom: 12 }}>
