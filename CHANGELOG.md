@@ -3,7 +3,7 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [0.6.0-beta.11] – 2026-09-30
+## [0.6.0-beta.12] – 2026-09-30
 
 - Beim Start spielt die App während der Splash-Animation einen kurzen Sound
 

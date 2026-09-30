@@ -5,7 +5,7 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
-  "0.6.0-beta.11": [
+  "0.6.0-beta.12": [
     "Beim Start spielt die App während der Splash-Animation einen kurzen Sound",
   ],
   "0.6.0-beta.10": [
