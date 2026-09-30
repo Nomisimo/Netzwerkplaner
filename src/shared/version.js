@@ -5,6 +5,11 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.7": [
+    "VLAN-Liste: die VLAN-ID steht zugeklappt als gut lesbares Kästchen, auch bei dunklen VLAN-Farben",
+    "VLAN-Liste: ⚠ zeigt die Anzahl der Meldungen, die Maus darauf nennt den Grund. Die Regeln stehen oben im VLAN-Tab",
+    "Neue VLANs bekommen helle Farben statt Zufallsfarben",
+  ],
   "0.6.0-beta.6": [
     "Stapel bearbeiten: Klick auf einen Stapel öffnet ein eigenes Fenster mit Name, Reihenfolge, Geräte hinzufügen oder lösen",
     "Stapel duplizieren und kopieren/einfügen, samt Verbindungen innerhalb des Stapels, auch in ein anderes Projekt",

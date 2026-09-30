@@ -3,6 +3,12 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.7] – 2026-09-30
+
+- VLAN-Liste: die VLAN-ID steht zugeklappt als gut lesbares Kästchen, auch bei dunklen VLAN-Farben
+- VLAN-Liste: ⚠ zeigt die Anzahl der Meldungen, die Maus darauf nennt den Grund. Die Regeln stehen oben im VLAN-Tab
+- Neue VLANs bekommen helle Farben statt Zufallsfarben
+
 ## [0.6.0-beta.6] – 2026-09-30
 
 - Stapel bearbeiten: Klick auf einen Stapel öffnet ein eigenes Fenster mit Name, Reihenfolge, Geräte hinzufügen oder lösen
