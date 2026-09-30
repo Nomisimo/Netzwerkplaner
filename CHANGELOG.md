@@ -10,6 +10,12 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 - Ältere Projektdateien, Vorlagen, Bestand und kopierte Konfigurationen werden beim Öffnen umgestellt, ohne Daten zu verlieren. Teilten sich mehrere Ports ein Interface, bekommt der erste Port IP und MAC, die übrigen VLAN, Maske und Gateway
 - „⟳ IPs vergeben“ vergibt je Gerät eine Adresse pro VLAN, damit z. B. der zweite Port eines Daisy-Chain-Geräts keine eigene IP bekommt
 
+## [0.6.0-beta.14] – 2026-09-30
+
+- Eigene Felder: Im Katalog unter „Eigene Felder“ beliebige Gerätefelder anlegen (z. B. Inventar-Nr., Seriennummer, Case, Eigentümer), im Geräte-Editor mit „+ Feld …“ einfügen und ausfüllen
+- Die festen Felder Inventar-Nr., Seriennummer und Case sind entfernt. Vorhandene Werte aus älteren Projekten und aus dem Gerätebestand werden beim Öffnen in gleichnamige eigene Felder übernommen
+- Eigene Felder stehen in Geräteliste (Excel/PDF), Bestands-CSV, Suche, Tooltip und Rechtsklick-Menü und lassen sich in der Topologie als Titel anzeigen. Unbekannte CSV-Spalten werden beim Import zu eigenen Feldern
+
 ## [0.6.0-beta.13] – 2026-09-30
 
 - Neue Geräte bekommen kein VLAN mehr automatisch. Bisher landeten sie je nach Kategorie z. B. in VLAN 10, 20 oder 99. Vorlagen und Bestand bringen ihre gespeicherten VLANs weiter mit

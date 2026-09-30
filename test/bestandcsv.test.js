@@ -27,7 +27,7 @@ test("Bestand übersteht CSV-Export und -Import (Katalogmodell, IPs, VLAN, Inven
   assert.equal(ipPorts(pu)[0].vid, 50);
   assert.equal(ipPorts(pu)[1].prefix, 8);
   assert.equal(ipPorts(pu)[2].dhcp, true);
-  assert.equal(pu.inventar.nr, "INV-1");
+  assert.deepEqual(pu.felder.map((f) => [f.id, f.name, f.wert]), [["inventar-nr", "Inventar-Nr.", "INV-1"]]);
   const lap = bestand[1].geraet;
   assert.equal(ipPorts(lap)[0].ip, "172.16.2.52");
   // Rundreise
@@ -35,7 +35,20 @@ test("Bestand übersteht CSV-Export und -Import (Katalogmodell, IPs, VLAN, Inven
   assert.equal(ipPorts(wieder[0].geraet)[1].ip, "10.0.2.131");
   assert.equal(wieder[0].geraet.katalogId, pu.katalogId);
   assert.equal(wieder[1].geraet.netzname, "BL_Lap");
+  assert.equal(wieder[0].geraet.felder[0].wert, "INV-1", "eigenes Feld übersteht die Rundreise");
   // eingefügt ins Projekt: VLAN 50 wird zugeordnet
   const d = createDevice({ eigeneVorlage: wieder[0], vlans: P.vlans, mitAdressen: true });
   assert.equal(P.vlans.find((v) => v.id === ipPorts(d)[0].vlan)?.vid, 50);
+});
+
+test("CSV: unbekannte Spalten werden eigene Felder, Katalogfelder über den Namen", () => {
+  const defs = [{ id: "f1", name: "Eigentümer" }];
+  const { bestand } = csvZuBestand("Name;eigentümer;Prüfdatum;Seriennummer\nA;Verleih X;2026-01-01;SN9\nB;;2026-02-02;\n", [], defs);
+  const a = bestand[0].geraet.felder, b = bestand[1].geraet.felder;
+  assert.deepEqual(a.map((f) => f.wert), ["Verleih X", "2026-01-01", "SN9"]);
+  assert.equal(a[0].id, "f1");
+  assert.equal(a[2].id, "seriennummer");
+  assert.equal(a[1].id, b[0].id, "gleiche Spalte → gleiche Feld-ID");
+  const csv = bestandZuCsv(bestand, defs);
+  assert.match(csv.split("\r\n")[0], /;Eigentümer;Prüfdatum;Seriennummer$/);
 });

@@ -48,5 +48,5 @@ export const typName = (d) => d.modell || TYPEN[d.typ]?.label || "Gerät";
 export const geraeteTitel = (d, modus) =>
   modus === "netzname" ? d.netzname || typName(d)
   : modus === "typ" ? typName(d)
-  : modus === "inventar" ? d.inventar?.nr || d.name
+  : modus?.startsWith("feld:") ? (d.felder || []).find((f) => f.id === modus.slice(5))?.wert || d.name
   : d.name;

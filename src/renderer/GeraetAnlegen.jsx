@@ -15,6 +15,7 @@ export default function GeraetAnlegen({ P, ziel, onSave, onClose }) {
     const p = emptyProject();
     p.vlans = JSON.parse(JSON.stringify(P.vlans));
     p.icons = P.icons || [];
+    p.feldKatalog = P.feldKatalog || [];
     p.geraete = [createDevice({ typ: "sonstiges", vlans: p.vlans, name: "Neues Gerät" })];
     return p;
   });
@@ -26,12 +27,12 @@ export default function GeraetAnlegen({ P, ziel, onSave, onClose }) {
     mutate((d) => {
       const alt = d.geraete[0];
       const neu = createDevice({ typ: t, vlans: d.vlans, name: alt.name });
-      d.geraete[0] = { ...neu, netzname: alt.netzname, hersteller: alt.hersteller, modell: alt.modell, inventar: alt.inventar, notizen: alt.notizen };
+      d.geraete[0] = { ...neu, netzname: alt.netzname, hersteller: alt.hersteller, modell: alt.modell, felder: alt.felder || [], notizen: alt.notizen };
     });
   };
   const speichern = () => {
     const g = snapshotDevice(dev, S0.vlans);
-    if (ziel === "vorlage") { g.ports.forEach((i) => { i.ip = ""; i.mac = ""; }); g.netzname = ""; g.inventar = { nr: "", sn: "", case: "" }; }
+    if (ziel === "vorlage") { g.ports.forEach((i) => { i.ip = ""; i.mac = ""; }); g.netzname = ""; (g.felder || []).forEach((f) => { f.wert = ""; }); }
     const now = new Date().toISOString();
     onSave({ id: uid(), name: dev.name, geraet: g, angelegt: now, geaendert: now });
   };

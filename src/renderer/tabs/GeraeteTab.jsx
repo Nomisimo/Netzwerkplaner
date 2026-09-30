@@ -22,7 +22,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
   const list = useMemo(() => {
     const ql = q.toLowerCase();
     const l = P.geraete.filter((d) => (!kat || d.kategorie === kat) && (!vlan || ipPorts(d).some((i) => i.vlan === vlan))
-      && (!ql || `${d.name} ${d.netzname || ""} ${d.inventar?.nr || ""} ${d.inventar?.sn || ""} ${d.hersteller} ${d.modell} ${d.bereich} ${ipPorts(d).map((i) => i.ip + " " + i.mac).join(" ")} ${(d.protokolle || []).join(" ")}`.toLowerCase().includes(ql)));
+      && (!ql || `${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.hersteller} ${d.modell} ${d.bereich} ${ipPorts(d).map((i) => i.ip + " " + i.mac).join(" ")} ${(d.protokolle || []).join(" ")}`.toLowerCase().includes(ql)));
     const key = { name: (a, b) => a.name.localeCompare(b.name, "de", { numeric: true }), ip: (a, b) => ipSort(mainIp(a), mainIp(b)), kat: (a, b) => a.kategorie.localeCompare(b.kategorie) || a.name.localeCompare(b.name, "de", { numeric: true }), bereich: (a, b) => (a.bereich || "~").localeCompare(b.bereich || "~") || a.name.localeCompare(b.name, "de") }[sort];
     return [...l].sort(key);
   }, [P.geraete, q, kat, vlan, sort]);

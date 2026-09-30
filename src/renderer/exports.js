@@ -5,6 +5,7 @@ import { ipSort, prefixToMaskStr, parseCidr } from "../shared/net.js";
 import { ladeLogo } from "./logo.js";
 import { vlanBaum, aeusseresVlan } from "../shared/qinq.js";
 import { ipPorts, physPorts } from "../shared/catalog.js";
+import { feldSpalten, feldWert } from "../shared/felder.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const fileBase = (P) => (P.meta.veranstaltung || "Netzwerkplan").replace(/[\\/:*?"<>|]+/g, "_").trim() || "Netzwerkplan";
@@ -66,11 +67,11 @@ export const patchRows = (P, X) => P.verbindungen.map((c, n) => {
   return { "#": n + 1, Label: c.label, "Von Gerät": ra?.dev.name, "Von Port": ra?.port.name, "Nach Gerät": rb?.dev.name, "Nach Port": rb?.port.name,
     VLAN: (cv.kind === "trunk" ? "Trunk: " : "") + cv.vlans.map((id) => X.vlanById.get(id)?.vid).join(", "), Kabel: kabelLabel(c.kabel), Notiz: c.notiz || "" };
 });
-export const deviceRows = (P, X) => P.geraete.map((d) => ({
+export const deviceRows = (P, X) => { const felder = feldSpalten(P.geraete, P.feldKatalog); return P.geraete.map((d) => ({
   Name: d.name, Netzwerkname: d.netzname || "", Typ: TYPEN[d.typ]?.label, Bereich: d.kategorie, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell,
   IPs: ipPorts(d).filter((i) => i.ip).map((i) => `${i.ip}/${i.prefix}`).join(", "), Ports: physPorts(d).length, "Web-UI": webUrl(d) || (d.webUi?.vorhanden ? "ja (IP fehlt)" : ""),
-  Protokolle: (d.protokolle || []).join(", "), "Inventar-Nr.": d.inventar?.nr || "", Seriennummer: d.inventar?.sn || "", Case: d.inventar?.case || "", Notizen: d.notizen,
-}));
+  Protokolle: (d.protokolle || []).join(", "), ...Object.fromEntries(felder.map((f) => [f.name, feldWert(d, f.id)])), Notizen: d.notizen,
+})); };
 export const vlanRows = (P) => vlanBaum(P.vlans).map(({ v }) => ({
   VLAN: v.vid, "S-VLAN (QinQ)": aeusseresVlan(v, P.vlans)?.vid ?? "", Name: v.name, Zweck: v.zweck,
   IGMP: v.igmp ? "ja" : "nein", "EEE aus": v.eeeAus ? "ja" : "nein", QoS: v.qos ? "ja" : "nein", DHCP: v.dhcp?.aktiv ? "ja" : "nein", Notiz: v.notiz,

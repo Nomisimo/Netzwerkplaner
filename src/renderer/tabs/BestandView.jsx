@@ -9,7 +9,7 @@ import GeraetAnlegen from "../GeraetAnlegen.jsx";
 
 const datum = (iso) => (iso ? new Date(iso).toLocaleDateString("de-DE") : "");
 
-/* Gerätebestand: konkrete eigene Geräte mit Name, IPs, MACs, Ports und Inventardaten,
+/* Gerätebestand: konkrete eigene Geräte mit Name, IPs, MACs, Ports und eigenen Feldern,
    die sich direkt (inkl. Adressen) in ein Projekt einfügen lassen. */
 export default function BestandView({ P, library, setLibrary, onAddDevice, onSelectDevice, onSaveAlleBestand, allIcons, notify }) {
   const [q, setQ] = useState("");
@@ -29,7 +29,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   const list = useMemo(() => bestand.filter((b) => {
     const g = b.geraet;
     if (kat && g.kategorie !== kat) return false;
-    return !ql || `${b.name} ${g.netzname || ""} ${g.hersteller} ${g.modell} ${g.ports.map((i) => (i.ip || "") + " " + (i.mac || "")).join(" ")} ${g.inventar?.nr || ""} ${g.inventar?.sn || ""} ${g.inventar?.case || ""}`.toLowerCase().includes(ql);
+    return !ql || `${b.name} ${g.netzname || ""} ${g.hersteller} ${g.modell} ${g.ports.map((i) => (i.ip || "") + " " + (i.mac || "")).join(" ")} ${(g.felder || []).map((f) => f.wert).join(" ")}`.toLowerCase().includes(ql);
   }).sort((a, b) => a.name.localeCompare(b.name, "de", { numeric: true })), [bestand, ql, kat]);
 
   const setName = (id, name) => setLibrary((l) => ({ ...l, bestand: l.bestand.map((b) => (b.id === id ? { ...b, name, geraet: { ...b.geraet, name } } : b)) }));
@@ -48,7 +48,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   const toggle = (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const exportJson = () => api.saveFile(JSON.stringify({ format: "netzwerkplaner-bestand", version: 1, bestand, icons: library.icons || [] }, null, 2), "Gerätebestand.json", [{ name: "JSON", extensions: ["json"] }], "utf8");
-  const exportCsv = () => api.saveFile(bestandZuCsv(bestand), "Gerätebestand.csv", [{ name: "CSV", extensions: ["csv"] }], "utf8");
+  const exportCsv = () => api.saveFile(bestandZuCsv(bestand, library.felder), "Gerätebestand.csv", [{ name: "CSV", extensions: ["csv"] }], "utf8");
   const importDatei = (e) => {
     const f = e.target.files[0];
     e.target.value = "";
@@ -56,7 +56,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
     const r = new FileReader();
     r.onload = () => {
       if (/\.(csv|txt|tsv)$/i.test(f.name) || !/^\s*\{/.test(r.result)) {
-        const { bestand: neu, fehler } = csvZuBestand(r.result, P.vlans);
+        const { bestand: neu, fehler } = csvZuBestand(r.result, P.vlans, library.felder);
         if (!neu.length) return notify("In der CSV wurden keine Geräte gefunden. Erste Zeile muss die Spaltennamen enthalten (mindestens „Name“).", "err");
         setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...neu] }));
         const ohne = neu.filter((b) => !b.geraet.katalogId).length;
@@ -82,7 +82,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
 
   return (
     <Section title={`Gerätebestand (${bestand.length})`}
-      subtitle="Deine eigenen Geräte mit Name, Netzwerkname, IPs, MACs, Ports und Inventardaten. Speichern im Geräte-Editor mit „⇩ In Bestand“. Beim Einfügen bleiben IPs und Einstellungen erhalten; VLANs werden über die VLAN-ID zugeordnet."
+      subtitle="Deine eigenen Geräte mit Name, Netzwerkname, IPs, MACs, Ports und eigenen Feldern. Speichern im Geräte-Editor mit „⇩ In Bestand“. Beim Einfügen bleiben IPs und Einstellungen erhalten; VLANs werden über die VLAN-ID zugeordnet."
       right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button style={S.secondaryBtn} onClick={onSaveAlleBestand} title="Alle Geräte dieses Projekts, die noch nicht im Bestand sind, übernehmen">⇩ Projektgeräte übernehmen</button>
         <button style={S.primaryBtn} onClick={() => setAnlegen(true)}>+ Neues Gerät</button>
@@ -92,7 +92,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
         <input ref={fileRef} type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv" style={{ display: "none" }} onChange={importDatei} />
       </div>}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="🔍 Name, IP, MAC, Modell, Inventar-Nr., Case" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="🔍 Name, IP, MAC, Modell, eigene Felder" value={q} onChange={(e) => setQ(e.target.value)} />
         <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}>
           <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>
@@ -108,7 +108,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
           <table style={S.table}>
             <thead><tr>
               <th style={{ ...S.th, width: 26 }}><input type="checkbox" checked={list.length > 0 && list.every((b) => sel.has(b.id))} onChange={(e) => setSel(e.target.checked ? new Set(list.map((b) => b.id)) : new Set())} /></th>
-              <th style={{ ...S.th, width: 30 }}></th><th style={S.th}>Name</th><th style={S.th}>IPs</th><th style={S.th}>Inventar</th><th style={S.th}>Stand</th><th style={S.th}></th>
+              <th style={{ ...S.th, width: 30 }}></th><th style={S.th}>Name</th><th style={S.th}>IPs</th><th style={S.th}>Eigene Felder</th><th style={S.th}>Stand</th><th style={S.th}></th>
             </tr></thead>
             <tbody>
               {list.map((b) => {
@@ -127,9 +127,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
                       {!g.ports.some((i) => i.ip || i.dhcp) && <span style={{ color: MUTED }}>–</span>}
                     </td>
                     <td style={{ ...S.td, fontSize: 12 }}>
-                      {g.inventar?.nr && <div>Nr. {g.inventar.nr}</div>}
-                      {g.inventar?.sn && <div style={{ color: SUB }}>S/N {g.inventar.sn}</div>}
-                      {g.inventar?.case && <div style={{ color: SUB }}>{g.inventar.case}</div>}
+                      {(g.felder || []).filter((f) => f.wert).map((f, n) => <div key={f.id} style={n ? { color: SUB } : undefined}><span style={{ color: MUTED }}>{f.name}:</span> {f.wert}</div>)}
                     </td>
                     <td style={{ ...S.td, fontSize: 11, color: MUTED, whiteSpace: "nowrap" }}>{datum(b.geaendert || b.angelegt)}</td>
                     <td style={{ ...S.td, whiteSpace: "nowrap", textAlign: "right" }}>

@@ -6,6 +6,7 @@ import { IconView, ICON_NAMES } from "../icons.jsx";
 import { api } from "../api.js";
 import BestandView from "./BestandView.jsx";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
+import { newFeld, feldUmbenennen, feldEntfernen } from "../../shared/felder.js";
 
 const FLAG_LABELS = [
   ["p2p", "Punkt-zu-Punkt, nicht über Switch", ERR],
@@ -79,7 +80,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
     r.readAsDataURL(f);
   };
 
-  const TABS = [["bestand", `Gerätebestand (${library.bestand?.length || 0})`], ["vorlagen", `Eigene Vorlagen (${library.vorlagen?.length || 0})`], ["katalog", `Herstellergeräte (${KATALOG_GERAETE.length})`], ["protokolle", `Protokolle (${PROTOKOLLE.length})`], ["icons", "Icons"]];
+  const TABS = [["bestand", `Gerätebestand (${library.bestand?.length || 0})`], ["vorlagen", `Eigene Vorlagen (${library.vorlagen?.length || 0})`], ["katalog", `Herstellergeräte (${KATALOG_GERAETE.length})`], ["protokolle", `Protokolle (${PROTOKOLLE.length})`], ["felder", `Eigene Felder (${library.felder?.length || 0})`], ["icons", "Icons"]];
 
   return (
     <>
@@ -166,6 +167,8 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
         </Section>
       )}
 
+      {sub === "felder" && <FelderView P={P} mutate={mutate} library={library} setLibrary={setLibrary} />}
+
       {sub === "icons" && (
         <Section title="Icons" subtitle="Mitgelieferte Geräte-Icons und eigene Uploads (SVG oder PNG, max. 300 KB). Eigene Icons werden im Katalog und in der Projektdatei gespeichert, damit das Projekt auf anderen Rechnern gleich aussieht."
           right={<label style={{ ...S.primaryBtn, display: "inline-block" }}>+ Icon hochladen<input type="file" accept=".svg,.png,image/svg+xml,image/png" style={{ display: "none" }} onChange={uploadIcon} /></label>}>
@@ -195,5 +198,74 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
         </Section>
       )}
     </>
+  );
+}
+
+/* Eigene Felder: frei benannte Gerätefelder (z. B. Inventar-Nr., Seriennummer, Case), die im
+   Geräte-Editor eingefügt und ausgefüllt werden. Umbenennen und Löschen wirkt auf Projekt und Bestand. */
+function FelderView({ P, mutate, library, setLibrary }) {
+  const [neu, setNeu] = useState("");
+  const felder = library.felder || [];
+  const libGeraete = (l) => [...(l.bestand || []).map((b) => b.geraet), ...(l.vorlagen || []).map((v) => v.geraet)];
+  const nutzung = (id) => {
+    const imProjekt = P.geraete.filter((g) => (g.felder || []).some((f) => f.id === id)).length;
+    const imKatalog = libGeraete(library).filter((g) => (g?.felder || []).some((f) => f.id === id)).length;
+    return { imProjekt, imKatalog };
+  };
+  const anlegen = () => {
+    const name = neu.trim();
+    if (!name) return;
+    if (felder.some((f) => f.name.toLowerCase() === name.toLowerCase())) return alert(`Das Feld „${name}“ gibt es schon.`);
+    setLibrary((l) => ({ ...l, felder: [...(l.felder || []), newFeld(name)] }));
+    setNeu("");
+  };
+  const umbenennen = (id, name) => {
+    setLibrary((l) => {
+      const n = JSON.parse(JSON.stringify(l));
+      n.felder = n.felder.map((f) => (f.id === id ? { ...f, name } : f));
+      feldUmbenennen(libGeraete(n), id, name);
+      return n;
+    });
+    mutate((d) => feldUmbenennen(d.geraete, id, name));
+  };
+  const loeschen = (f) => {
+    const { imProjekt, imKatalog } = nutzung(f.id);
+    const wo = [imProjekt && `${imProjekt} Projektgerät${imProjekt > 1 ? "en" : ""}`, imKatalog && `${imKatalog} Gerät${imKatalog > 1 ? "en" : ""} in Bestand/Vorlagen`].filter(Boolean).join(" und ");
+    if (!confirm(`Feld „${f.name}“ löschen?${wo ? `\nEs wird mit seinen Werten aus ${wo} entfernt.` : ""}`)) return;
+    setLibrary((l) => {
+      const n = JSON.parse(JSON.stringify(l));
+      n.felder = n.felder.filter((x) => x.id !== f.id);
+      feldEntfernen(libGeraete(n), f.id);
+      return n;
+    });
+    if (imProjekt) mutate((d) => feldEntfernen(d.geraete, f.id));
+  };
+  const verschieben = (i, r) => setLibrary((l) => {
+    const a = [...(l.felder || [])];
+    const j = i + r;
+    if (j < 0 || j >= a.length) return l;
+    [a[i], a[j]] = [a[j], a[i]];
+    return { ...l, felder: a };
+  });
+  return (
+    <Section title="Eigene Felder" subtitle="Eigene Felder legst du einmal hier an und fügst sie im Geräte-Editor unter „Eigene Felder“ bei den Geräten ein, die sie brauchen, z. B. Inventar-Nr., Seriennummer, Case, Eigentümer oder Prüfdatum. Die Werte stehen in der Projektdatei, im Gerätebestand, in den Exporten und können als Titel in der Topologie erscheinen.">
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        <input style={{ ...S.inputSm, maxWidth: 300 }} placeholder="Name des neuen Felds, z. B. Seriennummer" value={neu} onChange={(e) => setNeu(e.target.value)} onKeyDown={(e) => e.key === "Enter" && anlegen()} />
+        <button style={S.primaryBtn} onClick={anlegen} disabled={!neu.trim()}>+ Feld anlegen</button>
+      </div>
+      {!felder.length && <p style={S.empty}>Noch keine eigenen Felder.</p>}
+      {felder.map((f, i) => {
+        const { imProjekt, imKatalog } = nutzung(f.id);
+        return (
+          <div key={f.id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px" }}>
+            <input style={{ ...S.inputSm, maxWidth: 300 }} value={f.name} onChange={(e) => umbenennen(f.id, e.target.value)} />
+            <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{imProjekt} im Projekt · {imKatalog} in Bestand/Vorlagen</span>
+            <button style={{ ...S.smallBtn, padding: "3px 7px" }} disabled={i === 0} onClick={() => verschieben(i, -1)} title="nach oben">↑</button>
+            <button style={{ ...S.smallBtn, padding: "3px 7px" }} disabled={i === felder.length - 1} onClick={() => verschieben(i, 1)} title="nach unten">↓</button>
+            <button style={S.dangerBtn} onClick={() => loeschen(f)}>✕</button>
+          </div>
+        );
+      })}
+    </Section>
   );
 }

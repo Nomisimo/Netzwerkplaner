@@ -5,6 +5,7 @@ import { CARD_W, CARD_H, TAB_H } from "../shared/frontplatte.js";
 import { SvgIcon } from "./icons.jsx";
 import { endInfo, portLabel, vlanLang, geraeteTitel } from "./portinfo.js";
 import { ipPorts } from "../shared/catalog.js";
+import { feldZeilen } from "../shared/felder.js";
 
 /* Darstellung für die Frontplatten-Ansicht (Stil Luminex Araneo) */
 
@@ -119,7 +120,7 @@ export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, wo
           <title>Web-UI öffnen: {url}</title>
         </g>
       )}
-      <text x={x0} y={y0 + p.h + 13} fontSize="10.5" fontWeight="600" fill="#dfe4ff" stroke={FP_BG} strokeWidth="3" paintOrder="stroke">{label}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, d.inventar?.nr && `Inventar: ${d.inventar.nr}`, d.hersteller && `${d.hersteller} ${d.modell || ""}`].filter(Boolean).join("\n")}</title></text>
+      <text x={x0} y={y0 + p.h + 13} fontSize="10.5" fontWeight="600" fill="#dfe4ff" stroke={FP_BG} strokeWidth="3" paintOrder="stroke">{label}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, ...feldZeilen(d), d.hersteller && `${d.hersteller} ${d.modell || ""}`].filter(Boolean).join("\n")}</title></text>
       {canCollapse && (
         <g className="np-ui" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggle(); }} style={{ cursor: "pointer" }}>
           <circle cx={x0 + p.w + 12} cy={p.y} r="8" fill={collapsed ? ACCENT : "#2c343e"} stroke={collapsed ? ACCENT : "#56606c"} />
@@ -150,7 +151,7 @@ export function FrontCard({ d, p, P, farbe, tab, sel, hover, hit, dim, status, w
       <rect x={x0 + 6} y={y0 + 8} width="32" height="32" rx="5" fill={col + "22"} />
       <SvgIcon icon={d.icon} customIcons={P.icons} x={x0 + 10} y={y0 + 12} size={24} color={col} />
       <text x={x0 + 46} y={y0 + 20} fontSize="12" fontWeight="700" fill="#fff">{name.length > 20 ? name.slice(0, 19) + "…" : name}
-        <title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, d.inventar?.nr && `Inventar: ${d.inventar.nr}`, d.hersteller && `${d.hersteller} ${d.modell || ""}`].filter(Boolean).join("\n")}</title>
+        <title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, ...feldZeilen(d), d.hersteller && `${d.hersteller} ${d.modell || ""}`].filter(Boolean).join("\n")}</title>
       </text>
       <text x={x0 + 46} y={y0 + 36} fontSize="10" fill={ip ? "#c8d0ff" : MUTED} fontFamily="Consolas,monospace">{zeile2.length > 21 ? zeile2.slice(0, 20) + "…" : zeile2 || "keine IP"}<title>{zeile2}</title></text>
       <circle cx={x0 + CARD_W - 10} cy={y0 + 10} r="4" fill={!status || status.ok == null ? "#4a535e" : status.ok ? OK : ERR} stroke="#0b0f1f" strokeWidth="1.2">

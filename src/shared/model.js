@@ -2,6 +2,7 @@ import { STANDARD_VLANS, DEFAULT_BEREICHE, KABEL } from "./constants.js";
 import { uid, findProtokoll, migrateGeraet, physPorts, ipPorts } from "./catalog.js";
 import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAULT_RANGES, isValidMac } from "./net.js";
 import { qinqIssues } from "./qinq.js";
+import { migrateFelder } from "./felder.js";
 
 export const clone = (x) => JSON.parse(JSON.stringify(x));
 
@@ -30,10 +31,11 @@ export const migrateProject = (p) => {
   const out = { ...e, ...p, meta: { ...e.meta, ...(p.meta || {}) }, layout: { ...e.layout, ...(p.layout || {}) } };
   out.vlans = (p.vlans || []).map((v) => newVlan({ ...v, dhcp: { aktiv: false, von: "", bis: "", ...(v.dhcp || {}) } }));
   // Ports und Interfaces waren früher getrennt: migrateGeraet führt sie zusammen
-  out.geraete = (p.geraete || []).map((d) => migrateGeraet({
+  out.geraete = (p.geraete || []).map((d) => migrateGeraet(migrateFelder({
     kategorie: "Sonstiges", bereich: "", protokolle: [], notizen: "", webUi: { vorhanden: false, url: "http://{ip}", iface: null },
-    poeBedarf: 0, poeBudget: 0, stroeme: [], netzname: "", inventar: { nr: "", sn: "", case: "" }, ...d,
-  }));
+    poeBedarf: 0, poeBudget: 0, stroeme: [], netzname: "", ...d,
+  })));
+  if (out.layout.titel === "inventar") out.layout.titel = "feld:inventar-nr"; // frühere Titel-Option „Inventar-Nr.“
   out.verbindungen = (p.verbindungen || []).filter((c) => c.a && c.b).map((c) => ({ kabel: "cat6", laenge: "", label: "", notiz: "", ...c }));
   out.bereiche = p.bereiche || e.bereiche;
   out.icons = p.icons || [];
