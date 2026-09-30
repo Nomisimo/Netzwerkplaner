@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK } from "../../shared/constants.js";
-import { KATALOG, findProtokoll } from "../../shared/catalog.js";
+import { KATALOG, findProtokoll, ipPorts } from "../../shared/catalog.js";
 import { Section, SevBadge, SEV, VlanChip } from "../ui.jsx";
 import { GOLD_STANDARDS, maNetGen } from "../../shared/manet.js";
 
@@ -53,7 +53,7 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
           <tbody>
             {[...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => {
               const protos = new Set();
-              for (const d of P.geraete) if (d.interfaces.some((i) => i.vlan === v.id)) for (const s of d.protokolle || []) { const r = findProtokoll(s); if (r && !r.flags.p2p && !r.flags.kein_ip) protos.add(r.name); }
+              for (const d of P.geraete) if (ipPorts(d).some((i) => i.vlan === v.id)) for (const s of d.protokolle || []) { const r = findProtokoll(s); if (r && !r.flags.p2p && !r.flags.kein_ip) protos.add(r.name); }
               return (
                 <tr key={v.id}>
                   <td style={S.td}><VlanChip v={v} /></td>

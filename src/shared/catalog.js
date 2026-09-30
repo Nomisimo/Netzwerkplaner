@@ -174,20 +174,72 @@ export const splitProtokolle = (s) =>
   (s || "").split(/,(?![^(]*\))/).map((x) => x.trim()).filter((x) => x && x !== "–");
 
 /* ── Neues Gerät (aus Katalogmodell oder generischem Typ) ───────────────── */
-export const newPort = (o = {}) => ({ id: uid(), name: "", typ: "RJ45", iface: null, modus: "access", vlan: null, vlans: [], poe: false, p2p: false, ...o });
-export const newIface = (o = {}) => ({ id: uid(), name: "LAN", ip: "", prefix: 24, gateway: "", vlan: null, mac: "", dhcp: false, ...o });
+/* Ein Port ist zugleich das Interface des Geräts: Name, VLAN und IP-Daten
+   liegen direkt am Port. Bei Switches gilt vlan als Access-VLAN des Ports.
+   virtuell: Anschluss ohne eigene Buchse (Management-Interface eines Switches),
+   hat IP-Daten, lässt sich aber nicht verkabeln. */
+export const newPort = (o = {}) => ({
+  id: uid(), name: "", typ: o.virtuell ? "" : "RJ45", modus: "access", vlan: null, vlans: [], poe: false, p2p: false, virtuell: false,
+  ip: "", prefix: 24, gateway: "", mac: "", dhcp: false, ...o,
+});
+// Anschlüsse mit Buchse (verkabelbar, auf der Frontplatte)
+export const physPorts = (d) => (d.ports || []).filter((p) => !p.virtuell);
+// Anschlüsse mit IP-Konfiguration: bei Endgeräten jeder Ethernet-Port, bei Switches die Management-Anschlüsse
+export const ipPorts = (d) => (d.ports || []).filter((p) => p.virtuell || p.ip || p.dhcp || (!d.isSwitch && !p.p2p));
+
+/* Ältere Geräte (Projekt, Vorlage, Bestand) hatten Ports und Interfaces getrennt.
+   Jedes Interface wandert auf den ersten Port, der es nutzt; weitere Ports desselben
+   Interfaces bekommen VLAN, Maske und Gateway (ohne IP/MAC, sonst gäbe es IP-Konflikte).
+   Interfaces ohne Port (z. B. Management eines Switches) werden virtuelle Anschlüsse.
+   Verweise (Web-UI, Datenströme) zeigen danach auf den Port. Ändert g und gibt es zurück. */
+const GENERISCHER_NAME = /^(LAN|ETH|Port)?\s*\d*$/i;
+export const migrateGeraet = (g) => {
+  if (!Array.isArray(g.interfaces)) { g.ports = (g.ports || []).map((p) => newPort(p)); return g; }
+  const ifs = g.interfaces, idMap = {}, anzahl = {}; // anzahl: Ports je Interface
+  const ifVon = (p) => (!g.isSwitch && p.iface ? ifs.find((i) => i.id === p.iface) : null);
+  for (const p of g.ports || []) { const i = ifVon(p); if (i) anzahl[i.id] = (anzahl[i.id] || 0) + 1; }
+  const ports = (g.ports || []).map((p) => {
+    const i = ifVon(p);
+    const { iface, ...rest } = p;
+    if (!i) return newPort(rest);
+    const erster = !idMap[i.id];
+    if (erster) idMap[i.id] = p.id;
+    const q = newPort({ ...rest, prefix: i.prefix ?? 24, gateway: i.gateway || "", ip: erster ? i.ip || "" : "", mac: erster ? i.mac || "" : "", dhcp: erster && !!i.dhcp });
+    if (i.vlan != null || i.vid != null) { q.vlan = i.vlan ?? null; if ("vid" in i) q.vid = i.vid; }
+    // Sprechender Interface-Name (z. B. „Steuerung“, „Dante“) ersetzt einen generischen Portnamen („LAN 1“)
+    if (erster && i.name && (anzahl[i.id] === 1 || !GENERISCHER_NAME.test(i.name)) && GENERISCHER_NAME.test(p.name || "")) q.name = i.name;
+    return q;
+  });
+  for (const i of ifs) {
+    if (idMap[i.id]) continue;
+    const leer = !i.ip && !i.mac && !i.dhcp && !i.gateway && !i.vlan && i.vid == null;
+    if (!g.isSwitch && leer) continue; // leeres Interface ohne Port (z. B. bei reinen P2P-Geräten)
+    const { id, name, ...daten } = i;
+    ports.push(newPort({ ...daten, id, name: name || "Management", virtuell: true }));
+    idMap[id] = id;
+  }
+  g.ports = ports;
+  delete g.interfaces;
+  if (g.webUi) g.webUi = { ...g.webUi, iface: idMap[g.webUi.iface] || null };
+  if (g.stroeme) g.stroeme = g.stroeme.map((s) => (s.iface ? { ...s, iface: idMap[s.iface] || null } : s));
+  return g;
+};
+
+// Vorlagen und Bestand der Bibliothek auf Ports mit IP-Daten umstellen
+const bibEintrag = (e) => (e?.geraet ? { ...e, geraet: migrateGeraet(JSON.parse(JSON.stringify(e.geraet))) } : e);
+export const migrateBibliothek = (l) => ({ ...l, vorlagen: (l.vorlagen || []).map(bibEintrag), bestand: (l.bestand || []).map(bibEintrag) });
+export const migrateBestand = (liste) => (liste || []).map(bibEintrag);
 
 /* Gerät für Bibliothek (Vorlage oder Bestand) sichern. VLANs werden über ihre
    VLAN-ID (vid) gemerkt, weil die internen IDs in jedem Projekt anders sind. */
 export const snapshotDevice = (dev, vlans = []) => {
   const g = JSON.parse(JSON.stringify(dev));
   const vid = (id) => vlans.find((v) => v.id === id)?.vid ?? null;
-  for (const i of g.interfaces) i.vid = vid(i.vlan);
   for (const p of g.ports) { p.vid = vid(p.vlan); p.vids = (p.vlans || []).map(vid).filter((x) => x != null); }
   for (const s of g.stroeme || []) s.ziele = [];
   delete g.bestandId;
   // Genutzte VLANs mitsichern, damit sie beim Einfügen in ein Projekt ohne diese VLAN-ID angelegt werden
-  const genutzt = new Set([...dev.interfaces.map((i) => i.vlan), ...dev.ports.flatMap((p) => [p.vlan, ...(p.vlans || [])])].filter(Boolean));
+  const genutzt = new Set(dev.ports.flatMap((p) => [p.vlan, ...(p.vlans || [])]).filter(Boolean));
   g.vlanDefs = vlans.filter((v) => genutzt.has(v.id)).map(({ vid, name, farbe, subnetz, gateway, zweck, igmp, eeeAus, qos }) => ({ vid, name, farbe, subnetz, gateway, zweck, igmp, eeeAus, qos }));
   return g;
 };
@@ -213,14 +265,12 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
     };
     // VLAN über die VLAN-ID zuordnen; ältere Vorlagen ohne vid behalten die ID, falls sie existiert
     const map = (oldId, vid) => (vid != null ? vlanNachVid(vlans, vid)?.id || anlegen(vid) : vlans.some((v) => v.id === oldId) ? oldId : null);
-    d.interfaces = d.interfaces.map((i) => {
-      const nid = uid(); idMap[i.id] = nid;
-      const { vid, ...rest } = i;
-      return { ...rest, id: nid, vlan: map(i.vlan, vid), ip: mitAdressen ? i.ip : "", mac: mitAdressen ? i.mac : "" };
-    });
+    migrateGeraet(d); // ältere Vorlagen mit getrennten Interfaces
     d.ports = d.ports.map((p) => {
       const { vid, vids, ...rest } = p;
-      return { ...rest, id: uid(), iface: p.iface ? idMap[p.iface] || null : null, vlan: map(p.vlan, vid), vlans: vids ? vids.map((x) => map(null, x)).filter(Boolean) : (p.vlans || []).filter((id) => vlans.some((v) => v.id === id)) };
+      const nid = uid(); idMap[p.id] = nid;
+      return { ...rest, id: nid, vlan: map(p.vlan, vid), vlans: vids ? vids.map((x) => map(null, x)).filter(Boolean) : (p.vlans || []).filter((id) => vlans.some((v) => v.id === id)),
+        ip: mitAdressen ? p.ip || "" : "", mac: mitAdressen ? p.mac || "" : "" };
     });
     if (d.webUi) d.webUi.iface = d.webUi.iface ? idMap[d.webUi.iface] || null : null;
     d.stroeme = (d.stroeme || []).map((s) => ({ ...s, id: uid(), ziele: [], iface: s.iface ? idMap[s.iface] || null : null }));
@@ -235,32 +285,20 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
   const rawPorts = k ? parsePorts(k.raw["Netzwerkports (Details)"], k.raw["Netzwerkports (Anzahl)"], isSwitch)
                      : Array.from({ length: T.ports }, (_, i) => ({ name: isSwitch ? String(i + 1) : T.ports > 1 ? `LAN ${i + 1}` : "LAN", typ: "RJ45", p2p: false }));
 
-  const interfaces = [];
   const ports = rawPorts.map((p) => newPort({ name: p.name, typ: p.typ, p2p: p.p2p }));
   const defVlan = vByVid(KAT_VLAN[kat]);
 
   if (isSwitch) {
-    const mgmt = newIface({ name: "Management", vlan: vByVid(99) });
-    if (!T.unmanaged) interfaces.push(mgmt);
+    if (!T.unmanaged) ports.push(newPort({ name: "Management", virtuell: true, vlan: vByVid(99) }));
   } else {
     const pri = ports.find((p) => p.name === "Primary");
     const sec = ports.find((p) => p.name === "Secondary");
+    const eth = ports.filter((p) => !p.p2p);
     if (pri && sec) {
-      const i1 = newIface({ name: "Primary", vlan: defVlan });
-      const i2 = newIface({ name: "Secondary", vlan: kat === "Ton" ? vByVid(11) || defVlan : defVlan });
-      interfaces.push(i1, i2);
-      pri.iface = i1.id; sec.iface = i2.id;
-      const rest = ports.filter((p) => p !== pri && p !== sec && !p.p2p);
-      if (rest.length) {
-        const i3 = newIface({ name: "Steuerung", vlan: vByVid(KAT_VLAN.Steuerung) || defVlan });
-        interfaces.push(i3);
-        rest.forEach((p) => (p.iface = i3.id));
-      }
-    } else {
-      const lan = newIface({ name: "LAN", vlan: defVlan });
-      interfaces.push(lan);
-      ports.filter((p) => !p.p2p).forEach((p) => (p.iface = lan.id));
-    }
+      pri.vlan = defVlan;
+      sec.vlan = kat === "Ton" ? vByVid(11) || defVlan : defVlan;
+      eth.filter((p) => p !== pri && p !== sec).forEach((p) => (p.vlan = vByVid(KAT_VLAN.Steuerung) || defVlan));
+    } else eth.forEach((p) => (p.vlan = defVlan));
   }
 
   const webRaw = k?.raw["Web-UI"] || "";
@@ -281,16 +319,15 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
     poeBudget: isSwitch ? (poe && +k?.raw["PoE-Budget W"]) || 0 : undefined, // Budget aus dem Katalog, 0 = keine Prüfung
     poeBedarf: !isSwitch && poe ? 13 : 0,
     poePse: isSwitch && poe,
-    interfaces,
     ports,
-    webUi: { vorhanden: web, url: "http://{ip}", iface: interfaces[0]?.id || null },
+    webUi: { vorhanden: web, url: "http://{ip}", iface: ipPorts({ isSwitch, ports })[0]?.id || null },
     protokolle: k ? splitProtokolle(k.raw.Protokolle) : [],
     notizen: "",
   };
 };
 
 /* Vorhandenes Gerät nachträglich auf ein Katalogmodell / eine Vorlage umbauen.
-   Name, Netzwerkname, eigene Felder, Standort, Notizen, IPs (je Interface in Reihenfolge)
+   Name, Netzwerkname, eigene Felder, Standort, Notizen, IPs (je IP-Anschluss in Reihenfolge)
    und alle Verbindungen bleiben erhalten; Ports, Protokolle, Web-UI, Icon und
    Herstellerdaten kommen aus dem neuen Modell. Verbundene Ports, die das neue
    Modell nicht hat, werden angehängt statt gelöscht. */
@@ -299,23 +336,28 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
 export const geraetUmbauen = (P, devId, neu, { ausBestand = false } = {}) => {
   const dev = P.geraete.find((g) => g.id === devId);
   if (!dev) return null;
+  // IP-Daten je IP-Anschluss in Reihenfolge übernehmen; was nicht passt und eine Adresse hat, bleibt als virtueller Anschluss
+  const uebrig = [];
   if (!ausBestand) {
-    neu.interfaces.forEach((i, n) => {
-      const o = dev.interfaces[n];
-      if (o) Object.assign(i, { ip: o.ip, prefix: o.prefix || i.prefix, gateway: o.gateway, mac: o.mac, dhcp: o.dhcp, vlan: o.vlan || i.vlan });
+    const ziele = ipPorts(neu);
+    ipPorts(dev).forEach((o, n) => {
+      const i = ziele[n];
+      if (i) Object.assign(i, { ip: o.ip, prefix: o.prefix || i.prefix, gateway: o.gateway, mac: o.mac, dhcp: o.dhcp, vlan: o.vlan || i.vlan });
+      else if (o.ip || o.dhcp) uebrig.push(o);
     });
-    for (const o of dev.interfaces.slice(neu.interfaces.length)) if (o.ip || o.dhcp) neu.interfaces.push({ ...o });
   }
   const belegt = new Set(P.verbindungen.flatMap((c) => [c.a, c.b]).filter((e) => e.dev === devId).map((e) => e.port));
   const portMap = {};
-  dev.ports.forEach((p, n) => {
-    const np = neu.ports[n];
+  const neuPhys = physPorts(neu);
+  physPorts(dev).forEach((p, n) => {
+    const np = neuPhys[n];
     if (np) {
       portMap[p.id] = np.id;
       if (dev.isSwitch && neu.isSwitch) Object.assign(np, { modus: p.modus, vlan: p.vlan, vlans: p.vlans, poe: p.poe ?? np.poe });
       else if (p.vlan && !np.vlan) np.vlan = p.vlan;
-    } else if (belegt.has(p.id)) { neu.ports.push({ ...p, iface: null }); portMap[p.id] = p.id; }
+    } else if (belegt.has(p.id)) { neu.ports.push({ ...p }); portMap[p.id] = p.id; }
   });
+  for (const o of uebrig) if (!portMap[o.id]) neu.ports.push({ ...o, typ: "", virtuell: true });
   for (const c of P.verbindungen) for (const e of [c.a, c.b]) if (e.dev === devId && portMap[e.port]) e.port = portMap[e.port];
   // Bei generischen Funden (Discovery) die erkannten Protokolle behalten
   if (dev.generisch) neu.protokolle = [...new Set([...(neu.protokolle || []), ...(dev.protokolle || [])])];

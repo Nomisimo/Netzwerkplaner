@@ -7,6 +7,7 @@ import { IconView } from "../icons.jsx";
 import DeviceEditor from "../DeviceEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
+import { ipPorts } from "../../shared/catalog.js";
 
 export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand }) {
   const [q, setQ] = useState("");
@@ -20,17 +21,18 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
 
   const list = useMemo(() => {
     const ql = q.toLowerCase();
-    const l = P.geraete.filter((d) => (!kat || d.kategorie === kat) && (!vlan || d.interfaces.some((i) => i.vlan === vlan))
-      && (!ql || `${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.hersteller} ${d.modell} ${d.bereich} ${d.interfaces.map((i) => i.ip + " " + i.mac).join(" ")} ${(d.protokolle || []).join(" ")}`.toLowerCase().includes(ql)));
+    const l = P.geraete.filter((d) => (!kat || d.kategorie === kat) && (!vlan || ipPorts(d).some((i) => i.vlan === vlan))
+      && (!ql || `${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.hersteller} ${d.modell} ${d.bereich} ${ipPorts(d).map((i) => i.ip + " " + i.mac).join(" ")} ${(d.protokolle || []).join(" ")}`.toLowerCase().includes(ql)));
     const key = { name: (a, b) => a.name.localeCompare(b.name, "de", { numeric: true }), ip: (a, b) => ipSort(mainIp(a), mainIp(b)), kat: (a, b) => a.kategorie.localeCompare(b.kategorie) || a.name.localeCompare(b.name, "de", { numeric: true }), bereich: (a, b) => (a.bereich || "~").localeCompare(b.bereich || "~") || a.name.localeCompare(b.name, "de") }[sort];
     return [...l].sort(key);
   }, [P.geraete, q, kat, vlan, sort]);
 
   const autoIps = () => {
-    if (!confirm("Allen Interfaces ohne IP (und ohne DHCP) die nächste freie Adresse ihres VLANs zuweisen?")) return;
+    if (!confirm("Allen Ports ohne IP (und ohne DHCP) die nächste freie Adresse ihres VLANs zuweisen? Je Gerät gibt es eine Adresse pro VLAN.")) return;
     mutate((d) => {
-      for (const g of d.geraete) for (const i of g.interfaces) {
+      for (const g of d.geraete) for (const i of ipPorts(g)) {
         if (i.ip || i.dhcp || !i.vlan) continue;
+        if (ipPorts(g).some((x) => x !== i && x.vlan === i.vlan && (x.ip || x.dhcp))) continue; // z. B. zweiter Port eines Daisy-Chain-Geräts
         const v = d.vlans.find((x) => x.id === i.vlan);
         const ip = suggestIp(d, v, i.id);
         if (ip) i.ip = ip;
@@ -62,7 +64,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
               <tbody>
                 {list.map((d) => {
                   const ip = mainIp(d);
-                  const v = X.vlanById.get(d.interfaces.find((i) => i.ip)?.vlan || d.interfaces[0]?.vlan);
+                  const v = X.vlanById.get(ipPorts(d).find((i) => i.ip)?.vlan || ipPorts(d)[0]?.vlan);
                   const iss = devIssues(d.id);
                   const url = webUrl(d);
                   const active = sel?.id === d.id;
@@ -78,7 +80,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
                         <div style={{ fontSize: 11, color: MUTED }}>{[d.hersteller, d.modell].filter(Boolean).join(" ") || TYPEN[d.typ]?.label}{d.netzname ? ` · ${d.netzname}` : ""}</div>
                       </td>
                       <td style={{ ...S.td, fontSize: 12, color: katColor(d.kategorie) }}>{d.kategorie}</td>
-                      <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{ip || <span style={{ color: MUTED }}>{d.interfaces.some((i) => i.dhcp) ? "DHCP" : "–"}</span>}{d.interfaces.filter((i) => i.ip).length > 1 && <span style={{ color: MUTED }}> +{d.interfaces.filter((i) => i.ip).length - 1}</span>}</td>
+                      <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{ip || <span style={{ color: MUTED }}>{ipPorts(d).some((i) => i.dhcp) ? "DHCP" : "–"}</span>}{ipPorts(d).filter((i) => i.ip).length > 1 && <span style={{ color: MUTED }}> +{ipPorts(d).filter((i) => i.ip).length - 1}</span>}</td>
                       <td style={S.td}><VlanChip v={v} small /></td>
                       <td style={{ ...S.td, fontSize: 12 }}>{d.bereich}</td>
                       <td style={S.td}>{url ? <button style={{ ...S.smallBtn, padding: "2px 6px" }} title={url} onClick={(e) => { e.stopPropagation(); api.openExternal(url); }}>🌐</button> : d.webUi?.vorhanden ? <span style={{ color: MUTED }} title="IP fehlt">🌐</span> : ""}</td>

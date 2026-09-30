@@ -16,7 +16,7 @@ const EC = 26; // etherCON-Buchse (rund, einreihig)
    als 6 Ports zweireihig (ungerade oben, gerade unten, max. 8 Spalten je Block),
    etherCON einreihig und größer. */
 export const plattenGeometrie = (dev) => {
-  const ports = dev.ports || [];
+  const ports = (dev.ports || []).filter((p) => !p.virtuell); // virtuelle Anschlüsse (Management) haben keine Buchse
   const rows = ports.filter((p) => familie(p.typ) !== "ec").length > 6 ? 2 : 1;
   const bloecke = [];
   for (const p of ports) {
@@ -67,7 +67,7 @@ export const layoutFrontplatten = (P, T, X) => {
     const st = [...kids(head)];
     const order = new Map();
     const sw = X.devById.get(head);
-    if (sw?.isSwitch) sw.ports.forEach((p, i) => order.set(p.id, i));
+    if (sw?.isSwitch) sw.ports.filter((p) => !p.virtuell).forEach((p, i) => order.set(p.id, i));
     const portIdx = (id) => {
       const conn = T.treeConn.get(id);
       if (!conn) return 9999;

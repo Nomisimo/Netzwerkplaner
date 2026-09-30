@@ -1,12 +1,13 @@
 /* ── Live-Daten mit dem Plan abgleichen (reine Logik, ohne UI) ───────────── */
 import { inSubnet, ip2int } from "./net.js";
 import { TYPEN } from "./constants.js";
+import { ipPorts, physPorts } from "./catalog.js";
 
 const normMac = (m) => (m || "").trim().toLowerCase().replace(/-/g, ":");
 
-// Alle geplanten Adressen: [{ ip, mac, dev, iface }]
+// Alle geplanten Adressen: [{ ip, mac, dev, iface }] (iface = Port mit der Adresse)
 export const planAddresses = (P) =>
-  P.geraete.flatMap((dev) => dev.interfaces.filter((i) => i.ip).map((iface) => ({ ip: iface.ip.trim(), mac: normMac(iface.mac), dev, iface })));
+  P.geraete.flatMap((dev) => ipPorts(dev).filter((i) => i.ip).map((iface) => ({ ip: iface.ip.trim(), mac: normMac(iface.mac), dev, iface })));
 
 // Gerät zu einer IP (und optional MAC oder Name) im Plan finden
 export const findPlanned = (P, { ip, mac } = {}) => {
@@ -51,7 +52,7 @@ export const scanTargets = (P) => P.vlans.filter((v) => v.subnetz).map((v) => ({
 // Managed Switches mit Management-IP (Kandidaten für SNMP)
 export const snmpSwitches = (P) =>
   P.geraete.filter((d) => TYPEN[d.typ]?.isSwitch && !TYPEN[d.typ]?.unmanaged)
-    .map((d) => ({ dev: d, ip: (d.interfaces.find((i) => i.ip) || {}).ip || "" }))
+    .map((d) => ({ dev: d, ip: (ipPorts(d).find((i) => i.ip) || {}).ip || "" }))
     .filter((s) => s.ip);
 
 /* SNMP-Ports eines Switches mit den geplanten Ports vergleichen.
@@ -59,7 +60,7 @@ export const snmpSwitches = (P) =>
 export const compareSwitchPorts = (dev, X, snmpPorts) => {
   const vid = (id) => X.vlanById.get(id)?.vid ?? null;
   return snmpPorts.map((sp, n) => {
-    const pp = dev.ports[n] || null;
+    const pp = physPorts(dev)[n] || null;
     let sollVid = null, sollTagged = [];
     if (pp) {
       if (pp.modus === "trunk") sollTagged = (pp.vlans || []).map(vid).filter((v) => v != null);

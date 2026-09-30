@@ -80,13 +80,13 @@ const KAPITEL = [
   { id: "geraete", titel: "Geräte & Editor", tab: ["geraete", "Geräte"], inhalt: () => <>
     <Bild id="geraete" text="Tab Geräte: alle Geräte als Tabelle, Klick öffnet den Editor" />
     <Liste items={[
-      "Klick auf ein Gerät öffnet den Editor: Name, Netzwerkname (Hostname), Hersteller/Modell, Standort, eigene Felder, Interfaces, Ports, Web-UI, Protokolle und Notizen.",
-      "Interfaces: IP, Maske, VLAN, Gateway, MAC und DHCP. ⟳ neben der IP schlägt die nächste freie Adresse im VLAN vor, „⟳ IPs vergeben“ füllt alle leeren Interfaces auf einmal.",
-      "Ports: Access- oder Trunk-VLANs, PoE und Punkt-zu-Punkt (AES50, SLink, HDBaseT …).",
+      "Klick auf ein Gerät öffnet den Editor: Name, Netzwerkname (Hostname), Hersteller/Modell, Standort, eigene Felder, Ports, Web-UI, Protokolle und Notizen.",
+      "Ports: Jeder Port eines Endgeräts ist zugleich sein Interface mit VLAN, IP, Maske, Gateway, MAC und DHCP. ⟳ neben der IP schlägt die nächste freie Adresse im VLAN vor, „⟳ IPs vergeben“ füllt alle leeren Ports auf einmal (je Gerät eine Adresse pro VLAN).",
+      "Switch-Ports: Access- oder Trunk-VLANs, PoE und Punkt-zu-Punkt (AES50, SLink, HDBaseT …). Die IP des Switches steht am Anschluss „Management“ ohne Buchse („+ Management“).",
       "„⇄ Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs, VLANs und eigene Felder erhalten. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und eigene Felder, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
       "„im Katalog speichern“ legt das Gerät als eigene Vorlage oder im Gerätebestand ab.",
       "„⧉ Duplizieren“ kopiert das Gerät mit allen Einstellungen, aber ohne IP- und MAC-Adressen.",
-      "„⎘ Konfig kopieren“: im Dialog wählen, was mitkommt (Port-Einstellungen, Interfaces, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen). Bei jedem anderen Gerät dann „📋 Konfig einfügen“, Teile und Zielgeräte wählen („Gleiches Modell“, „Gleicher Typ“, „Alle Switches“) und einfügen. Namen, IPs, MACs und Verbindungen der Ziele bleiben. Ports werden nach Namen zugeordnet, sonst nach Reihenfolge.",
+      "„⎘ Konfig kopieren“: im Dialog wählen, was mitkommt (Port-Einstellungen mit VLAN und Maske, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen). Bei jedem anderen Gerät dann „📋 Konfig einfügen“, Teile und Zielgeräte wählen („Gleiches Modell“, „Gleicher Typ“, „Alle Switches“) und einfügen. Namen, IPs, MACs und Verbindungen der Ziele bleiben. Ports werden nach Namen zugeordnet, sonst nach Reihenfolge.",
     ]} />
     <Bild id="geraet-editor" text="Geräte-Editor in der Topologie" />
     <H>Generische Geräte aus der Discovery</H>
@@ -141,7 +141,7 @@ const KAPITEL = [
     <Liste items={[
       "Der Bestand enthält deine realen Geräte mit Namen, Netzwerknamen, IPs und eigenen Feldern. „+ ins Projekt“ setzt ein Gerät samt Adressen ein.",
       "„+ Neues Gerät“ legt ein Gerät direkt im Katalog an, ohne es ins Projekt zu setzen: Grundtyp wählen und im Editor ausfüllen.",
-      "„Neues VLAN für dieses Gerät“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“): VLAN-ID und Namen eingeben, wählen, ob es alle Ports (Access) oder ein Interface bekommt, und „＋ Anlegen und zuweisen“. Das VLAN wird mit dem Gerät gespeichert. Fügst du das Gerät in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
+      "„Neues VLAN für dieses Gerät“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“): VLAN-ID und Namen eingeben, wählen, ob es alle Ports (Access) oder ein einzelner Port bekommt, und „＋ Anlegen und zuweisen“. Das VLAN wird mit dem Gerät gespeichert. Fügst du das Gerät in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
       "„⇩ Projektgeräte übernehmen“ kopiert alle Geräte des offenen Projekts in den Bestand.",
       "„Export CSV“ und „Import“ tauschen den Bestand mit anderen Netzwerkplaner-Installationen oder mit einer eigenen Excel-Liste aus (Spalten: Name; Netzwerkname; Hersteller; Modell; Typ; IP1; VLAN1; MAC1 …, danach eine Spalte je eigenem Feld). Unbekannte Spalten werden beim Import zu eigenen Feldern. Modelle werden über Katalog-ID oder Modellname erkannt.",
       "„Eigene Felder“: Felder wie Inventar-Nr., Seriennummer, Case oder Eigentümer einmal anlegen, danach im Geräte-Editor mit „+ Feld …“ bei einem Gerät einfügen und ausfüllen. Umbenennen und Löschen wirkt auf alle Geräte in Projekt, Bestand und Vorlagen.",

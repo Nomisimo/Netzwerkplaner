@@ -6,12 +6,13 @@ import { fmtAge } from "../../shared/live.js";
 import { StatusDot, Toggle, VlanChip } from "../ui.jsx";
 import { api } from "../api.js";
 import { Table, td, Hint, Empty, mono } from "./common.jsx";
+import { ipPorts } from "../../shared/catalog.js";
 
 // Online/Offline aller geplanten Geräte. Nutzt dieselbe Prüfung wie die Topologie,
 // daher erscheinen die Punkte dort ebenfalls.
 export default function StatusView({ P, X, status, checkReach, autoStatus, setAutoStatus, onSelectDevice }) {
   const rows = useMemo(() => P.geraete
-    .map((d) => ({ d, ifc: d.interfaces.find((i) => i.id === d.webUi?.iface && i.ip) || d.interfaces.find((i) => i.ip) }))
+    .map((d) => ({ d, ifc: d.ports.find((i) => i.id === d.webUi?.iface && i.ip) || ipPorts(d).find((i) => i.ip) }))
     .filter((r) => r.ifc)
     .sort((a, b) => ipSort(a.ifc.ip, b.ifc.ip)), [P.geraete]);
   const n = { on: 0, off: 0, unk: 0 };

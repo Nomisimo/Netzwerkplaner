@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { emptyProject, buildIndex, addConnection } from "../src/shared/model.js";
-import { createDevice, KATALOG_GERAETE } from "../src/shared/catalog.js";
+import { createDevice, KATALOG_GERAETE, ipPorts } from "../src/shared/catalog.js";
 import { maNetIssues, maNetGen } from "../src/shared/manet.js";
 
 const kat = (s) => KATALOG_GERAETE.find((g) => `${g.hersteller} ${g.modell}`.includes(s)).id;
@@ -10,8 +10,8 @@ const setup = () => {
   const licht = P.vlans.find((v) => v.vid === 20);
   const pult = createDevice({ katalogId: kat("grandMA3 light"), vlans: P.vlans, name: "Pult" });
   const node = createDevice({ katalogId: kat("grandMA3 4Port Node"), vlans: P.vlans, name: "Node" });
-  for (const d of [pult, node]) d.interfaces[0].vlan = licht.id;
-  pult.interfaces[0].ip = "10.10.20.10"; node.interfaces[0].ip = "10.10.20.20";
+  for (const d of [pult, node]) ipPorts(d)[0].vlan = licht.id;
+  ipPorts(pult)[0].ip = "10.10.20.10"; ipPorts(node)[0].ip = "10.10.20.20";
   P.geraete.push(pult, node);
   return { P, licht, pult, node };
 };
@@ -33,9 +33,9 @@ test("MA-Net3 im sauberen Licht-VLAN ohne Befund", () => {
 test("MA-Net3 Gold-Standards schlagen an", () => {
   const { P, licht, pult } = setup();
   licht.igmp = false; licht.eeeAus = false;
-  pult.interfaces[0].ip = "192.168.33.5";
+  ipPorts(pult)[0].ip = "192.168.33.5";
   const g2 = createDevice({ katalogId: kat("grandMA2 light"), vlans: P.vlans, name: "Alt" });
-  g2.interfaces[0].vlan = licht.id;
+  ipPorts(g2)[0].vlan = licht.id;
   P.geraete.push(g2);
   const msgs = ma(P).map((i) => i.msg).join("\n");
   assert.match(msgs, /IGMP-Snooping ist aus/);
