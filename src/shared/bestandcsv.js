@@ -1,6 +1,7 @@
 /* ── Gerätebestand als CSV ────────────────────────────────────────────────
    Austausch zwischen Netzwerkplaner-Installationen und Import aus eigenen
    Listen (Excel → CSV). Eine Zeile je Gerät, bis zu drei IP-Ports. */
+import { bestandSchluessel } from "./bestandschluessel.js";
 import { KATALOG_GERAETE, createDevice, snapshotDevice, newPort, ipPorts, uid } from "./catalog.js";
 import { TYPEN } from "./constants.js";
 import { feldSpalten } from "./felder.js";
@@ -122,7 +123,10 @@ export const csvZuBestand = (text, vlans = [], feldDefs = []) => {
     const g = snapshotDevice(dev, vlans);
     g.ports.forEach((p) => { if (vids[p.id] != null) p.vid = vids[p.id]; });
     const now = new Date().toISOString();
-    out.push({ id: uid(), name, geraet: g, angelegt: now, geaendert: now });
+    // Fester Schlüssel statt Zufalls-ID: derselbe Bestand auf zwei Rechnern ergibt dieselben IDs
+    const key = bestandSchluessel(g);
+    const id = key && !out.some((b) => b.id === key) ? key : uid();
+    out.push({ id, name, geraet: g, angelegt: now, geaendert: now });
   });
   return { bestand: out, fehler };
 };

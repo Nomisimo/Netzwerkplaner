@@ -52,3 +52,22 @@ test("CSV: unbekannte Spalten werden eigene Felder, Katalogfelder über den Name
   const csv = bestandZuCsv(bestand, defs);
   assert.match(csv.split("\r\n")[0], /;Eigentümer;Prüfdatum;Seriennummer$/);
 });
+
+test("Bestand: derselbe Import auf zwei Rechnern ergibt dieselben IDs, Doppelte im Plan werden gemeldet", async () => {
+  const { bestandSchluessel, doppelteBestandsgeraete } = await import("../src/shared/bestandschluessel.js");
+  const g = (felder, mac = "") => ({ hersteller: "Yamaha", felder, ports: [{ mac }] });
+  assert.equal(bestandSchluessel(g([{ id: "inventar-nr", name: "Inventar-Nr.", wert: " VT-0042 " }])), "inv:vt-0042");
+  assert.equal(bestandSchluessel(g([{ id: "x", name: "Seriennummer", wert: "AB12" }])), "sn:yamaha|ab12");
+  assert.equal(bestandSchluessel(g([], "00:1D:C1:0A:0B:0C")), "mac:001dc10a0b0c");
+  assert.equal(bestandSchluessel(g([])), null);
+  const P = { geraete: [{ id: "a", name: "A", ...g([{ id: "inventar-nr", wert: "7" }]) }, { id: "b", name: "B", ...g([{ id: "inventar-nr", wert: "7" }]) }, { id: "c", name: "C", ...g([]) }] };
+  assert.deepEqual(doppelteBestandsgeraete(P).map((x) => x.map((d) => d.id)), [["a", "b"]]);
+});
+
+test("CSV-Import: gleiche Datei zweimal importiert ergibt gleiche Bestand-IDs", () => {
+  const csv = "Name;Hersteller;Modell;Typ;Inventar-Nr.;IP1;MAC1\nPult;Yamaha;CL5;mischpult;VT-1;10.0.0.5/24;00:11:22:33:44:55\nNode;Luminex;GigaCore 10;switch;;10.0.0.6/24;00:11:22:33:44:66\nLeer;;;pc;;;";
+  const a = csvZuBestand(csv, emptyProject().vlans).bestand, b = csvZuBestand(csv, emptyProject().vlans).bestand;
+  assert.equal(a[0].id, b[0].id);
+  assert.equal(a[1].id, b[1].id);
+  assert.notEqual(a[2].id, b[2].id); // ohne Merkmal bleibt es eine Zufalls-ID
+});
