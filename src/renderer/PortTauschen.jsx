@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED } from "../shared/constants.js";
 import { otherEnd } from "../shared/model.js";
+import { physPorts } from "../shared/catalog.js";
 import { Modal } from "./ui.jsx";
 
 /* Alle Anschlüsse eines Geräts belegt: fragen, welcher ersetzt werden soll.
    voll: ids der Geräte ohne freien Port. onOk({ [devId]: portId }). */
 export default function PortTauschen({ P, X, voll, onOk, onClose }) {
-  const [wahl, setWahl] = useState(() => Object.fromEntries(voll.map((id) => [id, X.devById.get(id)?.ports[0]?.id || null])));
+  const [wahl, setWahl] = useState(() => Object.fromEntries(voll.map((id) => [id, (X.devById.get(id) ? physPorts(X.devById.get(id))[0]?.id : null) || null])));
   const fertig = voll.every((id) => wahl[id]);
   return (
     <Modal title="Keine freien Anschlüsse" width={520} onClose={onClose}
@@ -20,10 +21,10 @@ export default function PortTauschen({ P, X, voll, onOk, onClose }) {
         return (
           <div key={id} style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 13, marginBottom: 6 }}>
-              <b>{dev.name}</b> hat {dev.ports.length} {dev.ports.length === 1 ? "Anschluss" : "Anschlüsse"}, alle sind belegt. Welchen willst du ersetzen? Die bisherige Verbindung dort wird gelöscht.
+              <b>{dev.name}</b> hat {physPorts(dev).length} {physPorts(dev).length === 1 ? "Anschluss" : "Anschlüsse"}, alle sind belegt. Welchen willst du ersetzen? Die bisherige Verbindung dort wird gelöscht.
             </div>
             <div style={{ border: `1px solid ${LINE}`, borderRadius: 6, padding: "2px 8px", maxHeight: 260, overflowY: "auto" }}>
-              {dev.ports.map((p) => {
+              {physPorts(dev).map((p) => {
                 const cons = X.connsByPort.get(`${dev.id}:${p.id}`) || [];
                 const ziel = cons.map((c) => { const o = otherEnd(c, dev.id); const r = X.portRef.get(`${o.dev}:${o.port}`); return r ? `${r.dev.name} [${r.port.name}]` : "?"; }).join(", ");
                 return (

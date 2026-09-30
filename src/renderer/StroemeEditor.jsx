@@ -3,6 +3,7 @@ import { S, LINE, SUB, MUTED, ACCENT } from "../shared/constants.js";
 import { KERN, KERN_BY_ID, defaultParams, streamRate, streamVorschlag } from "../shared/kernprotokolle.js";
 import { newStream, streamVlans, fmtMbit } from "../shared/analyse.js";
 import { Toggle, VlanChip } from "./ui.jsx";
+import { ipPorts } from "../shared/catalog.js";
 
 // Eingabefeld für einen Protokollparameter
 export function ParamInput({ p, value, onChange, small = true }) {
@@ -63,7 +64,7 @@ export default function StroemeEditor({ P, X, dev, upd, onShowKern }) {
                 const r = streamRate(s);
                 const par = { ...defaultParams(s.proto), ...(s.param || {}) };
                 const vl = streamVlans(dev, s).map((id) => X.vlanById.get(id)).filter(Boolean);
-                const mediaIfs = dev.interfaces.filter((i) => i.vlan);
+                const mediaIfs = ipPorts(dev).filter((i) => i.vlan);
                 return (
                   <tr key={s.id}>
                     <td style={{ ...S.td, minWidth: 110 }}>

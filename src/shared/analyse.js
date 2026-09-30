@@ -3,7 +3,7 @@
    Planungsabschätzung (Worst Case), keine Messung. */
 import { KERN, KERN_BY_ID, streamRate, streamFlutet, defaultParams } from "./kernprotokolle.js";
 import { buildTree, subtreeIds, connVlan, carriesMedia, isP2PConn, otherEnd } from "./model.js";
-import { uid } from "./catalog.js";
+import { uid, ipPorts } from "./catalog.js";
 
 export const newStream = (o = {}) => ({ id: uid(), proto: "dante", menge: 8, param: {}, mc: false, iface: null, ziele: [], notiz: "", ...o });
 
@@ -21,10 +21,10 @@ export const fmtMbit = (m) => (m >= 1000 ? `${(m / 1000).toFixed(m >= 10000 ? 0 
 // In welchem VLAN (bzw. welchen VLANs) läuft ein Strom? Dante mit Secondary zählt in beiden Netzen.
 export const streamVlans = (d, s) => {
   if (s.iface) {
-    const i = d.interfaces.find((x) => x.id === s.iface);
+    const i = d.ports.find((x) => x.id === s.iface);
     return i?.vlan ? [i.vlan] : [];
   }
-  const media = d.interfaces.filter((i) => i.vlan && carriesMedia(d, i));
+  const media = ipPorts(d).filter((i) => i.vlan && carriesMedia(d, i));
   if (s.proto === "dante") {
     const pri = media.find((i) => /primary|dante/i.test(i.name)) || media[0];
     const sec = media.find((i) => /secondary/i.test(i.name) && i !== pri);
@@ -73,7 +73,7 @@ export const statistik = (P, X) => {
     const mc = l.filter((x) => x.flutet && !x.broadcast);
     const bc = l.filter((x) => x.broadcast);
     const flutMbit = bc.reduce((a, x) => a + x.mbit, 0) + (v.igmp ? 0 : mc.reduce((a, x) => a + x.mbit, 0));
-    return { v, stroeme: l.length, mbit: l.reduce((a, x) => a + x.mbit, 0), mcMbit: mc.reduce((a, x) => a + x.mbit, 0), bcMbit: bc.reduce((a, x) => a + x.mbit, 0), gruppen: l.reduce((a, x) => a + x.gruppen, 0), flutMbit, geraete: P.geraete.filter((d) => d.interfaces.some((i) => i.vlan === v.id)).length };
+    return { v, stroeme: l.length, mbit: l.reduce((a, x) => a + x.mbit, 0), mcMbit: mc.reduce((a, x) => a + x.mbit, 0), bcMbit: bc.reduce((a, x) => a + x.mbit, 0), gruppen: l.reduce((a, x) => a + x.gruppen, 0), flutMbit, geraete: P.geraete.filter((d) => ipPorts(d).some((i) => i.vlan === v.id)).length };
   }).filter((x) => x.stroeme || x.geraete);
 
   const dante = st.filter((x) => x.s.proto === "dante");

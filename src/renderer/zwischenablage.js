@@ -2,9 +2,10 @@
    Öffnen eines anderen Projekts erhalten (localStorage), damit man
    Einstellungen auch zwischen Projekten übertragen kann. */
 import { useSyncExternalStore } from "react";
+import { konfigNormal } from "../shared/konfig.js";
 
 const KEY = "np-zwischenablage";
-let inhalt = (() => { try { return JSON.parse(localStorage.getItem(KEY) || "null") || {}; } catch { return {}; } })();
+let inhalt = (() => { try { const x = JSON.parse(localStorage.getItem(KEY) || "null") || {}; if (x.konfig) x.konfig = konfigNormal(x.konfig); return x; } catch { return {}; } })();
 const hoerer = new Set();
 
 export const ablegen = (clip) => {

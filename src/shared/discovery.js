@@ -3,7 +3,7 @@
    per mDNS, MA-Net, CITP, PTP) je IP zusammen. Gefundene Geräte, die nicht im
    Plan stehen, werden als generische Einträge eingefügt und lassen sich danach
    per „Modell zuweisen“ oder „Leeres Gerät anlegen“ genauer bestimmen. */
-import { createDevice, newIface } from "./catalog.js";
+import { createDevice, newPort, ipPorts } from "./catalog.js";
 import { inSubnet } from "./net.js";
 import { findPlanned } from "./live.js";
 
@@ -97,12 +97,11 @@ export const fundeMitPlan = (P, funde) => funde.map((f) => ({ ...f, plan: findPl
 // Generisches Gerät aus einem Fund. „generisch“ zeigt im Editor nur „Modell zuweisen“ und „Leeres Gerät anlegen“.
 export const fundZuGeraet = (f, vlans) => {
   const dev = createDevice({ typ: "sonstiges", vlans, name: f.name || `Gerät ${f.ip}` });
-  let ifc = dev.interfaces[0];
-  if (!ifc) { ifc = newIface({ name: "LAN" }); dev.interfaces.push(ifc); }
+  let ifc = ipPorts(dev)[0];
+  if (!ifc) { ifc = newPort({ name: "LAN" }); dev.ports.push(ifc); }
   ifc.ip = f.ip; ifc.mac = f.mac || "";
   const v = vlans.find((v) => v.subnetz && inSubnet(f.ip, v.subnetz));
   if (v) ifc.vlan = v.id;
-  if (!dev.ports.some((p) => p.iface === ifc.id)) { const frei = dev.ports.find((p) => !p.iface); if (frei) frei.iface = ifc.id; }
   if (f.name) dev.netzname = f.name;
   dev.protokolle = f.protokolle;
   dev.generisch = true;

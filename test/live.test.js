@@ -10,7 +10,7 @@ import mdns from "../src/main/monitor/mdns.js";
 import snmp from "../src/main/monitor/snmp.js";
 import scan from "../src/main/monitor/scan.js";
 import { emptyProject, buildIndex } from "../src/shared/model.js";
-import { createDevice } from "../src/shared/catalog.js";
+import { createDevice, ipPorts } from "../src/shared/catalog.js";
 import { compareScan, compareSwitchPorts, snmpSwitches } from "../src/shared/live.js";
 
 /* ── Testpakete ─────────────────────────────────────────────────────────── */
@@ -225,7 +225,7 @@ test("SNMP: Switch auslesen und mit dem Plan vergleichen", async () => {
 
     const P = emptyProject();
     const sw = createDevice({ typ: "switch_managed", vlans: P.vlans });
-    sw.interfaces[0].ip = "127.0.0.1";
+    ipPorts(sw)[0].ip = "127.0.0.1";
     const v10 = P.vlans.find((v) => +v.vid === 10), v20 = P.vlans.find((v) => +v.vid === 20);
     sw.ports[0].vlan = v10.id; sw.ports[1].vlan = v10.id; sw.ports[2].vlan = v20.id;
     P.geraete.push(sw);
@@ -238,7 +238,7 @@ test("SNMP: Switch auslesen und mit dem Plan vergleichen", async () => {
 /* ── Soll/Ist ───────────────────────────────────────────────────────────── */
 test("Scan-Abgleich mit dem Plan", () => {
   const P = emptyProject();
-  const mk = (name, ip, mac = "") => { const d = createDevice({ typ: "pc", vlans: P.vlans, name }); d.interfaces[0].ip = ip; d.interfaces[0].mac = mac; P.geraete.push(d); return d; };
+  const mk = (name, ip, mac = "") => { const d = createDevice({ typ: "pc", vlans: P.vlans, name }); ipPorts(d)[0].ip = ip; ipPorts(d)[0].mac = mac; P.geraete.push(d); return d; };
   mk("Pult", "10.0.0.10", "00:11:22:33:44:55");
   mk("Node", "10.0.0.11");
   mk("Laptop", "10.0.0.12", "aa:bb:cc:dd:ee:ff");

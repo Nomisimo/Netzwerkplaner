@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { buildIndex, buildTree } from "../src/shared/model.js";
 import { demoProject } from "../src/shared/demo.js";
 import { plattenGeometrie, layoutFrontplatten, anker } from "../src/shared/frontplatte.js";
+import { physPorts } from "../src/shared/catalog.js";
 
 test("Frontplatte hat für jeden Port einen Slot, ohne Überlappung", () => {
   const P = demoProject();
-  for (const d of P.geraete.filter((x) => x.ports.length > 1)) {
+  for (const d of P.geraete.filter((x) => physPorts(x).length > 1)) {
     const g = plattenGeometrie(d);
-    assert.equal(g.slots.size, d.ports.length, d.name);
+    assert.equal(g.slots.size, physPorts(d).length, d.name);
     const s = [...g.slots.values()];
     for (let i = 0; i < s.length; i++) for (let j = i + 1; j < s.length; j++) {
       const ov = Math.abs(s[i].x - s[j].x) < (s[i].w + s[j].w) / 2 && Math.abs(s[i].y - s[j].y) < (s[i].h + s[j].h) / 2;

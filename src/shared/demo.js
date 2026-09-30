@@ -1,5 +1,5 @@
 import { emptyProject, addConnection, suggestIp } from "./model.js";
-import { createDevice, KATALOG_GERAETE } from "./catalog.js";
+import { createDevice, KATALOG_GERAETE, ipPorts } from "./catalog.js";
 import { newStream } from "./analyse.js";
 
 // Beispielprojekt: kleines Open Air mit Ton, Licht, Video und Intercom
@@ -15,7 +15,7 @@ export const demoProject = () => {
     return d;
   };
   const ip = (d, idx = 0) => {
-    const i = d.interfaces[idx];
+    const i = ipPorts(d)[idx];
     if (!i) return;
     const v = P.vlans.find((x) => x.id === i.vlan);
     const a = suggestIp(P, v, i.id);
@@ -46,10 +46,11 @@ export const demoProject = () => {
   const cam = add("PTZ 1", "FOH", { katalog: "AW-UE150" });
   const gg = add("Green-GO MCX", "Monitor", { katalog: "Green-GO" });
 
-  [cl5, rio1, rio2, monPult, ulxd, ds10, d80, ma, pu, node1, node2, ap, atem, cam, gg].forEach((d) => d.interfaces.forEach((_, i) => ip(d, i)));
-  // Laptop: zwei Interfaces (Dante Controller + Management)
-  laptop.interfaces[0].name = "Dante";
-  laptop.interfaces[0].vlan = V(10).id;
+  [cl5, rio1, rio2, monPult, ulxd, ds10, d80, ma, pu, node1, node2, ap, atem, cam, gg].forEach((d) => ipPorts(d).forEach((p, i, l) => { if (!l.slice(0, i).some((x) => x.vlan === p.vlan)) ip(d, i); })); // eine Adresse je VLAN und Gerät
+  // Laptop: Dante Controller
+  const lp = ipPorts(laptop)[0];
+  lp.name = "Dante";
+  lp.vlan = V(10).id;
   ip(laptop, 0);
   laptop.protokolle = ["Dante", "OSC"];
 

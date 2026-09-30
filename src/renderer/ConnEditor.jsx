@@ -1,6 +1,7 @@
 import React from "react";
 import { S, KABEL, MUTED, ERR } from "../shared/constants.js";
 import { connVlan, isP2PConn } from "../shared/model.js";
+import { physPorts } from "../shared/catalog.js";
 import { Field, VlanChip, SevBadge } from "./ui.jsx";
 
 export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevice, issues = [] }) {
@@ -25,7 +26,7 @@ export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevic
               const c = d.verbindungen.find((x) => x.id === conn.id); if (c) c[k].port = pid;
             });
           }}>
-            {dev.ports.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.typ}{p.p2p ? " · P2P" : ""}{usedHere(p.id) ? " (belegt)" : ""}</option>)}
+            {physPorts(dev).map((p) => <option key={p.id} value={p.id}>{p.name} · {p.typ}{p.p2p ? " · P2P" : ""}{usedHere(p.id) ? " (belegt)" : ""}</option>)}
           </select>
         </Field>
       </div>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, katColor, TYPEN, KATEGORIEN, PORT_TYPEN } from "../shared/constants.js";
-import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newIface, newPort, uid } from "../shared/catalog.js";
+import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid } from "../shared/catalog.js";
 import { otherEnd, suggestIp, webUrl, clone } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
 import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot } from "./ui.jsx";
@@ -86,11 +86,74 @@ function TrunkVlans({ vlans, value, onChange }) {
   );
 }
 
+const Gegenstellen = ({ cons, onSelectDevice }) => <>
+  {cons.length === 0 && <span style={{ color: MUTED }}>frei</span>}
+  {cons.map(({ r, c }) => (
+    <div key={c.id}><a style={{ color: "#c8d0d8", cursor: "pointer", textDecoration: "underline dotted" }} onClick={() => onSelectDevice && onSelectDevice(r.dev.id)}>{r.dev.name}</a> <span style={{ color: MUTED }}>[{r.port.name}]</span></div>
+  ))}
+</>;
+
+const PortLoeschen = ({ dev, p, mutate }) => (
+  <button style={{ ...S.dangerBtn, padding: "1px 6px" }} title={p.virtuell ? "Management-Interface löschen" : "Port löschen (inkl. Verbindung)"} onClick={() => mutate((d) => {
+    const g = d.geraete.find((x) => x.id === dev.id);
+    g.ports = g.ports.filter((x) => x.id !== p.id);
+    if (g.webUi?.iface === p.id) g.webUi.iface = null;
+    for (const s of g.stroeme || []) if (s.iface === p.id) s.iface = null;
+    d.verbindungen = d.verbindungen.filter((c) => !((c.a.dev === dev.id && c.a.port === p.id) || (c.b.dev === dev.id && c.b.port === p.id)));
+  })}>✕</button>
+);
+
+/* Port eines Endgeräts oder Management-Interface eines Switches: Anschluss und IP-Daten in einem */
+function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice }) {
+  const v = X?.vlanById.get(p.vlan);
+  const setP = (fn) => upd((g) => fn(g.ports.find((x) => x.id === p.id)));
+  const ip = !p.p2p; // Punkt-zu-Punkt-Ports (AES50, SLink …) haben keine IP
+  return (
+    <div style={{ border: `1px solid ${cons.length > 1 ? ERR : LINE}`, borderLeft: `3px solid ${ip && v?.farbe || LINE}`, borderRadius: 7, padding: 10, marginBottom: 8, background: "#1f242b" }}>
+      <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : ip ? "1.3fr 1.3fr 1.7fr .6fr 1.3fr 1.4fr" : "1.3fr 1.3fr 3fr", gap: 8, alignItems: "end" }}>
+        <Field label={p.virtuell ? "Name" : "Port"} hint={p.virtuell ? "ohne Buchse" : undefined}><input style={S.inputSm} value={p.name} onChange={(e) => setP((x) => (x.name = e.target.value))} /></Field>
+        {ip ? <>
+          <Field label="VLAN"><VlanSelect vlans={P.vlans} value={p.vlan} onChange={(val) => setP((x) => {
+            x.vlan = val;
+            const nv = P.vlans.find((y) => y.id === val);
+            const pr = nv && parsePrefix((nv.subnetz || "").split("/")[1]);
+            if (pr !== null && pr !== undefined) x.prefix = pr;
+          })} /></Field>
+          <Field label="IP-Adresse">
+            <div style={{ display: "flex", gap: 4 }}>
+              <input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.ip} placeholder={p.dhcp ? "DHCP" : "10.10.10.21"} onChange={(e) => setP((x) => (x.ip = e.target.value.trim()))} />
+              <button style={{ ...S.smallBtn, padding: "4px 6px" }} title="Nächste freie Adresse im VLAN vorschlagen" disabled={!v}
+                onClick={() => { const a = suggestIp(P, v, p.id); if (a) setP((x) => (x.ip = a)); }}>⟳</button>
+            </div>
+          </Field>
+          <Field label="Maske">
+            <input style={{ ...S.inputSm, fontFamily: "monospace" }} value={"/" + p.prefix} title={prefixToMaskStr(+p.prefix)}
+              onChange={(e) => { const pr = parsePrefix(e.target.value); if (pr !== null) setP((x) => (x.prefix = pr)); }} />
+          </Field>
+          <Field label="Gateway"><input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.gateway} placeholder={v?.gateway || ""} onChange={(e) => setP((x) => (x.gateway = e.target.value.trim()))} /></Field>
+          <Field label="MAC (optional)"><input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.mac} placeholder="00:1d:c1:…" onChange={(e) => setP((x) => (x.mac = e.target.value.trim()))} /></Field>
+        </> : <>
+          <Field label="Typ"><select style={S.selectSm} value={p.typ} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></Field>
+          <Field label="Verbunden mit"><div style={{ fontSize: 11, padding: "4px 0" }}><Gegenstellen cons={cons} onSelectDevice={onSelectDevice} /></div></Field>
+        </>}
+      </div>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
+        {ip && <Toggle checked={p.dhcp} onChange={(c) => setP((x) => (x.dhcp = c))} label="DHCP" />}
+        {ip && <span style={{ fontSize: 11, color: MUTED }}>{prefixToMaskStr(+p.prefix)}</span>}
+        {!p.virtuell && ip && <select style={{ ...S.selectSm, width: 100, padding: "2px 4px" }} value={p.typ} title="Porttyp" onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select>}
+        {!p.virtuell && <Toggle checked={!!p.p2p} onChange={(c) => setP((x) => (x.p2p = c))} label="P2P" />}
+        <span style={{ fontSize: 11, flex: 1 }}>{!p.virtuell && ip && <Gegenstellen cons={cons} onSelectDevice={onSelectDevice} />}</span>
+        <PortLoeschen dev={dev} p={p} mutate={mutate} />
+      </div>
+    </div>
+  );
+}
+
 /* Generisches Gerät (per Discovery oder Scan gefunden): leere Maske mit den
    Fundangaben und nur zwei Wegen weiter, Modell zuweisen oder leeres Gerät eines Typs. */
 function GenerischeMaske({ dev, status, upd, onUmbauen, onTypWaehlen, onDelete, onCheck }) {
   const [typ, setTyp] = useState(null);
-  const ifc = dev.interfaces.find((i) => i.ip) || dev.interfaces[0];
+  const ifc = ipPorts(dev).find((i) => i.ip) || ipPorts(dev)[0];
   const zeile = (l, v) => v ? <div style={{ display: "flex", gap: 10, fontSize: 12, padding: "3px 0" }}><span style={{ color: MUTED, width: 80 }}>{l}</span><span style={{ fontFamily: "ui-monospace,monospace", wordBreak: "break-all" }}>{v}</span></div> : null;
   return (
     <div>
@@ -215,128 +278,70 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
 
       <EigeneFelder dev={dev} katalog={P.feldKatalog || []} upd={upd} grid={grid} />
 
-      {/* Interfaces */}
 
-      <Sub right={<button style={S.smallBtn} onClick={() => upd((g) => g.interfaces.push(newIface({ name: `LAN ${g.interfaces.length + 1}` })))}>+ Interface</button>}>
-        Netzwerk-Interfaces (IP)
-      </Sub>
-      {dev.interfaces.length === 0 && <div style={{ ...S.empty, padding: "4px 0" }}>Keine IP-Interfaces{unmanaged ? " (unmanaged Switch)" : ""}.</div>}
-      {dev.interfaces.map((i) => {
-        const v = X?.vlanById.get(i.vlan);
-        const setI = (fn) => upd((g) => fn(g.interfaces.find((x) => x.id === i.id)));
-        return (
-          <div key={i.id} style={{ border: `1px solid ${LINE}`, borderLeft: `3px solid ${v?.farbe || LINE}`, borderRadius: 7, padding: 10, marginBottom: 8, background: "#1f242b" }}>
-            <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : "1fr 1.3fr 1.7fr .7fr 1.4fr 1.5fr", gap: 8, alignItems: "end" }}>
-              <Field label="Name"><input style={S.inputSm} value={i.name} onChange={(e) => setI((x) => (x.name = e.target.value))} /></Field>
-              <Field label="VLAN"><VlanSelect vlans={P.vlans} value={i.vlan} onChange={(val) => setI((x) => {
-                x.vlan = val;
-                const nv = P.vlans.find((y) => y.id === val);
-                const p = nv && parsePrefix((nv.subnetz || "").split("/")[1]);
-                if (p !== null && p !== undefined) x.prefix = p;
-              })} /></Field>
-              <Field label="IP-Adresse">
-                <div style={{ display: "flex", gap: 4 }}>
-                  <input style={{ ...S.inputSm, fontFamily: "monospace" }} value={i.ip} placeholder={i.dhcp ? "DHCP" : "10.10.10.21"} onChange={(e) => setI((x) => (x.ip = e.target.value.trim()))} />
-                  <button style={{ ...S.smallBtn, padding: "4px 6px" }} title="Nächste freie Adresse im VLAN vorschlagen" disabled={!v}
-                    onClick={() => { const ip = suggestIp(P, v, i.id); if (ip) setI((x) => (x.ip = ip)); }}>⟳</button>
-                </div>
-              </Field>
-              <Field label="Maske">
-                <input style={{ ...S.inputSm, fontFamily: "monospace" }} value={"/" + i.prefix} title={prefixToMaskStr(+i.prefix)}
-                  onChange={(e) => { const p = parsePrefix(e.target.value); if (p !== null) setI((x) => (x.prefix = p)); }} />
-              </Field>
-              <Field label="Gateway"><input style={{ ...S.inputSm, fontFamily: "monospace" }} value={i.gateway} placeholder={v?.gateway || ""} onChange={(e) => setI((x) => (x.gateway = e.target.value.trim()))} /></Field>
-              <Field label="MAC (optional)"><input style={{ ...S.inputSm, fontFamily: "monospace" }} value={i.mac} placeholder="00:1d:c1:…" onChange={(e) => setI((x) => (x.mac = e.target.value.trim()))} /></Field>
-            </div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8 }}>
-              <Toggle checked={i.dhcp} onChange={(c) => setI((x) => (x.dhcp = c))} label="DHCP" />
-              <span style={{ fontSize: 11, color: MUTED }}>{prefixToMaskStr(+i.prefix)}</span>
-              <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{dev.ports.filter((p) => p.iface === i.id).map((p) => p.name).join(", ") && "Ports: " + dev.ports.filter((p) => p.iface === i.id).map((p) => p.name).join(", ")}</span>
-              <button style={{ ...S.dangerBtn, padding: "2px 7px" }} title="Interface löschen" onClick={() => upd((g) => {
-                g.interfaces = g.interfaces.filter((x) => x.id !== i.id);
-                g.ports.forEach((p) => { if (p.iface === i.id) p.iface = null; });
-              })}>✕</button>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Ports */}
+      {/* Ports: jeder Port ist zugleich ein Interface mit VLAN und IP-Daten */}
       <Sub right={<>
-        <button style={S.smallBtn} onClick={() => upd((g) => g.ports.push(newPort({ name: g.isSwitch ? String(g.ports.length + 1) : `LAN ${g.ports.length + 1}`, iface: g.isSwitch ? null : g.interfaces[0]?.id || null })))}>+ Port</button>
-        {dev.isSwitch && <button style={S.smallBtn} onClick={() => upd((g) => { for (let n = 0; n < 8; n++) g.ports.push(newPort({ name: String(g.ports.length + 1) })); })}>+ 8 Ports</button>}
+        <button style={S.smallBtn} onClick={() => upd((g) => { const n = physPorts(g).length + 1; g.ports.push(newPort({ name: g.isSwitch ? String(n) : `LAN ${n}` })); })}>+ Port</button>
+        {dev.isSwitch && <button style={S.smallBtn} onClick={() => upd((g) => { for (let n = 0; n < 8; n++) g.ports.push(newPort({ name: String(physPorts(g).length + 1) })); })}>+ 8 Ports</button>}
+        {dev.isSwitch && !unmanaged && <button style={S.smallBtn} title="Management-Interface ohne eigene Buchse (IP des Switches)" onClick={() => upd((g) => g.ports.push(newPort({ name: "Management", virtuell: true })))}>+ Management</button>}
       </>}>
-        Physische Ports ({dev.ports.length})
+        Ports ({physPorts(dev).length})
       </Sub>
       {dev.isSwitch && !unmanaged && (
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8, fontSize: 11, color: SUB }}>
           Alle Ports ohne Verbindung auf Access-VLAN:
-          <VlanSelect vlans={P.vlans} value={null} style={{ width: 170 }} noneLabel="wählen …" onChange={(val) => val && upd((g) => g.ports.forEach((p) => {
+          <VlanSelect vlans={P.vlans} value={null} style={{ width: 170 }} noneLabel="wählen …" onChange={(val) => val && upd((g) => physPorts(g).forEach((p) => {
             if (!(X.connsByPort.get(`${g.id}:${p.id}`) || []).length && p.modus !== "trunk") p.vlan = val;
           }))} />
         </div>
       )}
-      <div style={{ overflowX: "auto" }}>
+      {dev.ports.length === 0 && <div style={{ ...S.empty, padding: "4px 0" }}>Keine Ports.</div>}
+      {dev.ports.filter((p) => !dev.isSwitch || p.virtuell).map((p) => <IpPort key={p.id} P={P} X={X} dev={dev} p={p} upd={upd} mutate={mutate} compact={compact} cons={connOf(p)} onSelectDevice={onSelectDevice} />)}
+      {dev.isSwitch && physPorts(dev).length > 0 && <div style={{ overflowX: "auto" }}>
         <table style={{ ...S.table, marginTop: 0, fontSize: 12 }}>
           <thead><tr>
             <th style={S.th}>Port</th><th style={S.th}>Typ</th>
-            {dev.isSwitch && !unmanaged ? <><th style={S.th}>Modus</th><th style={S.th}>VLAN</th><th style={S.th}>PoE</th></> : <th style={S.th}>Interface</th>}
+            {!unmanaged && <><th style={S.th}>Modus</th><th style={S.th}>VLAN</th><th style={S.th}>PoE</th></>}
             <th style={S.th} title="Punkt-zu-Punkt (AES50, SLink, HDBaseT …) – kein Ethernet">P2P</th>
             <th style={S.th}>Verbunden mit</th><th style={S.th}></th>
           </tr></thead>
           <tbody>
-            {dev.ports.map((p) => {
+            {physPorts(dev).map((p) => {
               const setP = (fn) => upd((g) => fn(g.ports.find((x) => x.id === p.id)));
               const cons = connOf(p);
               return (
                 <tr key={p.id} style={{ background: cons.length > 1 ? ERR + "18" : undefined }}>
                   <td style={{ ...S.td, width: 80 }}><input style={{ ...S.inputSm, padding: "3px 6px" }} value={p.name} onChange={(e) => setP((x) => (x.name = e.target.value))} /></td>
                   <td style={{ ...S.td, width: 92 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.typ} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></td>
-                  {dev.isSwitch && !unmanaged ? <>
+                  {!unmanaged && <>
                     <td style={{ ...S.td, width: 84 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.modus} onChange={(e) => setP((x) => (x.modus = e.target.value))}><option value="access">Access</option><option value="trunk">Trunk</option></select></td>
                     <td style={{ ...S.td, minWidth: 120 }}>{p.modus === "trunk"
                       ? <TrunkVlans vlans={P.vlans} value={p.vlans} onChange={(val) => setP((x) => (x.vlans = val))} />
                       : <VlanSelect vlans={P.vlans} value={p.vlan} onChange={(val) => setP((x) => (x.vlan = val))} style={{ padding: "3px 4px" }} noneLabel="– default –" />}</td>
                     <td style={S.td}><input type="checkbox" checked={!!p.poe} style={{ accentColor: ACCENT }} onChange={(e) => setP((x) => (x.poe = e.target.checked))} /></td>
-                  </> : (
-                    <td style={{ ...S.td, minWidth: 100 }}>
-                      <select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.iface || ""} onChange={(e) => setP((x) => (x.iface = e.target.value || null))}>
-                        <option value="">–</option>
-                        {dev.interfaces.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-                      </select>
-                    </td>
-                  )}
+                  </>}
                   <td style={S.td}><input type="checkbox" checked={!!p.p2p} style={{ accentColor: ACCENT }} onChange={(e) => setP((x) => (x.p2p = e.target.checked))} /></td>
-                  <td style={{ ...S.td, fontSize: 11 }}>
-                    {cons.length === 0 && <span style={{ color: MUTED }}>frei</span>}
-                    {cons.map(({ r, c }) => (
-                      <div key={c.id}><a style={{ color: "#c8d0d8", cursor: "pointer", textDecoration: "underline dotted" }} onClick={() => onSelectDevice && onSelectDevice(r.dev.id)}>{r.dev.name}</a> <span style={{ color: MUTED }}>[{r.port.name}]</span></div>
-                    ))}
-                  </td>
-                  <td style={{ ...S.td, width: 30 }}><button style={{ ...S.dangerBtn, padding: "1px 6px" }} title="Port löschen (inkl. Verbindung)" onClick={() => mutate((d) => {
-                    const g = d.geraete.find((x) => x.id === dev.id);
-                    g.ports = g.ports.filter((x) => x.id !== p.id);
-                    d.verbindungen = d.verbindungen.filter((c) => !((c.a.dev === dev.id && c.a.port === p.id) || (c.b.dev === dev.id && c.b.port === p.id)));
-                  })}>✕</button></td>
+                  <td style={{ ...S.td, fontSize: 11 }}><Gegenstellen cons={cons} onSelectDevice={onSelectDevice} /></td>
+                  <td style={{ ...S.td, width: 30 }}><PortLoeschen dev={dev} p={p} mutate={mutate} /></td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
 
       {/* Web-UI */}
       <Sub>Web-UI & Erreichbarkeit</Sub>
       <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "auto 2fr 1fr", gap: 10, alignItems: "end" }}>
         <Toggle checked={dev.webUi?.vorhanden} onChange={(c) => upd((g) => (g.webUi = { ...g.webUi, vorhanden: c }))} label="Gerät hat eine Web-UI" />
         {dev.webUi?.vorhanden && <>
-          <Field label="URL" hint="{ip} wird durch die IP des gewählten Interfaces ersetzt, z. B. https://{ip}:8443">
+          <Field label="URL" hint="{ip} wird durch die IP des gewählten Ports ersetzt, z. B. https://{ip}:8443">
             <input style={{ ...S.inputSm, fontFamily: "monospace" }} value={dev.webUi.url} onChange={(e) => upd((g) => (g.webUi.url = e.target.value))} />
           </Field>
-          <Field label="über Interface">
+          <Field label="über Port">
             <select style={S.selectSm} value={dev.webUi.iface || ""} onChange={(e) => upd((g) => (g.webUi.iface = e.target.value || null))}>
-              <option value="">erstes mit IP</option>
-              {dev.interfaces.map((i) => <option key={i.id} value={i.id}>{i.name} {i.ip && `(${i.ip})`}</option>)}
+              <option value="">erster mit IP</option>
+              {ipPorts(dev).map((i) => <option key={i.id} value={i.id}>{i.name} {i.ip && `(${i.ip})`}</option>)}
             </select>
           </Field>
         </>}
