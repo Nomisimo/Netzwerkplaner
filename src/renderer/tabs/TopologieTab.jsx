@@ -9,6 +9,7 @@ import ConnEditor from "../ConnEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { endInfo, portLabel, vlanLang, geraeteTitel } from "../portinfo.js";
+import { feldZeilen } from "../../shared/felder.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
 import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren } from "../../shared/anordnung.js";
@@ -288,7 +289,7 @@ export default function TopologieTab(props) {
       const inV = d.interfaces.some((i) => i.vlan === vlanFilter) || d.ports.some((p) => p.vlan === vlanFilter || (p.modus === "trunk" && (p.vlans || []).includes(vlanFilter)));
       if (!inV) return false;
     }
-    if (ql) return `${d.name} ${d.netzname || ""} ${d.inventar?.nr || ""} ${d.modell} ${d.hersteller} ${d.bereich} ${d.interfaces.map((i) => i.ip).join(" ")}`.toLowerCase().includes(ql);
+    if (ql) return `${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.modell} ${d.hersteller} ${d.bereich} ${d.interfaces.map((i) => i.ip).join(" ")}`.toLowerCase().includes(ql);
     return true;
   };
   const filtering = !!(katFilter || vlanFilter || ql);
@@ -434,7 +435,7 @@ export default function TopologieTab(props) {
           {linien === "eckig" && !front && <Toggle checked={buendeln} onChange={(v) => mutate((d) => { d.layout.kabelBuendel = v; })} label="Kabel bündeln"
             title="An: Kabel teilen sich den Weg, mehrere Kabel zwischen denselben Geräten werden eine Linie mit Anzahl. Aus: jedes Kabel läuft einzeln auf eigener Spur daneben." />}
           <select style={{ ...S.selectSm, width: "auto" }} value={titel} onChange={(e) => setTitel(e.target.value)} title="Beschriftung der Geräte">
-            <option value="name">Titel: Gerätename</option><option value="netzname">Titel: Netzwerkname</option><option value="typ">Titel: Typ / Modell</option><option value="inventar">Titel: Inventar-Nr.</option>
+            <option value="name">Titel: Gerätename</option><option value="netzname">Titel: Netzwerkname</option><option value="typ">Titel: Typ / Modell</option>{(P.feldKatalog || []).map((f) => <option key={f.id} value={"feld:" + f.id}>Titel: {f.name}</option>)}
           </select>
           <select style={{ ...S.selectSm, width: "auto" }} value={katFilter} onChange={(e) => setKatFilter(e.target.value)}>
             <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
@@ -578,7 +579,7 @@ export default function TopologieTab(props) {
                     <rect width="5" height={NODE_H} rx="2" fill={col} />
                     <rect x="12" y="11" width="36" height="36" rx="7" fill={col + "1f"} />
                     <SvgIcon icon={d.icon} customIcons={P.icons} x={18} y={17} size={24} color={col} />
-                    {(() => { const t = geraeteTitel(d, titel); return <text x="56" y="20" fontSize="13" fontWeight="700" fill="#fff">{t.length > 20 ? t.slice(0, 19) + "…" : t}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, d.inventar?.nr && `Inventar: ${d.inventar.nr}`].filter(Boolean).join("\n")}</title></text>; })()}
+                    {(() => { const t = geraeteTitel(d, titel); return <text x="56" y="20" fontSize="13" fontWeight="700" fill="#fff">{t.length > 20 ? t.slice(0, 19) + "…" : t}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, ...feldZeilen(d)].filter(Boolean).join("\n")}</title></text>; })()}
                     <text x="56" y="36" fontSize="11" fill={ip ? "#c8d0d8" : MUTED} fontFamily="Consolas,monospace">{ip || (d.interfaces.some((i) => i.dhcp) ? "DHCP" : d.isSwitch && !d.interfaces.length ? "unmanaged" : "keine IP")}</text>
                     {v && <g transform={`translate(${56 + Math.max(ip.length, 7) * 6.6 + 6},27)`}><rect width={v.vid > 99 ? 30 : 24} height="12" rx="3" fill={v.farbe + "33"} stroke={v.farbe} strokeWidth=".8" /><text x={v.vid > 99 ? 15 : 12} y="9.5" fontSize="9" fill="#fff" textAnchor="middle">{v.vid}</text></g>}
                     <text x="56" y="50" fontSize="10" fill={MUTED}>{[d.bereich, d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ").slice(0, url ? 26 : 30)}</text>

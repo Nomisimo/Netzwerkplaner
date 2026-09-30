@@ -3,29 +3,34 @@
    Listen (Excel → CSV). Eine Zeile je Gerät, bis zu drei Interfaces. */
 import { KATALOG_GERAETE, createDevice, snapshotDevice, newIface, newPort, uid } from "./catalog.js";
 import { TYPEN } from "./constants.js";
+import { feldSpalten } from "./felder.js";
 
 export const CSV_SPALTEN = ["Name", "Netzwerkname", "Hersteller", "Modell", "Typ", "Bereich", "Standort",
   "IP1", "VLAN1", "MAC1", "IP2", "VLAN2", "MAC2", "IP3", "VLAN3", "MAC3",
-  "Inventar-Nr.", "Seriennummer", "Case", "Notiz", "Katalog-ID"];
+  "Notiz", "Katalog-ID"];
+// Danach folgt je eigenem Feld eine Spalte mit dem Feldnamen
 
 const zelle = (v) => {
   const s = String(v ?? "");
   return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export const bestandZuCsv = (bestand) => {
-  const zeilen = [CSV_SPALTEN.join(";")];
+export const bestandZuCsv = (bestand, feldDefs = []) => {
+  const felder = feldSpalten(bestand.map((b) => b.geraet), feldDefs).filter((f) => !CSV_SPALTEN.includes(f.name));
+  const spalten = [...CSV_SPALTEN, ...felder.map((f) => f.name)];
+  const zeilen = [spalten.join(";")];
   for (const b of bestand) {
     const g = b.geraet;
     const ifs = (g.interfaces || []).slice(0, 3);
     const r = { Name: b.name || g.name, Netzwerkname: g.netzname || "", Hersteller: g.hersteller || "", Modell: g.modell || "", Typ: g.typ || "", Bereich: g.kategorie || "", Standort: g.bereich || "",
-      "Inventar-Nr.": g.inventar?.nr || "", Seriennummer: g.inventar?.sn || "", Case: g.inventar?.case || "", Notiz: g.notizen || "", "Katalog-ID": g.katalogId || "" };
+      Notiz: g.notizen || "", "Katalog-ID": g.katalogId || "" };
     ifs.forEach((i, n) => {
       r[`IP${n + 1}`] = i.dhcp ? "DHCP" : i.ip ? `${i.ip}/${i.prefix || 24}` : "";
       r[`VLAN${n + 1}`] = i.vid ?? "";
       r[`MAC${n + 1}`] = i.mac || "";
     });
-    zeilen.push(CSV_SPALTEN.map((k) => zelle(r[k])).join(";"));
+    for (const f of felder) r[f.name] = (g.felder || []).find((x) => x.id === f.id)?.wert || "";
+    zeilen.push(spalten.map((k) => zelle(r[k])).join(";"));
   }
   return "﻿" + zeilen.join("\r\n") + "\r\n";
 };
@@ -70,9 +75,21 @@ const findeTyp = (s) => {
   return Object.keys(TYPEN).find((k) => norm(TYPEN[k].label) === n) || null;
 };
 
-// Zeilen → Bestandseinträge ({ id, name, geraet, angelegt, geaendert }); vlans = VLANs des offenen Projekts
-export const csvZuBestand = (text, vlans = []) => {
+const STANDARD_SPALTE = new Set(CSV_SPALTEN.map(norm));
+const IFACE_SPALTE = /^(ip|vlan|mac)\d+$/;
+// Bekannte Feldnamen (auch die früheren festen Inventarspalten) auf ihre Feld-ID abbilden
+const ALIAS = { inventarnr: "inventar-nr", inventarnummer: "inventar-nr", seriennummer: "seriennummer", sn: "seriennummer", case: "case", caselagerort: "case" };
+
+// Zeilen → Bestandseinträge ({ id, name, geraet, angelegt, geaendert }); vlans = VLANs des offenen Projekts.
+// Unbekannte Spalten werden eigene Felder; feldDefs = Felder aus dem Katalog (Zuordnung über den Namen)
+export const csvZuBestand = (text, vlans = [], feldDefs = []) => {
   const zeilen = parseCsv(text);
+  const feldId = new Map(feldDefs.map((f) => [norm(f.name), f.id]));
+  const idFuer = (spalte) => {
+    const n = norm(spalte);
+    if (!feldId.has(n)) feldId.set(n, ALIAS[n] && ![...feldId.values()].includes(ALIAS[n]) ? ALIAS[n] : uid());
+    return feldId.get(n);
+  };
   const out = [], fehler = [];
   zeilen.forEach((r, n) => {
     const name = r.Name || r.Netzwerkname;
@@ -83,7 +100,8 @@ export const csvZuBestand = (text, vlans = []) => {
     if (r.Netzwerkname) dev.netzname = r.Netzwerkname;
     if (r.Bereich) dev.kategorie = r.Bereich;
     if (r.Standort) dev.bereich = r.Standort;
-    dev.inventar = { nr: r["Inventar-Nr."] || "", sn: r.Seriennummer || "", case: r.Case || "" };
+    dev.felder = Object.keys(r).filter((k) => k && r[k] && !STANDARD_SPALTE.has(norm(k)) && !IFACE_SPALTE.test(norm(k)))
+      .map((k) => ({ id: idFuer(k), name: k, wert: r[k] }));
     if (r.Notiz) dev.notizen = r.Notiz;
     const vids = [];
     for (let i = 1; i <= 3; i++) {
