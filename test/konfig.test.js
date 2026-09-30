@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { emptyProject, newVlan } from "../src/shared/model.js";
-import { createDevice, KATALOG_GERAETE } from "../src/shared/catalog.js";
+import { createDevice, KATALOG_GERAETE, ipPorts, physPorts } from "../src/shared/catalog.js";
 import { konfigAus, konfigAnwenden, geraetKopie, stapelAus, stapelEinfuegen } from "../src/shared/konfig.js";
 import { stapeln } from "../src/shared/anordnung.js";
 
@@ -18,7 +18,7 @@ test("Konfiguration: Port-VLANs und PoE von Switch zu Switch kopieren, IPs bleib
   const b = createDevice({ typ: "switch_managed", vlans: P.vlans, name: "SW B" });
   a.ports[0].vlan = v10.id; a.ports[1].modus = "trunk"; a.ports[1].vlans = [v10.id, v20.id]; a.ports[2].poe = true;
   a.poeBudget = 240;
-  b.interfaces[0].ip = "10.0.99.2";
+  ipPorts(b)[0].ip = "10.0.99.2";
   const clip = konfigAus(a, P.vlans, ["ports", "poe"]);
   const r = konfigAnwenden(b, clip, ["ports", "poe"], P.vlans);
   assert.equal(b.ports[0].vlan, v10.id);
@@ -27,7 +27,7 @@ test("Konfiguration: Port-VLANs und PoE von Switch zu Switch kopieren, IPs bleib
   assert.equal(b.ports[2].poe, true);
   assert.equal(b.poeBudget, 240);
   assert.equal(b.name, "SW B");
-  assert.equal(b.interfaces[0].ip, "10.0.99.2");
+  assert.equal(ipPorts(b)[0].ip, "10.0.99.2");
   assert.equal(r.fehlendePorts, 0);
 });
 
@@ -50,19 +50,18 @@ test("Konfiguration: weniger Ports im Ziel werden gemeldet", () => {
   const b = createDevice({ typ: "switch_managed", vlans: P.vlans });
   b.ports = b.ports.slice(0, 2);
   const r = konfigAnwenden(b, konfigAus(a, P.vlans, ["ports"]), ["ports"], P.vlans);
-  assert.equal(r.fehlendePorts, a.ports.length - 2);
+  assert.equal(r.fehlendePorts, physPorts(a).length - 2);
 });
 
 test("Gerät duplizieren: neue ids, keine IP und MAC", () => {
   const P = projekt();
   const a = createDevice({ typ: "stagebox", vlans: P.vlans, name: "Rio" });
-  a.interfaces[0].ip = "10.0.10.5"; a.interfaces[0].mac = "00:11:22:33:44:55";
+  ipPorts(a)[0].ip = "10.0.10.5"; ipPorts(a)[0].mac = "00:11:22:33:44:55";
   const c = geraetKopie(a);
   assert.notEqual(c.id, a.id);
   assert.equal(c.name, "Rio (Kopie)");
-  assert.equal(c.interfaces[0].ip, "");
-  assert.equal(c.interfaces[0].mac, "");
-  assert.equal(c.ports[0].iface, c.interfaces[0].id);
+  assert.equal(ipPorts(c)[0].ip, "");
+  assert.equal(ipPorts(c)[0].mac, "");
 });
 
 test("Stapel kopieren und einfügen: Geräte, interne Verbindungen und Name", () => {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, KATEGORIEN } from "../../shared/constants.js";
-import { KATALOG } from "../../shared/catalog.js";
+import { KATALOG, ipPorts } from "../../shared/catalog.js";
 import { Section, Field } from "../ui.jsx";
 
 const Stat = ({ label, value, color, onClick }) => (
@@ -15,7 +15,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
   const m = P.meta;
   const setMeta = (k, v) => mutate((d) => (d.meta[k] = v));
   const n = (s) => issues.filter((i) => i.sev === s).length;
-  const ips = P.geraete.reduce((s, d) => s + d.interfaces.filter((i) => i.ip).length, 0);
+  const ips = P.geraete.reduce((s, d) => s + ipPorts(d).filter((i) => i.ip).length, 0);
   const perKat = Object.keys(KATEGORIEN).map((k) => [k, P.geraete.filter((d) => d.kategorie === k).length]).filter(([, c]) => c);
 
   return (

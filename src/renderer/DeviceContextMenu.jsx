@@ -7,6 +7,7 @@ import { IconView } from "./icons.jsx";
 import { Dot } from "./ui.jsx";
 import { portLabel, portBelegung, vlanKurz, vlanLang } from "./portinfo.js";
 import { api } from "./api.js";
+import { ipPorts } from "../shared/catalog.js";
 
 const W = 400;
 const Row = ({ k, children }) => (
@@ -68,9 +69,9 @@ export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = []
         {dev.isSwitch && dev.poeBudget > 0 && <Row k="PoE-Budget">{dev.poeBudget} W</Row>}
         {!dev.isSwitch && dev.poeBedarf > 0 && <Row k="PoE-Bedarf">{dev.poeBedarf} W</Row>}
 
-        {dev.interfaces.length > 0 && <>
-          <Head>Interfaces</Head>
-          {dev.interfaces.map((i) => {
+        {ipPorts(dev).some((i) => i.ip || i.dhcp || i.virtuell) && <>
+          <Head>IP-Adressen</Head>
+          {ipPorts(dev).filter((i) => i.ip || i.dhcp || i.virtuell).map((i) => {
             const v = X.vlanById.get(i.vlan);
             return (
               <div key={i.id} style={{ display: "grid", gridTemplateColumns: "78px 1fr auto", gap: 8, fontSize: 12, padding: "2px 0", alignItems: "baseline" }}>

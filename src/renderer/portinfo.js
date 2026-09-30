@@ -17,12 +17,10 @@ export const endInfo = (c, end, X) => {
   } else if (dev.isSwitch) {
     ids = connVlan(c, X).vlans; // unmanaged: VLAN ergibt sich aus der Gegenstelle
   } else {
-    const ifc = port.iface ? X.ifaceById.get(port.iface)?.iface : null;
-    ids = ifc?.vlan ? [ifc.vlan] : [];
+    ids = port.vlan ? [port.vlan] : [];
   }
   const vlans = ids.map((id) => X.vlanById.get(id)).filter(Boolean).sort((a, b) => a.vid - b.vid);
-  const ifc = port.iface ? X.ifaceById.get(port.iface)?.iface : null;
-  return { dev, port, sw: !!dev.isSwitch, managed: managedSw, kind, vlans, ifc };
+  return { dev, port, sw: !!dev.isSwitch, managed: managedSw, kind, vlans, ifc: dev.isSwitch ? null : port };
 };
 
 export const vlanKurz = (info) => {
@@ -37,7 +35,7 @@ export const vlanLang = (info) => {
 };
 
 // Alle Ports eines Geräts mit Gegenstelle
-export const portBelegung = (dev, X) => dev.ports.map((port) => {
+export const portBelegung = (dev, X) => dev.ports.filter((p) => !p.virtuell).map((port) => {
   const c = (X.connsByPort.get(`${dev.id}:${port.id}`) || [])[0] || null;
   const self = c ? endInfo(c, c.a.dev === dev.id && c.a.port === port.id ? c.a : c.b, X) : null;
   const o = c ? otherEnd(c, dev.id) : null;

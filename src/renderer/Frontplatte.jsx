@@ -4,6 +4,7 @@ import { mainIp } from "../shared/model.js";
 import { CARD_W, CARD_H, TAB_H } from "../shared/frontplatte.js";
 import { SvgIcon } from "./icons.jsx";
 import { endInfo, portLabel, vlanLang, geraeteTitel } from "./portinfo.js";
+import { ipPorts } from "../shared/catalog.js";
 
 /* Darstellung für die Frontplatten-Ansicht (Stil Luminex Araneo) */
 
@@ -136,7 +137,7 @@ export function FrontCard({ d, p, P, farbe, tab, sel, hover, hit, dim, status, w
   const col = katColor(d.kategorie);
   const ip = mainIp(d);
   const name = geraeteTitel(d, titel);
-  const zeile2 = [ip || (d.interfaces.some((i) => i.dhcp) ? "DHCP" : ""), d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ");
+  const zeile2 = [ip || (ipPorts(d).some((i) => i.dhcp) ? "DHCP" : ""), d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ");
   const tabW = tab ? Math.max(46, tab.length * 6 + 14) : 0;
   return (
     <g opacity={dim ? 0.2 : 1} onMouseDown={onDown} onContextMenu={onContextMenu} style={{ cursor: tool === "connect" ? "crosshair" : "pointer" }}>

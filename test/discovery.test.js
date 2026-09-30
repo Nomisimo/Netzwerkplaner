@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sammleFunde, fundZuGeraet, fundeMitPlan } from "../src/shared/discovery.js";
-import { geraetUmbauen, createDevice } from "../src/shared/catalog.js";
+import { geraetUmbauen, createDevice, ipPorts } from "../src/shared/catalog.js";
 
 const snaps = {
   scan: { hosts: [{ ip: "10.0.0.5", mac: "aa:bb:cc:00:00:05", name: "rio.local", open: [4440, 80] }, { ip: "10.0.0.1", self: true }] },
@@ -28,8 +28,8 @@ test("fundZuGeraet legt ein generisches Gerät mit IP und VLAN an", () => {
   const [f] = sammleFunde(snaps);
   const d = fundZuGeraet(f, vlans);
   assert.equal(d.generisch, true);
-  assert.equal(d.interfaces[0].ip, "10.0.0.5");
-  assert.equal(d.interfaces[0].vlan, "v1");
+  assert.equal(ipPorts(d)[0].ip, "10.0.0.5");
+  assert.equal(ipPorts(d)[0].vlan, "v1");
   assert.equal(d.name, "Rio3224");
   const P = { geraete: [d], verbindungen: [], vlans };
   assert.ok(fundeMitPlan(P, [f])[0].plan, "Fund ist danach im Plan");
@@ -44,7 +44,7 @@ test("Leeres Gerät anlegen: Typ gesetzt, IP und Protokolle bleiben, generisch w
   const g = P.geraete[0];
   assert.equal(g.typ, "mischpult");
   assert.equal(g.generisch, undefined);
-  assert.equal(g.interfaces[0].ip, "10.0.0.5");
+  assert.equal(ipPorts(g)[0].ip, "10.0.0.5");
   assert.ok(g.protokolle.includes("Dante"));
   assert.equal(g.name, "Rio3224");
 });

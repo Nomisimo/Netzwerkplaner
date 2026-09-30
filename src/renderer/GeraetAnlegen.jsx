@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { S, TYPEN, LINE, SUB, ERR, VLAN_FARBEN } from "../shared/constants.js";
 import { emptyProject, buildIndex, newVlan } from "../shared/model.js";
-import { createDevice, snapshotDevice, uid } from "../shared/catalog.js";
+import { createDevice, snapshotDevice, uid, ipPorts, physPorts } from "../shared/catalog.js";
 import { Modal, Field } from "./ui.jsx";
 import DeviceEditor from "./DeviceEditor.jsx";
 
@@ -31,7 +31,7 @@ export default function GeraetAnlegen({ P, ziel, onSave, onClose }) {
   };
   const speichern = () => {
     const g = snapshotDevice(dev, S0.vlans);
-    if (ziel === "vorlage") { g.interfaces.forEach((i) => { i.ip = ""; i.mac = ""; }); g.netzname = ""; g.inventar = { nr: "", sn: "", case: "" }; }
+    if (ziel === "vorlage") { g.ports.forEach((i) => { i.ip = ""; i.mac = ""; }); g.netzname = ""; g.inventar = { nr: "", sn: "", case: "" }; }
     const now = new Date().toISOString();
     onSave({ id: uid(), name: dev.name, geraet: g, angelegt: now, geaendert: now });
   };
@@ -41,7 +41,7 @@ export default function GeraetAnlegen({ P, ziel, onSave, onClose }) {
         <button style={S.ghostBtn} onClick={onClose}>Abbrechen</button>
         <button style={S.primaryBtn} onClick={speichern}>{ziel === "vorlage" ? "Als Vorlage speichern" : "Im Bestand speichern"}</button>
       </>}>
-      <Field label="Grundtyp" hint="Legt Ports und Interfaces vor. Alles lässt sich danach im Editor ändern.">
+      <Field label="Grundtyp" hint="Legt die Ports vor. Alles lässt sich danach im Editor ändern.">
         <select style={{ ...S.select, maxWidth: 320 }} value={typ} onChange={(e) => neuerTyp(e.target.value)}>
           {Object.entries(TYPEN).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
         </select>
@@ -61,7 +61,7 @@ function NeuesVlan({ S0, dev, mutate }) {
   const naechste = () => { let n = 100; const belegt = new Set(S0.vlans.map((v) => +v.vid)); while (belegt.has(n)) n++; return n; };
   const [vid, setVid] = useState(naechste);
   const [name, setName] = useState("");
-  const [ziel, setZiel] = useState(dev.isSwitch ? "ports" : dev.interfaces[0] ? "if:0" : "nur");
+  const [ziel, setZiel] = useState(dev.isSwitch ? "ports" : ipPorts(dev)[0] ? "if:0" : "nur");
   const [info, setInfo] = useState("");
   const vorhanden = S0.vlans.find((v) => +v.vid === +vid);
   const ungueltig = !(+vid >= 1 && +vid <= 4094);
@@ -71,10 +71,10 @@ function NeuesVlan({ S0, dev, mutate }) {
       let v = d.vlans.find((x) => +x.vid === +vid && !x.svlan);
       if (!v) { v = newVlan({ vid: +vid, name: name.trim() || `VLAN ${vid}`, farbe: VLAN_FARBEN[d.vlans.length % VLAN_FARBEN.length], subnetz: +vid < 256 ? `10.10.${vid}.0/24` : "" }); d.vlans.push(v); }
       const g = d.geraete[0];
-      if (ziel === "ports") g.ports.forEach((p) => { if (p.modus !== "trunk") p.vlan = v.id; });
-      else if (ziel.startsWith("if:")) { const i = g.interfaces[+ziel.slice(3)]; if (i) i.vlan = v.id; }
+      if (ziel === "ports") physPorts(g).forEach((p) => { if (p.modus !== "trunk") p.vlan = v.id; });
+      else if (ziel.startsWith("if:")) { const i = ipPorts(g)[+ziel.slice(3)]; if (i) i.vlan = v.id; }
     });
-    setInfo(vorhanden ? `VLAN ${vid} gab es schon und ist jetzt zugewiesen.` : `VLAN ${vid} angelegt${ziel === "nur" ? ". Im Editor unten den Ports oder Interfaces zuweisen." : " und zugewiesen."}`);
+    setInfo(vorhanden ? `VLAN ${vid} gab es schon und ist jetzt zugewiesen.` : `VLAN ${vid} angelegt${ziel === "nur" ? ". Im Editor unten den Ports zuweisen." : " und zugewiesen."}`);
     setName(""); setVid(naechste() === +vid ? +vid + 1 : naechste());
   };
   return (
@@ -85,8 +85,8 @@ function NeuesVlan({ S0, dev, mutate }) {
         <Field label="Name"><input style={{ ...S.inputSm, width: 180 }} value={vorhanden ? vorhanden.name : name} disabled={!!vorhanden} placeholder={`VLAN ${vid}`} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Zuweisen an">
           <select style={{ ...S.selectSm, width: 220 }} value={ziel} onChange={(e) => setZiel(e.target.value)}>
-            {dev.ports.length > 0 && <option value="ports">Alle Ports (Access)</option>}
-            {dev.interfaces.map((i, n) => <option key={i.id} value={`if:${n}`}>Interface „{i.name}“</option>)}
+            {physPorts(dev).length > 0 && <option value="ports">Alle Ports (Access)</option>}
+            {ipPorts(dev).map((i, n) => <option key={i.id} value={`if:${n}`}>Port „{i.name}“</option>)}
             <option value="nur">Nur anlegen</option>
           </select>
         </Field>

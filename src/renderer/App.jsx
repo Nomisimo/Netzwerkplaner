@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY } from "../shared/constants.js";
 import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl } from "../shared/model.js";
-import { createDevice, uid, snapshotDevice, geraetUmbauen } from "../shared/catalog.js";
+import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ipPorts } from "../shared/catalog.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
 import { DevicePicker, Modal } from "./ui.jsx";
@@ -106,7 +106,7 @@ export default function App() {
 
   // Bibliothek (eigene Vorlagen + Icons) aus dem App-Datenordner
   useEffect(() => {
-    api.loadLibrary().then((l) => { if (l) setLibrary({ vorlagen: [], bestand: [], icons: [], ...l }); setLibLoaded(true); });
+    api.loadLibrary().then((l) => { if (l) setLibrary(migrateBibliothek({ vorlagen: [], bestand: [], icons: [], ...l })); setLibLoaded(true); });
     api.getRecents().then(setRecents);
     api.appVersion().then(setVersion);
     api.onOpenFile((r) => r && loadFromFile(r));
@@ -142,7 +142,7 @@ export default function App() {
     for (const d of P0.geraete) {
       if (ids && !ids.includes(d.id)) continue;
       const url = webUrl(d);
-      const ifc = d.interfaces.find((i) => i.id === d.webUi?.iface && i.ip) || d.interfaces.find((i) => i.ip);
+      const ifc = d.ports.find((i) => i.id === d.webUi?.iface && i.ip) || ipPorts(d).find((i) => i.ip);
       if (!ifc) continue;
       let port = null;
       if (url) { try { const u = new URL(url); port = +(u.port || (u.protocol === "https:" ? 443 : 80)); } catch {} }
@@ -203,8 +203,8 @@ export default function App() {
       const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
       if (item.kind === "bestand") {
         dev.bestandId = vorlage.id;
-        const belegt = new Set(d.geraete.flatMap((g) => g.interfaces.map((i) => i.ip)).filter(Boolean));
-        konflikte = dev.interfaces.filter((i) => i.ip && belegt.has(i.ip)).map((i) => i.ip);
+        const belegt = new Set(d.geraete.flatMap((g) => g.ports.map((i) => i.ip)).filter(Boolean));
+        konflikte = dev.ports.filter((i) => i.ip && belegt.has(i.ip)).map((i) => i.ip);
       }
       // eindeutiger Name
       const names = new Set(d.geraete.map((g) => g.name));
@@ -238,8 +238,8 @@ export default function App() {
       const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: quelle, mitAdressen: ausBestand });
       if (ausBestand) {
         neu.bestandId = quelle.id;
-        const belegt = new Set(d.geraete.filter((g) => g.id !== devId).flatMap((g) => g.interfaces.map((i) => i.ip)).filter(Boolean));
-        konflikte = neu.interfaces.filter((i) => i.ip && belegt.has(i.ip)).map((i) => i.ip);
+        const belegt = new Set(d.geraete.filter((g) => g.id !== devId).flatMap((g) => g.ports.map((i) => i.ip)).filter(Boolean));
+        konflikte = neu.ports.filter((i) => i.ip && belegt.has(i.ip)).map((i) => i.ip);
       }
       geraetUmbauen(d, devId, neu, { ausBestand });
     });
@@ -267,7 +267,7 @@ export default function App() {
     const name = prompt("Name der Vorlage:", [dev.hersteller, dev.modell].filter(Boolean).join(" ") || dev.name);
     if (!name) return;
     const g = snapshotDevice(dev, P.vlans);
-    g.interfaces.forEach((i) => { i.ip = ""; i.mac = ""; });
+    g.ports.forEach((i) => { i.ip = ""; i.mac = ""; });
     g.notizen = ""; g.netzname = ""; g.inventar = { nr: "", sn: "", case: "" };
     setLibrary((l) => ({ ...l, vorlagen: [...(l.vorlagen || []), { id: uid(), name, geraet: g }] }));
     if (dev.icon?.startsWith("custom:")) { const ic = P.icons.find((i) => "custom:" + i.id === dev.icon); if (ic) setLibrary((l) => ({ ...l, icons: (l.icons || []).some((x) => x.id === ic.id) ? l.icons : [...(l.icons || []), ic] })); }

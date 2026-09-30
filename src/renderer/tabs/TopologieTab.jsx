@@ -12,7 +12,7 @@ import { endInfo, portLabel, vlanLang, geraeteTitel } from "../portinfo.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
 import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren } from "../../shared/anordnung.js";
-import { uid } from "../../shared/catalog.js";
+import { uid, ipPorts } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
 import StapelEditor from "../StapelEditor.jsx";
 import PortTauschen from "../PortTauschen.jsx";
@@ -285,10 +285,10 @@ export default function TopologieTab(props) {
   const matches = (d) => {
     if (katFilter && d.kategorie !== katFilter) return false;
     if (vlanFilter) {
-      const inV = d.interfaces.some((i) => i.vlan === vlanFilter) || d.ports.some((p) => p.vlan === vlanFilter || (p.modus === "trunk" && (p.vlans || []).includes(vlanFilter)));
+      const inV = d.ports.some((p) => p.vlan === vlanFilter || (p.modus === "trunk" && (p.vlans || []).includes(vlanFilter)));
       if (!inV) return false;
     }
-    if (ql) return `${d.name} ${d.netzname || ""} ${d.inventar?.nr || ""} ${d.modell} ${d.hersteller} ${d.bereich} ${d.interfaces.map((i) => i.ip).join(" ")}`.toLowerCase().includes(ql);
+    if (ql) return `${d.name} ${d.netzname || ""} ${d.inventar?.nr || ""} ${d.modell} ${d.hersteller} ${d.bereich} ${ipPorts(d).map((i) => i.ip).join(" ")}`.toLowerCase().includes(ql);
     return true;
   };
   const filtering = !!(katFilter || vlanFilter || ql);
@@ -548,7 +548,7 @@ export default function TopologieTab(props) {
                     onToggle={() => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [id]: !collapsed }; })} />;
                 }
                 const z = laschenZustand(id, T, X);
-                const own = X.vlanById.get(d.interfaces.find((i) => i.ip)?.vlan || d.interfaces[0]?.vlan);
+                const own = X.vlanById.get(ipPorts(d).find((i) => i.ip)?.vlan || ipPorts(d)[0]?.vlan);
                 return <FrontCard key={id} {...common} tab={laschenText(id, T, X)} farbe={z ? kartenFarbe(z) : own?.farbe || MUTED} />;
               })}
               {!front && [...L.pos.keys()].map((id) => {
@@ -563,7 +563,7 @@ export default function TopologieTab(props) {
                 const dim = filtering && !matches(d);
                 const hit = ql && matches(d);
                 const ip = mainIp(d);
-                const v = X.vlanById.get(d.interfaces.find((i) => i.ip)?.vlan || d.interfaces[0]?.vlan);
+                const v = X.vlanById.get(ipPorts(d).find((i) => i.ip)?.vlan || ipPorts(d)[0]?.vlan);
                 const url = webUrl(d);
                 const kids = T.children.get(id) || [];
                 const collapsed = !!P.layout.collapsed?.[id];
@@ -579,7 +579,7 @@ export default function TopologieTab(props) {
                     <rect x="12" y="11" width="36" height="36" rx="7" fill={col + "1f"} />
                     <SvgIcon icon={d.icon} customIcons={P.icons} x={18} y={17} size={24} color={col} />
                     {(() => { const t = geraeteTitel(d, titel); return <text x="56" y="20" fontSize="13" fontWeight="700" fill="#fff">{t.length > 20 ? t.slice(0, 19) + "…" : t}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, d.inventar?.nr && `Inventar: ${d.inventar.nr}`].filter(Boolean).join("\n")}</title></text>; })()}
-                    <text x="56" y="36" fontSize="11" fill={ip ? "#c8d0d8" : MUTED} fontFamily="Consolas,monospace">{ip || (d.interfaces.some((i) => i.dhcp) ? "DHCP" : d.isSwitch && !d.interfaces.length ? "unmanaged" : "keine IP")}</text>
+                    <text x="56" y="36" fontSize="11" fill={ip ? "#c8d0d8" : MUTED} fontFamily="Consolas,monospace">{ip || (ipPorts(d).some((i) => i.dhcp) ? "DHCP" : d.isSwitch && !ipPorts(d).length ? "unmanaged" : "keine IP")}</text>
                     {v && <g transform={`translate(${56 + Math.max(ip.length, 7) * 6.6 + 6},27)`}><rect width={v.vid > 99 ? 30 : 24} height="12" rx="3" fill={v.farbe + "33"} stroke={v.farbe} strokeWidth=".8" /><text x={v.vid > 99 ? 15 : 12} y="9.5" fontSize="9" fill="#fff" textAnchor="middle">{v.vid}</text></g>}
                     <text x="56" y="50" fontSize="10" fill={MUTED}>{[d.bereich, d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ").slice(0, url ? 26 : 30)}</text>
                     <circle cx={NODE_W - 11} cy="11" r="4.5" fill={!st || st.ok === null || st.ok === undefined ? "#4a535e" : st.ok ? OK : ERR} stroke="#12161a" strokeWidth="1.5">

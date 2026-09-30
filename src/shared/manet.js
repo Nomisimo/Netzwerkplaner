@@ -7,6 +7,7 @@
 import { ip2int, parseCidr, inSubnet } from "./net.js";
 import { portSpeed, connSpeed } from "./analyse.js";
 import { connVlan } from "./model.js";
+import { ipPorts, physPorts } from "./catalog.js";
 
 export const GOLD_STANDARDS = [
   ["1 GbE non-blocking", "Alle MA-Net3-Stationen und alle Switch-Verbindungen im MA-Net3-VLAN mit mindestens 1 Gbit/s."],
@@ -30,9 +31,9 @@ export const maNetGen = (d) => {
   return g;
 };
 
-// Interfaces, über die MA-Net läuft
+// Ports, über die MA-Net läuft
 const maIfaces = (d) => {
-  const mitVlan = d.interfaces.filter((i) => i.vlan);
+  const mitVlan = ipPorts(d).filter((i) => i.vlan);
   const benannt = mitVlan.filter((i) => /ma-?net|session/i.test(i.name));
   return benannt.length ? benannt : mitVlan.slice(0, 1);
 };
@@ -60,7 +61,7 @@ export const maNetIssues = (P, X) => {
   for (const d of ma) {
     const gen = maNetGen(d);
     const ifs = maIfaces(d);
-    if (!ifs.length && d.interfaces.some((i) => i.ip || i.dhcp)) add("info", `${d.name} ist keinem VLAN zugeordnet.`, { dev: d.id });
+    if (!ifs.length && ipPorts(d).some((i) => i.ip || i.dhcp)) add("info", `${d.name} ist keinem VLAN zugeordnet.`, { dev: d.id });
     for (const i of ifs) {
       if (gen === 3 && i.ip && ip2int(i.ip) !== null && inSubnet(i.ip, bad33))
         add("error", `${d.name} › ${i.name}: ${i.ip} liegt in 192.168.33.0/24. Dieses Netz ist für grandMA3 Con1–Con3 unzulässig.`, { dev: d.id });
@@ -88,9 +89,9 @@ export const maNetIssues = (P, X) => {
     if (hat3 && !v.eeeAus) add("error", `${name}: Energy Efficient Ethernet ist nicht als abgeschaltet markiert. Im MA-Net3-VLAN muss EEE aus sein.`, { vlan: vid });
 
     // Fremde Geräte im MA-VLAN
-    const fremd = P.geraete.filter((d) => !d.isSwitch && !e.devs.has(d.id) && d.interfaces.some((i) => i.vlan === vid));
+    const fremd = P.geraete.filter((d) => !d.isSwitch && !e.devs.has(d.id) && ipPorts(d).some((i) => i.vlan === vid));
     if (hat3) {
-      const langsam = fremd.filter((d) => d.ports.some((p) => p.iface && d.interfaces.some((i) => i.id === p.iface && i.vlan === vid)) && d.ports.filter((p) => p.iface).every((p) => portSpeed(p) < 1000));
+      const langsam = fremd.filter((d) => { const eth = physPorts(d).filter((p) => !p.p2p); return eth.some((p) => p.vlan === vid) && eth.every((p) => portSpeed(p) < 1000); });
       for (const d of langsam) add("warn", `${name}: ${d.name} hat nur 100-Mbit-Ports. Keine 100-Mbit-Geräte ins MA-Net3-VLAN.`, { vlan: vid, dev: d.id });
       const aoip = fremd.filter((d) => (d.protokolle || []).some((s) => /dante|aes67|ravenna|\bndi\b/i.test(s)) && !(d.protokolle || []).some((s) => /art-?net|sacn|e1\.31/i.test(s)));
       if (aoip.length) add("warn", `${name}: ${aoip.slice(0, 3).map((d) => d.name).join(", ")}${aoip.length > 3 ? " …" : ""} im selben VLAN. MA-Net3 gehört in ein eigenes VLAN ohne Dante/NDI.`, { vlan: vid, devs: aoip.map((d) => d.id) });

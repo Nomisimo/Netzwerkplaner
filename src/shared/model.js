@@ -1,5 +1,5 @@
 import { STANDARD_VLANS, DEFAULT_BEREICHE, KABEL } from "./constants.js";
-import { uid, findProtokoll, newIface, newPort } from "./catalog.js";
+import { uid, findProtokoll, migrateGeraet, physPorts, ipPorts } from "./catalog.js";
 import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAULT_RANGES, isValidMac } from "./net.js";
 import { qinqIssues } from "./qinq.js";
 
@@ -29,11 +29,10 @@ export const migrateProject = (p) => {
   const e = emptyProject();
   const out = { ...e, ...p, meta: { ...e.meta, ...(p.meta || {}) }, layout: { ...e.layout, ...(p.layout || {}) } };
   out.vlans = (p.vlans || []).map((v) => newVlan({ ...v, dhcp: { aktiv: false, von: "", bis: "", ...(v.dhcp || {}) } }));
-  out.geraete = (p.geraete || []).map((d) => ({
+  // Ports und Interfaces waren früher getrennt: migrateGeraet führt sie zusammen
+  out.geraete = (p.geraete || []).map((d) => migrateGeraet({
     kategorie: "Sonstiges", bereich: "", protokolle: [], notizen: "", webUi: { vorhanden: false, url: "http://{ip}", iface: null },
     poeBedarf: 0, poeBudget: 0, stroeme: [], netzname: "", inventar: { nr: "", sn: "", case: "" }, ...d,
-    interfaces: (d.interfaces || []).map((i) => newIface(i)),
-    ports: (d.ports || []).map((pt) => newPort(pt)),
   }));
   out.verbindungen = (p.verbindungen || []).filter((c) => c.a && c.b).map((c) => ({ kabel: "cat6", laenge: "", label: "", notiz: "", ...c }));
   out.bereiche = p.bereiche || e.bereiche;
@@ -46,11 +45,7 @@ export const buildIndex = (P) => {
   const devById = new Map(P.geraete.map((d) => [d.id, d]));
   const vlanById = new Map(P.vlans.map((v) => [v.id, v]));
   const portRef = new Map(); // "dev:port" → { dev, port }
-  const ifaceById = new Map();
-  for (const d of P.geraete) {
-    for (const p of d.ports) portRef.set(`${d.id}:${p.id}`, { dev: d, port: p });
-    for (const i of d.interfaces) ifaceById.set(i.id, { dev: d, iface: i });
-  }
+  for (const d of P.geraete) for (const p of d.ports) portRef.set(`${d.id}:${p.id}`, { dev: d, port: p });
   const connsByPort = new Map();
   const connsByDev = new Map();
   for (const c of P.verbindungen) {
@@ -62,7 +57,7 @@ export const buildIndex = (P) => {
       connsByDev.get(end.dev).push(c);
     }
   }
-  return { devById, vlanById, portRef, ifaceById, connsByPort, connsByDev };
+  return { devById, vlanById, portRef, connsByPort, connsByDev };
 };
 
 export const otherEnd = (c, devId) => (c.a.dev === devId ? c.b : c.a);
@@ -80,8 +75,7 @@ export const connVlan = (c, X) => {
       if (port.modus === "trunk") return { kind: "trunk", vlans: port.vlans || [], sw: true };
       return { kind: "access", vlans: port.vlan ? [port.vlan] : [], sw: true };
     }
-    const ifc = port.iface ? X.ifaceById.get(port.iface)?.iface : null;
-    return { kind: "access", vlans: ifc?.vlan ? [ifc.vlan] : [], sw: false, ifc };
+    return { kind: "access", vlans: port.vlan ? [port.vlan] : [], sw: false, ifc: port };
   };
   const A = side(c.a), B = side(c.b);
   if (!A || !B) return { kind: "none", vlans: [] };
@@ -102,23 +96,23 @@ export const isP2PConn = (c, X) => {
 
 /* ── Ports & Adressen ──────────────────────────────────────────────────── */
 export const freePort = (dev, X, preferP2P = false) => {
-  const free = dev.ports.filter((p) => !(X.connsByPort.get(`${dev.id}:${p.id}`) || []).length);
+  const free = physPorts(dev).filter((p) => !(X.connsByPort.get(`${dev.id}:${p.id}`) || []).length);
   return free.find((p) => !!p.p2p === preferP2P) || free[0] || null;
 };
 
-export const usedIps = (P, exceptIfaceId) => {
+export const usedIps = (P, exceptPortId) => {
   const s = new Set();
-  for (const d of P.geraete) for (const i of d.interfaces) {
-    if (i.id === exceptIfaceId) continue;
+  for (const d of P.geraete) for (const i of ipPorts(d)) {
+    if (i.id === exceptPortId) continue;
     const n = ip2int(i.ip);
     if (n !== null) s.add(n);
   }
   return s;
 };
 
-export const suggestIp = (P, vlan, exceptIfaceId) => {
+export const suggestIp = (P, vlan, exceptPortId) => {
   if (!vlan?.subnetz) return null;
-  const used = usedIps(P, exceptIfaceId);
+  const used = usedIps(P, exceptPortId);
   const reserved = [vlan.gateway].filter(Boolean);
   // DHCP-Bereich nicht für statische Vorschläge verwenden
   const c = parseCidr(vlan.subnetz);
@@ -133,12 +127,12 @@ export const suggestIp = (P, vlan, exceptIfaceId) => {
 
 export const webUrl = (dev) => {
   if (!dev.webUi?.vorhanden) return null;
-  const ifc = dev.interfaces.find((i) => i.id === dev.webUi.iface) || dev.interfaces.find((i) => i.ip);
+  const ifc = dev.ports.find((i) => i.id === dev.webUi.iface) || ipPorts(dev).find((i) => i.ip);
   const tpl = dev.webUi.url || "http://{ip}";
   if (tpl.includes("{ip}") && !ifc?.ip) return null;
   return tpl.replace("{ip}", ifc?.ip || "");
 };
-export const mainIp = (dev) => (dev.interfaces.find((i) => i.ip) || {}).ip || "";
+export const mainIp = (dev) => (ipPorts(dev).find((i) => i.ip) || {}).ip || "";
 
 /* ── Topologie-Baum (für das Mindmap-Layout) ──────────────────────────── */
 export const pickRoot = (P, X) => {
@@ -215,9 +209,9 @@ export const subtreeIds = (T, id) => {
 
 /* ── Prüfungen ─────────────────────────────────────────────────────────── */
 const AOIP = /dante|aes67|ravenna|avb|milan|q-lan|soundgrid/i;
-// Steuer-/Management-Interfaces tragen keine Medienströme, wenn das Gerät noch andere Interfaces hat
+// Steuer-/Management-Ports tragen keine Medienströme, wenn das Gerät noch andere IP-Ports hat
 const CTRL_IF = /steuer|manage|network|control|remote|mgmt|editor/i;
-export const carriesMedia = (d, i) => !(d.interfaces.length > 1 && CTRL_IF.test(i.name));
+export const carriesMedia = (d, i) => !(ipPorts(d).length > 1 && CTRL_IF.test(i.name));
 
 export const validate = (P, X) => {
   const issues = [];
@@ -245,7 +239,7 @@ export const validate = (P, X) => {
   // Adressen
   const ipOwners = new Map();
   for (const d of P.geraete) {
-    for (const i of d.interfaces) {
+    for (const i of ipPorts(d)) {
       const where = `${d.name} › ${i.name}`;
       if (i.mac && !isValidMac(i.mac)) add("warn", `${where}: MAC „${i.mac}“ hat kein gültiges Format.`, { dev: d.id });
       if (i.dhcp) {
@@ -308,7 +302,7 @@ export const validate = (P, X) => {
 
   // Protokolle je VLAN (Multicast → IGMP, Audio over IP → EEE aus / QoS)
   for (const v of vlanList) {
-    const devs = P.geraete.filter((d) => !d.isSwitch && d.interfaces.some((i) => i.vlan === v.id && carriesMedia(d, i)));
+    const devs = P.geraete.filter((d) => !d.isSwitch && ipPorts(d).some((i) => i.vlan === v.id && carriesMedia(d, i)));
     const refs = new Map();
     for (const d of devs) for (const s of d.protokolle || []) { const r = findProtokoll(s); if (r) refs.set(r.name, r); }
     const mc = [...refs.values()].filter((r) => r.flags.igmp || r.flags.multicast && !r.flags.p2p);
@@ -347,7 +341,7 @@ export const kabelLabel = (k) => KABEL[k]?.label || k || "–";
 
 /* ── Verbindung anlegen (arbeitet direkt auf einem Projekt-Entwurf) ─────── */
 const portUsed = (P, devId, portId) => P.verbindungen.some((c) => (c.a.dev === devId && c.a.port === portId) || (c.b.dev === devId && c.b.port === portId));
-export const freiePorts = (P, dev) => dev.ports.filter((p) => !portUsed(P, dev.id, p.id));
+export const freiePorts = (P, dev) => physPorts(dev).filter((p) => !portUsed(P, dev.id, p.id));
 /* Freien Port wählen. Ein Gerät hat nur so viele Anschlüsse, wie es Ports hat:
    ist keiner frei, gibt es null (die Oberfläche fragt dann, welcher Anschluss ersetzt wird). */
 const takePort = (P, dev, preferP2P, preferName, portId) => {
@@ -363,7 +357,7 @@ export const addConnection = (P, fromId, toId, opts = {}) => {
   const a = P.geraete.find((x) => x.id === fromId), b = P.geraete.find((x) => x.id === toId);
   if (!a || !b || a === b) return null;
   const p2p = !a.isSwitch && !b.isSwitch && a.ports.some((p) => p.p2p && !portUsed(P, a.id, p.id)) && b.ports.some((p) => p.p2p && !portUsed(P, b.id, p.id));
-  const fib = (d) => d.ports.find((p) => /SFP|optical/i.test(p.typ) && !portUsed(P, d.id, p.id));
+  const fib = (d) => physPorts(d).find((p) => /SFP|optical/i.test(p.typ) && !portUsed(P, d.id, p.id));
   const uplinkFib = a.isSwitch && b.isSwitch && !opts.portA && !opts.portB && !opts.portIdA && !opts.portIdB && fib(a) && fib(b);
   const pa = uplinkFib ? fib(a) : takePort(P, a, p2p, opts.portA, opts.portIdA);
   const pb = uplinkFib ? fib(b) : takePort(P, b, p2p, opts.portB, opts.portIdB);
@@ -374,8 +368,7 @@ export const addConnection = (P, fromId, toId, opts = {}) => {
   // Switch-Port übernimmt das VLAN des Endgeräts (Access)
   for (const [sw, sp, ep, epp] of [[a, pa, b, pb], [b, pb, a, pa]]) {
     if (!managed(sw) || ep.isSwitch) continue;
-    const ifc = ep.interfaces.find((i) => i.id === epp.iface);
-    if (ifc?.vlan && !sp.vlan && sp.modus === "access") sp.vlan = ifc.vlan;
+    if (epp.vlan && !sp.vlan && sp.modus === "access") sp.vlan = epp.vlan;
   }
   // Switch ↔ Switch: Trunk mit allen VLANs
   if (managed(a) && managed(b)) for (const p of [pa, pb]) if (!p.vlan) { p.modus = "trunk"; p.vlans = P.vlans.map((v) => v.id); }

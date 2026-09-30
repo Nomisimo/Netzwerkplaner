@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
 import { S, LINE, SUB, MUTED, OK, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
-import { uid } from "../../shared/catalog.js";
+import { uid, migrateBestand } from "../../shared/catalog.js";
 import { Section } from "../ui.jsx";
 import { IconView } from "../icons.jsx";
 import { api } from "../api.js";
@@ -29,7 +29,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   const list = useMemo(() => bestand.filter((b) => {
     const g = b.geraet;
     if (kat && g.kategorie !== kat) return false;
-    return !ql || `${b.name} ${g.netzname || ""} ${g.hersteller} ${g.modell} ${g.interfaces.map((i) => i.ip + " " + i.mac).join(" ")} ${g.inventar?.nr || ""} ${g.inventar?.sn || ""} ${g.inventar?.case || ""}`.toLowerCase().includes(ql);
+    return !ql || `${b.name} ${g.netzname || ""} ${g.hersteller} ${g.modell} ${g.ports.map((i) => (i.ip || "") + " " + (i.mac || "")).join(" ")} ${g.inventar?.nr || ""} ${g.inventar?.sn || ""} ${g.inventar?.case || ""}`.toLowerCase().includes(ql);
   }).sort((a, b) => a.name.localeCompare(b.name, "de", { numeric: true })), [bestand, ql, kat]);
 
   const setName = (id, name) => setLibrary((l) => ({ ...l, bestand: l.bestand.map((b) => (b.id === id ? { ...b, name, geraet: { ...b.geraet, name } } : b)) }));
@@ -64,7 +64,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
       }
       try {
         const data = JSON.parse(r.result);
-        const neu = (data.bestand || []).filter((b) => b?.geraet?.interfaces);
+        const neu = migrateBestand((data.bestand || []).filter((b) => b?.geraet?.ports || b?.geraet?.interfaces)); // ältere Dateien mit getrennten Interfaces
         if (!neu.length) throw new Error("leer");
         setLibrary((l) => {
           const ids = new Set((l.bestand || []).map((b) => b.id));
@@ -123,8 +123,8 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
                       <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{[g.hersteller, g.modell].filter(Boolean).join(" ") || TYPEN[g.typ]?.label}{g.netzname ? ` · ${g.netzname}` : ""}</div>
                     </td>
                     <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>
-                      {g.interfaces.filter((i) => i.ip || i.dhcp).map((i) => <div key={i.id}>{i.dhcp ? "DHCP" : i.ip}<span style={{ color: MUTED }}>{i.vid != null ? ` · VLAN ${i.vid}` : ""} · {i.name}</span></div>)}
-                      {!g.interfaces.some((i) => i.ip || i.dhcp) && <span style={{ color: MUTED }}>–</span>}
+                      {g.ports.filter((i) => i.ip || i.dhcp).map((i) => <div key={i.id}>{i.dhcp ? "DHCP" : i.ip}<span style={{ color: MUTED }}>{i.vid != null ? ` · VLAN ${i.vid}` : ""} · {i.name}</span></div>)}
+                      {!g.ports.some((i) => i.ip || i.dhcp) && <span style={{ color: MUTED }}>–</span>}
                     </td>
                     <td style={{ ...S.td, fontSize: 12 }}>
                       {g.inventar?.nr && <div>Nr. {g.inventar.nr}</div>}

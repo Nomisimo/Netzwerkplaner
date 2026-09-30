@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildIndex, validate, emptyProject, addConnection } from "../src/shared/model.js";
-import { createDevice } from "../src/shared/catalog.js";
+import { createDevice, ipPorts } from "../src/shared/catalog.js";
 import { demoProject } from "../src/shared/demo.js";
 import { KERN_BY_ID, defaultParams, streamRate } from "../src/shared/kernprotokolle.js";
 import { statistik, leitungslast, analyseIssues, danteHops, pfad, switchHops, laufzeit, newStream } from "../src/shared/analyse.js";
@@ -50,7 +50,7 @@ test("Multicast ohne IGMP flutet und Überlast wird gemeldet", () => {
   const sw = createDevice({ typ: "switch_managed", vlans: P.vlans, name: "SW" });
   const a = createDevice({ typ: "lichtpult", vlans: P.vlans, name: "Pult" });
   const b = createDevice({ typ: "node", vlans: P.vlans, name: "Node" });
-  a.interfaces[0].vlan = b.interfaces[0].vlan = v20.id;
+  ipPorts(a)[0].vlan = ipPorts(b)[0].vlan = v20.id;
   P.geraete.push(sw, a, b);
   addConnection(P, sw.id, a.id);
   addConnection(P, sw.id, b.id);
@@ -63,7 +63,7 @@ test("Multicast ohne IGMP flutet und Überlast wird gemeldet", () => {
   X = buildIndex(P);
   assert.equal(leitungslast(P, X).find((l) => l.child === b.id).runter, 0);
   a.stroeme = [newStream({ proto: "ndi", menge: 10 })];
-  a.interfaces[0].vlan = v20.id;
+  ipPorts(a)[0].vlan = v20.id;
   X = buildIndex(P);
   assert.ok(analyseIssues(P, X).some((i) => i.sev === "error" && /übersteigt/.test(i.msg)));
 });

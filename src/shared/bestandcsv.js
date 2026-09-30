@@ -1,7 +1,7 @@
 /* ── Gerätebestand als CSV ────────────────────────────────────────────────
    Austausch zwischen Netzwerkplaner-Installationen und Import aus eigenen
-   Listen (Excel → CSV). Eine Zeile je Gerät, bis zu drei Interfaces. */
-import { KATALOG_GERAETE, createDevice, snapshotDevice, newIface, newPort, uid } from "./catalog.js";
+   Listen (Excel → CSV). Eine Zeile je Gerät, bis zu drei IP-Ports. */
+import { KATALOG_GERAETE, createDevice, snapshotDevice, newPort, ipPorts, uid } from "./catalog.js";
 import { TYPEN } from "./constants.js";
 
 export const CSV_SPALTEN = ["Name", "Netzwerkname", "Hersteller", "Modell", "Typ", "Bereich", "Standort",
@@ -17,7 +17,7 @@ export const bestandZuCsv = (bestand) => {
   const zeilen = [CSV_SPALTEN.join(";")];
   for (const b of bestand) {
     const g = b.geraet;
-    const ifs = (g.interfaces || []).slice(0, 3);
+    const ifs = ipPorts(g).slice(0, 3);
     const r = { Name: b.name || g.name, Netzwerkname: g.netzname || "", Hersteller: g.hersteller || "", Modell: g.modell || "", Typ: g.typ || "", Bereich: g.kategorie || "", Standort: g.bereich || "",
       "Inventar-Nr.": g.inventar?.nr || "", Seriennummer: g.inventar?.sn || "", Case: g.inventar?.case || "", Notiz: g.notizen || "", "Katalog-ID": g.katalogId || "" };
     ifs.forEach((i, n) => {
@@ -85,18 +85,13 @@ export const csvZuBestand = (text, vlans = []) => {
     if (r.Standort) dev.bereich = r.Standort;
     dev.inventar = { nr: r["Inventar-Nr."] || "", sn: r.Seriennummer || "", case: r.Case || "" };
     if (r.Notiz) dev.notizen = r.Notiz;
-    const vids = [];
+    const vids = {};
+    const ziele = ipPorts(dev);
     for (let i = 1; i <= 3; i++) {
       const ip = r[`IP${i}`], vid = r[`VLAN${i}`], mac = r[`MAC${i}`];
       if (!ip && !mac && !vid) continue;
-      let ifc = dev.interfaces[i - 1];
-      if (!ifc) {
-        ifc = newIface({ name: `ETH${i}` });
-        dev.interfaces.push(ifc);
-        const frei = dev.ports.find((p) => !p.iface && !p.p2p);
-        if (frei) frei.iface = ifc.id;
-        else if (!dev.isSwitch) dev.ports.push(newPort({ name: `ETH${i}`, iface: ifc.id }));
-      }
+      let ifc = ziele[i - 1];
+      if (!ifc) { ifc = newPort({ name: `ETH${i}`, virtuell: !!dev.isSwitch }); dev.ports.push(ifc); ziele[i - 1] = ifc; }
       if (/^dhcp$/i.test(ip || "")) { ifc.dhcp = true; ifc.ip = ""; }
       else if (ip) {
         const [a, p] = ip.split("/");
@@ -104,10 +99,10 @@ export const csvZuBestand = (text, vlans = []) => {
         if (p) ifc.prefix = +p;
       }
       if (mac) ifc.mac = mac;
-      vids[i - 1] = vid ? +vid : null;
+      if (vid && !Number.isNaN(+vid)) vids[ifc.id] = +vid;
     }
     const g = snapshotDevice(dev, vlans);
-    g.interfaces.forEach((ifc, i) => { if (vids[i] != null && !Number.isNaN(vids[i])) ifc.vid = vids[i]; });
+    g.ports.forEach((p) => { if (vids[p.id] != null) p.vid = vids[p.id]; });
     const now = new Date().toISOString();
     out.push({ id: uid(), name, geraet: g, angelegt: now, geaendert: now });
   });

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { bestandZuCsv, csvZuBestand, parseCsv } from "../src/shared/bestandcsv.js";
 import { emptyProject } from "../src/shared/model.js";
-import { createDevice, KATALOG_GERAETE } from "../src/shared/catalog.js";
+import { createDevice, KATALOG_GERAETE, ipPorts } from "../src/shared/catalog.js";
 
 test("CSV liest Semikolon, Komma und Anführungszeichen", () => {
   assert.deepEqual(parseCsv('A;B\n1;"x;y"\n'), [{ A: "1", B: "x;y" }]);
@@ -23,19 +23,19 @@ test("Bestand übersteht CSV-Export und -Import (Katalogmodell, IPs, VLAN, Inven
   assert.match(pu.modell, /processing unit M/);
   assert.ok(KATALOG_GERAETE.some((k) => k.id === pu.katalogId), "Katalogmodell erkannt");
   assert.equal(pu.netzname, "PU-M1_AUE");
-  assert.equal(pu.interfaces[0].ip, "172.16.2.131");
-  assert.equal(pu.interfaces[0].vid, 50);
-  assert.equal(pu.interfaces[1].prefix, 8);
-  assert.equal(pu.interfaces[2].dhcp, true);
+  assert.equal(ipPorts(pu)[0].ip, "172.16.2.131");
+  assert.equal(ipPorts(pu)[0].vid, 50);
+  assert.equal(ipPorts(pu)[1].prefix, 8);
+  assert.equal(ipPorts(pu)[2].dhcp, true);
   assert.equal(pu.inventar.nr, "INV-1");
   const lap = bestand[1].geraet;
-  assert.equal(lap.interfaces[0].ip, "172.16.2.52");
+  assert.equal(ipPorts(lap)[0].ip, "172.16.2.52");
   // Rundreise
   const wieder = csvZuBestand(bestandZuCsv(bestand), P.vlans).bestand;
-  assert.equal(wieder[0].geraet.interfaces[1].ip, "10.0.2.131");
+  assert.equal(ipPorts(wieder[0].geraet)[1].ip, "10.0.2.131");
   assert.equal(wieder[0].geraet.katalogId, pu.katalogId);
   assert.equal(wieder[1].geraet.netzname, "BL_Lap");
   // eingefügt ins Projekt: VLAN 50 wird zugeordnet
   const d = createDevice({ eigeneVorlage: wieder[0], vlans: P.vlans, mitAdressen: true });
-  assert.equal(P.vlans.find((v) => v.id === d.interfaces[0].vlan)?.vid, 50);
+  assert.equal(P.vlans.find((v) => v.id === ipPorts(d)[0].vlan)?.vid, 50);
 });

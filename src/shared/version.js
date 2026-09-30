@@ -5,6 +5,12 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.15": [
+    "Ports und Interfaces sind zusammengeführt: Jeder Port trägt direkt VLAN, IP, Maske, Gateway, MAC und DHCP. Die getrennte Interface-Liste und die Zuordnung Port → Interface entfallen",
+    "Switches haben ihre Management-IP als Anschluss „Management“ ohne Buchse. Er erscheint nicht auf der Frontplatte und lässt sich nicht verkabeln",
+    "Ältere Projektdateien, Vorlagen, Bestand und kopierte Konfigurationen werden beim Öffnen umgestellt, ohne Daten zu verlieren. Teilten sich mehrere Ports ein Interface, bekommt der erste Port IP und MAC, die übrigen VLAN, Maske und Gateway",
+    "„⟳ IPs vergeben“ vergibt je Gerät eine Adresse pro VLAN, damit z. B. der zweite Port eines Daisy-Chain-Geräts keine eigene IP bekommt",
+  ],
   "0.6.0-beta.13": [
     "Neue Geräte bekommen kein VLAN mehr automatisch. Bisher landeten sie je nach Kategorie z. B. in VLAN 10, 20 oder 99. Vorlagen und Bestand bringen ihre gespeicherten VLANs weiter mit",
     "Topologie: Die Plakette am Kabel zeigt nur noch den Switch-Port, das VLAN steht im Tooltip",

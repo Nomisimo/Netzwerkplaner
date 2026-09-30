@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor } from "../../shared/constants.js";
-import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid } from "../../shared/catalog.js";
+import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid, ipPorts, physPorts } from "../../shared/catalog.js";
 import { Section, KatChip, Toggle } from "../ui.jsx";
 import { IconView, ICON_NAMES } from "../icons.jsx";
 import { api } from "../api.js";
@@ -158,7 +158,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
             <div key={v.id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px" }}>
               <IconView icon={v.geraet.icon} customIcons={allIcons} color={katColor(v.geraet.kategorie)} />
               <input style={{ ...S.inputSm, maxWidth: 300 }} value={v.name} onChange={(e) => setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.map((x) => (x.id === v.id ? { ...x, name: e.target.value } : x)) }))} />
-              <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{v.geraet.hersteller} {v.geraet.modell} · {v.geraet.ports.length} Ports · {v.geraet.interfaces.length} Interfaces</span>
+              <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{v.geraet.hersteller} {v.geraet.modell} · {physPorts(v.geraet).length} Ports · {ipPorts(v.geraet).filter((i) => i.ip || i.dhcp || i.virtuell || i.vlan).length} mit IP/VLAN</span>
               <button style={S.smallBtn} onClick={() => onAddDevice({ kind: "vorlage", key: v.id }, {})}>+ ins Projekt</button>
               <button style={S.dangerBtn} onClick={() => confirm(`Vorlage „${v.name}“ löschen?`) && setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.filter((x) => x.id !== v.id) }))}>✕</button>
             </div>

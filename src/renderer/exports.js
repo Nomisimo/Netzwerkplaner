@@ -4,6 +4,7 @@ import { connVlan, otherEnd, webUrl, kabelLabel } from "../shared/model.js";
 import { ipSort, prefixToMaskStr, parseCidr } from "../shared/net.js";
 import { ladeLogo } from "./logo.js";
 import { vlanBaum, aeusseresVlan } from "../shared/qinq.js";
+import { ipPorts, physPorts } from "../shared/catalog.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const fileBase = (P) => (P.meta.veranstaltung || "Netzwerkplan").replace(/[\\/:*?"<>|]+/g, "_").trim() || "Netzwerkplan";
@@ -52,9 +53,10 @@ export const svgToPngBase64 = (svg, w, h, scale = 2) => new Promise((resolve, re
 /* ── Tabellen ─────────────────────────────────────────────────────────── */
 export const ipRows = (P, X) => {
   const r = [];
-  for (const d of P.geraete) for (const i of d.interfaces) {
+  for (const d of P.geraete) for (const i of ipPorts(d)) {
+    if (!i.ip && !i.dhcp && !i.virtuell) continue; // Ports ohne Adresse (z. B. zweiter Port eines Daisy-Chain-Geräts)
     const v = X.vlanById.get(i.vlan);
-    r.push({ IP: i.ip || (i.dhcp ? "DHCP" : ""), Maske: prefixToMaskStr(+i.prefix), CIDR: "/" + i.prefix, VLAN: v ? v.vid : "", "VLAN-Name": v?.name || "", Gerät: d.name, Interface: i.name, Gateway: i.gateway || "", MAC: i.mac, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell, "Web-UI": webUrl(d) || "" });
+    r.push({ IP: i.ip || (i.dhcp ? "DHCP" : ""), Maske: prefixToMaskStr(+i.prefix), CIDR: "/" + i.prefix, VLAN: v ? v.vid : "", "VLAN-Name": v?.name || "", Gerät: d.name, Port: i.name, Gateway: i.gateway || "", MAC: i.mac, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell, "Web-UI": webUrl(d) || "" });
   }
   return r.sort((a, b) => (+a.VLAN || 9999) - (+b.VLAN || 9999) || ipSort(a.IP, b.IP));
 };
@@ -66,7 +68,7 @@ export const patchRows = (P, X) => P.verbindungen.map((c, n) => {
 });
 export const deviceRows = (P, X) => P.geraete.map((d) => ({
   Name: d.name, Netzwerkname: d.netzname || "", Typ: TYPEN[d.typ]?.label, Bereich: d.kategorie, Standort: d.bereich, Hersteller: d.hersteller, Modell: d.modell,
-  IPs: d.interfaces.filter((i) => i.ip).map((i) => `${i.ip}/${i.prefix}`).join(", "), Ports: d.ports.length, "Web-UI": webUrl(d) || (d.webUi?.vorhanden ? "ja (IP fehlt)" : ""),
+  IPs: ipPorts(d).filter((i) => i.ip).map((i) => `${i.ip}/${i.prefix}`).join(", "), Ports: physPorts(d).length, "Web-UI": webUrl(d) || (d.webUi?.vorhanden ? "ja (IP fehlt)" : ""),
   Protokolle: (d.protokolle || []).join(", "), "Inventar-Nr.": d.inventar?.nr || "", Seriennummer: d.inventar?.sn || "", Case: d.inventar?.case || "", Notizen: d.notizen,
 }));
 export const vlanRows = (P) => vlanBaum(P.vlans).map(({ v }) => ({
@@ -155,7 +157,7 @@ td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } 
   <h2>VLANs</h2>${table(vlanTable, ["VLAN", "S-VLAN (QinQ)", "Name", "Zweck", "IGMP", "EEE aus", "QoS", "DHCP"])}
 </div>
 ${topo ? `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>` : ""}
-<div class="page">${head("IP-Liste")}${table(ipRows(P, X), ["IP", "CIDR", "VLAN", "Gerät", "Interface", "Gateway", "MAC", "Standort", "Modell", "Web-UI"])}</div>
+<div class="page">${head("IP-Liste")}${table(ipRows(P, X), ["IP", "CIDR", "VLAN", "Gerät", "Port", "Gateway", "MAC", "Standort", "Modell", "Web-UI"])}</div>
 <div class="page">${head("Switch-Ports")}${table(switchPortRows(P, X))}</div>
 <div class="page">${head("Geräte")}${table(deviceRows(P, X), ["Name", "Typ", "Bereich", "Standort", "Hersteller", "Modell", "IPs", "Web-UI", "Protokolle"])}</div>
 <div class="page">${head("Prüfung")}${issues.length ? `<table><thead><tr><th style="width:70px">Schwere</th><th>Meldung</th></tr></thead><tbody>${issues.map((i) => `<tr><td class="sev-${i.sev}">${sev[i.sev]}</td><td>${esc(i.msg)}</td></tr>`).join("")}</tbody></table>` : `<p>Keine Auffälligkeiten.</p>`}

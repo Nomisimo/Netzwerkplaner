@@ -3,6 +3,7 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO, VLAN_FARBEN } from ".
 import { newVlan } from "../../shared/model.js";
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
+import { ipPorts } from "../../shared/catalog.js";
 
 function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
   const [open, setOpen] = useState(false);
@@ -63,12 +64,11 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
           <Field label="Notiz" style={{ marginTop: 10 }}><input style={S.inputSm} value={v.notiz} onChange={(e) => upd((x) => (x.notiz = e.target.value))} /></Field>
           {iss.map((i, n) => <div key={n} style={{ fontSize: 11, marginTop: 6, display: "flex", gap: 6 }}><SevBadge sev={i.sev} /><span>{i.msg}</span></div>)}
           <button style={{ ...S.dangerBtnWide, marginTop: 12 }} onClick={() => {
-            if (!confirm(`VLAN ${v.vid} löschen? Interfaces und Ports verlieren die Zuordnung.`)) return;
+            if (!confirm(`VLAN ${v.vid} löschen? Ports verlieren die Zuordnung.`)) return;
             mutate((d) => {
               d.vlans = d.vlans.filter((x) => x.id !== v.id);
               d.vlans.forEach((x) => { if (x.svlan === v.id) x.svlan = null; });
               for (const g of d.geraete) {
-                g.interfaces.forEach((i) => { if (i.vlan === v.id) i.vlan = null; });
                 g.ports.forEach((p) => { if (p.vlan === v.id) p.vlan = null; p.vlans = (p.vlans || []).filter((x) => x !== v.id); });
               }
             });
@@ -80,7 +80,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
 }
 
 export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
-  const counts = useMemo(() => Object.fromEntries(P.vlans.map((v) => [v.id, P.geraete.reduce((s, d) => s + d.interfaces.filter((i) => i.vlan === v.id && i.ip).length, 0)])), [P]);
+  const counts = useMemo(() => Object.fromEntries(P.vlans.map((v) => [v.id, P.geraete.reduce((s, d) => s + ipPorts(d).filter((i) => i.vlan === v.id && i.ip).length, 0)])), [P]);
   const baum = useMemo(() => vlanBaum(P.vlans), [P.vlans]);
   return (
     <>
