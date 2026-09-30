@@ -5,6 +5,14 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.1": [
+    "Gemeinsam arbeiten: Über den neuen Knopf „👥 Sitzung“ oben verbindet sich die App mit einem Planer-Server (Docker, eigenes Repo Planer-Server). Mehrere Personen bearbeiten denselben Plan gleichzeitig, Änderungen erscheinen sofort bei allen",
+    "Sitzung anlegen aus dem aktuellen Projekt (optional mit Sitzungscode) oder einer laufenden Sitzung beitreten. Server als IP (Port 3001) oder als volle Adresse mit http:// bzw. https:// eintragen, dazu optional das Server-Token",
+    "Schreibt jemand in ein Feld, ist es für die anderen gesperrt und es erscheint ein Hinweis, wer es gerade bearbeitet. Ansicht (eingeklappte Äste, Mindmap/Frontplatte, Einrasten) bleibt pro Person",
+    "Rückgängig und Wiederholen betreffen nur die eigenen Änderungen. Das Sitzungsfenster zeigt, wer online ist, und den Verlauf aller Teilnehmer. Endet eine Sitzung, behält jeder seinen Stand als veraltete Kopie zum Speichern",
+    "Gerätebestand: Dasselbe Bestandsgerät (gleiche Inventarnummer, Seriennummer oder MAC) bekommt auf jedem Rechner dieselbe ID und wird in einer Sitzung als dasselbe Gerät erkannt. Die Prüfung warnt, wenn ein Bestandsgerät doppelt im Plan steht",
+    "Alle Teilnehmer brauchen dieselbe App-Version wie die Sitzung",
+  ],
   "0.6.0-beta.21": [
     "Topologie: Mehrfachauswahl. Shift+Klick (oder ⌘/Strg+Klick) nimmt Geräte dazu oder heraus, Shift+Fläche ziehen zieht einen Auswahlrahmen, ⌘/Strg+A wählt alle",
     "Ziehen an einem gewählten Gerät verschiebt alle zusammen. Die Seitenleiste zeigt die Auswahl mit „📌 Alle anpinnen“ (Taste P), „▤ Als Stapel“, „📋 Konfig einfügen“ und „🗑 Alle löschen“ (Entf)",
