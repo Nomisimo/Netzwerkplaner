@@ -44,3 +44,21 @@ test("Doppelt belegter Port wird erkannt", () => {
   P.verbindungen.push(c);
   assert.ok(pruefeInvarianten(P).some((f) => f.art === "port-doppelt"));
 });
+
+test("Intents: Gerät anlegen, verbinden, IP vergeben, löschen", async () => {
+  const { INTENTS } = await import("../src/shared/intents.js");
+  const P = clone(demoProject());
+  const sw = P.geraete.find((g) => g.isSwitch);
+  const r = INTENTS.addDevice(P, { item: { kind: "typ", key: "pc" }, connectTo: sw.id });
+  assert.ok(r.id && !r.fehler);
+  const r2 = INTENTS.addDevice(P, { item: { kind: "typ", key: "pc" } });
+  assert.notEqual(P.geraete.find((g) => g.id === r2.id).name, P.geraete.find((g) => g.id === r.id).name);
+  const dev = P.geraete.find((g) => g.id === r.id);
+  const port = dev.ports.find((p) => p.vlan) || dev.ports[0];
+  if (!port.vlan) port.vlan = P.vlans.find((v) => v.subnetz).id;
+  const ip = INTENTS.allocIp(P, { dev: dev.id, port: port.id });
+  assert.ok(ip.ip, JSON.stringify(ip));
+  INTENTS.loescheGeraete(P, { ids: [dev.id] });
+  assert.equal(INTENTS.connect(P, { from: dev.id, to: sw.id }).fehler, "Gerät wurde inzwischen gelöscht");
+  assert.deepEqual(pruefeInvarianten(P), []);
+});
