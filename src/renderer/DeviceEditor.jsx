@@ -9,6 +9,50 @@ import StroemeEditor from "./StroemeEditor.jsx";
 import { KonfigKopieren, KonfigEinfuegen } from "./KonfigDialog.jsx";
 import { useZwischenablage } from "./zwischenablage.js";
 import { geraetKopie } from "../shared/konfig.js";
+import { newFeld } from "../shared/felder.js";
+
+/* Eigene Felder aus dem Katalog (Katalog → Eigene Felder) einfügen und ausfüllen */
+function EigeneFelder({ dev, katalog, upd, grid }) {
+  const felder = dev.felder || [];
+  const frei = katalog.filter((f) => !felder.some((x) => x.id === f.id));
+  const einfuegen = (id) => {
+    if (id === "__neu") {
+      const name = prompt("Name des neuen Felds (steht danach im Katalog unter „Eigene Felder“):", "");
+      if (!name?.trim()) return;
+      const vorhanden = katalog.find((f) => f.name.toLowerCase() === name.trim().toLowerCase());
+      if (vorhanden && felder.some((x) => x.id === vorhanden.id)) return;
+      const f = vorhanden || newFeld(name);
+      upd((g) => { g.felder = [...(g.felder || []), { id: f.id, name: f.name, wert: "" }]; });
+      return;
+    }
+    const f = katalog.find((x) => x.id === id);
+    if (f) upd((g) => { g.felder = [...(g.felder || []), { id: f.id, name: f.name, wert: "" }]; });
+  };
+  return (
+    <>
+      <Sub right={
+        <select style={{ ...S.selectSm, width: "auto" }} value="" onChange={(e) => einfuegen(e.target.value)} title="Feld aus dem Katalog einfügen">
+          <option value="">+ Feld …</option>
+          {frei.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          <option value="__neu">Neues Feld anlegen …</option>
+        </select>
+      }>Eigene Felder</Sub>
+      {!felder.length && <div style={{ ...S.empty, padding: "4px 0" }}>Keine eigenen Felder. Mit „+ Feld …“ ein Feld aus dem Katalog einfügen, z. B. Inventar-Nr. oder Seriennummer.</div>}
+      {felder.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: grid, gap: 10 }}>
+          {felder.map((f) => (
+            <Field key={f.id} label={f.name}>
+              <div style={{ display: "flex", gap: 4 }}>
+                <input style={S.inputSm} value={f.wert || ""} onChange={(e) => upd((g) => { const x = g.felder.find((y) => y.id === f.id); if (x) x.wert = e.target.value; })} />
+                <button style={{ ...S.smallBtn, padding: "4px 7px" }} title="Feld aus diesem Gerät entfernen" onClick={() => upd((g) => { g.felder = g.felder.filter((y) => y.id !== f.id); })}>✕</button>
+              </div>
+            </Field>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
 
 const Sub = ({ children, right }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "18px 0 8px" }}>
@@ -169,12 +213,9 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
           : <Field label="PoE-Bedarf (W)" hint="0 = eigenes Netzteil"><input type="number" min="0" style={S.inputSm} value={dev.poeBedarf || 0} onChange={(e) => upd((g) => (g.poeBedarf = +e.target.value))} /></Field>}
       </div>
 
+      <EigeneFelder dev={dev} katalog={P.feldKatalog || []} upd={upd} grid={grid} />
+
       {/* Interfaces */}
-      <div style={{ display: "grid", gridTemplateColumns: grid, gap: 10, marginTop: 10 }}>
-        <Field label="Inventar-Nr."><input style={S.inputSm} value={dev.inventar?.nr || ""} onChange={(e) => upd((g) => (g.inventar = { ...(g.inventar || {}), nr: e.target.value }))} /></Field>
-        <Field label="Seriennummer"><input style={S.inputSm} value={dev.inventar?.sn || ""} onChange={(e) => upd((g) => (g.inventar = { ...(g.inventar || {}), sn: e.target.value }))} /></Field>
-        <Field label="Case / Lagerort"><input style={S.inputSm} value={dev.inventar?.case || ""} onChange={(e) => upd((g) => (g.inventar = { ...(g.inventar || {}), case: e.target.value }))} /></Field>
-      </div>
 
       <Sub right={<button style={S.smallBtn} onClick={() => upd((g) => g.interfaces.push(newIface({ name: `LAN ${g.interfaces.length + 1}` })))}>+ Interface</button>}>
         Netzwerk-Interfaces (IP)

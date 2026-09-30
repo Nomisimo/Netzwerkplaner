@@ -3,10 +3,16 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [0.6.0-beta.14] – 2026-09-30
+## [0.6.0-beta.16] – 2026-09-30
 
 - Katalog: 15 weitere Einträge gegen Datenblätter geprüft (49 insgesamt). Korrigiert u. a.: grandMA2 onPC command wing hat kein Ethernet (nur USB), ETC Eos Apex hat 4× etherCON und 2× SFP+ statt 3× RJ45, Yamaha XMV-D ohne separaten NETWORK-Port, MikroTik hEX nur mit passivem PoE-in (kein 802.3af)
 - Yamaha YDIF-Buchsen (MTX, MRX) werden als Punkt-zu-Punkt erkannt; die Prüfung warnt, wenn sie an einem Switch stecken
+
+## [0.6.0-beta.14] – 2026-09-30
+
+- Eigene Felder: Im Katalog unter „Eigene Felder“ beliebige Gerätefelder anlegen (z. B. Inventar-Nr., Seriennummer, Case, Eigentümer), im Geräte-Editor mit „+ Feld …“ einfügen und ausfüllen
+- Die festen Felder Inventar-Nr., Seriennummer und Case sind entfernt. Vorhandene Werte aus älteren Projekten und aus dem Gerätebestand werden beim Öffnen in gleichnamige eigene Felder übernommen
+- Eigene Felder stehen in Geräteliste (Excel/PDF), Bestands-CSV, Suche, Tooltip und Rechtsklick-Menü und lassen sich in der Topologie als Titel anzeigen. Unbekannte CSV-Spalten werden beim Import zu eigenen Feldern
 
 ## [0.6.0-beta.13] – 2026-09-30
 
