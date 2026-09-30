@@ -19,6 +19,7 @@ import StapelEditor from "../StapelEditor.jsx";
 import PortTauschen from "../PortTauschen.jsx";
 import { stapelEinfuegen } from "../../shared/konfig.js";
 import { useZwischenablage } from "../zwischenablage.js";
+import { einrasten, mitlaeufer } from "../../shared/einrasten.js";
 
 const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: "#9aa4af", p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
@@ -58,6 +59,7 @@ export default function TopologieTab(props) {
   const knickKey = front ? "fpKnicke" : "knicke";   // verschobene Verbindungen (Versatz zur Mitte)
   const bgKey = front ? "fpHintergrund" : "hintergrund";
   const auto = P.layout.autoAnordnen !== false;
+  const rasten = P.layout.einrasten !== false; // Einrasten beim Ziehen (Raster und Nachbarn), Alt hält es kurz aus
   const pins = P.layout[pinKey] || {};
   const stapel = P.layout.stapel || [];
   const eltern = useMemo(() => { const m = new Map(); for (const [id, ch] of T.children) for (const c of ch) m.set(c, id); return m; }, [T]);
@@ -158,8 +160,14 @@ export default function TopologieTab(props) {
     if (e.button !== 0) return;
     e.stopPropagation();
     if (nodeId && (tool === "connect" || tool === "stack")) { const w = toWorld(e); setDraw({ from: nodeId, x: w.x, y: w.y, tool }); return; }
-    if (nodeId) setDrag({ kind: "node", id: stapelAnker(stapel, nodeId), klick: nodeId, stapel: stapelId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false, conn });
+    if (nodeId) setDrag({ kind: "node", id: stapelAnker(stapel, nodeId), klick: nodeId, andere: rasten ? rastBoxen(stapelAnker(stapel, nodeId)) : null, stapel: stapelId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false, conn });
     else setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false });
+  };
+  // Einrasten: Boxen aller Geräte, die beim Ziehen von id stehen bleiben
+  const boxOf = (p) => ({ x: p.x, y: p.y, w: p.w || NODE_W, h: p.h || NODE_H });
+  const rastBoxen = (id) => {
+    const mit = mitlaeufer(id, { kinder: front ? new Map() : T.children, ziele, stapel, dazu: front ? F.members.get(id) || [] : [] });
+    return [...Lbase.pos].filter(([k]) => !mit.has(k)).map(([, p]) => boxOf(p));
   };
   const onMove = (e) => {
     if (draw) { const w = toWorld(e); setDraw({ ...draw, x: w.x, y: w.y }); setHover(hitNode(w)); return; }
@@ -167,7 +175,15 @@ export default function TopologieTab(props) {
     const ddx = e.clientX - drag.sx, ddy = e.clientY - drag.sy;
     const moved = drag.moved || Math.abs(ddx) + Math.abs(ddy) > 4;
     if (drag.kind === "pan") setView((v) => ({ ...v, x: drag.vx + ddx, y: drag.vy + ddy })), moved !== drag.moved && setDrag({ ...drag, moved });
-    else setDrag({ ...drag, dx: ddx / view.k, dy: ddy / view.k, moved });
+    else {
+      let dx = ddx / view.k, dy = ddy / view.k, linien = null;
+      const p = drag.kind === "node" && drag.andere && !e.altKey && Lbase.pos.get(drag.id);
+      if (p && moved) {
+        const r = einrasten({ ...boxOf(p), x: p.x + dx, y: p.y + dy }, drag.andere, { fang: 8 / view.k });
+        dx += r.dx; dy += r.dy; linien = r.linien;
+      }
+      setDrag({ ...drag, dx, dy, moved, linien });
+    }
   };
   // Gerät oben auf einen Stapel legen. Der Stapel bleibt an seinem Platz: Das neue
   // oberste Gerät übernimmt Pin, feste Position bzw. Lage des bisherigen Ankers.
@@ -422,6 +438,8 @@ export default function TopologieTab(props) {
           {stapelClip && <button style={S.ghostBtn} onClick={() => { let neu = null; mutate((d) => { neu = stapelEinfuegen(d, stapelClip); }); if (neu?.stapelId) setSelection({ type: "stapel", id: neu.stapelId }); else if (neu?.ids[0]) setSelection({ type: "dev", id: neu.ids[0] }); }}
             title={`Kopierten Stapel „${stapelClip.name || "Stapel"}“ (${stapelClip.geraete.length} Geräte) einfügen`}>📋 Stapel einfügen</button>}
           <button style={S.ghostBtn} onClick={() => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; })} title="Verschiebungen von Geräten und Verbindungen zurücksetzen. Angepinnte Geräte und Stapel bleiben.">↺ Auto-Layout</button>
+          <Toggle checked={rasten} onChange={(v) => mutate((d) => { d.layout.einrasten = v; })} label="Einrasten"
+            title="An: Geräte rasten beim Ziehen im Raster ein und richten sich an Kanten und Mitten benachbarter Geräte aus. Alt gedrückt halten = frei ziehen." />
           <Toggle checked={auto} onChange={setAuto} label="Auto-Anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
           <button style={{ ...S.ghostBtn, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan">🖼 Hintergrund</button>
           <button style={S.ghostBtn} onClick={() => mutate((d) => { const any = Object.values(d.layout.collapsed || {}).some(Boolean); d.layout.collapsed = any ? {} : Object.fromEntries([...T.children].filter(([id, ch]) => ch.length && !T.roots.includes(id)).map(([id]) => [id, true])); })}>⊟ Äste</button>
@@ -605,6 +623,11 @@ export default function TopologieTab(props) {
                   </g>
                 );
               })}
+              {/* Hilfslinien beim Einrasten */}
+              {drag?.moved && drag.linien?.map((l, i) => (
+                <line key={"rast" + i} className="np-ui" x1={l.achse === "x" ? l.wert : l.von - 12} x2={l.achse === "x" ? l.wert : l.bis + 12} y1={l.achse === "y" ? l.wert : l.von - 12} y2={l.achse === "y" ? l.wert : l.bis + 12}
+                  stroke={ACCENT} strokeWidth={1 / view.k} strokeDasharray={`${4 / view.k} ${3 / view.k}`} pointerEvents="none" />
+              ))}
               {/* Pins */}
               {Object.keys(pins).map((id) => {
                 const p = posOf(id);
@@ -628,7 +651,7 @@ export default function TopologieTab(props) {
             </g>
           </svg>
           <div style={{ position: "absolute", left: 10, bottom: 8, fontSize: 11, color: MUTED, pointerEvents: "none" }}>
-            {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
+            {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"}{rasten && tool === "move" ? " · Alt = ohne Einrasten" : ""} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
           {tausch && <PortTauschen P={P} X={X} voll={tausch.voll} onClose={() => setTausch(null)} onOk={(w) => { const t = tausch; setTausch(null); connect(t.from, t.to, w); }} />}
