@@ -5,6 +5,9 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.19": [
+    "Live › Scan: Mit „✕ Leeren“ lässt sich das letzte Scan-Ergebnis verwerfen. Das Subnetz bleibt eingetragen, ein neuer Scan startet mit leerer Liste",
+  ],
   "0.6.0-beta.16": [
     "Katalog: 15 weitere Einträge gegen Datenblätter geprüft (49 insgesamt). Korrigiert u. a.: grandMA2 onPC command wing hat kein Ethernet (nur USB), ETC Eos Apex hat 4× etherCON und 2× SFP+ statt 3× RJ45, Yamaha XMV-D ohne separaten NETWORK-Port, MikroTik hEX nur mit passivem PoE-in (kein 802.3af)",
     "Yamaha YDIF-Buchsen (MTX, MRX) werden als Punkt-zu-Punkt erkannt; die Prüfung warnt, wenn sie an einem Switch stecken",
