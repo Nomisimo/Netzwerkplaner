@@ -5,6 +5,9 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.6.0-beta.19": [
+    "Live › Scan: Mit „✕ Leeren“ lässt sich das letzte Scan-Ergebnis verwerfen. Das Subnetz bleibt eingetragen, ein neuer Scan startet mit leerer Liste",
+  ],
   "0.6.0-beta.17": [
     "Ports und Interfaces sind zusammengeführt: Jeder Port trägt direkt VLAN, IP, Maske, Gateway, MAC und DHCP. Die getrennte Interface-Liste und die Zuordnung Port → Interface entfallen",
     "Switches haben ihre Management-IP als Anschluss „Management“ ohne Buchse. Er erscheint nicht auf der Frontplatte und lässt sich nicht verkabeln",

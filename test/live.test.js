@@ -154,6 +154,20 @@ test("Scan: ARP-Ausgabe von macOS, Windows und Linux", () => {
   assert.throws(() => scan.hostsOf("10.0.0.0/16"), /zu groß/);
 });
 
+test("Scan: Ergebnis leeren", async () => {
+  let dirty = 0;
+  const m = await scan.create({}, { dirty: () => dirty++ });
+  assert.equal(m.action("scan", { cidr: "10.0.0.0/16" }), true); // ungültig: setzt nur den Fehler
+  await new Promise((r) => setImmediate(r));
+  assert.match(m.snapshot().err, /zu groß/);
+  assert.equal(m.action("clear"), true);
+  const s = m.snapshot();
+  assert.equal(s.err, "");
+  assert.deepEqual(s.hosts, []);
+  assert.equal(s.finished, 0);
+  assert.ok(dirty >= 2);
+});
+
 /* ── SNMP ───────────────────────────────────────────────────────────────── */
 test("SNMP: OID-Kodierung und Anfrage", () => {
   const oid = "1.0.8802.1.1.2.1.4.1.1.9";

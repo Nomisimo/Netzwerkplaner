@@ -3,6 +3,10 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.6.0-beta.19] – 2026-09-30
+
+- Live › Scan: Mit „✕ Leeren“ lässt sich das letzte Scan-Ergebnis verwerfen. Das Subnetz bleibt eingetragen, ein neuer Scan startet mit leerer Liste
+
 ## [0.6.0-beta.17] – 2026-09-30
 
 - Ports und Interfaces sind zusammengeführt: Jeder Port trägt direkt VLAN, IP, Maske, Gateway, MAC und DHCP. Die getrennte Interface-Liste und die Zuordnung Port → Interface entfallen
