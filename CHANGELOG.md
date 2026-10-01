@@ -3,6 +3,10 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.10] – 2026-10-01
+
+- Geräte-Editor: „+ Feld … → Neues Feld anlegen …“ und „Vorlage“ funktionieren wieder in der Desktop-App. Beide öffnen jetzt einen eigenen Eingabedialog (Enter = OK, Esc = Abbrechen)
+
 ## [0.7.0-beta.9] – 2026-10-01
 
 - Gemeinsam arbeiten: „Verlassen“ fragt jetzt, ob nur du gehst oder die Sitzung für alle beendet wird. Beim Beenden bekommen die anderen den Hinweis, wer beendet hat, und behalten ihren Stand als veraltete Kopie
