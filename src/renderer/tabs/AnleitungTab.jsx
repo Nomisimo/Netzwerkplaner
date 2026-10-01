@@ -106,6 +106,15 @@ const KAPITEL = [
       "„Leeres Gerät anlegen“ fragt nur nach dem Gerätetyp (vorausgewählt ist der Vorschlag der Discovery) und öffnet danach den normalen Editor. Name, IP, MAC, Protokolle und Verbindungen bleiben.",
     ]} />
   </> },
+  { id: "patch", titel: "Patchliste", tab: ["patch", "Patchliste"], inhalt: () => <>
+    <Liste items={[
+      "Die Patchliste zeigt alle Geräte mit Netzwerkname, IPs je Interface, „Gesteckt auf“ (Switch und Port), allen weiteren Kabeln, Abteilung, Standort, eigenen Feldern („Name: Inhalt“) und Notizen.",
+      "Sortiert ist sie nach Aufbau-Logik: vom Haupt-Switch aus, die Geräte eines Switches nach dessen Portnummer, Unter-Switches mit ihren Geräten an der Stelle ihres Ports, Stapel immer zusammen.",
+      "Zeilen lassen sich am Griff ziehen oder mit den Pfeilen verschieben. Neue Geräte rücken an ihre automatische Stelle. „Automatisch sortieren“ verwirft die eigene Reihenfolge.",
+      "Notizen lassen sich direkt in der Tabelle bearbeiten, sie landen im Gerät.",
+      "„PDF“ druckt nur die Patchliste, mit linierter Spalte „Notizen vor Ort“ und einem Kästchen zum Abhaken je Gerät. „CSV“ gibt sie als Tabelle aus. Im Gesamt-PDF und im Excel-Export ist sie ebenfalls enthalten.",
+    ]} />
+  </> },
   { id: "vlans", titel: "VLANs", tab: ["vlans", "VLANs"], inhalt: () => <>
     <Bild id="vlans" text="VLAN mit Zweck und Switch-Schaltern" />
     <Liste items={[
@@ -176,7 +185,7 @@ const KAPITEL = [
   </> },
   { id: "export", titel: "Export, Logo & Updates", inhalt: () => <>
     <Liste items={[
-      "„Export“: PDF-Dokumentation (Deckblatt, Topologie, VLANs, IP-Liste, Switch-Ports, Geräte, Prüfung), Excel mit IP-Liste, VLANs, Ports und Verbindungen, CSV-IP-Liste und die Topologie als SVG oder PNG.",
+      "„Export“: PDF-Dokumentation (Deckblatt, Topologie, VLANs, Patchliste, IP-Liste, Switch-Ports, Geräte, Prüfung), Excel mit Patchliste, IP-Liste, VLANs, Ports und Verbindungen, Patchliste allein als PDF oder CSV, CSV-IP-Liste und die Topologie als SVG oder PNG.",
       "„+ Logo“ neben dem App-Namen: eigenes Firmenlogo hochladen. Es erscheint im Kopf der App und auf jeder PDF-Seite. Das X daneben entfernt es wieder. Das Logo bleibt nur auf diesem Rechner.",
       "Updates: Beim Start sucht die App nach einer neuen Version. Unter Windows lädt sie das Update im Hintergrund, „… installieren“ startet neu und installiert. Unter macOS lädt „… laden und öffnen“ das passende DMG in den Download-Ordner und öffnet es. Dann „Netzwerkplaner beenden“, die App im Finder-Fenster auf „Programme“ ziehen, „Ersetzen“ wählen und neu starten. Ganz ohne Zutun geht es auf dem Mac erst mit einer Apple-Signatur.",
       "Der Knopf mit der Versionsnummer zeigt alle Änderungen und „Nach Updates suchen“.",
