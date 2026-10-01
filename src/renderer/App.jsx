@@ -528,7 +528,7 @@ export default function App() {
         </div>
         {Object.entries(CHANGELOG).map(([v, items]) => <div key={v}><div className="sp-section-label">Version {v}{v === version ? " (installiert)" : ""}</div><ul style={{ margin: "0 0 12px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13 }}>{items.map((t, i) => <li key={i}>{t}</li>)}</ul></div>)}
       </Modal>}
-      {showSitzung && <SitzungDialog sitzung={sitzung} projektName={P.meta.veranstaltung} onClose={() => setShowSitzung(false)} onKopieSpeichern={() => save(true)} />}
+      {showSitzung && <SitzungDialog sitzung={sitzung} version={version} projektName={P.meta.veranstaltung} onClose={() => setShowSitzung(false)} onKopieSpeichern={() => save(true)} />}
       {toast && <div style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", background: "#1b2026", border: `1px solid ${toast.kind === "err" ? ERR : toast.kind === "warn" ? WARN : ACCENT}`, color: "#e8eaed", padding: "9px 16px", borderRadius: 8, fontSize: 13, zIndex: 2000, boxShadow: "0 8px 24px rgba(0,0,0,.5)", maxWidth: "80vw" }}>{toast.msg}</div>}
     </div>
   );
