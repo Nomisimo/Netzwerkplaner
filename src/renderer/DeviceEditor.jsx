@@ -4,7 +4,7 @@ import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts
 import { portSeiten } from "../shared/anschluesse.js";
 import { otherEnd, suggestIp, webUrl, clone, vlanQuelle } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
-import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot } from "./ui.jsx";
+import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot, frageText } from "./ui.jsx";
 import { api } from "./api.js";
 import StroemeEditor from "./StroemeEditor.jsx";
 import { KonfigKopieren, KonfigEinfuegen } from "./KonfigDialog.jsx";
@@ -19,12 +19,13 @@ function EigeneFelder({ dev, katalog, upd, grid }) {
   const frei = katalog.filter((f) => !felder.some((x) => x.id === f.id));
   const einfuegen = (id) => {
     if (id === "__neu") {
-      const name = prompt("Name des neuen Felds (steht danach im Katalog unter „Eigene Felder“):", "");
+      frageText("Name des neuen Felds (steht danach im Katalog unter „Eigene Felder“):", "", "Neues Feld").then((name) => {
       if (!name?.trim()) return;
       const vorhanden = katalog.find((f) => f.name.toLowerCase() === name.trim().toLowerCase());
       if (vorhanden && felder.some((x) => x.id === vorhanden.id)) return;
       const f = vorhanden || newFeld(name);
       upd((g) => { g.felder = [...(g.felder || []), { id: f.id, name: f.name, wert: "" }]; });
+      });
       return;
     }
     const f = katalog.find((x) => x.id === id);

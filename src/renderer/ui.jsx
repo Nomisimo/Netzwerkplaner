@@ -177,3 +177,25 @@ export function IconPicker({ value, onChange, customIcons, color }) {
 
 export const th = (extra) => ({ ...S.th, ...extra });
 export const td = (extra) => ({ ...S.td, ...extra });
+
+/* Ersatz für window.prompt (gibt es in Electron nicht): frageText(frage, vorgabe) → Promise<string|null>.
+   <EingabeHost /> muss einmal in der App hängen. */
+let eingabeSetzen = null;
+export const frageText = (frage, vorgabe = "", titel = "Eingabe") => new Promise((resolve) => {
+  if (!eingabeSetzen) { resolve(null); return; }
+  eingabeSetzen({ frage, vorgabe, titel, resolve });
+});
+export function EingabeHost() {
+  const [f, setF] = useState(null);
+  const [wert, setWert] = useState("");
+  useEffect(() => { eingabeSetzen = (x) => { setWert(x.vorgabe || ""); setF(x); }; return () => { eingabeSetzen = null; }; }, []);
+  if (!f) return null;
+  const fertig = (v) => { f.resolve(v); setF(null); };
+  return (
+    <Modal title={f.titel} width={460} onClose={() => fertig(null)}
+      footer={<><button style={S.ghostBtn} onClick={() => fertig(null)}>Abbrechen</button><button style={S.primaryBtn} disabled={!wert.trim()} onClick={() => fertig(wert.trim())}>OK</button></>}>
+      <div style={{ fontSize: 13, color: "#c8d0d8", marginBottom: 8 }}>{f.frage}</div>
+      <input autoFocus style={S.input} value={wert} onChange={(e) => setWert(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && wert.trim()) fertig(wert.trim()); }} />
+    </Modal>
+  );
+}

@@ -5,6 +5,9 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.10": [
+    "Geräte-Editor: „+ Feld … → Neues Feld anlegen …“ und „Vorlage“ funktionieren wieder in der Desktop-App. Beide öffnen jetzt einen eigenen Eingabedialog (Enter = OK, Esc = Abbrechen)",
+  ],
   "0.7.0-beta.9": [
     "Gemeinsam arbeiten: „Verlassen“ fragt jetzt, ob nur du gehst oder die Sitzung für alle beendet wird. Beim Beenden bekommen die anderen den Hinweis, wer beendet hat, und behalten ihren Stand als veraltete Kopie",
     "Sitzungen, in denen seit 72 Stunden niemand war, lassen sich in der Liste mit „Beenden“ löschen, ohne beizutreten (mit Sitzungscode, falls gesetzt). Die Liste zeigt, seit wann niemand mehr online ist",
