@@ -87,4 +87,39 @@ const explainError = (e, port) => {
   return `${e.code || 'Fehler'}: ${e.message}`;
 };
 
-module.exports = { listInterfaces, openUdp, join, leave, closeUdp, cstr, mac, Rate, explainError, ip2int, int2ip, joinAddrs };
+
+// Ping über eine bestimmte Netzwerkkarte (Quelladresse src), sonst über die Route des Systems
+const { execFile } = require('child_process');
+const net = require('net');
+function pingArgs(ip, src, waitMs = 1000) {
+  if (process.platform === 'win32') return ['-n', '1', '-w', String(waitMs), ...(src ? ['-S', src] : []), ip];
+  if (process.platform === 'darwin') return ['-c', '1', '-t', String(Math.max(1, Math.round(waitMs / 1000))), ...(src ? ['-S', src] : []), ip];
+  return ['-c', '1', '-W', String(Math.max(1, Math.round(waitMs / 1000))), ...(src ? ['-I', src] : []), ip];
+}
+function ping(ip, { src, waitMs = 1000 } = {}) {
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    execFile('ping', pingArgs(ip, src, waitMs), { timeout: 3000, windowsHide: true }, (err, stdout) => {
+      const out = String(stdout || '');
+      const m = out.match(/(?:time|Zeit)[=<]\s*([\d.,]+)\s*ms/i);
+      const ttl = out.match(/ttl=(\d+)/i);
+      // Windows meldet „Zielhost nicht erreichbar“ mit Exitcode 0 → auf TTL prüfen
+      resolve({ ok: !err && !!ttl, ms: m ? Math.round(parseFloat(m[1].replace(',', '.'))) : Date.now() - t0, ttl: ttl ? +ttl[1] : null, method: 'Ping' });
+    });
+  });
+}
+// TCP-Verbindung über eine bestimmte Netzwerkkarte; RST (ECONNREFUSED) heißt: Gerät lebt, Port zu
+function tcpProbe(ip, port, { src, timeout = 700 } = {}) {
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const s = new net.Socket();
+    const done = (open, alive) => { s.destroy(); resolve({ open, alive, ms: Date.now() - t0 }); };
+    s.setTimeout(timeout);
+    s.once('connect', () => done(true, true));
+    s.once('timeout', () => done(false, false));
+    s.once('error', (e) => done(false, e.code === 'ECONNREFUSED'));
+    s.connect({ port, host: ip, ...(src ? { localAddress: src } : {}) });
+  });
+}
+
+module.exports = { ping, tcpProbe, pingArgs, listInterfaces, openUdp, join, leave, closeUdp, cstr, mac, Rate, explainError, ip2int, int2ip, joinAddrs };

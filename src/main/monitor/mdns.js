@@ -94,7 +94,7 @@ async function create(opts = {}, ctx) {
       }
       if (r.type === T.SRV) srv.set(n, r.data);
       if (r.type === T.TXT) txt.set(n, r.data);
-      if (r.type === T.A) addr.set(n, r.data);
+      if (r.type === T.A) { if (!addr.has(n)) addr.set(n, new Set()); addr.get(n).add(r.data); } // Dante mit Redundanz: Primary und Secondary
     }
     ctx.dirty();
   };
@@ -123,9 +123,10 @@ async function create(opts = {}, ctx) {
         const k = inst.toLowerCase();
         const s = srv.get(k);
         const host = s?.target?.toLowerCase();
+        const ips = [...((host && addr.get(host)) || [])];
         out.push({
           service: svc, instance: inst, label: inst.slice(0, inst.length - svc.length - 1) || inst,
-          host: s?.target || '', port: s?.port || null, ip: (host && addr.get(host)) || from.get(k) || '', txt: txt.get(k) || {}, age: Date.now() - (seen.get(k) || 0),
+          host: s?.target || '', port: s?.port || null, ip: ips[0] || from.get(k) || '', ips, txt: txt.get(k) || {}, age: Date.now() - (seen.get(k) || 0),
         });
       }
     }

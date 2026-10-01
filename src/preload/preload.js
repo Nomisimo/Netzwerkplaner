@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFile:          (args) => ipcRenderer.invoke('save-file', args),
   exportPdf:         (args) => ipcRenderer.invoke('export-pdf', args),
   openExternal:      (url) => ipcRenderer.invoke('open-external', url),
-  checkReachability: (targets) => ipcRenderer.invoke('check-reachability', targets),
+  checkReachability: (targets, src) => ipcRenderer.invoke('check-reachability', targets, src),
   monInterfaces:     () => ipcRenderer.invoke('mon-interfaces'),
   monStart:          (kind, opts) => ipcRenderer.invoke('mon-start', { kind, opts }),
   monStop:           (kind) => ipcRenderer.invoke('mon-stop', { kind }),

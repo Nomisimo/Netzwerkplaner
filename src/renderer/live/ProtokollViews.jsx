@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { S, OK, WARN, ERR, MUTED, SUB, INFO } from "../../shared/constants.js";
-import { fmtBps } from "../../shared/live.js";
+import { fmtBps, findPlanned } from "../../shared/live.js";
 import { useMonitor } from "./store.js";
 import { MonBar, Table, td, Hint, Empty, PlanName, Age, Card, Pill, mono } from "./common.jsx";
+import { ipPorts } from "../../shared/catalog.js";
 import { Toggle } from "../ui.jsx";
 import { parseList } from "./LichtViews.jsx";
 import { TriangleAlert, OctagonX } from "lucide-react";
@@ -25,16 +26,25 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
     for (const i of s?.instances || []) {
       const isChan = i.service.startsWith("_netaudio-chan");
       const name = isChan && i.label.includes("@") ? i.label.slice(i.label.lastIndexOf("@") + 1) : i.label;
-      const d = m.get(name) || { name, ip: "", services: new Set(), chans: [], txt: {}, age: Infinity, host: "" };
+      const d = m.get(name) || { name, ip: "", ips: new Set(), services: new Set(), chans: [], txt: {}, chanTxt: {}, age: Infinity, host: "" };
       d.services.add(DANTE_SVC[i.service] || i.service);
-      if (isChan) d.chans.push(i.label.slice(0, i.label.lastIndexOf("@")) || i.label);
+      if (isChan) { d.chans.push(i.label.slice(0, i.label.lastIndexOf("@")) || i.label); d.chanTxt = { ...d.chanTxt, ...i.txt }; }
       else { d.txt = { ...d.txt, ...i.txt }; if (i.ip) d.ip = i.ip; if (i.host) d.host = i.host; }
       if (!d.ip && i.ip) d.ip = i.ip;
+      for (const x of i.ips || (i.ip ? [i.ip] : [])) d.ips.add(x);
       d.age = Math.min(d.age, i.age);
       m.set(name, d);
     }
-    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [s?.instances]);
+    // Primary/Secondary: über den Plan zuordnen (erste bzw. zweite IP des Geräts), sonst in der gemeldeten Reihenfolge
+    return [...m.values()].map((d) => {
+      const ips = [...d.ips];
+      const hit = ips.map((ip) => findPlanned(P, { ip })).find(Boolean);
+      const plan = hit ? ipPorts(hit.dev).filter((i) => i.ip) : [];
+      const pri = plan[0] && ips.includes(plan[0].ip) ? plan[0].ip : ips.find((ip) => !plan[1] || ip !== plan[1].ip) || d.ip;
+      const sec = plan[1] && ips.includes(plan[1].ip) ? plan[1].ip : ips.find((ip) => ip !== pri) || "";
+      return { ...d, plan: hit?.dev || null, pri, sec, secPlan: !sec && plan[1] ? plan[1].ip : "" };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [s?.instances, P]);
   const masters = (ptp.snapshot?.clocks || []).filter((c) => c.isMaster);
 
   return (
@@ -47,16 +57,24 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
       {mon.running && (
         <Card title={`Dante-Geräte (${devices.length})`}>
           {!devices.length ? <Empty>Noch keine Antwort. Dante-Geräte melden sich per mDNS, wenn der Rechner im selben Netz hängt.</Empty> : (
-            <Table head={["Gerät", "IP / Plan", "Dienste", "Kanäle (mDNS)", "zuletzt"]}>
-              {devices.map((d) => (
-                <tr key={d.name}>
-                  <td style={td()}><b>{d.name}</b><TxtList txt={d.txt} /></td>
-                  <td style={td()}><span style={mono}>{d.ip}</span><div style={{ fontSize: 11 }}><PlanName P={P} ip={d.ip} onSelectDevice={onSelectDevice} /></div></td>
-                  <td style={td({ fontSize: 11 })}>{[...d.services].map((x) => <Pill key={x} color={INFO}>{x}</Pill>)}</td>
-                  <td style={td({ fontSize: 11, maxWidth: 320 })}>{d.chans.length ? <span title={d.chans.join(", ")}>{d.chans.length}: {d.chans.slice(0, 6).join(", ")}{d.chans.length > 6 ? " …" : ""}</span> : <span style={{ color: MUTED }}>–</span>}</td>
-                  <td style={td()}><Age ms={d.age} /></td>
-                </tr>
-              ))}
+            <Table head={["Gerätename", "Modell", "Dante-Version", "Primäre Adresse", "Sekundäre Adresse", "Abtastrate", "Kanäle (mDNS)", "Plan", "zuletzt"]}>
+              {devices.map((d) => {
+                const t = d.txt, modell = [t.mf, t.model].filter((x) => x && x !== true).join(" ");
+                const planModell = d.plan ? [d.plan.hersteller, d.plan.modell].filter(Boolean).join(" ") : "";
+                return (
+                  <tr key={d.name}>
+                    <td style={td()}><b>{d.name}</b><div style={{ marginTop: 2 }}>{[...d.services].map((x) => <Pill key={x} color={INFO}>{x}</Pill>)}</div></td>
+                    <td style={td({ fontSize: 12 })}>{modell || <span style={{ color: MUTED }}>{planModell ? `${planModell} (Plan)` : "–"}</span>}{t.router_info && t.router_info !== true && <div style={{ fontSize: 10, color: MUTED }}>{t.router_info}</div>}</td>
+                    <td style={td(mono)}>{t.router_vers || t.server_vers || <span style={{ color: MUTED }}>–</span>}{t.arcp_vers && <div style={{ fontSize: 10, color: MUTED }}>ARCP {t.arcp_vers}</div>}</td>
+                    <td style={td(mono)}>{d.pri || "–"}</td>
+                    <td style={td(mono)}>{d.sec || (d.secPlan ? <span style={{ color: MUTED }} title="Im Plan eingetragen, über die gewählte Netzwerkkarte nicht gemeldet">{d.secPlan} (Plan)</span> : <span style={{ color: MUTED }}>–</span>)}</td>
+                    <td style={td({ fontSize: 12 })}>{d.chanTxt.rate ? `${(+d.chanTxt.rate / 1000).toLocaleString("de-DE")} kHz` : <span style={{ color: MUTED }}>–</span>}{d.chanTxt.latency_ns && <div style={{ fontSize: 10, color: MUTED }}>Latenz {(+d.chanTxt.latency_ns / 1e6).toLocaleString("de-DE")} ms</div>}</td>
+                    <td style={td({ fontSize: 11, maxWidth: 260 })}>{d.chans.length ? <span title={d.chans.join(", ")}>{d.chans.length}: {d.chans.slice(0, 6).join(", ")}{d.chans.length > 6 ? " …" : ""}</span> : <span style={{ color: MUTED }}>–</span>}</td>
+                    <td style={td({ fontSize: 11 })}><PlanName P={P} ip={d.pri} onSelectDevice={onSelectDevice} /><TxtList txt={t} /></td>
+                    <td style={td()}><Age ms={d.age} /></td>
+                  </tr>
+                );
+              })}
             </Table>
           )}
         </Card>
@@ -68,7 +86,7 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
         {ptp.snapshot?.conflicts?.length > 0 && <div style={{ color: ERR, fontSize: 12, marginTop: 6, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={13} style={{ flexShrink: 0, marginTop: 1 }} /> Mehrere Master in derselben Domain: {ptp.snapshot.conflicts.map((c) => `${c.domain} (${c.ips.join(", ")})`).join("; ")}</div>}
       </Card>
       <Hint>
-        Gelistet wird, was die Geräte per mDNS (DNS-SD) ankündigen: Name, IP und die Kanalnamen, die sie als Dienst melden. Abos, Latenz und Routing liest nur Dante Controller über das nicht offene Audinate-Protokoll; diese App ändert nichts an Dante-Geräten.
+        Gelistet wird, was die Geräte per mDNS (DNS-SD) ankündigen: Name, Modell, Dante-Version, Adressen, Abtastrate und die Kanalnamen. Primär und Sekundär ordnet der Plan zu. Die Sekundär-Adresse erscheint nur, wenn die gewählte Netzwerkkarte auch das Secondary-Netz sieht. Produktversion, Gerätesperre, Link-Geschwindigkeit, Abos und Routing liest nur Dante Controller über das nicht offene Audinate-Protokoll; diese App ändert nichts an Dante-Geräten.
       </Hint>
     </div>
   );
@@ -262,7 +280,7 @@ export function PtpView({ P, iface, onSelectDevice }) {
       </MonBar>
       {s?.conflicts?.length > 0 && <div style={{ color: ERR, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={14} style={{ flexShrink: 0, marginTop: 2 }} /> Mehrere Master senden in derselben Domain: {s.conflicts.map((c) => `${c.domain}: ${c.ips.join(", ")}`).join("; ")}. Das deutet auf getrennte Clock-Inseln oder eine Fehlkonfiguration hin.</div>}
       {mon.running && s && (
-        <Card title={`Uhren (${clocks.length})`}>
+        <Card title={`Clocks (${clocks.length})`}>
           {!clocks.length ? <Empty>Noch kein PTP-Paket. Sichtbar sind Master (Sync/Announce) und Slaves, die Delay_Req per Multicast senden.</Empty> : (
             <Table head={["Rolle", "IP / Plan", "Version / Domain", "Clock-ID", "Grandmaster", "Sync/s", "Announce/s", "Details", "zuletzt"]}>
               {clocks.map((c) => (

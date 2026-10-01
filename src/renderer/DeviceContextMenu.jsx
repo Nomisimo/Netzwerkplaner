@@ -46,7 +46,7 @@ export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = []
   const stroeme = dev.stroeme || [];
   const copy = (t, what) => { try { navigator.clipboard.writeText(t); setKopiert(what); setTimeout(() => setKopiert(""), 1200); } catch { /* ohne Zwischenablage */ } };
   const act = (fn) => () => { onClose(); fn && fn(); };
-  const stTxt = !status ? "nicht geprüft" : status.ok ? `erreichbar (${status.method}, ${status.ms} ms)` : status.ok === false ? `nicht erreichbar (${status.method})` : status.method;
+  const stTxt = !status ? "nicht geprüft" : status.ok ? `erreichbar über ${status.ip || "?"} (${status.method}, ${status.ms} ms)` : status.ok === false ? `keine IP antwortet (${status.method})` : status.method;
   const stCol = !status || status.ok == null ? MUTED : status.ok ? OK : ERR;
 
   return (
@@ -76,7 +76,7 @@ export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = []
             const v = X.vlanById.get(i.vlan);
             return (
               <div key={i.id} style={{ display: "grid", gridTemplateColumns: "78px 1fr auto", gap: 8, fontSize: 12, padding: "2px 0", alignItems: "baseline" }}>
-                <span style={{ color: MUTED }}>{i.name}</span>
+                <span style={{ color: MUTED, display: "flex", alignItems: "center", gap: 4 }}>{status?.ifs?.[i.id]?.ip === i.ip && status.ifs[i.id].ok != null && <Dot color={status.ifs[i.id].ok ? OK : MUTED} size={6} title={status.ifs[i.id].ok ? "antwortet" : "keine Antwort"} />}{i.name}</span>
                 <span style={{ fontFamily: "Consolas,monospace", cursor: i.ip ? "copy" : "default" }} title={i.ip ? "Klick kopiert die IP" : ""} onClick={() => i.ip && copy(i.ip, i.id)}>
                   {i.dhcp ? "DHCP" : i.ip ? `${i.ip}/${i.prefix}` : "–"}{kopiert === i.id && <span style={{ color: OK, fontFamily: "inherit" }}> kopiert</span>}
                   {i.mac && <div style={{ fontSize: 10, color: MUTED }}>{i.mac}</div>}

@@ -32,7 +32,7 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
     setCidr(snap?.cidr || targets.find((t) => own && inSubnet(own.address, t.cidr))?.cidr || targets[0]?.cidr || "");
   }, [targets, interfaces]);
 
-  const run = () => mon.action("scan", { cidr: cidr.trim(), ports: ports.split(/[,; ]+/).map(Number).filter((p) => p > 0 && p < 65536) });
+  const run = () => mon.action("scan", { src: iface, cidr: cidr.trim(), ports: ports.split(/[,; ]+/).map(Number).filter((p) => p > 0 && p < 65536) });
   const hatErgebnis = !!snap?.hosts && (snap.running || snap.finished > 0);
   const cmp = useMemo(() => (hatErgebnis ? compareScan(P, snap.hosts, snap.cidr) : null), [P, hatErgebnis, snap?.hosts, snap?.cidr]);
   const rows = cmp ? cmp.rows.filter((r) => !filter || r.status === filter) : [];

@@ -1,38 +1,11 @@
 // Netzwerkscan eines Subnetzes: Ping, TCP-Ports, MAC aus der ARP-Tabelle, Namen per Reverse-DNS
-const net = require('net');
 const dns = require('dns');
 const { execFile } = require('child_process');
-const { ip2int, int2ip, listInterfaces } = require('./util');
+const { ip2int, int2ip, listInterfaces, ping, tcpProbe } = require('./util');
 
 const DEFAULT_PORTS = [80, 443, 8080, 22, 23, 4440, 5959, 30021, 49280, 161];
 const PORT_NAMES = { 22: 'SSH', 23: 'Telnet', 80: 'HTTP', 443: 'HTTPS', 8080: 'HTTP-Alt (MA Web Remote)', 4440: 'Dante ARC', 5959: 'NDI Discovery', 30021: 'MA-Net3 Worldserver', 49280: 'Yamaha RCP', 161: 'SNMP' };
 const MAX_HOSTS = 1024;
-
-function tcpProbe(ip, port, timeout = 700) {
-  return new Promise((resolve) => {
-    const s = new net.Socket();
-    const done = (open, alive) => { s.destroy(); resolve({ open, alive }); };
-    s.setTimeout(timeout);
-    s.once('connect', () => done(true, true));
-    s.once('timeout', () => done(false, false));
-    s.once('error', (e) => done(false, e.code === 'ECONNREFUSED')); // RST heißt: Gerät lebt, Port zu
-    s.connect(port, ip);
-  });
-}
-
-function ping(ip) {
-  const args = process.platform === 'win32' ? ['-n', '1', '-w', '800', ip]
-    : process.platform === 'darwin' ? ['-c', '1', '-t', '1', ip]
-    : ['-c', '1', '-W', '1', ip];
-  return new Promise((resolve) => {
-    const t0 = Date.now();
-    execFile('ping', args, { timeout: 3000, windowsHide: true }, (err, stdout) => {
-      const m = String(stdout || '').match(/(?:time|Zeit)[=<]\s*([\d.,]+)\s*ms/i);
-      const ttl = String(stdout || '').match(/ttl=(\d+)/i);
-      resolve({ ok: !err && !!ttl, ms: m ? Math.round(parseFloat(m[1].replace(',', '.'))) : Date.now() - t0, ttl: ttl ? +ttl[1] : null });
-    });
-  });
-}
 
 // ARP-Tabelle des Betriebssystems lesen (macOS, Windows, Linux)
 const normMac = (m) => m.replace(/-/g, ':').split(':').map((x) => x.padStart(2, '0')).join(':').toLowerCase();
@@ -72,7 +45,7 @@ function hostsOf(cidr) {
 async function create(opts = {}, ctx) {
   let hosts = [], running = false, cancel = false, progress = { done: 0, total: 0 }, cidr = '', started = 0, finished = 0, err = '';
 
-  const run = async ({ cidr: c, ports = DEFAULT_PORTS, concurrency = 32 }) => {
+  const run = async ({ cidr: c, ports = DEFAULT_PORTS, concurrency = 32, src = opts.iface || '' }) => {
     if (running) return false;
     let list;
     try { list = hostsOf(c); } catch (e) { err = e.message; ctx.dirty(); return false; }
@@ -84,10 +57,10 @@ async function create(opts = {}, ctx) {
     const worker = async () => {
       while (i < list.length && !cancel) {
         const ip = list[i++];
-        const p = await ping(ip);
+        const p = await ping(ip, { src, waitMs: 800 });
         let alive = p.ok, open = [];
         // Auch Geräte finden, die Ping blocken: typische Ports probieren
-        const probe = await Promise.all(ports.map((port) => tcpProbe(ip, port).then((r) => ({ port, ...r }))));
+        const probe = await Promise.all(ports.map((port) => tcpProbe(ip, port, { src }).then((r) => ({ port, ...r }))));
         open = probe.filter((r) => r.open).map((r) => r.port);
         if (probe.some((r) => r.alive)) alive = true;
         if (alive) hosts.push({ ip, ms: p.ok ? p.ms : null, ping: p.ok, ttl: p.ttl, open, self: own.has(ip) });

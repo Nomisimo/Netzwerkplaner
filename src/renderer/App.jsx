@@ -188,21 +188,33 @@ export default function App() {
   const Pv = useMemo(() => ({ ...P, icons: allIcons, feldKatalog: library.felder || [] }), [P, allIcons, library.felder]);
 
   /* ── Erreichbarkeit ─────────────────────────────────────────────────── */
+  // Jede IP eines Geräts wird geprüft. Antwortet eine davon, gilt das Gerät als erreichbar;
+  // welche IPs antworten, steht je Anschluss in status[id].ifs (Anzeige im Editor).
   const checkReach = useCallback(async (ids) => {
     const P0 = Pref.current;
     const targets = [];
     for (const d of P0.geraete) {
       if (ids && !ids.includes(d.id)) continue;
       const url = webUrl(d);
-      const ifc = d.ports.find((i) => i.id === d.webUi?.iface && i.ip) || ipPorts(d).find((i) => i.ip);
-      if (!ifc) continue;
       let port = null;
       if (url) { try { const u = new URL(url); port = +(u.port || (u.protocol === "https:" ? 443 : 80)); } catch {} }
-      targets.push({ id: d.id, ip: ifc.ip, port });
+      const webIfc = d.ports.find((i) => i.id === d.webUi?.iface && i.ip) || ipPorts(d).find((i) => i.ip);
+      for (const i of ipPorts(d)) if (i.ip) targets.push({ id: `${d.id}|${i.id}`, ip: i.ip, port: i === webIfc ? port : null });
     }
     if (!targets.length) { notify("Keine Geräte mit IP-Adresse zum Prüfen.", "warn"); return; }
-    const res = await api.checkReachability(targets);
-    setStatus((s) => ({ ...s, ...res }));
+    let src = ""; try { src = localStorage.getItem("netzwerkplaner_live_iface") || ""; } catch {}
+    const res = await api.checkReachability(targets, src);
+    const proGeraet = {};
+    for (const t of targets) {
+      const [dev, port] = t.id.split("|");
+      const r = res[t.id];
+      if (!r) continue;
+      const g = proGeraet[dev] || (proGeraet[dev] = { ok: false, ifs: {} });
+      g.ifs[port] = { ...r, ip: t.ip };
+      if (r.ok && !g.ok) Object.assign(g, { ok: true, ms: r.ms, method: r.method, ip: t.ip, port, t: r.t });
+      else if (!g.ok) Object.assign(g, { ok: r.ok, ms: r.ms, method: r.method, t: r.t });
+    }
+    setStatus((s) => ({ ...s, ...proGeraet }));
     if (!isElectron && !ids) notify("Die Erreichbarkeitsprüfung funktioniert nur in der Desktop-App.", "warn");
   }, []);
   useEffect(() => {

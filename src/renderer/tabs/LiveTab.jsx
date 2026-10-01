@@ -43,7 +43,13 @@ export default function LiveTab(props) {
   const [iface, setIface] = useState(() => localStorage.getItem("netzwerkplaner_live_iface") || "");
   useEffect(() => { localStorage.setItem("netzwerkplaner_live_sub", sub); }, [sub]);
   useEffect(() => { localStorage.setItem("netzwerkplaner_live_iface", iface); }, [iface]);
-  useEffect(() => { api.monInterfaces().then((l) => { setInterfaces(l || []); if (iface && !(l || []).some((i) => i.address === iface)) setIface(""); }); }, []);
+  // Alles im Live-Tab (Monitore, Scan, SNMP, Ping) läuft nur über die gewählte Netzwerkkarte
+  const laden = () => api.monInterfaces().then((l) => {
+    l = l || [];
+    setInterfaces(l);
+    setIface((cur) => (l.some((i) => i.address === cur) ? cur : l[0]?.address || ""));
+  });
+  useEffect(() => { laden(); }, []);
 
   const p = { ...props, iface, interfaces, goSub: setSub };
   return (
@@ -52,13 +58,13 @@ export default function LiveTab(props) {
         <div style={{ ...S.boxTabs, marginBottom: 0, flex: 1 }}>
           {SUBS.map(([k, l, kind]) => <SubTab key={k} k={k} label={l} kind={kind} active={sub === k} onClick={() => setSub(k)} />)}
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="Über welche Netzwerkkarte mitgelesen wird. Gilt für Monitore, die danach gestartet werden.">
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="Alles im Live-Tab läuft nur über diese Netzwerkkarte: Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch in der Topologie). Laufende Monitore danach neu starten.">
           Netzwerkkarte
           <select style={{ ...S.selectSm, width: 230 }} value={iface} onChange={(e) => setIface(e.target.value)}>
-            <option value="">alle</option>
+            {!interfaces.length && <option value="">keine gefunden</option>}
             {interfaces.map((i) => <option key={i.name + i.address} value={i.address}>{i.name} · {i.address}/{i.prefix}</option>)}
           </select>
-          <button style={S.smallBtn} onClick={() => api.monInterfaces().then((l) => setInterfaces(l || []))} title="Liste neu laden"><RefreshCw size={12} /></button>
+          <button style={S.smallBtn} onClick={laden} title="Liste neu laden"><RefreshCw size={12} /></button>
         </label>
       </div>
       {!isElectron && <div style={{ color: WARN, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><TriangleAlert size={14} style={{ flexShrink: 0 }} /> Die Live-Werkzeuge brauchen Netzwerkzugriff und funktionieren nur in der Desktop-App.</div>}
