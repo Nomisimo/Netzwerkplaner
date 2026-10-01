@@ -82,10 +82,11 @@ function parseResponse(buf) {
 
 /* ── Client ────────────────────────────────────────────────────────────── */
 class Client {
-  constructor(host, community = 'public', timeout = 1500, port = 161) {
+  constructor(host, community = 'public', timeout = 1500, port = 161, src = '') {
     this.host = host; this.port = port; this.community = community; this.timeout = timeout; this.id = Math.floor(Math.random() * 1e6); this.pending = new Map();
     this.sock = dgram.createSocket('udp4');
     this.sock.on('error', () => {});
+    if (src) { try { this.sock.bind(0, src); } catch {} } // nur über die gewählte Netzwerkkarte
     this.sock.on('message', (buf) => {
       let r; try { r = parseResponse(buf); } catch { return; }
       const p = this.pending.get(r.id);
@@ -142,8 +143,8 @@ const idx = (oid, root) => oid.slice(root.length + 1);
 const portBits = (b) => { const s = new Set(); if (!Buffer.isBuffer(b)) return s; for (let i = 0; i < b.length; i++) for (let j = 0; j < 8; j++) if (b[i] & (0x80 >> j)) s.add(i * 8 + j + 1); return s; };
 const POE = { 1: 'aus', 2: 'sucht', 3: 'liefert', 4: 'Fehler', 5: 'Test', 6: 'Fehler' };
 
-async function readSwitch(host, community, port = 161) {
-  const c = new Client(host, community, 1500, port);
+async function readSwitch(host, community, port = 161, src = '') {
+  const c = new Client(host, community, 1500, port, src);
   try {
     const sys = await c.get([OID.sysDescr, OID.sysUpTime, OID.sysName, OID.sysLocation]);
     const w = async (k) => { try { return await c.walk(OID[k]); } catch { return []; } };
@@ -197,10 +198,10 @@ async function readSwitch(host, community, port = 161) {
 async function create(opts = {}, ctx) {
   const results = new Map(), busy = new Set(), errors = new Map();
   let timer = null, autoTargets = [];
-  const query = async ({ host, community = 'public' }) => {
+  const query = async ({ host, community = 'public', src = opts.iface || '' }) => {
     if (!host || busy.has(host)) return false;
     busy.add(host); errors.delete(host); ctx.dirty();
-    try { results.set(host, await readSwitch(host, community)); }
+    try { results.set(host, await readSwitch(host, community, 161, src)); }
     catch (e) { errors.set(host, e.message); }
     busy.delete(host); ctx.dirty();
     return true;
@@ -211,7 +212,7 @@ async function create(opts = {}, ctx) {
     action(name, args = {}) {
       if (name === 'query') { query(args); return true; }
       if (name === 'auto') {
-        clearInterval(timer); timer = null; autoTargets = args.targets || [];
+        clearInterval(timer); timer = null; autoTargets = (args.targets || []).map((t) => ({ src: args.src, ...t }));
         if (args.on && autoTargets.length) { autoTargets.forEach(query); timer = setInterval(() => autoTargets.forEach(query), 10000); }
         return !!timer;
       }

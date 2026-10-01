@@ -37,7 +37,7 @@ export default function StatusView({ P, X, status, checkReach, autoStatus, setAu
               <tr key={d.id}>
                 <td style={td({ width: 20 })}><StatusDot st={st} /></td>
                 <td style={td()}><a href="#" style={{ color: "#fff" }} onClick={(e) => { e.preventDefault(); onSelectDevice(d.id); }}>{d.name}</a></td>
-                <td style={td(mono)}>{ifc.ip}</td>
+                <td style={td(mono)}>{st?.ok && st.ip ? st.ip : ifc.ip}{ipPorts(d).filter((i) => i.ip).length > 1 && <span style={{ color: MUTED, fontFamily: "inherit", fontSize: 11 }}> +{ipPorts(d).filter((i) => i.ip).length - 1}</span>}</td>
                 <td style={td()}>{ifc.vlan && <VlanChip v={X.vlanById.get(ifc.vlan)} small />}</td>
                 <td style={td({ fontSize: 12, color: !st ? MUTED : st.ok ? OK : st.ok === false ? ERR : MUTED })}>
                   {!st ? "–" : st.ok == null ? st.method : st.ok ? `erreichbar · ${st.method} · ${st.ms} ms` : `keine Antwort (${st.method})`}
@@ -49,7 +49,7 @@ export default function StatusView({ P, X, status, checkReach, autoStatus, setAu
           })}
         </Table>
       )}
-      <Hint>Geprüft wird zuerst per TCP auf den Web-UI-Port, sonst per Ping. „Keine Antwort“ kann auch heißen, dass der Rechner nicht im selben Netz hängt oder eine Firewall Ping blockt.</Hint>
+      <Hint>Geprüft wird jede IP eines Geräts über die oben gewählte Netzwerkkarte: am Web-UI-Anschluss zuerst per TCP auf den Web-UI-Port, sonst per Ping. Antwortet eine IP, gilt das Gerät als erreichbar; welche IPs antworten, zeigt der Geräte-Editor. „Keine Antwort“ kann auch heißen, dass der Rechner nicht im selben Netz hängt oder eine Firewall Ping blockt.</Hint>
     </div>
   );
 }

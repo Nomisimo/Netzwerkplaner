@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { emptyProject, buildIndex, validate, addConnection, buildTree, suggestIp } from "../src/shared/model.js";
+import { emptyProject, buildIndex, validate, addConnection, vlansAbleiten, buildTree, suggestIp } from "../src/shared/model.js";
 import { createDevice, findProtokoll, parsePorts, KATALOG_GERAETE, ipPorts } from "../src/shared/catalog.js";
 import { demoProject } from "../src/shared/demo.js";
 import { layoutMindmap } from "../src/shared/layout.js";
@@ -73,16 +73,37 @@ test("Prüfung: IP-Konflikt, Subnetz, P2P am Switch, IGMP", () => {
   assert.match(msgs, /warn: VLAN 20 Licht: Multicast/);
 });
 
-test("Switch-Port übernimmt VLAN, Uplink wird Trunk", () => {
+test("Endgerät bekommt das VLAN vom Switch-Port, Uplink wird Trunk", () => {
   const P = emptyProject();
   const s1 = createDevice({ typ: "switch_managed", vlans: P.vlans });
   const s2 = createDevice({ typ: "switch_managed", vlans: P.vlans });
+  const um = createDevice({ typ: "switch_unmanaged", vlans: P.vlans });
   const n = createDevice({ typ: "node", vlans: P.vlans });
-  ipPorts(n)[0].vlan = P.vlans.find((v) => v.vid === 20).id;
-  P.geraete.push(s1, s2, n);
+  const n2 = createDevice({ typ: "node", vlans: P.vlans });
+  const n3 = createDevice({ typ: "node", vlans: P.vlans });
+  const v20 = P.vlans.find((v) => v.vid === 20).id, v10 = P.vlans.find((v) => v.vid === 10).id;
+  P.geraete.push(s1, s2, um, n, n2, n3);
   addConnection(P, s1.id, s2.id); addConnection(P, s2.id, n.id);
   assert.equal(s1.ports[0].modus, "trunk");
-  assert.equal(s2.ports.find((p) => p.vlan)?.vlan, ipPorts(n)[0].vlan);
+  // VLAN am Endgerät wird ignoriert, solange der Switch-Port keins hat
+  ipPorts(n)[0].vlan = v10;
+  vlansAbleiten(P);
+  assert.equal(ipPorts(n)[0].vlan, null);
+  // VLAN am Switch-Port gilt für das Endgerät
+  const sp = s2.ports.find((p) => p.modus !== "trunk" && P.verbindungen.some((c) => c.a.port === p.id || c.b.port === p.id));
+  sp.vlan = v20;
+  vlansAbleiten(P);
+  assert.equal(ipPorts(n)[0].vlan, v20);
+  // über einen unmanaged Switch hinweg
+  const sp2 = s2.ports.find((p) => p.modus !== "trunk" && !P.verbindungen.some((c) => c.a.port === p.id || c.b.port === p.id));
+  sp2.vlan = v10;
+  addConnection(P, s2.id, um.id, { portIdA: sp2.id }); addConnection(P, um.id, n2.id);
+  vlansAbleiten(P);
+  assert.equal(ipPorts(n2)[0].vlan, v10);
+  // nicht gesteckt: VLAN aus dem Subnetz der IP
+  ipPorts(n3)[0].ip = "10.10.20.50";
+  vlansAbleiten(P);
+  assert.equal(ipPorts(n3)[0].vlan, v20);
   assert.equal(suggestIp(P, P.vlans.find((v) => v.vid === 20)), "10.10.20.10");
 });
 

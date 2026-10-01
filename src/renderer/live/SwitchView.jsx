@@ -8,7 +8,7 @@ import { Play, OctagonX, RefreshCw } from "lucide-react";
 
 const speed = (m) => (!m ? "" : m >= 1000 ? `${m / 1000}G` : `${m}M`);
 
-export default function SwitchView({ P, X, onSelectDevice }) {
+export default function SwitchView({ P, X, iface, onSelectDevice }) {
   const mon = useMonitor("snmp");
   const s = mon.snapshot;
   const switches = useMemo(() => snmpSwitches(P), [P]);
@@ -17,8 +17,8 @@ export default function SwitchView({ P, X, onSelectDevice }) {
   const vlanByVid = useMemo(() => new Map(P.vlans.map((v) => [+v.vid, v])), [P.vlans]);
   const hosts = [...new Set([...(host ? [host] : []), ...Object.keys(s?.results || {}), ...Object.keys(s?.errors || {})])];
 
-  const query = (h = host) => h && mon.action("query", { host: h.trim(), community });
-  const auto = (on) => mon.action("auto", { on, targets: hosts.map((h) => ({ host: h, community })) });
+  const query = (h = host) => h && mon.action("query", { host: h.trim(), community, src: iface });
+  const auto = (on) => mon.action("auto", { on, src: iface, targets: hosts.map((h) => ({ host: h, community })) });
 
   return (
     <div>

@@ -8,7 +8,7 @@ import DeviceEditor from "../DeviceEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { ipPorts } from "../../shared/catalog.js";
-import { RefreshCw, TriangleAlert, Globe, X as XIcon } from "lucide-react";
+import { RefreshCw, TriangleAlert, Globe } from "lucide-react";
 
 export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand }) {
   const [q, setQ] = useState("");
@@ -96,9 +96,8 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
       {ctx && X.devById.get(ctx.id) && <DeviceContextMenu P={P} X={X} dev={X.devById.get(ctx.id)} x={ctx.x} y={ctx.y} status={status[ctx.id]} issues={devIssues(ctx.id)} onClose={closeCtx}
         onEdit={() => setSelection({ type: "dev", id: ctx.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(ctx.id)} />}
       {sel && (
-        <Section style={{ position: "sticky", top: 12, maxHeight: "calc(100vh - 140px)", overflowY: "auto" }}
-          right={<button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}><XIcon size={14} /></button>} title=" ">
-          <DeviceEditor key={sel.id} P={P} X={X} dev={sel} mutate={mutate} status={status[sel.id]} onCheck={checkReach} issues={devIssues(sel.id)}
+        <Section style={{ position: "sticky", top: 12, maxHeight: "calc(100vh - 140px)", overflowY: "auto" }}>
+          <DeviceEditor key={sel.id} P={P} X={X} dev={sel} mutate={mutate} status={status[sel.id]} onCheck={checkReach} issues={devIssues(sel.id)} onClose={() => setSelection(null)} kopfAbstand={20}
             onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />
         </Section>
       )}

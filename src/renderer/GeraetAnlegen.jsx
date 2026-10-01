@@ -63,7 +63,7 @@ function NeuesVlan({ S0, dev, mutate }) {
   const naechste = () => { let n = 100; const belegt = new Set(S0.vlans.map((v) => +v.vid)); while (belegt.has(n)) n++; return n; };
   const [vid, setVid] = useState(naechste);
   const [name, setName] = useState("");
-  const [ziel, setZiel] = useState(dev.isSwitch ? "ports" : ipPorts(dev)[0] ? "if:0" : "nur");
+  const [ziel, setZiel] = useState(dev.isSwitch ? "ports" : "nur");
   const [info, setInfo] = useState("");
   const vorhanden = S0.vlans.find((v) => +v.vid === +vid);
   const ungueltig = !(+vid >= 1 && +vid <= 4094);
@@ -87,8 +87,8 @@ function NeuesVlan({ S0, dev, mutate }) {
         <Field label="Name"><input style={{ ...S.inputSm, width: 180 }} value={vorhanden ? vorhanden.name : name} disabled={!!vorhanden} placeholder={`VLAN ${vid}`} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Zuweisen an">
           <select style={{ ...S.selectSm, width: 220 }} value={ziel} onChange={(e) => setZiel(e.target.value)}>
-            {physPorts(dev).length > 0 && <option value="ports">Alle Ports (Access)</option>}
-            {ipPorts(dev).map((i, n) => <option key={i.id} value={`if:${n}`}>Port „{i.name}“</option>)}
+            {dev.isSwitch && physPorts(dev).length > 0 && <option value="ports">Alle Ports (Access)</option>}
+            {dev.isSwitch && ipPorts(dev).map((i, n) => <option key={i.id} value={`if:${n}`}>Port „{i.name}“</option>)}
             <option value="nur">Nur anlegen</option>
           </select>
         </Field>

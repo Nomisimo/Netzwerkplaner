@@ -2,8 +2,6 @@ const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const net = require('net');
-const { execFile } = require('child_process');
 
 // Kein HTTP/3 (QUIC): Reverse-Proxys bieten es oft an, ohne dass UDP 443 durchkommt,
 // dann scheitern Anfragen mit ERR_QUIC_PROTOCOL_ERROR statt auf HTTP/2 zurückzufallen.
@@ -277,46 +275,21 @@ ipcMain.handle('open-external', (_e, url) => {
 
 /* ── Erreichbarkeit (TCP auf Web-UI-Port, sonst ICMP-Ping) ─────────────── */
 const IP_RE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+const { ping: monPing, tcpProbe } = require('./monitor/util');
 
-function tcpCheck(ip, port, timeout = 1500) {
-  return new Promise((resolve) => {
-    const t0 = Date.now();
-    const sock = new net.Socket();
-    const done = (ok) => { sock.destroy(); resolve({ ok, ms: Date.now() - t0, method: `TCP ${port}` }); };
-    sock.setTimeout(timeout);
-    sock.once('connect', () => done(true));
-    sock.once('timeout', () => done(false));
-    sock.once('error', (err) => done(err && err.code === 'ECONNREFUSED')); // Gerät antwortet, Port zu
-    sock.connect(port, ip);
-  });
-}
-
-function icmpPing(ip) {
-  const args = process.platform === 'win32' ? ['-n', '1', '-w', '1000', ip]
-    : process.platform === 'darwin' ? ['-c', '1', '-t', '1', ip]
-    : ['-c', '1', '-W', '1', ip];
-  return new Promise((resolve) => {
-    const t0 = Date.now();
-    execFile('ping', args, { timeout: 3000, windowsHide: true }, (err, stdout) => {
-      const m = String(stdout || '').match(/(?:time|Zeit)[=<]\s*([\d.,]+)\s*ms/i);
-      // Windows meldet „Zielhost nicht erreichbar“ mit Exitcode 0 → auf TTL prüfen
-      const ok = !err && /ttl=/i.test(String(stdout));
-      resolve({ ok, ms: m ? Math.round(parseFloat(m[1].replace(',', '.'))) : Date.now() - t0, method: 'Ping' });
-    });
-  });
-}
-
-ipcMain.handle('check-reachability', async (_e, targets) => {
+ipcMain.handle('check-reachability', async (_e, targets, src) => {
   const out = {};
-  const list = (targets || []).filter((t) => IP_RE.test(t.ip || '')).slice(0, 512);
+  const list = (targets || []).filter((t) => IP_RE.test(t.ip || '')).slice(0, 1024);
+  if (src && !IP_RE.test(src)) src = '';
   let i = 0;
   const worker = async () => {
     while (i < list.length) {
       const t = list[i++];
-      let r = t.port ? await tcpCheck(t.ip, +t.port) : null;
+      let r = null;
+      if (t.port) { const p = await tcpProbe(t.ip, +t.port, { src, timeout: 1500 }); r = { ok: p.alive, ms: p.ms, method: `TCP ${t.port}` }; }
       if (!r || !r.ok) {
-        const p = await icmpPing(t.ip);
-        if (p.ok || !r) r = p;
+        const p = await monPing(t.ip, { src });
+        if (p.ok || !r) r = { ok: p.ok, ms: p.ms, method: 'Ping' };
       }
       out[t.id] = { ...r, t: Date.now() };
     }

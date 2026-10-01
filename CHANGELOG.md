@@ -3,6 +3,18 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.8] – 2026-10-01
+
+- VLANs nur an Switches: Netzwerkkarten von Endgeräten haben kein eigenes VLAN mehr. Sie übernehmen das VLAN des Switch-Ports, an dem sie stecken (auch über unmanaged Switches hinweg). Steckt eine Karte nirgends, gilt das VLAN, in dessen Subnetz ihre IP liegt. Der Editor zeigt das VLAN mit Link zum Switch-Port. Bestehende Projekte übernehmen das bisherige Geräte-VLAN einmalig auf leere Switch-Ports
+- Meldungszentrum links in der Werkzeugleiste: Fehler, Warnungen und Hinweise als Zähler, Klick listet die Meldungen mit „Zeigen“ und Link zur Prüfung
+- Topologie: Äste stehen bei allen Geräten einheitlich in Port-Reihenfolge des Switches (Port 1 oben), wie in der Patchliste. In schmalen Fenstern zeigt die Werkzeugleiste Nebenknöpfe nur als Icon
+- Topologie: Rahmen auf der leeren Fläche ziehen wählt mehrere Geräte (Shift = dazu). Die Ansicht verschiebt man jetzt mit Leertaste + Ziehen, der mittleren Maustaste oder Shift/⌘ + Mausrad
+- Topologie: ⌘/Strg+C und ⌘/Strg+V kopieren und fügen Geräte ein, mit den Kabeln und Stapeln zwischen ihnen, ohne IP- und MAC-Adressen
+- Mehrfachauswahl: Bereich, Standort, PoE-Bedarf, eigene Felder und Notizen für alle gewählten Geräte auf einmal bearbeiten
+- Geräte-Editor: Der Kopf mit Icon, Name, Status und Schließen-Knopf bleibt beim Scrollen oben stehen
+- Erreichbarkeit: Jede IP eines Geräts wird geprüft. Antwortet eine, gilt das Gerät als erreichbar. Der Editor zeigt an jeder Netzwerkkarte, ob sie antwortet
+- Live-Tab: Eine Netzwerkkarte wird gewählt, und alles läuft nur über diese, auch Netzwerkscan, SNMP und die Online-Prüfung. Dante zeigt Modell, Dante-Version, primäre und sekundäre Adresse und Abtastrate. „Uhren“ heißt jetzt „Clocks“
+
 ## [0.7.0-beta.7] – 2026-10-01
 
 - Neuer Tab „Patchliste“: alle Geräte mit Netzwerkname, IPs je Interface, „Gesteckt auf“ (Switch und Port), weiteren Kabeln, Abteilung, Standort, eigenen Feldern als „Name: Inhalt“ und Notizen

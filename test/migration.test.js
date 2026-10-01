@@ -54,7 +54,8 @@ test("Migration: Ports und Interfaces werden zu einer Liste", () => {
 
   // Geteiltes Interface: IP und MAC am ersten Port, VLAN/Maske/Gateway an beiden; Name vom Interface; leeres Interface fällt weg
   assert.deepEqual(node.ports.map((p) => [p.name, p.ip, p.mac, p.vlan, p.gateway]),
-    [["Steuerung", "10.0.20.7", "00:11:22:33:44:55", "v20", "10.0.20.1"], ["LAN 2", "", "", "v20", "10.0.20.1"], ["AES50", "", "", null, ""]]);
+    [["Steuerung", "10.0.20.7", "00:11:22:33:44:55", "v20", "10.0.20.1"], ["LAN 2", "", "", null, "10.0.20.1"], ["AES50", "", "", null, ""]]);
+  // VLAN der Endgeräte kommt vom Switch-Port: LAN 2 steckt nirgends und hat keine IP, also kein VLAN
   assert.ok(node.ports.every((p) => !p.virtuell));
 
   // Verbindungen und Prüfung funktionieren weiter

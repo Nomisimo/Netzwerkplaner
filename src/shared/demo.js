@@ -1,4 +1,4 @@
-import { emptyProject, addConnection, suggestIp } from "./model.js";
+import { emptyProject, addConnection, suggestIp, vlansAbleiten } from "./model.js";
 import { createDevice, KATALOG_GERAETE, ipPorts } from "./catalog.js";
 import { newStream } from "./analyse.js";
 
@@ -78,5 +78,6 @@ export const demoProject = () => {
   strom(laptop, { proto: "osc", menge: 20 });
   const v20 = V(20); v20.querier = "CORE Bühne";
   const v10 = V(10); v10.querier = "CORE Bühne";
-  return P;
+  P.vlanVomSwitch = false; // VLANs der Beispielgeräte einmalig auf die Switch-Ports übernehmen
+  return vlansAbleiten(P);
 };

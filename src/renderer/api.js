@@ -53,9 +53,9 @@ export const api = {
     return null;
   },
   openExternal: (url) => (E ? E.openExternal(url) : window.open(url, "_blank")),
-  // Erreichbarkeit: [{ id, ip, port }] → { id: { ok, ms, method } }
-  checkReachability: async (targets) => {
-    if (E) return E.checkReachability(targets);
+  // Erreichbarkeit: [{ id, ip, port }] → { id: { ok, ms, method } }; src = Adresse der Netzwerkkarte
+  checkReachability: async (targets, src) => {
+    if (E) return E.checkReachability(targets, src);
     return Object.fromEntries(targets.map((t) => [t.id, { ok: null, method: "nur in der Desktop-App" }]));
   },
   // Live-Monitore (nur Desktop-App)

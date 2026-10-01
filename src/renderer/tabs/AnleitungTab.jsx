@@ -44,8 +44,8 @@ const KAPITEL = [
       "Einen Typ aus der Geräteliste links auf die Fläche ziehen. Auf ein vorhandenes Gerät gezogen, wird das neue Gerät an den nächsten freien Port angeschlossen. Eingeklappt zeigt die Liste nur die Icons; die lassen sich genauso ziehen.",
       "Die Werkzeugleiste steht fest über Geräteliste, Zeichenfläche und Seitenleiste. Öffnet sich rechts der Editor, springt nichts mehr um.",
       "„+ Aus Katalog …“ öffnet die Suche über Herstellermodelle, eigene Vorlagen und deinen Gerätebestand. Ist ein Gerät ausgewählt, hängt das neue direkt daran.",
-      "„Verbinden“ (Taste C): von Gerät zu Gerät ziehen. Switch-Ports übernehmen das VLAN des Endgeräts. Switch-zu-Switch-Verbindungen werden Trunks mit allen VLANs.",
-      "„Bewegen“ (Taste M): Geräte ziehen, der ganze Ast zieht mit. „Auto-Layout“ setzt die Verschiebungen zurück, „Äste“ klappt Äste ein.",
+      "„Verbinden“ (Taste C): von Gerät zu Gerät ziehen. Das Endgerät übernimmt das VLAN des Switch-Ports. Switch-zu-Switch-Verbindungen werden Trunks mit allen VLANs.",
+      "„Bewegen“ (Taste M): Geräte ziehen, der ganze Ast zieht mit. „Auto-Layout“ setzt die Verschiebungen zurück, „Äste“ klappt Äste ein. Die Geräte eines Astes stehen bei jedem Switch in der Reihenfolge seiner Ports (Port 1 oben), genau wie in der Patchliste.",
       "Rechtsklick auf ein Gerät zeigt Ports, Verbindungen und IPs. Entf löscht die Auswahl.",
       "Mausrad zoomt. Shift + Mausrad schiebt die Fläche hoch und runter, ⌘ (Mac) bzw. Strg (Windows) + Mausrad schiebt sie nach links und rechts.",
     ]} />
@@ -53,7 +53,8 @@ const KAPITEL = [
     <Bild id="topologie-hintergrund" text="Stage-Plot als Hintergrund, angepinntes Pult und ein Stapel aus zwei Nodes" />
     <Liste items={[
       "Anpinnen (Taste P oder Rechtsklick): das Gerät bleibt stehen, wenn sich die Anordnung durch neue Geräte oder Verbindungen ändert. Sein Ast wandert mit ihm. Klick auf die Nadel löst es wieder.",
-      "Mehrere Geräte wählen: Shift+Klick (oder ⌘/Strg+Klick) nimmt ein Gerät dazu oder heraus, Shift+Fläche ziehen zieht einen Auswahlrahmen, ⌘/Strg+A wählt alle. Ziehen an einem gewählten Gerät verschiebt alle zusammen. In der Seitenleiste: alle anpinnen (Taste P), als Stapel zusammenfassen, Konfiguration in alle einfügen, alle löschen (Entf).",
+      "Mehrere Geräte wählen: Auf der leeren Fläche einen Rahmen über die Geräte ziehen (mit Shift kommen sie zur Auswahl dazu). Shift+Klick (oder ⌘/Strg+Klick) nimmt ein Gerät dazu oder heraus, ⌘/Strg+A wählt alle. Ziehen an einem gewählten Gerät verschiebt alle zusammen. Die Ansicht verschiebst du mit Leertaste + Ziehen, der mittleren Maustaste oder Shift/⌘/Strg + Mausrad. In der Seitenleiste: gemeinsame Felder (Bereich, Standort, PoE-Bedarf, eigene Felder, Notizen) für alle auf einmal bearbeiten, alle anpinnen (Taste P), als Stapel zusammenfassen, Konfiguration in alle einfügen, alle löschen (Entf).",
+      "Kopieren und Einfügen: ⌘/Strg+C kopiert die gewählten Geräte (auch einen Stapel) mit den Kabeln und Stapeln zwischen ihnen, ⌘/Strg+V fügt sie an der Mausposition ein. IP- und MAC-Adressen werden nicht mitkopiert, damit es keine Konflikte gibt. Die Zwischenablage gilt auch zwischen Projekten.",
       "„Einrasten“ an: Beim Ziehen rastet ein Gerät im Raster ein und richtet sich an Kanten und Mitten benachbarter Geräte aus (gestrichelte Hilfslinie). Alt gedrückt halten = frei ziehen. Der Schalter gilt für das ganze Projekt.",
       "„Auto-Anordnen“ aus: alle Geräte und Leitungen bleiben, wo sie sind, auch die nicht angepinnten. Ziehen verschiebt dann nur das eine Gerät. Wieder an: die automatische Anordnung gilt wieder, Pins bleiben. Wurde das Layout von Hand angepasst, fragt die App vorher nach, ebenso bei „Auto-Layout“.",
       "„Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Zieht man es auf ein Gerät in einem Stapel oder auf den Stapelrahmen, kommt es oben in diesen Stapel. Der Stapel bleibt dabei an seinem Platz. Das ist keine Netzwerkverbindung. Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
@@ -82,18 +83,19 @@ const KAPITEL = [
       "In der Ansicht Anschlüsse fasst „Kabel bündeln“ alle Kabel eines Switches, die in dieselbe Richtung laufen, in einem gemeinsamen Kanal direkt am Switch zusammen. Ohne Bündeln läuft jedes Kabel auf eigener Bahn mit gut sichtbarem Abstand. Kabel zwischen Geräten im selben Stapel erscheinen als Klammer seitlich am Stapel.",
       "„Titel“: in den Kästen den Gerätenamen, den Netzwerknamen (Hostname), den Typ bzw. das Modell oder den Wert eines eigenen Felds (z. B. Inventar-Nr.) zeigen. Ohne Netzwerknamen steht dort der Typ.",
       "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports untereinander am Gerät, auch bei gebündelten Kabeln. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
-      "„Status“ prüft alle Geräte mit IP (Web-UI-Port, sonst Ping). Mit „alle 15 s“ läuft das zyklisch, sofern der Rechner im selben Netz hängt.",
+      "„Status“ prüft jede IP aller Geräte (am Web-UI-Anschluss per Web-UI-Port, sonst Ping) über die Netzwerkkarte, die im Live-Tab gewählt ist. Antwortet eine IP, gilt das Gerät als erreichbar. Welche IPs antworten, steht im Geräte-Editor an jedem Anschluss („antwortet“ / „keine Antwort“). Mit „alle 15 s“ läuft das zyklisch.",
+      "Meldungszentrum links in der Werkzeugleiste: Fehler, Warnungen und Hinweise der Prüfung als Zähler. Klick auf einen Zähler listet die Meldungen, „Zeigen“ springt zum Gerät, „Alle in Prüfung“ öffnet den Prüfungs-Tab.",
     ]} />
   </> },
   { id: "geraete", titel: "Geräte & Editor", tab: ["geraete", "Geräte"], inhalt: () => <>
     <Bild id="geraete" text="Tab Geräte: alle Geräte als Tabelle, Klick öffnet den Editor" />
     <Liste items={[
       "Klick auf ein Gerät öffnet den Editor: Name, Netzwerkname (Hostname), Hersteller/Modell, Standort, eigene Felder, Ports, Web-UI, Protokolle und Notizen.",
-      "Ports: Jeder Port eines Endgeräts ist zugleich sein Interface mit VLAN, IP, Maske, Gateway, MAC und DHCP. Der Kreispfeil neben der IP schlägt die nächste freie Adresse im VLAN vor, „IPs vergeben“ füllt alle leeren Ports auf einmal (je Gerät eine Adresse pro VLAN).",
+      "Ports: Jeder Port eines Endgeräts ist zugleich sein Interface mit IP, Maske, Gateway, MAC und DHCP. VLANs werden nur an Switches eingestellt: Das Endgerät zeigt das VLAN des Switch-Ports, an dem es steckt (auch über unmanaged Switches hinweg), und verlinkt auf diesen Port. Steckt es nirgends, gilt das VLAN, in dessen Subnetz die IP liegt. Der Kreispfeil neben der IP schlägt die nächste freie Adresse im VLAN vor, „IPs vergeben“ füllt alle leeren Ports auf einmal (je Gerät eine Adresse pro VLAN).",
       "Switch-Ports: Access- oder Trunk-VLANs, PoE und Punkt-zu-Punkt (AES50, SLink, HDBaseT …). Die IP des Switches steht am Anschluss „Management“ ohne Buchse („+ Management“).",
       "„Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs, VLANs und eigene Felder erhalten. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und eigene Felder, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
       "„im Katalog speichern“ legt das Gerät als eigene Vorlage oder im Gerätebestand ab.",
-      "Geräte aus dem Katalog (Herstellermodelle) und aus dem Gerätebestand haben feste Hardware: Gerätetyp, Hersteller, Modell, Ports, Buchsen, P2P und PoE-Werte lassen sich im Editor nicht ändern. Einstellbar bleiben Name, VLAN, IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen. Ein anderes Modell setzt man mit „Modell zuweisen“. Generische und selbst angelegte Geräte bleiben frei bearbeitbar.",
+      "Geräte aus dem Katalog (Herstellermodelle) und aus dem Gerätebestand haben feste Hardware: Gerätetyp, Hersteller, Modell, Ports, Buchsen, P2P und PoE-Werte lassen sich im Editor nicht ändern. Einstellbar bleiben Name, VLAN (an Switches), IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen. Ein anderes Modell setzt man mit „Modell zuweisen“. Generische und selbst angelegte Geräte bleiben frei bearbeitbar.",
       "„Duplizieren“ kopiert das Gerät mit allen Einstellungen, aber ohne IP- und MAC-Adressen.",
       "„Konfig kopieren“: im Dialog wählen, was mitkommt (Port-Einstellungen mit VLAN und Maske, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen). Bei jedem anderen Gerät dann „Konfig einfügen“, Teile und Zielgeräte wählen („Gleiches Modell“, „Gleicher Typ“, „Alle Switches“) und einfügen. Namen, IPs, MACs und Verbindungen der Ziele bleiben. Ports werden nach Namen zugeordnet, sonst nach Reihenfolge.",
     ]} />
@@ -141,9 +143,12 @@ const KAPITEL = [
   { id: "live", titel: "Live", tab: ["live", "Live"], inhalt: () => <>
     <Bild id="live" text="Live-Tab: Online-Status der geplanten Geräte" />
     <Liste items={[
+      "Netzwerkkarte (oben rechts): Alles im Live-Tab läuft nur über die gewählte Karte, also Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch der Status in der Topologie). Nach einem Wechsel laufende Monitore neu starten.",
       "Online-Status: welche geplanten Geräte antworten. Netzwerkscan: ein Subnetz nach aktiven Adressen durchsuchen, gefundene IPs zeigen den Gerätenamen aus dem Plan.",
       "Switches (SNMP): Portstatus und Zähler der managed Switches lesen.",
       "Protokoll-Monitore für sACN, Art-Net, Dante, MA-Net, NDI, OSC, CITP und PTP-Clock hören im Netz mit. Das funktioniert nur in der Desktop-App und nur im selben Netz.",
+      "Dante: Spalten wie in Dante Controller, soweit die Geräte sie per mDNS melden: Gerätename, Modell, Dante-Version, primäre und sekundäre Adresse, Abtastrate und Kanäle. Primär/Sekundär ordnet der Plan zu. Produktversion, Gerätesperre und Link-Geschwindigkeit liefert nur Dante Controller.",
+      "In einer gemeinsamen Sitzung prüft und lauscht jede App für sich über die eigene Netzwerkkarte. Live-Ergebnisse werden nicht geteilt, erst ein übernommenes Gerät landet im gemeinsamen Projekt.",
     ]} />
     <H>Discovery: Geräte automatisch finden</H>
     <Bild id="live-discovery" text="Discovery: gefundene Geräte, neu oder schon im Plan" />
@@ -159,7 +164,7 @@ const KAPITEL = [
     <Liste items={[
       "Der Bestand enthält deine realen Geräte mit Namen, Netzwerknamen, IPs und eigenen Feldern. „+ ins Projekt“ setzt ein Gerät samt Adressen ein.",
       "„+ Neues Gerät“ legt ein Gerät direkt im Katalog an, ohne es ins Projekt zu setzen: Grundtyp wählen und im Editor ausfüllen.",
-      "„Neues VLAN für dieses Gerät“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“): VLAN-ID und Namen eingeben, wählen, ob es alle Ports (Access) oder ein einzelner Port bekommt, und „Anlegen und zuweisen“. Das VLAN wird mit dem Gerät gespeichert. Fügst du das Gerät in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
+      "„Neues VLAN für dieses Gerät“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“): VLAN-ID und Namen eingeben, bei Switches wählen, ob es alle Ports (Access) oder ein einzelner Port bekommt, und „Anlegen und zuweisen“. Das VLAN wird mit dem Gerät gespeichert. Fügst du das Gerät in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
       "„Projektgeräte übernehmen“ kopiert alle Geräte des offenen Projekts in den Bestand.",
       "„Export CSV“ und „Import“ tauschen den Bestand mit anderen Netzwerkplaner-Installationen oder mit einer eigenen Excel-Liste aus (Spalten: Name; Netzwerkname; Hersteller; Modell; Typ; IP1; VLAN1; MAC1 …, danach eine Spalte je eigenem Feld). Unbekannte Spalten werden beim Import zu eigenen Feldern. Modelle werden über Katalog-ID oder Modellname erkannt.",
       "„Eigene Felder“: Felder wie Inventar-Nr., Seriennummer, Case oder Eigentümer einmal anlegen, danach im Geräte-Editor mit „+ Feld …“ bei einem Gerät einfügen und ausfüllen. Umbenennen und Löschen wirkt auf alle Geräte in Projekt, Bestand und Vorlagen.",

@@ -24,6 +24,7 @@ export const emptyProject = () => ({
   verbindungen: [],
   layout: { rootId: null, offsets: {}, collapsed: {} },
   icons: [],
+  vlanVomSwitch: true, // VLANs nur an Switches (seit 0.7.0-beta.8)
 });
 
 // Ältere oder unvollständige Projektdateien auf den aktuellen Stand bringen
@@ -40,7 +41,69 @@ export const migrateProject = (p) => {
   out.verbindungen = (p.verbindungen || []).filter((c) => c.a && c.b).map((c) => ({ kabel: "cat6", laenge: "", label: "", notiz: "", ...c }));
   out.bereiche = p.bereiche || e.bereiche;
   out.icons = p.icons || [];
-  return out;
+  out.vlanVomSwitch = !!p.vlanVomSwitch;
+  return vlansAbleiten(out);
+};
+
+/* ── VLAN der Endgeräte ───────────────────────────────────────────────────
+   VLANs werden nur an Switches eingestellt. Ein Port eines Endgeräts bekommt sein VLAN
+   vom Access-Port des Switches, an dem er steckt (auch über unmanaged Switches hinweg).
+   Steckt er nirgends oder an einem Trunk, gilt das VLAN, in dessen Subnetz seine IP liegt. */
+const managedSw = (d) => d?.isSwitch && d.typ !== "switch_unmanaged";
+export const vlanQuelle = (P, X, dev, port) => {
+  if (!dev || dev.isSwitch || port.p2p) return null;
+  const besucht = new Set([dev.id]);
+  let ends = (X.connsByPort.get(`${dev.id}:${port.id}`) || []).map((c) => otherEnd(c, dev.id));
+  let trunk = null;
+  while (ends.length) {
+    const next = [];
+    for (const e of ends) {
+      const r = X.portRef.get(`${e.dev}:${e.port}`);
+      if (!r || besucht.has(r.dev.id)) continue;
+      besucht.add(r.dev.id);
+      if (managedSw(r.dev)) {
+        if (r.port.modus === "trunk") { trunk = trunk || r; continue; }
+        if (r.port.vlan && X.vlanById.has(r.port.vlan)) return { vlan: r.port.vlan, art: "switch", sw: r.dev, swPort: r.port };
+        return { vlan: null, art: "switch-ohne", sw: r.dev, swPort: r.port };
+      }
+      if (r.dev.isSwitch) for (const p of physPorts(r.dev)) for (const c of X.connsByPort.get(`${r.dev.id}:${p.id}`) || []) next.push(otherEnd(c, r.dev.id));
+    }
+    ends = next;
+  }
+  if (port.ip) {
+    const v = P.vlans.find((x) => x.subnetz && inSubnet(port.ip, x.subnetz));
+    if (v) return { vlan: v.id, art: "ip", sw: trunk?.dev, swPort: trunk?.port };
+  }
+  return trunk ? { vlan: null, art: "trunk", sw: trunk.dev, swPort: trunk.port } : null;
+};
+
+/* Setzt das VLAN aller Endgeräte-Ports nach den Switches (in place, gibt P zurück) */
+export const vlansAbleiten = (P) => {
+  const X = buildIndex(P);
+  // Einmalig für ältere Projekte: VLAN des Endgeräts auf den leeren Access-Port des Switches übernehmen
+  if (!P.vlanVomSwitch) {
+    for (const d of P.geraete) if (!d.isSwitch) for (const p of physPorts(d)) {
+      if (!p.vlan || !X.vlanById.has(p.vlan)) continue;
+      for (const c of X.connsByPort.get(`${d.id}:${p.id}`) || []) {
+        const r = X.portRef.get(`${otherEnd(c, d.id).dev}:${otherEnd(c, d.id).port}`);
+        if (managedSw(r?.dev) && r.port.modus !== "trunk" && !r.port.vlan) r.port.vlan = p.vlan;
+      }
+    }
+    P.vlanVomSwitch = true;
+  }
+  for (const d of P.geraete) {
+    if (d.isSwitch) continue;
+    for (const p of d.ports) {
+      const q = vlanQuelle(P, X, d, p);
+      const neu = q?.vlan || null;
+      if ((p.vlan || null) === neu) continue;
+      p.vlan = neu;
+      const v = X.vlanById.get(neu);
+      const pr = v && parseCidr(v.subnetz)?.prefix;
+      if (pr != null && !p.ip) p.prefix = pr;
+    }
+  }
+  return P;
 };
 
 /* ── Index über das Projekt ────────────────────────────────────────────── */
@@ -200,6 +263,15 @@ export const buildTree = (P, X) => {
   for (let d = rest()[0]; d; d = rest()[0]) island(d.id);
   // Übrige, noch nicht gezeichnete Verbindungen als Querverbindungen
   for (const c of P.verbindungen) if (!usedConn.has(c.id) && seen.has(c.a.dev) && seen.has(c.b.dev)) { usedConn.add(c.id); extra.push(c); }
+  // Einheitlich für alle Geräte: Äste in Port-Reihenfolge des Elternteils (Port 1 oben),
+  // so wie man aufbaut und wie die Patchliste sortiert
+  const portNr = (eltern, kind) => {
+    const c = treeConn.get(kind), d = X.devById.get(eltern);
+    const e = c && (c.a.dev === eltern ? c.a : c.b.dev === eltern ? c.b : null);
+    const i = e ? (d?.ports || []).findIndex((p) => p.id === e.port) : -1;
+    return i < 0 ? 9999 : i;
+  };
+  for (const [id, ch] of children) ch.sort((a, b) => portNr(id, a) - portNr(id, b));
   const lose = P.geraete.filter((d) => !seen.has(d.id)).map((d) => d.id);
   return { roots, children, parent, treeConn, extra, lose };
 };
@@ -258,7 +330,7 @@ export const validate = (P, X) => {
       if (n === null) { add("error", `${where}: „${i.ip}“ ist keine gültige IPv4-Adresse.`, { dev: d.id }); continue; }
       if (!ipOwners.has(n)) ipOwners.set(n, []);
       ipOwners.get(n).push({ d, i });
-      if (!X.vlanById.get(i.vlan)) add("warn", `${where} (${i.ip}) ist keinem VLAN zugeordnet.`, { dev: d.id });
+      if (!X.vlanById.get(i.vlan)) add("warn", d.isSwitch ? `${where} (${i.ip}) ist keinem VLAN zugeordnet.` : `${where} (${i.ip}) hat kein VLAN: Der Switch-Port, an dem es steckt, hat keins, und die IP liegt in keinem VLAN-Subnetz.`, { dev: d.id });
     }
     if (d.webUi?.vorhanden && !webUrl(d)) add("info", `${d.name}: Web-UI ist eingetragen, aber es fehlt eine IP-Adresse für den Link.`, { dev: d.id });
   }
@@ -371,11 +443,6 @@ export const addConnection = (P, fromId, toId, opts = {}) => {
   if (uplinkFib && !opts.kabel) opts = { ...opts, kabel: "fiber_mm" };
   const c = { id: uid(), a: { dev: a.id, port: pa.id }, b: { dev: b.id, port: pb.id }, kabel: opts.kabel || (p2p ? "p2p" : "cat6"), laenge: opts.laenge || "", label: opts.label || "", notiz: "" };
   const managed = (d) => d.isSwitch && d.typ !== "switch_unmanaged";
-  // Switch-Port übernimmt das VLAN des Endgeräts (Access)
-  for (const [sw, sp, ep, epp] of [[a, pa, b, pb], [b, pb, a, pa]]) {
-    if (!managed(sw) || ep.isSwitch) continue;
-    if (epp.vlan && !sp.vlan && sp.modus === "access") sp.vlan = epp.vlan;
-  }
   // Switch ↔ Switch: Trunk mit allen VLANs
   if (managed(a) && managed(b)) for (const p of [pa, pb]) if (!p.vlan) { p.modus = "trunk"; p.vlans = P.vlans.map((v) => v.id); }
   P.verbindungen.push(c);
