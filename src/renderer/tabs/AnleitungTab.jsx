@@ -45,7 +45,7 @@ const KAPITEL = [
       "Die Werkzeugleiste steht fest über Geräteliste, Zeichenfläche und Seitenleiste. Öffnet sich rechts der Editor, springt nichts mehr um.",
       "„+ Aus Katalog …“ öffnet die Suche über Herstellermodelle, eigene Vorlagen und deinen Gerätebestand. Ist ein Gerät ausgewählt, hängt das neue direkt daran.",
       "„Verbinden“ (Taste C): von Gerät zu Gerät ziehen. Das Endgerät übernimmt das VLAN des Switch-Ports. Switch-zu-Switch-Verbindungen werden Trunks mit allen VLANs.",
-      "„Bewegen“ (Taste M): Geräte ziehen, der ganze Ast zieht mit. „Auto-Layout“ setzt die Verschiebungen zurück, „Äste“ klappt Äste ein.",
+      "„Bewegen“ (Taste M): Geräte ziehen, der ganze Ast zieht mit. „Auto-Layout“ setzt die Verschiebungen zurück, „Äste“ klappt Äste ein. Die Geräte eines Astes stehen bei jedem Switch in der Reihenfolge seiner Ports (Port 1 oben), genau wie in der Patchliste.",
       "Rechtsklick auf ein Gerät zeigt Ports, Verbindungen und IPs. Entf löscht die Auswahl.",
       "Mausrad zoomt. Shift + Mausrad schiebt die Fläche hoch und runter, ⌘ (Mac) bzw. Strg (Windows) + Mausrad schiebt sie nach links und rechts.",
     ]} />
@@ -83,7 +83,8 @@ const KAPITEL = [
       "In der Ansicht Anschlüsse fasst „Kabel bündeln“ alle Kabel eines Switches, die in dieselbe Richtung laufen, in einem gemeinsamen Kanal direkt am Switch zusammen. Ohne Bündeln läuft jedes Kabel auf eigener Bahn mit gut sichtbarem Abstand. Kabel zwischen Geräten im selben Stapel erscheinen als Klammer seitlich am Stapel.",
       "„Titel“: in den Kästen den Gerätenamen, den Netzwerknamen (Hostname), den Typ bzw. das Modell oder den Wert eines eigenen Felds (z. B. Inventar-Nr.) zeigen. Ohne Netzwerknamen steht dort der Typ.",
       "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports untereinander am Gerät, auch bei gebündelten Kabeln. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
-      "„Status“ prüft alle Geräte mit IP (Web-UI-Port, sonst Ping). Mit „alle 15 s“ läuft das zyklisch, sofern der Rechner im selben Netz hängt.",
+      "„Status“ prüft jede IP aller Geräte (am Web-UI-Anschluss per Web-UI-Port, sonst Ping) über die Netzwerkkarte, die im Live-Tab gewählt ist. Antwortet eine IP, gilt das Gerät als erreichbar. Welche IPs antworten, steht im Geräte-Editor an jedem Anschluss („antwortet“ / „keine Antwort“). Mit „alle 15 s“ läuft das zyklisch.",
+      "Meldungszentrum links in der Werkzeugleiste: Fehler, Warnungen und Hinweise der Prüfung als Zähler. Klick auf einen Zähler listet die Meldungen, „Zeigen“ springt zum Gerät, „Alle in Prüfung“ öffnet den Prüfungs-Tab.",
     ]} />
   </> },
   { id: "geraete", titel: "Geräte & Editor", tab: ["geraete", "Geräte"], inhalt: () => <>
@@ -142,9 +143,12 @@ const KAPITEL = [
   { id: "live", titel: "Live", tab: ["live", "Live"], inhalt: () => <>
     <Bild id="live" text="Live-Tab: Online-Status der geplanten Geräte" />
     <Liste items={[
+      "Netzwerkkarte (oben rechts): Alles im Live-Tab läuft nur über die gewählte Karte, also Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch der Status in der Topologie). Nach einem Wechsel laufende Monitore neu starten.",
       "Online-Status: welche geplanten Geräte antworten. Netzwerkscan: ein Subnetz nach aktiven Adressen durchsuchen, gefundene IPs zeigen den Gerätenamen aus dem Plan.",
       "Switches (SNMP): Portstatus und Zähler der managed Switches lesen.",
       "Protokoll-Monitore für sACN, Art-Net, Dante, MA-Net, NDI, OSC, CITP und PTP-Clock hören im Netz mit. Das funktioniert nur in der Desktop-App und nur im selben Netz.",
+      "Dante: Spalten wie in Dante Controller, soweit die Geräte sie per mDNS melden: Gerätename, Modell, Dante-Version, primäre und sekundäre Adresse, Abtastrate und Kanäle. Primär/Sekundär ordnet der Plan zu. Produktversion, Gerätesperre und Link-Geschwindigkeit liefert nur Dante Controller.",
+      "In einer gemeinsamen Sitzung prüft und lauscht jede App für sich über die eigene Netzwerkkarte. Live-Ergebnisse werden nicht geteilt, erst ein übernommenes Gerät landet im gemeinsamen Projekt.",
     ]} />
     <H>Discovery: Geräte automatisch finden</H>
     <Bild id="live-discovery" text="Discovery: gefundene Geräte, neu oder schon im Plan" />

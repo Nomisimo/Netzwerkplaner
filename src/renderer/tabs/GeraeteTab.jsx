@@ -97,7 +97,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
         onEdit={() => setSelection({ type: "dev", id: ctx.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(ctx.id)} />}
       {sel && (
         <Section style={{ position: "sticky", top: 12, maxHeight: "calc(100vh - 140px)", overflowY: "auto" }}>
-          <DeviceEditor key={sel.id} P={P} X={X} dev={sel} mutate={mutate} status={status[sel.id]} onCheck={checkReach} issues={devIssues(sel.id)} onClose={() => setSelection(null)}
+          <DeviceEditor key={sel.id} P={P} X={X} dev={sel} mutate={mutate} status={status[sel.id]} onCheck={checkReach} issues={devIssues(sel.id)} onClose={() => setSelection(null)} kopfAbstand={20}
             onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />
         </Section>
       )}

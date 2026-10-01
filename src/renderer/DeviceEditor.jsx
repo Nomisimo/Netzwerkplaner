@@ -228,7 +228,7 @@ function GenerischeMaske({ dev, status, upd, onUmbauen, onTypWaehlen, onDelete, 
   );
 }
 
-export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onClose, onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand = [] }) {
+export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onClose, kopfAbstand = 0, onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand = [] }) {
   const [protoInput, setProtoInput] = useState("");
   const [showKatalog, setShowKatalog] = useState(false);
   const [konfigDlg, setKonfigDlg] = useState(null);
@@ -254,7 +254,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
   return (
     <div>
       {/* Kopf: bleibt beim Scrollen oben stehen (Icon, Name, Status, Schließen) */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0, zIndex: 4, background: PANEL, padding: "6px 0 8px", marginTop: -6, borderBottom: `1px solid ${LINE}`, boxShadow: "0 6px 8px -6px #0008" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, position: "sticky", top: -kopfAbstand, zIndex: 4, background: PANEL, padding: `${kopfAbstand}px 0 8px`, marginTop: -kopfAbstand, borderBottom: `1px solid ${LINE}`, boxShadow: "0 6px 8px -6px #0008" }}>
         <IconPicker value={dev.icon} onChange={(v) => upd((g) => (g.icon = v))} customIcons={P.icons} color={col} />
         <input style={{ ...S.input, flex: 1, fontWeight: 700, fontSize: 15, minWidth: 0 }} value={dev.name} onChange={(e) => upd((g) => (g.name = e.target.value))} />
         <StatusDot st={status} size={11} />
