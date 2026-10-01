@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, katColor, TYPEN, KATEGORIEN, PORT_TYPEN } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, PANEL, katColor, TYPEN, KATEGORIEN, PORT_TYPEN } from "../shared/constants.js";
 import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid, hardwareFest } from "../shared/catalog.js";
 import { portSeiten } from "../shared/anschluesse.js";
 import { otherEnd, suggestIp, webUrl, clone, vlanQuelle } from "../shared/model.js";
@@ -228,7 +228,7 @@ function GenerischeMaske({ dev, status, upd, onUmbauen, onTypWaehlen, onDelete, 
   );
 }
 
-export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand = [] }) {
+export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compact, issues = [], onClose, onSelectDevice, onDelete, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand = [] }) {
   const [protoInput, setProtoInput] = useState("");
   const [showKatalog, setShowKatalog] = useState(false);
   const [konfigDlg, setKonfigDlg] = useState(null);
@@ -253,11 +253,12 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
 
   return (
     <div>
-      {/* Kopf */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {/* Kopf: bleibt beim Scrollen oben stehen (Icon, Name, Status, Schließen) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0, zIndex: 4, background: PANEL, padding: "6px 0 8px", marginTop: -6, borderBottom: `1px solid ${LINE}`, boxShadow: "0 6px 8px -6px #0008" }}>
         <IconPicker value={dev.icon} onChange={(v) => upd((g) => (g.icon = v))} customIcons={P.icons} color={col} />
         <input style={{ ...S.input, flex: 1, fontWeight: 700, fontSize: 15, minWidth: 0 }} value={dev.name} onChange={(e) => upd((g) => (g.name = e.target.value))} />
         <StatusDot st={status} size={11} />
+        {onClose && <button style={{ ...S.ghostBtn, padding: "4px 7px", flexShrink: 0 }} onClick={onClose} title="Schließen"><XIcon size={15} /></button>}
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
         {dev.webUi?.vorhanden && (

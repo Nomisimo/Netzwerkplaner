@@ -22,13 +22,14 @@ import { stapelEinfuegen } from "../../shared/konfig.js";
 import { useZwischenablage } from "../zwischenablage.js";
 import { einrasten, mitlaeufer, gruppeBewegen } from "../../shared/einrasten.js";
 import { KonfigEinfuegen } from "../KonfigDialog.jsx";
+import Meldungen from "../Meldungen.jsx";
 import { Network, Cable, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap } from "lucide-react";
 
 const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: "#9aa4af", p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
 
 export default function TopologieTab(props) {
-  const { P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onDeleteConn, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand, svgRef, autoStatus, setAutoStatus } = props;
+  const { P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onDeleteConn, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand, svgRef, autoStatus, setAutoStatus, onShowIssue, goTab } = props;
   const [tool, setTool] = useState("move");
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const [drag, setDrag] = useState(null);   // { kind:'node'|'pan', id, sx, sy, dx, dy, moved }
@@ -527,7 +528,9 @@ export default function TopologieTab(props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {/* Werkzeugleiste: feste Reihen über Palette, Zeichenfläche und Seitenleiste, damit nichts umspringt */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexShrink: 0 }}>
+      <div style={{ display: "flex", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexShrink: 0, position: "relative", zIndex: 5 }}>
+      <Meldungen issues={issues} onShowIssue={onShowIssue} goPruefung={() => goTab("pruefung")} breite={166} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 0 }}>
         <div style={zeile}>
           <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
             {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"]].map(([k, i, l]) => (
@@ -578,6 +581,7 @@ export default function TopologieTab(props) {
           </div>
           <Toggle checked={showPorts && !front} disabled={front} onChange={setShowPorts} label="Port & VLAN" title={front ? "In der Anschluss-Ansicht stehen die Ports direkt an den Buchsen" : "Switch-Port und VLAN an jeder Verbindung anzeigen"} />
         </div>
+      </div>
       </div>
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
@@ -826,10 +830,10 @@ export default function TopologieTab(props) {
       {/* Inspector */}
       {(selDev || selConn || selStapel || selIds.length > 1) && (
         <div style={{ width: 420, background: PANEL, borderLeft: `1px solid ${LINE}`, overflowY: "auto", padding: 14, flexShrink: 0 }}>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-            <button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)} title="Schließen"><XIcon size={14} /></button>
-          </div>
-          {selDev && <DeviceEditor key={selDev.id} compact P={P} X={X} dev={selDev} mutate={mutate} status={status[selDev.id]} onCheck={checkReach}
+          {!selDev && <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4, position: "sticky", top: 0, zIndex: 4 }}>
+            <button style={{ ...S.ghostBtn, padding: "2px 8px", background: PANEL }} onClick={() => setSelection(null)} title="Schließen"><XIcon size={14} /></button>
+          </div>}
+          {selDev && <DeviceEditor key={selDev.id} compact P={P} X={X} dev={selDev} mutate={mutate} status={status[selDev.id]} onCheck={checkReach} onClose={() => setSelection(null)}
             issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />}
           {selStapel && <StapelEditor P={P} stapelId={selStapel.id} pinned={!!pins[selStapel.ids[0]]} onPin={() => togglePin(selStapel.ids[0])} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
           {selIds.length > 1 && <MehrfachAuswahl P={P} X={X} ids={selIds} stapel={stapel} pins={pins} mutate={mutate} onPin={() => allePinnen(selIds)} onDelete={() => mehrereLoeschen(selIds)}
