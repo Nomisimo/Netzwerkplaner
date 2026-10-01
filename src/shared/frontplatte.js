@@ -5,34 +5,51 @@
    Gruppen werden als Baum von oben nach unten angeordnet und lassen sich frei
    verschieben (Offsets in layout.fpOffsets). */
 
+import { portSeiten, steckerTyp } from "./anschluesse.js";
+
 export const CARD_W = 184, CARD_H = 48, TAB_H = 15;
 const PW = 20, PH = 18, PG = 3, BLOCK_GAP = 10, LOGO_W = 44, RIGHT_W = 30, PAD_Y = 9;
 const MAX_COLS = 6, CARD_GAP_X = 16, CARD_GAP_Y = 26, CARDS_TOP = 44, LABEL_H = 18, LAYER_GAP = 90, CLUSTER_GAP = 60;
 
-export const familie = (typ) => (/etherCON/i.test(typ || "") ? "ec" : /SFP|opticalCON/i.test(typ || "") ? "sfp" : "cu");
+export const familie = (typ) => (/etherCON|opticalCON/i.test(typ || "") ? "ec" : /SFP/i.test(typ || "") ? "sfp" : "cu");
+const SEITEN_GAP = 26; // Abstand zwischen Vorder- und Rückseite auf der Platte
 const EC = 26; // etherCON-Buchse (rund, einreihig)
 
 /* Geometrie einer Frontplatte: Ports in Blöcken je Bauform. RJ45/SFP bei mehr
    als 6 Ports zweireihig (ungerade oben, gerade unten, max. 8 Spalten je Block),
    etherCON einreihig und größer. */
 export const plattenGeometrie = (dev) => {
-  const ports = (dev.ports || []).filter((p) => !p.virtuell); // virtuelle Anschlüsse (Management) haben keine Buchse
-  const rows = ports.filter((p) => familie(p.typ) !== "ec").length > 6 ? 2 : 1;
+  const alle = (dev.ports || []).filter((p) => !p.virtuell); // virtuelle Anschlüsse (Management) haben keine Buchse
+  // Vorderseite links, Rückseite rechts daneben (nur wenn das Gerät Buchsen hinten hat)
+  const seiteVon = portSeiten(dev);
+  const hinten = alle.filter((p) => seiteVon.get(p.id) === "hinten");
+  const vorne = alle.filter((p) => seiteVon.get(p.id) !== "hinten");
+  const ports = [...vorne, ...hinten];
+  const zweiSeiten = vorne.length > 0 && hinten.length > 0;
+  const rows = Math.max(vorne.filter((p) => familie(p.typ) !== "ec").length, hinten.filter((p) => familie(p.typ) !== "ec").length) > 6 ? 2 : 1;
   const bloecke = [];
   for (const p of ports) {
     const f = familie(p.typ);
+    const seite = seiteVon.get(p.id) === "hinten" ? "hinten" : "vorne";
     const last = bloecke[bloecke.length - 1];
     const max = f === "ec" ? 12 : 8 * rows;
-    if (last && last.f === f && last.ports.length < max) last.ports.push(p);
-    else bloecke.push({ f, ports: [p] });
+    if (last && last.f === f && last.seite === seite && last.ports.length < max) last.ports.push(p);
+    else bloecke.push({ f, seite, ports: [p] });
   }
   const gridH = rows * PH + (rows - 1) * PG;
   const innerH = Math.max(gridH, bloecke.some((b) => b.f === "ec") ? EC : 0);
   const slots = new Map();
+  const seiten = []; // [{ seite, x0, x1 }] für die Beschriftung
   let x = LOGO_W;
   for (const b of bloecke) {
+    if (zweiSeiten && b.seite === "hinten" && !seiten.some((t) => t.seite === "hinten")) {
+      seiten.push({ seite: "vorne", x0: LOGO_W, x1: x - BLOCK_GAP });
+      x += SEITEN_GAP - BLOCK_GAP + 10;
+      seiten.push({ seite: "hinten", x0: x, x1: null });
+    }
+    const extra = (p) => ({ seite: zweiSeiten || seiteVon.get(p.id) ? (b.seite) : null, stecker: steckerTyp(p), nr: alle.indexOf(p) + 1 });
     if (b.f === "ec") {
-      b.ports.forEach((p, k) => slots.set(p.id, { x: x + k * (EC + PG) + EC / 2, y: PAD_Y + innerH / 2, row: 0, w: EC, h: EC, fam: "ec", nr: ports.indexOf(p) + 1 }));
+      b.ports.forEach((p, k) => slots.set(p.id, { x: x + k * (EC + PG) + EC / 2, y: PAD_Y + innerH / 2, row: 0, w: EC, h: EC, fam: "ec", ...extra(p) }));
       x += b.ports.length * (EC + PG) - PG + BLOCK_GAP;
       continue;
     }
@@ -42,13 +59,14 @@ export const plattenGeometrie = (dev) => {
     b.ports.forEach((p, k) => {
       const col = r === 2 ? Math.floor(k / 2) : k;
       const row = r === 2 ? k % 2 : 0;
-      slots.set(p.id, { x: x + col * (PW + PG) + PW / 2, y: top + row * (PH + PG) + PH / 2, row, w: PW, h: PH, fam: b.f, nr: ports.indexOf(p) + 1 });
+      slots.set(p.id, { x: x + col * (PW + PG) + PW / 2, y: top + row * (PH + PG) + PH / 2, row, w: PW, h: PH, fam: b.f, ...extra(p) });
     });
     x += cols * (PW + PG) - PG + BLOCK_GAP;
   }
+  if (seiten.length) seiten[seiten.length - 1].x1 = x - BLOCK_GAP;
   const w = Math.max(x - BLOCK_GAP + RIGHT_W, 150);
   const h = PAD_Y * 2 + innerH;
-  return { w, h, rows, slots };
+  return { w, h, rows, slots, seiten };
 };
 
 /* Layout: liefert pos (Mittelpunkt, Breite, Höhe je Gerät), Slot-Positionen je Switch und Bounds */

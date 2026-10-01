@@ -5,6 +5,12 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.6": [
+    "Anschlüsse: Switches zeigen Vorder- und Rückseite. Liegen Buchsen auf beiden Seiten (z. B. GigaCore 16Xt: 10 vorne, 2 hinten), steht links „VORNE“ und rechts „HINTEN“ auf der Platte",
+    "Anschlüsse: Steckertypen sehen unterschiedlich aus. RJ45 eckig mit Rastnase, etherCON rund, opticalCON rund mit Glasfaser-Ring und Faserpunkten, SFP/SFP+ mit türkisem Rahmen",
+    "Anschlüsse: Endgeräte zeigen ihre Netzwerkbuchsen als kleine Symbole auf der Karte, mit V/H für vorne/hinten. Belegte Buchsen sind hell, der Tooltip nennt alle Anschlüsse des Modells",
+    "Grundlage ist eine Recherche in den Herstellerhandbüchern für 168 Katalogmodelle (Fokus: Luminex, MA, Yamaha, Cisco, Dante-Geräte). Im Geräte-Editor lässt sich die Seite je Port unter „Seite“ fest einstellen, „auto“ nimmt die Herstellerangabe",
+  ],
   "0.7.0-beta.5": [
     "Oberfläche: Die Werkzeugleiste der Topologie steht fest über Geräteliste, Zeichenfläche und Seitenleiste. Öffnet sich rechts der Editor, springen Knöpfe und Zeichenfläche nicht mehr um. Die Knöpfe sind in zwei feste Reihen sortiert",
     "Oberfläche: Eingeklappt zeigt die Geräteliste links die Typ-Icons als Miniaturen. Sie lassen sich weiter auf die Fläche ziehen oder per Doppelklick einfügen",
