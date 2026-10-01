@@ -558,13 +558,24 @@ export default function TopologieTab(props) {
   const zeile = { display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap", overflow: "hidden", minHeight: 32 };
   const knopf = { ...S.ghostBtn, whiteSpace: "nowrap", flexShrink: 0 };
   const ico = { size: 14, strokeWidth: 2 };
+  // Schmale Fenster: Nebenknöpfe nur als Icon (Titel bleibt als Tooltip), damit die Leiste nicht abschneidet
+  const leisteRef = useRef(null);
+  const [kompakt, setKompakt] = useState(false);
+  useEffect(() => {
+    const el = leisteRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => setKompakt(e.contentRect.width < 1330));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const lbl = (t) => (kompakt ? null : t);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {/* Werkzeugleiste: feste Reihen über Palette, Zeichenfläche und Seitenleiste, damit nichts umspringt */}
       <div style={{ display: "flex", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexShrink: 0, position: "relative", zIndex: 5 }}>
       <Meldungen issues={issues} onShowIssue={onShowIssue} goPruefung={() => goTab("pruefung")} breite={166} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 0 }}>
+      <div ref={leisteRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 0 }}>
         <div style={zeile}>
           <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
             {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"]].map(([k, i, l]) => (
@@ -577,19 +588,19 @@ export default function TopologieTab(props) {
             ))}
           </div>
           {trenner}
-          <button style={knopf} onClick={fit} title="Alles einpassen"><Maximize {...ico} />Einpassen</button>
+          <button style={knopf} onClick={fit} title="Alles einpassen"><Maximize {...ico} />{lbl("Einpassen")}</button>
           <button style={knopf} onClick={() => mitWarnung("Auto-Layout setzt alle von Hand verschobenen Geräte und Verbindungen dieser Ansicht zurück. Angepinnte Geräte und Stapel bleiben stehen.", () => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; }))}
-            title="Verschiebungen von Geräten und Verbindungen zurücksetzen. Angepinnte Geräte und Stapel bleiben."><RotateCcw {...ico} />Auto-Layout</button>
+            title="Verschiebungen von Geräten und Verbindungen zurücksetzen. Angepinnte Geräte und Stapel bleiben."><RotateCcw {...ico} />{lbl("Auto-Layout")}</button>
           <Toggle checked={rasten} onChange={(v) => mutate((d) => { d.layout.einrasten = v; })} label="Einrasten"
             title="An: Geräte rasten beim Ziehen im Raster ein und richten sich an Kanten und Mitten benachbarter Geräte aus. Alt gedrückt halten = frei ziehen." />
           <Toggle checked={auto} onChange={(an) => an ? mitWarnung("Auto-Anordnen ordnet alle Geräte neu an. Die von Hand gesetzten Positionen gehen dabei verloren, angepinnte Geräte bleiben stehen.", () => setAuto(true)) : setAuto(false)} label="Auto-Anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
           {trenner}
-          <button style={{ ...knopf, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan"><ImageIcon {...ico} />Hintergrund</button>
-          <button style={knopf} title="Alle Äste ein- oder ausklappen" onClick={() => mutate((d) => { const any = Object.values(d.layout.collapsed || {}).some(Boolean); d.layout.collapsed = any ? {} : Object.fromEntries([...T.children].filter(([id, ch]) => ch.length && !T.roots.includes(id)).map(([id]) => [id, true])); })}><ListTree {...ico} />Äste</button>
+          <button style={{ ...knopf, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan"><ImageIcon {...ico} />{lbl("Hintergrund")}</button>
+          <button style={knopf} title="Alle Äste ein- oder ausklappen" onClick={() => mutate((d) => { const any = Object.values(d.layout.collapsed || {}).some(Boolean); d.layout.collapsed = any ? {} : Object.fromEntries([...T.children].filter(([id, ch]) => ch.length && !T.roots.includes(id)).map(([id]) => [id, true])); })}><ListTree {...ico} />{lbl("Äste")}</button>
           <button style={knopf} disabled={!stapelClip} onClick={() => { if (!stapelClip) return; let neu = null; mutate((d) => { neu = stapelEinfuegen(d, stapelClip); }); if (neu?.stapelId) setSelection({ type: "stapel", id: neu.stapelId }); else if (neu?.ids[0]) setSelection({ type: "dev", id: neu.ids[0] }); }}
-            title={stapelClip ? `Kopierten Stapel „${stapelClip.name || "Stapel"}“ (${stapelClip.geraete.length} Geräte) einfügen` : "Erst im Stapel-Fenster einen Stapel kopieren"}><ClipboardPaste {...ico} />Stapel einfügen</button>
+            title={stapelClip ? `Kopierten Stapel „${stapelClip.name || "Stapel"}“ (${stapelClip.geraete.length} Geräte) einfügen` : "Erst im Stapel-Fenster einen Stapel kopieren"}><ClipboardPaste {...ico} />{lbl("Stapel einfügen")}</button>
           <span style={{ flex: 1 }} />
-          <button style={knopf} onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen"><RefreshCw {...ico} />Status</button>
+          <button style={knopf} onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen"><RefreshCw {...ico} />{lbl("Status")}</button>
           <Toggle checked={autoStatus} onChange={setAutoStatus} label="alle 15 s" title="Erreichbarkeit zyklisch prüfen" />
         </div>
         <div style={zeile}>

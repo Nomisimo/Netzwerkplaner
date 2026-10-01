@@ -263,6 +263,15 @@ export const buildTree = (P, X) => {
   for (let d = rest()[0]; d; d = rest()[0]) island(d.id);
   // Übrige, noch nicht gezeichnete Verbindungen als Querverbindungen
   for (const c of P.verbindungen) if (!usedConn.has(c.id) && seen.has(c.a.dev) && seen.has(c.b.dev)) { usedConn.add(c.id); extra.push(c); }
+  // Einheitlich für alle Geräte: Äste in Port-Reihenfolge des Elternteils (Port 1 oben),
+  // so wie man aufbaut und wie die Patchliste sortiert
+  const portNr = (eltern, kind) => {
+    const c = treeConn.get(kind), d = X.devById.get(eltern);
+    const e = c && (c.a.dev === eltern ? c.a : c.b.dev === eltern ? c.b : null);
+    const i = e ? (d?.ports || []).findIndex((p) => p.id === e.port) : -1;
+    return i < 0 ? 9999 : i;
+  };
+  for (const [id, ch] of children) ch.sort((a, b) => portNr(id, a) - portNr(id, b));
   const lose = P.geraete.filter((d) => !seen.has(d.id)).map((d) => d.id);
   return { roots, children, parent, treeConn, extra, lose };
 };
