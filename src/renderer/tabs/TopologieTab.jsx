@@ -18,11 +18,12 @@ import { uid, ipPorts } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
 import StapelEditor from "../StapelEditor.jsx";
 import PortTauschen from "../PortTauschen.jsx";
-import { stapelEinfuegen } from "../../shared/konfig.js";
-import { useZwischenablage } from "../zwischenablage.js";
+import { stapelEinfuegen, auswahlAus, auswahlEinfuegen } from "../../shared/konfig.js";
+import { useZwischenablage, ablegen } from "../zwischenablage.js";
 import { einrasten, mitlaeufer, gruppeBewegen } from "../../shared/einrasten.js";
 import { KonfigEinfuegen } from "../KonfigDialog.jsx";
 import Meldungen from "../Meldungen.jsx";
+import MehrfachBearbeiten from "../MehrfachBearbeiten.jsx";
 import { Network, Cable, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap } from "lucide-react";
 
 const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: "#9aa4af", p2p: "#e74c3c" };
@@ -43,6 +44,15 @@ export default function TopologieTab(props) {
   const [ctx, setCtx] = useState(null);
   const [bgOpen, setBgOpen] = useState(false);
   const stapelClip = useZwischenablage("stapel");
+  const geraeteClip = useZwischenablage("geraete"); // ⌘C / ⌘V
+  const mausWelt = useRef(null);   // letzte Mausposition auf der Fläche (Ziel für ⌘V)
+  const leertaste = useRef(false); // Leertaste gedrückt: Ziehen verschiebt die Ansicht
+  useEffect(() => {
+    const ab = (e) => { if (e.code === "Space" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { leertaste.current = true; if (e.target === document.body) e.preventDefault(); } };
+    const auf = (e) => { if (e.code === "Space") leertaste.current = false; };
+    window.addEventListener("keydown", ab); window.addEventListener("keyup", auf);
+    return () => { window.removeEventListener("keydown", ab); window.removeEventListener("keyup", auf); };
+  }, []);
   const [tausch, setTausch] = useState(null); // { from, to, voll: [devId] } wenn Anschlüsse fehlen
   const titel = P.layout.titel || "name"; // Beschriftung der Knoten
   const setTitel = (t) => mutate((d) => { d.layout.titel = t; });
@@ -66,7 +76,7 @@ export default function TopologieTab(props) {
   const rasten = P.layout.einrasten !== false; // Einrasten beim Ziehen (Raster und Nachbarn), Alt hält es kurz aus
   const pins = P.layout[pinKey] || {};
   const stapel = P.layout.stapel || [];
-  // Mehrfachauswahl: { type: "multi", ids } (Shift/⌘/Strg-Klick, Shift-Rahmen, ⌘/Strg+A)
+  // Mehrfachauswahl: { type: "multi", ids } (Shift/⌘/Strg-Klick, Rahmen auf der Fläche, ⌘/Strg+A)
   const selIds = selection?.type === "multi" ? selection.ids.filter((id) => X.devById.has(id)) : selection?.type === "dev" ? [selection.id] : [];
   const waehle = (ids) => { const u = [...new Set(ids)]; setSelection(u.length > 1 ? { type: "multi", ids: u } : u.length ? { type: "dev", id: u[0] } : null); };
   const eltern = useMemo(() => { const m = new Map(); for (const [id, ch] of T.children) for (const c of ch) m.set(c, id); return m; }, [T]);
@@ -195,6 +205,8 @@ export default function TopologieTab(props) {
   }, []);
 
   const onDown = (e, nodeId, conn = null, stapelId = null) => {
+    // Verschieben der Ansicht: mittlere Maustaste oder Leertaste + Ziehen
+    if (e.button === 1 || (e.button === 0 && leertaste.current)) { e.preventDefault(); e.stopPropagation(); setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false }); return; }
     if (e.button !== 0) return;
     e.stopPropagation();
     if (nodeId && (tool === "connect" || tool === "stack")) { const w = toWorld(e); setDraw({ from: nodeId, x: w.x, y: w.y, tool }); return; }
@@ -205,7 +217,7 @@ export default function TopologieTab(props) {
       const gruppe = !conn && !stapelId && !toggle && selIds.length > 1 && selIds.some((x) => stapelAnker(stapel, x) === id)
         ? [...new Set(selIds.map((x) => stapelAnker(stapel, x)))].filter((x) => x !== id) : null;
       setDrag({ kind: "node", id, klick: nodeId, gruppe, toggle, andere: rasten ? rastBoxen([id, ...(gruppe || [])]) : null, stapel: stapelId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false, conn });
-    } else if (e.shiftKey && tool === "move") { const w = toWorld(e); setDrag({ kind: "rahmen", x0: w.x, y0: w.y, x1: w.x, y1: w.y, sx: e.clientX, sy: e.clientY, moved: false }); }
+    } else if (tool === "move") { const w = toWorld(e); setDrag({ kind: "rahmen", dazu: toggle, x0: w.x, y0: w.y, x1: w.x, y1: w.y, sx: e.clientX, sy: e.clientY, moved: false }); }
     else setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false });
   };
   // Einrasten: Boxen aller Geräte, die beim Ziehen von id stehen bleiben
@@ -216,6 +228,7 @@ export default function TopologieTab(props) {
     return [...Lbase.pos].filter(([k]) => !mit.has(k)).map(([, p]) => boxOf(p));
   };
   const onMove = (e) => {
+    mausWelt.current = toWorld(e);
     if (draw) { const w = toWorld(e); setDraw({ ...draw, x: w.x, y: w.y }); setHover(hitNode(w)); return; }
     if (!drag) return;
     const ddx = e.clientX - drag.sx, ddy = e.clientY - drag.sy;
@@ -306,9 +319,14 @@ export default function TopologieTab(props) {
     } else if (drag.kind === "rahmen") {
       if (drag.moved) {
         const x0 = Math.min(drag.x0, drag.x1), x1 = Math.max(drag.x0, drag.x1), y0 = Math.min(drag.y0, drag.y1), y1 = Math.max(drag.y0, drag.y1);
-        const drin = [...L.pos].filter(([id, p]) => X.devById.has(id) && p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1).map(([id]) => id);
-        waehle([...selIds, ...drin]);
-      }
+        // Ein Gerät zählt, sobald der Rahmen es berührt
+        const drin = [...L.pos].filter(([id, p]) => {
+          if (!X.devById.has(id)) return false;
+          const w = (p.w || NODE_W) / 2, h = (p.h || NODE_H) / 2;
+          return p.x + w >= x0 && p.x - w <= x1 && p.y + h >= y0 && p.y - h <= y1;
+        }).map(([id]) => id);
+        waehle(drag.dazu ? [...selIds, ...drin] : drin);
+      } else setSelection(null);
     } else if (!drag.moved) setSelection(null);
     setDrag(null);
   };
@@ -342,6 +360,22 @@ export default function TopologieTab(props) {
     const k = (e) => {
       if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") { e.preventDefault(); waehle([...L.pos.keys()].filter((id) => X.devById.has(id))); return; }
+      // ⌘C / Strg+C: gewählte Geräte kopieren, ⌘V / Strg+V: an der Mausposition einfügen
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "c" && !window.getSelection()?.toString()) {
+        const ids = selection?.type === "dev" ? [selection.id] : selection?.type === "multi" ? selIds : selection?.type === "stapel" ? stapel.find((x) => x.id === selection.id)?.ids || [] : [];
+        const clip = ids.length ? auswahlAus(P, ids, L.pos) : null;
+        if (clip) { e.preventDefault(); ablegen(clip); }
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "v" && geraeteClip) {
+        e.preventDefault();
+        const r = wrapRef.current?.getBoundingClientRect();
+        const mitte = r ? { x: (r.width / 2 - view.x) / view.k, y: (r.height / 2 - view.y) / view.k } : { x: 0, y: 0 };
+        let ids = [];
+        mutate((d) => { ids = auswahlEinfuegen(d, geraeteClip, mausWelt.current || mitte); });
+        waehle(ids);
+        return;
+      }
       if ((e.key === "Delete" || e.key === "Backspace") && selection) {
         if (selection.type === "multi") mehrereLoeschen(selIds);
         else if (selection.type === "dev") onDeleteDevice(selection.id);
@@ -360,7 +394,7 @@ export default function TopologieTab(props) {
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
-  }, [selection, onDeleteDevice, onDeleteConn, setSelection, togglePin, mutate, L, X]);
+  }, [selection, onDeleteDevice, onDeleteConn, setSelection, togglePin, mutate, L, X, P, geraeteClip, view]);
 
   /* ── Filter & Suche ─────────────────────────────────────────────────── */
   const ql = q.trim().toLowerCase();
@@ -772,7 +806,7 @@ export default function TopologieTab(props) {
                   </g>
                 );
               })}
-              {/* Auswahlrahmen (Shift + Fläche ziehen) */}
+              {/* Auswahlrahmen (Fläche ziehen, mit Shift dazu) */}
               {drag?.kind === "rahmen" && drag.moved && <rect className="np-ui" x={Math.min(drag.x0, drag.x1)} y={Math.min(drag.y0, drag.y1)} width={Math.abs(drag.x1 - drag.x0)} height={Math.abs(drag.y1 - drag.y0)}
                 fill={ACCENT + "14"} stroke={ACCENT} strokeWidth={1 / view.k} strokeDasharray={`${4 / view.k} ${3 / view.k}`} pointerEvents="none" />}
               {/* Hilfslinien beim Einrasten */}
@@ -803,7 +837,7 @@ export default function TopologieTab(props) {
             </g>
           </svg>
           <div style={{ position: "absolute", left: 10, bottom: 8, fontSize: 11, color: MUTED, pointerEvents: "none" }}>
-            {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"}{rasten && tool === "move" ? " · Alt = ohne Einrasten" : ""}{tool === "move" ? " · Shift+Klick oder Shift+Fläche ziehen = mehrere wählen" : ""} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
+            {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · {tool === "move" ? "Leertaste/mittlere Taste + ziehen" : "Fläche ziehen"} = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"}{rasten && tool === "move" ? " · Alt = ohne Einrasten" : ""}{tool === "move" ? " · Fläche ziehen = Rahmen, Shift+Klick = mehrere wählen · ⌘/Strg+C/V = kopieren/einfügen" : ""} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
           {warnung && <Modal title="Layout von Hand angepasst" width={460} onClose={() => setWarnung(null)}
@@ -862,13 +896,14 @@ function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onS
   return (
     <div>
       <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{devs.length} Geräte ausgewählt</div>
-      <div style={{ ...S.hint, marginBottom: 10 }}>Ziehen an einem der Geräte verschiebt alle. Shift+Klick nimmt Geräte dazu oder heraus, Esc hebt die Auswahl auf.</div>
+      <div style={{ ...S.hint, marginBottom: 10 }}>Ziehen an einem der Geräte verschiebt alle. Shift+Klick oder Shift+Rahmen nimmt Geräte dazu, ⌘/Strg+C kopiert sie, Esc hebt die Auswahl auf.</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button style={{ ...S.smallBtn, ...(allePins ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={onPin} title="Taste P"><Pin size={12} />{allePins ? "Alle lösen" : "Alle anpinnen"}</button>
         <button style={S.smallBtn} onClick={alsStapel} title="Die gewählten Geräte in dieser Reihenfolge übereinander als Stapel (Rack, Tower)"><Layers size={12} />Als Stapel</button>
         {konfigClip && <button style={S.smallBtn} onClick={() => setKonfig(true)} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in alle gewählten Geräte einfügen`}><ClipboardPaste size={12} />Konfig einfügen</button>}
         <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={onDelete} title="Entf"><Trash2 size={12} />Alle löschen</button>
       </div>
+      <MehrfachBearbeiten P={P} devs={devs} mutate={mutate} />
       <div className="sp-section-label" style={{ marginTop: 16 }}>Auswahl</div>
       {devs.map((g) => (
         <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", border: `1px solid ${LINE}`, borderLeft: `3px solid ${katColor(g.kategorie)}`, borderRadius: 6, marginBottom: 4, background: "#1f242b" }}>

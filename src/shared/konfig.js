@@ -154,3 +154,43 @@ export const stapelEinfuegen = (d, clip, { namensZusatz = " (Kopie)" } = {}) => 
   d.layout.stapel = [...(d.layout.stapel || []), { id: stapelId, name: clip.name ? clip.name + namensZusatz : "", ids }];
   return { ids, stapelId };
 };
+
+/* Geräte-Auswahl in die Zwischenablage (⌘C): Geräte ohne IP/MAC (sonst IP-Konflikte),
+   Verbindungen und Stapel zwischen ihnen und ihre Lage zueinander (rel). */
+export const auswahlAus = (P, ids, pos = new Map()) => {
+  const devs = ids.map((id) => P.geraete.find((g) => g.id === id)).filter(Boolean);
+  if (!devs.length) return null;
+  const di = new Map(devs.map((g, n) => [g.id, n]));
+  const pi = (end) => devs[di.get(end.dev)].ports.findIndex((p) => p.id === end.port);
+  const geraete = devs.map((g) => {
+    const c = snapshotDevice(g, P.vlans);
+    for (const p of c.ports) { p.ip = ""; p.mac = ""; }
+    return c;
+  });
+  const verbindungen = P.verbindungen.filter((c) => di.has(c.a.dev) && di.has(c.b.dev)).map((c) => {
+    const { id, a, b, ...rest } = clone(c);
+    return { ...rest, a: { g: di.get(a.dev), p: pi(a) }, b: { g: di.get(b.dev), p: pi(b) } };
+  });
+  const stapel = (P.layout.stapel || []).filter((s) => s.ids.some((id) => di.has(id)))
+    .map((s) => ({ name: s.name || "", g: s.ids.filter((id) => di.has(id)).map((id) => di.get(id)) })).filter((s) => s.g.length > 1);
+  const pts = devs.map((g) => pos.get(g.id)).filter(Boolean);
+  const mx = pts.length ? pts.reduce((a, p) => a + p.x, 0) / pts.length : 0, my = pts.length ? pts.reduce((a, p) => a + p.y, 0) / pts.length : 0;
+  const rel = devs.map((g, n) => { const p = pos.get(g.id); return p ? { x: Math.round(p.x - mx), y: Math.round(p.y - my) } : { x: n * 30, y: n * 30 }; });
+  return { art: "geraete", geraete, verbindungen, stapel, rel };
+};
+
+/* Geräte aus der Zwischenablage einfügen (⌘V, ändert d). at = Mitte der neuen Geräte auf der Fläche */
+export const auswahlEinfuegen = (d, clip, at = null) => {
+  const neu = clip.geraete.map((g) => createDevice({ eigeneVorlage: { geraet: g }, vlans: d.vlans, name: g.name + " (Kopie)" }));
+  d.geraete.push(...neu);
+  for (const c of clip.verbindungen) {
+    const pa = neu[c.a.g]?.ports[c.a.p], pb = neu[c.b.g]?.ports[c.b.p];
+    if (pa && pb) d.verbindungen.push({ ...clone(c), id: uid(), a: { dev: neu[c.a.g].id, port: pa.id }, b: { dev: neu[c.b.g].id, port: pb.id } });
+  }
+  for (const s of clip.stapel || []) {
+    const ids = s.g.map((n) => neu[n]?.id).filter(Boolean);
+    if (ids.length > 1) d.layout.stapel = [...(d.layout.stapel || []), { id: uid(), name: s.name ? s.name + " (Kopie)" : "", ids }];
+  }
+  if (at) d.layout.pinned = { ...(d.layout.pinned || {}), ...Object.fromEntries(neu.map((g, n) => [g.id, { x: Math.round(at.x + (clip.rel?.[n]?.x || 0)), y: Math.round(at.y + (clip.rel?.[n]?.y || 0)) }])) };
+  return neu.map((g) => g.id);
+};
