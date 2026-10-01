@@ -8,6 +8,7 @@ import DiscoveryView from "../live/DiscoveryView.jsx";
 import SwitchView from "../live/SwitchView.jsx";
 import { SacnView, ArtnetView } from "../live/LichtViews.jsx";
 import { DanteView, NdiView, ManetView, OscView, CitpView, PtpView } from "../live/ProtokollViews.jsx";
+import { RefreshCw, TriangleAlert } from "lucide-react";
 
 // Untertabs: [Schlüssel, Beschriftung, Monitor im Hauptprozess]
 const SUBS = [
@@ -57,11 +58,11 @@ export default function LiveTab(props) {
             <option value="">alle</option>
             {interfaces.map((i) => <option key={i.name + i.address} value={i.address}>{i.name} · {i.address}/{i.prefix}</option>)}
           </select>
-          <button style={S.smallBtn} onClick={() => api.monInterfaces().then((l) => setInterfaces(l || []))} title="Liste neu laden">↻</button>
+          <button style={S.smallBtn} onClick={() => api.monInterfaces().then((l) => setInterfaces(l || []))} title="Liste neu laden"><RefreshCw size={12} /></button>
         </label>
       </div>
-      {!isElectron && <div style={{ color: WARN, fontSize: 13, marginBottom: 12 }}>⚠ Die Live-Werkzeuge brauchen Netzwerkzugriff und funktionieren nur in der Desktop-App.</div>}
-      {isElectron && !interfaces.length && <div style={{ color: WARN, fontSize: 13, marginBottom: 12 }}>⚠ Keine aktive Netzwerkverbindung gefunden.</div>}
+      {!isElectron && <div style={{ color: WARN, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><TriangleAlert size={14} style={{ flexShrink: 0 }} /> Die Live-Werkzeuge brauchen Netzwerkzugriff und funktionieren nur in der Desktop-App.</div>}
+      {isElectron && !interfaces.length && <div style={{ color: WARN, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><TriangleAlert size={14} style={{ flexShrink: 0 }} /> Keine aktive Netzwerkverbindung gefunden.</div>}
 
       <div style={{ ...S.section, padding: 18 }}>
         {sub === "status" && <StatusView {...p} />}

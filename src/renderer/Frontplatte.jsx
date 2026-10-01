@@ -3,11 +3,12 @@ import { ACCENT, OK, ERR, MUTED, TYPEN, katColor } from "../shared/constants.js"
 import { mainIp } from "../shared/model.js";
 import { CARD_W, CARD_H, TAB_H } from "../shared/frontplatte.js";
 import { SvgIcon } from "./icons.jsx";
+import { Zap, TriangleAlert, Globe } from "lucide-react";
 import { endInfo, portLabel, vlanLang, geraeteTitel } from "./portinfo.js";
 import { ipPorts } from "../shared/catalog.js";
 import { feldZeilen } from "../shared/felder.js";
 
-/* Darstellung für die Frontplatten-Ansicht (Stil Luminex Araneo) */
+/* Darstellung für die Anschluss-Ansicht (früher „Frontplatten“, Stil Luminex Araneo) */
 
 export const FP_BG = "#0e1430";
 const TRUNK = "#d8dde3";
@@ -85,7 +86,7 @@ function Slot({ s, z, d, onPortDown }) {
         <text x={s.x} y={s.y + 3.3} fontSize="8.5" fontWeight="700" fill={txt} textAnchor="middle">{s.nr}</text>
       </>}
       {aktiv && <circle cx={x0 + s.w - 2.5} cy={s.row ? y0 + s.h - 2.5 : y0 + 2.5} r="1.8" fill={OK} stroke="#0b0f1f" strokeWidth=".5" />}
-      {z.port.poe && <text x={x0 + 2.5} y={s.row ? y0 + s.h - 1.5 : y0 + 5.5} fontSize="5.5" fill={hell(farben[0]) ? "#10131a" : "#ffe066"}>⚡</text>}
+      {z.port.poe && <Zap x={x0 + 1.5} y={s.row ? y0 + s.h - 6.5 : y0 + 1.5} size={5} color={hell(farben[0]) ? "#10131a" : "#ffe066"} fill={hell(farben[0]) ? "#10131a" : "#ffe066"} strokeWidth={1} />}
     </g>
   );
 }
@@ -113,10 +114,10 @@ export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, wo
       <circle cx={x0 + p.w - 14} cy={y0 + 11} r="4.5" fill={!status || status.ok == null ? "#4a535e" : status.ok ? OK : ERR} stroke="#0b0f1f" strokeWidth="1.2">
         <title>{!status ? "Status unbekannt" : status.ok ? `erreichbar (${status.method}, ${status.ms} ms)` : status.ok === false ? `nicht erreichbar (${status.method})` : status.method}</title>
       </circle>
-      {worst && <text x={x0 + p.w - 14} y={y0 + 29} fontSize="11" fill={worst} textAnchor="middle">⚠<title>{iss.map((i) => i.msg).join("\n")}</title></text>}
+      {worst && <g><TriangleAlert x={x0 + p.w - 20} y={y0 + 19} size={12} color={worst} strokeWidth={2.2} /><rect x={x0 + p.w - 20} y={y0 + 19} width="12" height="12" fill="transparent"><title>{iss.map((i) => i.msg).join("\n")}</title></rect></g>}
       {url && (
         <g className="np-ui" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onWeb(); }} style={{ cursor: "pointer" }}>
-          <text x={x0 + p.w - 14} y={y0 + p.h - 5} fontSize="10" textAnchor="middle">🌐</text>
+          <Globe x={x0 + p.w - 19} y={y0 + p.h - 14} size={10} color="#7fb2ff" strokeWidth={2} /><rect x={x0 + p.w - 20} y={y0 + p.h - 15} width="12" height="12" fill="transparent" />
           <title>Web-UI öffnen: {url}</title>
         </g>
       )}
@@ -157,7 +158,7 @@ export function FrontCard({ d, p, P, farbe, tab, sel, hover, hit, dim, status, w
       <circle cx={x0 + CARD_W - 10} cy={y0 + 10} r="4" fill={!status || status.ok == null ? "#4a535e" : status.ok ? OK : ERR} stroke="#0b0f1f" strokeWidth="1.2">
         <title>{!status ? "Status unbekannt" : status.ok ? `erreichbar (${status.method}, ${status.ms} ms)` : status.ok === false ? `nicht erreichbar (${status.method})` : status.method}</title>
       </circle>
-      {worst && <text x={x0 + CARD_W - 10} y={y0 + CARD_H - 8} fontSize="11" fill={worst} textAnchor="middle">⚠<title>{iss.map((i) => i.msg).join("\n")}</title></text>}
+      {worst && <g><TriangleAlert x={x0 + CARD_W - 16} y={y0 + CARD_H - 18} size={11} color={worst} strokeWidth={2.2} /><rect x={x0 + CARD_W - 16} y={y0 + CARD_H - 18} width="11" height="11" fill="transparent"><title>{iss.map((i) => i.msg).join("\n")}</title></rect></g>}
     </g>
   );
 }

@@ -7,6 +7,7 @@ import { api } from "../api.js";
 import BestandView from "./BestandView.jsx";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
 import { newFeld, feldUmbenennen, feldEntfernen } from "../../shared/felder.js";
+import { Link, Check, X as XIcon, ChevronUp, ChevronDown } from "lucide-react";
 
 const FLAG_LABELS = [
   ["p2p", "Punkt-zu-Punkt, nicht über Switch", ERR],
@@ -90,8 +91,8 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
 
       {sub === "protokolle" && (
         <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 20, alignItems: "start" }}>
-          <Section style={{ position: "sticky", top: 100, maxHeight: "calc(100vh - 170px)", display: "flex", flexDirection: "column", padding: 14 }}>
-            <input style={{ ...S.inputSm, marginBottom: 6 }} placeholder="🔍 Protokoll oder Port (z. B. 6454)" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Section style={{ position: "sticky", top: 12, maxHeight: "calc(100vh - 170px)", display: "flex", flexDirection: "column", padding: 14 }}>
+            <input style={{ ...S.inputSm, marginBottom: 6 }} placeholder="Protokoll oder Port (z. B. 6454)" value={q} onChange={(e) => setQ(e.target.value)} />
             <select style={{ ...S.selectSm, marginBottom: 8 }} value={kat} onChange={(e) => setKat(e.target.value)}>
               <option value="">Alle Kategorien</option>{[...new Set(PROTOKOLLE.map((p) => p.kategorie))].map((k) => <option key={k}>{k}</option>)}
             </select>
@@ -99,7 +100,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
               {protos.map((p) => (
                 <div key={p.id} onClick={() => setProtoId(p.id)} style={{ padding: "6px 8px", borderRadius: 5, cursor: "pointer", fontSize: 13, background: cur?.id === p.id ? ACCENT : "transparent", color: cur?.id === p.id ? "#1c2127" : "#e8eaed", fontWeight: cur?.id === p.id ? 700 : 400, display: "flex", gap: 6, alignItems: "center" }}>
                   <span style={{ flex: 1 }}>{p.name}</span>
-                  {p.flags.p2p && <span title="Punkt-zu-Punkt">⛓</span>}
+                  {p.flags.p2p && <span title="Punkt-zu-Punkt" style={{ display: "inline-flex" }}><Link size={12} /></span>}
                   <span style={{ fontSize: 10, opacity: 0.7 }}>{p.kategorie}</span>
                 </div>
               ))}
@@ -112,7 +113,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       {sub === "katalog" && (
         <Section title="Herstellergeräte" subtitle={`Stand ${KATALOG.stand} · ${geraete.length} Modelle. Fokus-Hersteller (${(KATALOG.fokus || []).join(", ")}) sind gegen Herstellerdoku recherchiert; der Datenstand steht je Modell in den Details.`}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="🔍 Hersteller, Modell, Typ, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="Hersteller, Modell, Typ, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
             <select style={{ ...S.selectSm, width: "auto" }} value={herst} onChange={(e) => setHerst(e.target.value)}><option value="">Alle Hersteller</option>{hersteller.map((h) => <option key={h}>{h}</option>)}</select>
             <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}><option value="">Alle Bereiche</option>{["Ton", "Licht", "Bild", "Netzwerk", "Bühne", "Intercom"].map((k) => <option key={k}>{k}</option>)}</select>
             <Toggle checked={nurFokus} onChange={(c) => { setNurFokus(c); setHerst(""); }} label="nur Fokus-Hersteller" />
@@ -124,7 +125,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
                 <React.Fragment key={g.id}>
                   <tr style={{ cursor: "pointer" }} onClick={() => setOpen(open === g.id ? null : g.id)}>
                     <td style={S.td}><IconView icon={TYPEN[g.typ]?.icon} color={katColor(g.kategorie)} size={20} /></td>
-                    <td style={S.td}><div style={{ fontWeight: 600 }}>{g.modell}{g.fokus && /geprüft/i.test(g.raw.Datenstand || "") && <span title={g.raw.Datenstand} style={{ color: OK, marginLeft: 6, fontSize: 11 }}>✓ geprüft</span>}</div><div style={{ fontSize: 11, color: MUTED }}>{g.hersteller}</div></td>
+                    <td style={S.td}><div style={{ fontWeight: 600 }}>{g.modell}{g.fokus && /geprüft/i.test(g.raw.Datenstand || "") && <span title={g.raw.Datenstand} style={{ color: OK, marginLeft: 6, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 3 }}><Check size={12} /> geprüft</span>}</div><div style={{ fontSize: 11, color: MUTED }}>{g.hersteller}</div></td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.geraetetyp}</td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.raw["Netzwerkports (Anzahl)"]}</td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.raw["Web-UI"]}</td>
@@ -152,7 +153,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       {sub === "bestand" && <BestandView P={P} library={library} setLibrary={setLibrary} onAddDevice={onAddDevice} onSelectDevice={onSelectDevice} onSaveAlleBestand={onSaveAlleBestand} allIcons={allIcons} notify={notify} />}
 
       {sub === "vorlagen" && (
-        <Section title="Eigene Vorlagen" right={<button style={S.primaryBtn} onClick={() => setNeueVorlage(true)}>+ Neue Vorlage</button>} subtitle="Vorlagen sind Gerätetypen ohne Adressen (Ports, VLANs, Protokolle). Für konkrete Geräte mit IPs gibt es den Gerätebestand. Mit „+ Neue Vorlage“ anlegen oder im Geräte-Editor mit „＋ Vorlage“ speichern. Vorlagen liegen im Katalog der App und stehen in jedem Projekt zur Verfügung.">
+        <Section title="Eigene Vorlagen" right={<button style={S.primaryBtn} onClick={() => setNeueVorlage(true)}>+ Neue Vorlage</button>} subtitle="Vorlagen sind Gerätetypen ohne Adressen (Ports, VLANs, Protokolle). Für konkrete Geräte mit IPs gibt es den Gerätebestand. Mit „+ Neue Vorlage“ anlegen oder im Geräte-Editor mit „Vorlage“ speichern. Vorlagen liegen im Katalog der App und stehen in jedem Projekt zur Verfügung.">
           {neueVorlage && <GeraetAnlegen P={P} ziel="vorlage" onClose={() => setNeueVorlage(false)} onSave={(v) => { setLibrary((l) => ({ ...l, vorlagen: [...(l.vorlagen || []), v] })); setNeueVorlage(false); notify(`Vorlage „${v.name}“ angelegt.`); }} />}
           {!(library.vorlagen || []).length && <p style={S.empty}>Noch keine eigenen Vorlagen.</p>}
           {(library.vorlagen || []).map((v) => (
@@ -161,7 +162,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
               <input style={{ ...S.inputSm, maxWidth: 300 }} value={v.name} onChange={(e) => setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.map((x) => (x.id === v.id ? { ...x, name: e.target.value } : x)) }))} />
               <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{v.geraet.hersteller} {v.geraet.modell} · {physPorts(v.geraet).length} Ports · {ipPorts(v.geraet).filter((i) => i.ip || i.dhcp || i.virtuell || i.vlan).length} mit IP/VLAN</span>
               <button style={S.smallBtn} onClick={() => onAddDevice({ kind: "vorlage", key: v.id }, {})}>+ ins Projekt</button>
-              <button style={S.dangerBtn} onClick={() => confirm(`Vorlage „${v.name}“ löschen?`) && setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.filter((x) => x.id !== v.id) }))}>✕</button>
+              <button style={S.dangerBtn} onClick={() => confirm(`Vorlage „${v.name}“ löschen?`) && setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.filter((x) => x.id !== v.id) }))}><XIcon size={14} /></button>
             </div>
           ))}
         </Section>
@@ -260,9 +261,9 @@ function FelderView({ P, mutate, library, setLibrary }) {
           <div key={f.id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px" }}>
             <input style={{ ...S.inputSm, maxWidth: 300 }} value={f.name} onChange={(e) => umbenennen(f.id, e.target.value)} />
             <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{imProjekt} im Projekt · {imKatalog} in Bestand/Vorlagen</span>
-            <button style={{ ...S.smallBtn, padding: "3px 7px" }} disabled={i === 0} onClick={() => verschieben(i, -1)} title="nach oben">↑</button>
-            <button style={{ ...S.smallBtn, padding: "3px 7px" }} disabled={i === felder.length - 1} onClick={() => verschieben(i, 1)} title="nach unten">↓</button>
-            <button style={S.dangerBtn} onClick={() => loeschen(f)}>✕</button>
+            <button style={{ ...S.smallBtn, padding: "3px 7px" }} disabled={i === 0} onClick={() => verschieben(i, -1)} title="nach oben"><ChevronUp size={12} /></button>
+            <button style={{ ...S.smallBtn, padding: "3px 7px" }} disabled={i === felder.length - 1} onClick={() => verschieben(i, 1)} title="nach unten"><ChevronDown size={12} /></button>
+            <button style={S.dangerBtn} onClick={() => loeschen(f)}><XIcon size={14} /></button>
           </div>
         );
       })}

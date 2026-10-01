@@ -4,6 +4,7 @@ import { KERN, KERN_BY_ID, defaultParams, streamRate, streamVorschlag } from "..
 import { newStream, streamVlans, fmtMbit } from "../shared/analyse.js";
 import { Toggle, VlanChip } from "./ui.jsx";
 import { ipPorts } from "../shared/catalog.js";
+import { ChevronDown, X as XIcon, RefreshCw } from "lucide-react";
 
 // Eingabefeld für einen Protokollparameter
 export function ParamInput({ p, value, onChange, small = true }) {
@@ -26,7 +27,7 @@ function ZielePicker({ P, dev, value, onChange }) {
   const label = sel.size ? `${sel.size} Ziel${sel.size > 1 ? "e" : ""}` : "offen";
   return (
     <div style={{ position: "relative" }}>
-      <button style={{ ...S.smallBtn, width: "100%", textAlign: "left" }} title={[...sel].map((id) => P.geraete.find((d) => d.id === id)?.name).filter(Boolean).join("\n") || "Keine Empfänger festgelegt: Worst Case (alles Richtung Core)"} onClick={() => setOpen((o) => !o)}>{label} ▾</button>
+      <button style={{ ...S.smallBtn, width: "100%", textAlign: "left" }} title={[...sel].map((id) => P.geraete.find((d) => d.id === id)?.name).filter(Boolean).join("\n") || "Keine Empfänger festgelegt: Worst Case (alles Richtung Core)"} onClick={() => setOpen((o) => !o)}>{label} <ChevronDown size={12} /></button>
       {open && (
         <div style={{ position: "absolute", zIndex: 40, top: "100%", right: 0, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, width: 240, maxHeight: 280, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.5)" }} onMouseLeave={() => setOpen(false)}>
           <input autoFocus style={{ ...S.inputSm, marginBottom: 6 }} placeholder="Empfänger suchen" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -101,7 +102,7 @@ export default function StroemeEditor({ P, X, dev, upd, onShowKern }) {
                       {vl.length > 1 && <div style={{ fontSize: 10, color: MUTED }}>je Netz</div>}
                     </td>
                     <td style={{ ...S.td, width: 28 }}>
-                      <button style={{ ...S.dangerBtn, padding: "1px 6px" }} title="Strom löschen" onClick={() => upd((g) => g.stroeme.splice(n, 1))}>✕</button>
+                      <button style={{ ...S.dangerBtn, padding: "1px 6px" }} title="Strom löschen" onClick={() => upd((g) => g.stroeme.splice(n, 1))}><XIcon size={12} /></button>
                     </td>
                   </tr>
                 );
@@ -117,7 +118,7 @@ export default function StroemeEditor({ P, X, dev, upd, onShowKern }) {
         </select>
         {vorschlag.length > 0 && list.length === 0 && (
           <button style={S.smallBtn} title={vorschlag.map((v) => `${KERN_BY_ID[v.proto].name}: ${v.menge} ${KERN_BY_ID[v.proto].einheit}`).join("\n")}
-            onClick={() => upd((g) => { g.stroeme = vorschlag.map((v) => newStream(v)); })}>⟳ Vorschlag aus Protokollen</button>
+            onClick={() => upd((g) => { g.stroeme = vorschlag.map((v) => newStream(v)); })}><RefreshCw size={14} /> Vorschlag aus Protokollen</button>
         )}
         <span style={{ flex: 1 }} />
         {list.length > 0 && <span style={{ fontSize: 12, color: SUB }}>Summe <b style={{ color: ACCENT, fontFamily: "monospace" }}>{fmtMbit(summe)}</b></span>}

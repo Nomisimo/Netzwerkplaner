@@ -5,6 +5,7 @@ import { useMonitor } from "./store.js";
 import { MonBar, Table, td, Hint, Empty, PlanName, Age, Card, Pill, mono } from "./common.jsx";
 import { Toggle } from "../ui.jsx";
 import { parseList } from "./LichtViews.jsx";
+import { TriangleAlert, OctagonX } from "lucide-react";
 
 const TxtList = ({ txt }) => {
   const e = Object.entries(txt || {}).filter(([k]) => k);
@@ -42,7 +43,7 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
         {mon.running && <button style={S.smallBtn} onClick={() => mon.action("query")}>Erneut fragen</button>}
         {mon.running && <span style={{ fontSize: 11, color: MUTED }}>fragt alle 15 s per mDNS</span>}
       </MonBar>
-      {s?.notes?.map((n, i) => <div key={i} style={{ fontSize: 12, color: WARN, marginBottom: 8 }}>⚠ {n}</div>)}
+      {s?.notes?.map((n, i) => <div key={i} style={{ fontSize: 12, color: WARN, marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 5 }}><TriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {n}</div>)}
       {mon.running && (
         <Card title={`Dante-Geräte (${devices.length})`}>
           {!devices.length ? <Empty>Noch keine Antwort. Dante-Geräte melden sich per mDNS, wenn der Rechner im selben Netz hängt.</Empty> : (
@@ -64,7 +65,7 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
         {!ptp.running ? <div style={{ fontSize: 12, color: SUB }}>PTP-Monitor ist aus. <button style={{ ...S.smallBtn, marginLeft: 6 }} onClick={() => ptp.start({ iface })}>Starten</button></div>
           : !masters.length ? <Empty>Kein PTP-Master gehört.</Empty>
           : masters.map((c) => <div key={c.version + c.domain + c.clock} style={{ fontSize: 12, marginBottom: 4 }}>PTPv{c.version} Domain {c.domain}: Master <span style={mono}>{c.ip}</span> <PlanName P={P} ip={c.ip} onSelectDevice={onSelectDevice} /> · Sync {c.syncRate}/s</div>)}
-        {ptp.snapshot?.conflicts?.length > 0 && <div style={{ color: ERR, fontSize: 12, marginTop: 6 }}>⛔ Mehrere Master in derselben Domain: {ptp.snapshot.conflicts.map((c) => `${c.domain} (${c.ips.join(", ")})`).join("; ")}</div>}
+        {ptp.snapshot?.conflicts?.length > 0 && <div style={{ color: ERR, fontSize: 12, marginTop: 6, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={13} style={{ flexShrink: 0, marginTop: 1 }} /> Mehrere Master in derselben Domain: {ptp.snapshot.conflicts.map((c) => `${c.domain} (${c.ips.join(", ")})`).join("; ")}</div>}
       </Card>
       <Hint>
         Gelistet wird, was die Geräte per mDNS (DNS-SD) ankündigen: Name, IP und die Kanalnamen, die sie als Dienst melden. Abos, Latenz und Routing liest nur Dante Controller über das nicht offene Audinate-Protokoll; diese App ändert nichts an Dante-Geräten.
@@ -83,7 +84,7 @@ export function NdiView({ P, iface, onSelectDevice }) {
       <MonBar mon={mon} label="Quellen suchen" onStart={() => mon.start({ iface })}>
         {mon.running && <button style={S.smallBtn} onClick={() => mon.action("query")}>Erneut fragen</button>}
       </MonBar>
-      {s?.notes?.map((n, i) => <div key={i} style={{ fontSize: 12, color: WARN, marginBottom: 8 }}>⚠ {n}</div>)}
+      {s?.notes?.map((n, i) => <div key={i} style={{ fontSize: 12, color: WARN, marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 5 }}><TriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {n}</div>)}
       {mon.running && (
         <Card title={`NDI-Quellen (${list.length})`}>
           {!list.length ? <Empty>Keine NDI-Quelle gefunden. Mit NDI Discovery Server (TCP 5959) melden sich Quellen nicht per mDNS.</Empty> : (
@@ -259,7 +260,7 @@ export function PtpView({ P, iface, onSelectDevice }) {
       <MonBar mon={mon} onStart={() => mon.start({ iface })}>
         {mon.running && <button style={S.smallBtn} onClick={() => mon.action("clear")}>Leeren</button>}
       </MonBar>
-      {s?.conflicts?.length > 0 && <div style={{ color: ERR, fontSize: 13, marginBottom: 12 }}>⛔ Mehrere Master senden in derselben Domain: {s.conflicts.map((c) => `${c.domain}: ${c.ips.join(", ")}`).join("; ")}. Das deutet auf getrennte Clock-Inseln oder eine Fehlkonfiguration hin.</div>}
+      {s?.conflicts?.length > 0 && <div style={{ color: ERR, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={14} style={{ flexShrink: 0, marginTop: 2 }} /> Mehrere Master senden in derselben Domain: {s.conflicts.map((c) => `${c.domain}: ${c.ips.join(", ")}`).join("; ")}. Das deutet auf getrennte Clock-Inseln oder eine Fehlkonfiguration hin.</div>}
       {mon.running && s && (
         <Card title={`Uhren (${clocks.length})`}>
           {!clocks.length ? <Empty>Noch kein PTP-Paket. Sichtbar sind Master (Sync/Announce) und Slaves, die Delay_Req per Multicast senden.</Empty> : (

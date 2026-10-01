@@ -3,6 +3,7 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK } from "../../shared/c
 import { KATALOG, findProtokoll, ipPorts } from "../../shared/catalog.js";
 import { Section, SevBadge, SEV, VlanChip } from "../ui.jsx";
 import { GOLD_STANDARDS, maNetGen } from "../../shared/manet.js";
+import { Check } from "lucide-react";
 
 export default function PruefungTab({ P, X, issues, onShowIssue }) {
   const [filter, setFilter] = useState({ error: true, warn: true, info: true });
@@ -25,7 +26,7 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
             </button>
           ))}
         </div>
-        {issues.length === 0 && <div style={{ padding: 16, border: `1px solid ${OK}55`, background: OK + "14", borderRadius: 8, color: OK, fontWeight: 600 }}>✓ Keine Auffälligkeiten gefunden.</div>}
+        {issues.length === 0 && <div style={{ padding: 16, border: `1px solid ${OK}55`, background: OK + "14", borderRadius: 8, color: OK, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}><Check size={16} /> Keine Auffälligkeiten gefunden.</div>}
         {shown.map((i, n) => (
           <div key={n} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 10px", borderBottom: `1px solid ${LINE}`, fontSize: 13 }}>
             <SevBadge sev={i.sev} />
@@ -43,7 +44,7 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
             })}</tbody>
           </table>
           {(() => { const n = issues.filter((i) => i.msg.startsWith("MA-Net:") && i.sev !== "info").length;
-            return <div style={{ marginTop: 10, fontSize: 13, color: n ? WARN : OK, fontWeight: 600 }}>{n ? `${n} Abweichung${n > 1 ? "en" : ""} von den Gold-Standards` : "✓ Alle MA-Net-Regeln erfüllt"}</div>; })()}
+            return <div style={{ marginTop: 10, fontSize: 13, color: n ? WARN : OK, fontWeight: 600 }}>{n ? `${n} Abweichung${n > 1 ? "en" : ""} von den Gold-Standards` : <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Check size={14} /> Alle MA-Net-Regeln erfüllt</span>}</div>; })()}
         </Section>
       )}
 

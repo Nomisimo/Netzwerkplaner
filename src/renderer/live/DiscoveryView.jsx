@@ -3,6 +3,7 @@ import { S, OK, INFO, MUTED, SUB, TYPEN } from "../../shared/constants.js";
 import { sammleFunde, fundeMitPlan, fundZuGeraet } from "../../shared/discovery.js";
 import { useMonitor } from "./store.js";
 import { Table, td, Hint, Empty, Pill, mono } from "./common.jsx";
+import { Play, RefreshCw, Square } from "lucide-react";
 
 // Monitore, die beim Suchen starten. Nur Mithören plus mDNS-Abfragen und ArtPoll.
 const SUCHE = ["dante", "ndi", "artnet", "sacn", "citp", "manet"];
@@ -40,9 +41,9 @@ export default function DiscoveryView({ P, mutate, iface, onSelectDevice, notify
     <div>
       <div style={{ ...S.row, alignItems: "center" }}>
         {laeuft.length < SUCHE.length
-          ? <button style={S.primaryBtn} onClick={suchen}>▶ Geräte suchen</button>
-          : <button style={S.secondaryBtn} onClick={() => { mons.artnet.action("poll"); mons.dante.action("query"); mons.ndi.action("query"); }}>↻ Erneut fragen</button>}
-        {laeuft.length > 0 && <button style={S.ghostBtn} onClick={stoppen}>■ Suche stoppen</button>}
+          ? <button style={S.primaryBtn} onClick={suchen}><Play size={12} fill="currentColor" /> Geräte suchen</button>
+          : <button style={S.secondaryBtn} onClick={() => { mons.artnet.action("poll"); mons.dante.action("query"); mons.ndi.action("query"); }}><RefreshCw size={14} /> Erneut fragen</button>}
+        {laeuft.length > 0 && <button style={S.ghostBtn} onClick={stoppen}><Square size={12} fill="currentColor" /> Suche stoppen</button>}
         <button style={S.ghostBtn} onClick={() => goSub?.("scan")}>Subnetz scannen …</button>
         <span style={{ fontSize: 12, color: SUB }}>
           {laeuft.length ? `Hört mit: ${laeuft.map((k) => ({ dante: "Dante", ndi: "NDI", artnet: "Art-Net", sacn: "sACN", citp: "CITP", manet: "MA-Net" })[k]).join(", ")}` : "Suche aus"}

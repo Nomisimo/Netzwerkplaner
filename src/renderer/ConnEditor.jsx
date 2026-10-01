@@ -3,6 +3,7 @@ import { S, KABEL, MUTED, ERR } from "../shared/constants.js";
 import { connVlan, isP2PConn } from "../shared/model.js";
 import { physPorts } from "../shared/catalog.js";
 import { Field, VlanChip, SevBadge } from "./ui.jsx";
+import { ArrowUpDown, Link, Trash2 } from "lucide-react";
 
 export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevice, issues = [] }) {
   const upd = (fn) => mutate((d) => fn(d.verbindungen.find((c) => c.id === conn.id)));
@@ -37,7 +38,7 @@ export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevic
       <div className="sp-section-label">Verbindung</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
         <End end={conn.a} k="a" />
-        <div style={{ textAlign: "center", color: MUTED }}>⇅</div>
+        <div style={{ display: "flex", justifyContent: "center", color: MUTED }}><ArrowUpDown size={14} /></div>
         <End end={conn.b} k="b" />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
@@ -52,10 +53,10 @@ export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevic
       <div style={{ marginTop: 12, fontSize: 12, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{ color: MUTED }}>{cv.kind === "trunk" ? "Trunk:" : "VLAN:"}</span>
         {cv.vlans.length ? cv.vlans.map((id) => <VlanChip key={id} v={X.vlanById.get(id)} small={cv.vlans.length > 2} />) : <span style={{ color: MUTED }}>nicht festgelegt</span>}
-        {isP2PConn(conn, X) && <span style={{ ...S.chip, borderColor: ERR }}>⛓ Punkt-zu-Punkt</span>}
+        {isP2PConn(conn, X) && <span style={{ ...S.chip, borderColor: ERR }}><Link size={12} /> Punkt-zu-Punkt</span>}
       </div>
       {issues.map((i, n) => <div key={n} style={{ fontSize: 11, marginTop: 6, display: "flex", gap: 6 }}><SevBadge sev={i.sev} /><span>{i.msg}</span></div>)}
-      <button style={{ ...S.dangerBtnWide, marginTop: 14 }} onClick={() => onDelete(conn.id)}>🗑 Verbindung löschen</button>
+      <button style={{ ...S.dangerBtnWide, marginTop: 14, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => onDelete(conn.id)}><Trash2 size={14} /> Verbindung löschen</button>
     </div>
   );
 }

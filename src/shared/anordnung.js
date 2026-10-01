@@ -131,7 +131,7 @@ export const knickPfad = (x1, y1, x2, y2, m, dir, form) => {
    - "spuren":  jedes Kabel eigene Spur, auch am Abzweig (eckige Linien, einzeln)
    - "buendel": Kabel teilen sich den Weg, parallele Kabel werden eine Linie mit Anzahl
    Ergebnis je id: { start, ende, spur } als Versatz in px, dazu anzahl und versteckt. */
-export const KABEL_ABSTAND = 7;
+export const KABEL_ABSTAND = 9;
 export const kabelSpuren = (kabel, modus, { abstand = KABEL_ABSTAND, breite = 40 } = {}) => {
   const out = new Map(kabel.map((k) => [k.id, { start: 0, ende: 0, spur: 0, anzahl: 1, versteckt: false }]));
   const gruppe = (key) => { const m = new Map(); for (const k of kabel) { const g = key(k); if (!m.has(g)) m.set(g, []); m.get(g).push(k); } return [...m.values()]; };
@@ -164,24 +164,28 @@ export const kabelSpuren = (kabel, modus, { abstand = KABEL_ABSTAND, breite = 40
    übereinander liegen. kabel: [{ id, x1, y1, x2, y2, gruppe }]. Bahnen liegen
    möglichst in der Mitte und weichen in Schritten von `abstand` aus, wenn sich
    waagrechte Abschnitte überschneiden würden. Mit buendeln teilen sich alle
-   Kabel einer Gruppe (z. B. eines Switches) eine Bahn wie in einem Kabelkanal.
+   Kabel einer Gruppe (z. B. eines Switches) eine Bahn wie in einem Kabelkanal;
+   mit gy (y des Gruppen-Endes) laufen alle Kabel einer Richtung im Kanal dicht am Switch.
    hindernisse: [{ x0, x1, y0, y1, dev }] (Geräte), durch die keine Bahn laufen soll.
    Ergebnis: Map id → y der Bahn. */
 export const bahnenVergeben = (kabel, { abstand = 6, rand = 12, buendeln = false, hindernisse = [] } = {}) => {
   const einzeln = kabel.map((k) => {
     let lo = Math.min(k.y1, k.y2) + rand, hi = Math.max(k.y1, k.y2) - rand;
     if (lo > hi) lo = hi = (k.y1 + k.y2) / 2;
-    return { ids: [k.id], x0: Math.min(k.x1, k.x2), x1: Math.max(k.x1, k.x2), lo, hi, pref: (k.y1 + k.y2) / 2, gruppe: k.gruppe, devs: k.devs || [] };
+    const richtung = k.gy == null ? 0 : Math.sign((k.gy === k.y1 ? k.y2 : k.y1) - k.gy) || 1;
+    return { ids: [k.id], x0: Math.min(k.x1, k.x2), x1: Math.max(k.x1, k.x2), lo, hi, pref: (k.y1 + k.y2) / 2, gruppe: k.gruppe, devs: k.devs || [], gy: k.gy, richtung };
   });
   let items = einzeln;
   if (buendeln) {
     const g = new Map();
     for (const e of einzeln) {
-      const key = `${e.gruppe}|${Math.round(e.pref / 40)}`; // gleiche Quelle, gleiche Zeile
+      // Mit bekannter Quelle (gy, richtung): alle Kabel eines Switches in dieselbe Richtung
+      // teilen einen Kanal dicht am Switch. Sonst: gleiche Quelle, gleiche Zeile.
+      const key = e.gy != null ? `${e.gruppe}|${e.richtung}` : `${e.gruppe}|${Math.round(e.pref / 40)}`;
       const x = g.get(key);
-      if (!x) { g.set(key, { ...e, ids: [...e.ids], n: 1 }); continue; }
+      if (!x) { g.set(key, { ...e, ids: [...e.ids], n: 1, pref: e.gy != null ? e.gy + e.richtung * rand : e.pref }); continue; }
       x.ids.push(...e.ids); x.devs = [...x.devs, ...e.devs]; x.x0 = Math.min(x.x0, e.x0); x.x1 = Math.max(x.x1, e.x1);
-      x.lo = Math.max(x.lo, e.lo); x.hi = Math.min(x.hi, e.hi); x.pref = (x.pref * x.n + e.pref) / (x.n + 1); x.n++;
+      x.lo = Math.max(x.lo, e.lo); x.hi = Math.min(x.hi, e.hi); if (e.gy == null) x.pref = (x.pref * x.n + e.pref) / (x.n + 1); x.n++;
       if (x.lo > x.hi) x.lo = x.hi = x.pref;
     }
     items = [...g.values()];

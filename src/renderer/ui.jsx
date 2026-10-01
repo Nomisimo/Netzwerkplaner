@@ -3,6 +3,7 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, TYPEN, KATE
 import { KATALOG_GERAETE, ipPorts } from "../shared/catalog.js";
 import { IconView, ICON_GRUPPEN, ICON_LABEL } from "./icons.jsx";
 import { vlanBaum, vlanPfad } from "../shared/qinq.js";
+import { X as XIcon, OctagonX, TriangleAlert, Info, ChevronDown } from "lucide-react";
 
 export function Section({ title, subtitle, right, children, style }) {
   return (
@@ -40,7 +41,7 @@ export function Modal({ title, onClose, children, width = 640, footer }) {
       <div style={{ ...S.modalBox, width, maxWidth: "94vw" }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", flex: 1 }}>{title}</div>
-          <button style={{ ...S.ghostBtn, padding: "3px 9px" }} onClick={onClose}>✕</button>
+          <button style={{ ...S.ghostBtn, padding: "3px 9px" }} onClick={onClose}><XIcon size={14} /></button>
         </div>
         {children}
         {footer && <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>{footer}</div>}
@@ -50,12 +51,12 @@ export function Modal({ title, onClose, children, width = 640, footer }) {
 }
 
 export const SEV = {
-  error: { label: "Fehler", color: ERR, icon: "⛔" },
-  warn:  { label: "Warnung", color: WARN, icon: "⚠" },
-  info:  { label: "Hinweis", color: INFO, icon: "ℹ" },
+  error: { label: "Fehler", color: ERR, icon: <OctagonX size={12} /> },
+  warn:  { label: "Warnung", color: WARN, icon: <TriangleAlert size={12} /> },
+  info:  { label: "Hinweis", color: INFO, icon: <Info size={12} /> },
 };
 export const SevBadge = ({ sev }) => (
-  <span style={{ ...S.badge, background: SEV[sev].color + "22", color: SEV[sev].color, border: `1px solid ${SEV[sev].color}55` }}>{SEV[sev].icon} {SEV[sev].label}</span>
+  <span style={{ ...S.badge, display: "inline-flex", alignItems: "center", gap: 3, background: SEV[sev].color + "22", color: SEV[sev].color, border: `1px solid ${SEV[sev].color}55` }}>{SEV[sev].icon} {SEV[sev].label}</span>
 );
 
 export const Dot = ({ color, size = 9, title }) => (
@@ -70,7 +71,7 @@ export const StatusDot = ({ st, size = 9 }) => {
 
 export function Toggle({ checked, onChange, label, title, disabled }) {
   return (
-    <label title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: disabled ? "default" : "pointer", fontSize: 12, color: "#c8d0d8", userSelect: "none", opacity: disabled ? 0.55 : 1 }}>
+    <label title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, cursor: disabled ? "default" : "pointer", fontSize: 12, color: "#c8d0d8", userSelect: "none", opacity: disabled ? 0.55 : 1 }}>
       <input type="checkbox" checked={!!checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} style={{ accentColor: ACCENT }} />
       {label}
     </label>
@@ -149,7 +150,7 @@ export function IconPicker({ value, onChange, customIcons, color }) {
   return (
     <div style={{ position: "relative" }}>
       <button style={{ ...S.ghostBtn, padding: "4px 8px" }} onClick={() => setOpen((o) => !o)} title="Icon wählen">
-        <IconView icon={value} customIcons={customIcons} color={color} /> ▾
+        <IconView icon={value} customIcons={customIcons} color={color} /> <ChevronDown size={12} />
       </button>
       {open && (
         <div style={{ position: "absolute", zIndex: 50, top: "100%", left: 0, marginTop: 4, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, width: 320, maxHeight: 380, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.5)" }}

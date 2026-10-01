@@ -29,6 +29,7 @@ import { useSitzung } from "./sync.js";
 import { diff, apply, invert, valueAt, pathKey } from "../shared/ops.js";
 import { removeDevice } from "../shared/invarianten.js";
 import { bestandSchluessel } from "../shared/bestandschluessel.js";
+import { Pencil, Plus, X as XIcon, ArrowUpCircle, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, ScrollText, Download, ChevronDown, Printer, Sheet, Power } from "lucide-react";
 
 
 const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
@@ -425,23 +426,23 @@ export default function App() {
         <div style={{ ...S.logo, display: "flex", alignItems: "center", gap: 8 }}><img src={APP_ICON} alt="" style={{ width: 24, height: 24, display: "block" }} />NETZWERKPLANER</div>
         {corpLogo && <img src={corpLogo} alt="Logo" style={{ height: 26, maxWidth: 110, objectFit: "contain", display: "block" }} />}
         <label style={{ ...S.ghostBtn, padding: "3px 7px", fontSize: 10, cursor: "pointer" }} title={corpLogo ? "Logo ersetzen" : "Eigenes Logo hochladen (erscheint auch in PDF-Exporten)"}>
-          {corpLogo ? "✎ Logo" : "+ Logo"}<input type="file" accept="image/*" style={{ display: "none" }} onChange={logoHochladen} />
+          {corpLogo ? <Pencil size={12} /> : <Plus size={12} />}Logo<input type="file" accept="image/*" style={{ display: "none" }} onChange={logoHochladen} />
         </label>
-        {corpLogo && <button style={{ ...S.ghostBtn, padding: "3px 6px", fontSize: 10 }} onClick={() => { setCorpLogo(""); speichereLogo(""); }} title="Logo entfernen">✕</button>}
+        {corpLogo && <button style={{ ...S.ghostBtn, padding: "3px 6px", fontSize: 10 }} onClick={() => { setCorpLogo(""); speichereLogo(""); }} title="Logo entfernen"><XIcon size={12} /></button>}
         {version && <button onClick={() => setChangelog(true)} title="Version und Änderungen" style={{ background: "none", border: `1px solid ${LINE}`, borderRadius: 10, color: SUB, fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
           v{version.replace(/-beta\.?\d*$/i, "")}{istBeta(version) && <span style={{ marginLeft: 5, color: "#fff", background: ACCENT, borderRadius: 6, padding: "0 5px", fontSize: 9.5, fontWeight: 700 }}>BETA {(version.match(/beta\.?(\d+)/i) || [])[1] || ""}</span>}
         </button>}
-        {update?.tag && <button onClick={updateAusfuehren} title={autoUpdate ? "Update automatisch installieren" : macUpdate ? "Update laden und öffnen" : "Download-Seite öffnen"} style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>⬆ {autoUpdate || macUpdate ? `${update.tag} installieren` : `${update.tag} verfügbar`}</button>}
+        {update?.tag && <button onClick={updateAusfuehren} title={autoUpdate ? "Update automatisch installieren" : macUpdate ? "Update laden und öffnen" : "Download-Seite öffnen"} style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowUpCircle size={12} /> {autoUpdate || macUpdate ? `${update.tag} installieren` : `${update.tag} verfügbar`}</button>}
         <div style={S.headerMeta}>{P.meta.veranstaltung} · v{P.meta.version} · {P.meta.datum}{filePath && <span style={{ color: MUTED }}> · {filePath.split(/[\\/]/).pop()}</span>}</div>
-        <span style={{ fontSize: 10, color: "#555" }} title="Automatisch gespeichert">💾 auto</span>
-        <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={undo} title="Rückgängig (Strg+Z)" disabled={!hist.current.undo.length}>↶</button>
-        <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={redo} title="Wiederholen (Strg+Umschalt+Z)" disabled={!hist.current.redo.length}>↷</button>
+        <span style={{ fontSize: 10, color: "#555", display: "inline-flex", alignItems: "center", gap: 3 }} title="Automatisch gespeichert"><Save size={11} /> auto</span>
+        <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={undo} title="Rückgängig (Strg+Z)" disabled={!hist.current.undo.length}><Undo2 size={14} /></button>
+        <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={redo} title="Wiederholen (Strg+Umschalt+Z)" disabled={!hist.current.redo.length}><Redo2 size={14} /></button>
         <button style={{ ...S.ghostBtn, ...(sitzung.zustand ? { borderColor: sitzung.zustand.veraltet ? ERR : sitzung.zustand.status === "online" ? "#2ecc71" : WARN } : {}) }} onClick={() => setShowSitzung(true)} title="Gemeinsam arbeiten über den Planer-Server">
-          👥 {sitzung.zustand ? (sitzung.zustand.veraltet ? "Sitzung beendet" : `${sitzung.zustand.users?.length || 0} online${sitzung.zustand.ausstehend ? ` · ${sitzung.zustand.ausstehend} ausstehend` : ""}`) : "Sitzung"}
+          <Users size={14} /> {sitzung.zustand ? (sitzung.zustand.veraltet ? "Sitzung beendet" : `${sitzung.zustand.users?.length || 0} online${sitzung.zustand.ausstehend ? ` · ${sitzung.zustand.ausstehend} ausstehend` : ""}`) : "Sitzung"}
         </button>
-        <button style={S.ghostBtn} onClick={openProject}>↥ Öffnen</button>
+        <button style={S.ghostBtn} onClick={openProject}><FolderOpen size={14} /> Öffnen</button>
         {isElectron && <div style={{ position: "relative" }}>
-          <button style={{ ...S.ghostBtn, padding: "4px 5px" }} title="Zuletzt geöffnet" onClick={() => setShowRecents((v) => !v)}>⏱</button>
+          <button style={{ ...S.ghostBtn, padding: "4px 5px" }} title="Zuletzt geöffnet" onClick={() => setShowRecents((v) => !v)}><History size={14} /></button>
           {showRecents && <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: "#1b2026", border: "1px solid #2e3640", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 280, maxWidth: 380, marginTop: 4 }} onMouseLeave={() => setShowRecents(false)}>
             <div style={{ padding: "6px 10px", fontSize: 10, color: MUTED, borderBottom: "1px solid #2e3640", letterSpacing: 0.5, textTransform: "uppercase" }}>Zuletzt geöffnet</div>
             {recents.length === 0 ? <div style={{ padding: "10px 12px", fontSize: 11, color: MUTED, fontStyle: "italic" }}>Noch keine Dateien geöffnet.</div>
@@ -451,16 +452,16 @@ export default function App() {
               </button>)}
           </div>}
         </div>}
-        <button style={S.ghostBtn} onClick={() => save(false)} title="Speichern (Strg+S)">💾 Speichern</button>
+        <button style={S.ghostBtn} onClick={() => save(false)} title="Speichern (Strg+S)"><Save size={14} /> Speichern</button>
         {isElectron && <button style={S.ghostBtn} onClick={() => save(true)} title="Speichern unter">…</button>}
-        <button style={S.ghostBtn} onClick={newProject}>↺ Neu</button>
-        <button style={S.ghostBtn} onClick={() => setChangelog(true)} title="Was ist neu?">📋</button>
+        <button style={S.ghostBtn} onClick={newProject}><RotateCcw size={14} /> Neu</button>
+        <button style={S.ghostBtn} onClick={() => setChangelog(true)} title="Was ist neu?"><ScrollText size={14} /></button>
         <div style={{ position: "relative" }}>
-          <button style={S.exportBtn} onClick={() => setShowExport((v) => !v)}>⇩ Export ▾</button>
+          <button style={S.exportBtn} onClick={() => setShowExport((v) => !v)}><Download size={14} /> Export <ChevronDown size={14} /></button>
           {showExport && <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: "#1b2026", border: "1px solid #2e3640", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 230, marginTop: 4, overflow: "hidden" }} onMouseLeave={() => setShowExport(false)}>
-            {[["pdf", "🖨 PDF-Dokumentation"], ["xlsx", "📊 Excel (IP-Liste, VLANs, Ports …)"], ["csv", "IP-Liste als CSV"], ["svg", "Topologie als SVG"], ["png", "Topologie als PNG"]].map(([k, l]) => (
-              <button key={k} onClick={() => doExport(k)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid #232a33", padding: "9px 12px", cursor: "pointer", color: "#e8eaed", fontSize: 12 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#232a33")} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>{l}</button>
+            {[["pdf", "PDF-Dokumentation", Printer], ["xlsx", "Excel (IP-Liste, VLANs, Ports …)", Sheet], ["csv", "IP-Liste als CSV"], ["svg", "Topologie als SVG"], ["png", "Topologie als PNG"]].map(([k, l, Ic]) => (
+              <button key={k} onClick={() => doExport(k)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid #232a33", padding: "9px 12px", cursor: "pointer", color: "#e8eaed", fontSize: 12 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#232a33")} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>{Ic && <Ic size={14} />}{l}</button>
             ))}
           </div>}
         </div>
@@ -478,7 +479,7 @@ export default function App() {
       {tab === "topologie" ? (
         <TopologieTab {...shared} svgRef={svgRef} autoStatus={autoStatus} setAutoStatus={setAutoStatus} />
       ) : (
-        <main style={S.main} key={tab}>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} key={tab}><main style={S.main}>
           <div style={{ animation: "npFade .18s ease" }}>
             {tab === "projekt" && <ProjektTab P={Pv} X={X} mutate={mutate} issues={issues} goTab={setTab} loadDemo={loadDemo} newProject={newProject} />}
             {tab === "geraete" && <GeraeteTab {...shared} />}
@@ -489,7 +490,7 @@ export default function App() {
             {tab === "wissen" && <WissenTab />}
             {tab === "hilfe" && <AnleitungTab goTab={setTab} />}
           </div>
-        </main>
+        </main></div>
       )}
 
       {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={library.bestand || []} customIcons={allIcons} title={picker.umbauFor ? `Modell für „${X.devById.get(picker.umbauFor)?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
@@ -501,10 +502,10 @@ export default function App() {
       {changelog && <Modal title={`Netzwerkplaner ${version}`} onClose={() => setChangelog(false)}>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
           <button style={S.secondaryBtn} onClick={() => checkUpdate(true)}>Nach Updates suchen</button>
-          {update?.tag && autoUpdate && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Lädt das Update (falls nötig), beendet die App, installiert und startet neu">⬆ {update.bereit ? "Neu starten und installieren" : `${update.tag} automatisch installieren`}</button>}
-          {update?.tag && macUpdate && !update.macOffen && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Lädt das passende DMG in den Download-Ordner und öffnet es. Danach die App nach „Programme“ ziehen.">⬆ {update.tag} laden und öffnen</button>}
-          {update?.tag && macUpdate && update.macOffen && <button style={S.primaryBtn} onClick={() => api.appBeenden()} title="Beendet den Netzwerkplaner, damit du die neue Version nach „Programme“ ziehen kannst. Vorher speichern!">⏻ Netzwerkplaner beenden</button>}
-          {update?.tag && !autoUpdate && !macUpdate && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Öffnet die Download-Seite.">⬇ {update.tag} herunterladen</button>}
+          {update?.tag && autoUpdate && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Lädt das Update (falls nötig), beendet die App, installiert und startet neu"><ArrowUpCircle size={14} /> {update.bereit ? "Neu starten und installieren" : `${update.tag} automatisch installieren`}</button>}
+          {update?.tag && macUpdate && !update.macOffen && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Lädt das passende DMG in den Download-Ordner und öffnet es. Danach die App nach „Programme“ ziehen."><ArrowUpCircle size={14} /> {update.tag} laden und öffnen</button>}
+          {update?.tag && macUpdate && update.macOffen && <button style={S.primaryBtn} onClick={() => api.appBeenden()} title="Beendet den Netzwerkplaner, damit du die neue Version nach „Programme“ ziehen kannst. Vorher speichern!"><Power size={14} /> Netzwerkplaner beenden</button>}
+          {update?.tag && !autoUpdate && !macUpdate && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Öffnet die Download-Seite."><Download size={14} /> {update.tag} herunterladen</button>}
           <button style={S.ghostBtn} onClick={() => api.openExternal(update?.url || RELEASES_URL)}>Alle Versionen auf GitHub</button>
           <span style={{ fontSize: 12, color: update ? "#2ecc71" : SUB }}>{updateStatus}</span>
         </div>

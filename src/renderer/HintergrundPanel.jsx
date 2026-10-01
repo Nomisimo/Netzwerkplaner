@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { S, LINE, SUB, MUTED } from "../shared/constants.js";
 import { Toggle } from "./ui.jsx";
+import { Image as ImageIcon, X as XIcon, Plus, Minus } from "lucide-react";
 
 const MAX_PX = 2400; // größere Bilder werden verkleinert, damit Projektdatei und Rückgängig schlank bleiben
 
@@ -53,8 +54,8 @@ export default function HintergrundPanel({ bg, bounds, onChange, onClose }) {
     <div className="np-ui" onMouseDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}
       style={{ position: "absolute", left: 10, top: 10, width: 270, background: "#1b2026f2", border: `1px solid ${LINE}`, borderRadius: 10, padding: 12, fontSize: 12, color: "#c8d0d8", boxShadow: "0 8px 24px rgba(0,0,0,.5)", zIndex: 5 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
-        <b style={{ flex: 1 }}>🖼 Hintergrundbild</b>
-        <button style={{ ...S.ghostBtn, padding: "1px 7px" }} onClick={onClose}>✕</button>
+        <b style={{ flex: 1, display: "inline-flex", alignItems: "center", gap: 6 }}><ImageIcon size={14} /> Hintergrundbild</b>
+        <button style={{ ...S.ghostBtn, padding: "1px 7px" }} onClick={onClose}><XIcon size={14} /></button>
       </div>
       <input ref={inp} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" style={{ display: "none" }} onChange={waehlen} />
       <button style={{ ...S.primaryBtn, width: "100%" }} onClick={() => inp.current?.click()}>{bg?.src ? "Anderes Bild wählen …" : "Bild wählen … (Stage-Plot, Hallenplan)"}</button>
@@ -66,8 +67,8 @@ export default function HintergrundPanel({ bg, bounds, onChange, onClose }) {
         </label>
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
           <span style={{ color: SUB, flex: 1 }}>Größe</span>
-          <button style={S.smallBtn} onClick={() => skalieren(1 / 1.15)}>−</button>
-          <button style={S.smallBtn} onClick={() => skalieren(1.15)}>＋</button>
+          <button style={S.smallBtn} onClick={() => skalieren(1 / 1.15)}><Minus size={12} /></button>
+          <button style={S.smallBtn} onClick={() => skalieren(1.15)}><Plus size={12} /></button>
         </div>
         <div style={{ marginTop: 10 }}>
           <Toggle checked={bg.fest === false} onChange={(v) => onChange((b) => ({ ...b, fest: !v }))} label="Bild mit der Maus verschieben" title="An: das Bild lässt sich im Werkzeug „Bewegen“ ziehen. Aus: das Bild ist fixiert, Ziehen verschiebt die Ansicht." />

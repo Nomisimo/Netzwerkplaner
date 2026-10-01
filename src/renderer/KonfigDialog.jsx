@@ -3,6 +3,7 @@ import { S, ACCENT, LINE, SUB, MUTED, OK, WARN, TYPEN } from "../shared/constant
 import { KONFIG_TEILE, konfigTeileVon, konfigAus, konfigAnwenden } from "../shared/konfig.js";
 import { Modal } from "./ui.jsx";
 import { ablegen } from "./zwischenablage.js";
+import { Copy, ClipboardPaste, Undo2 } from "lucide-react";
 
 const Haken = ({ checked, onChange, children, hint, disabled }) => (
   <label title={hint} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "4px 0", fontSize: 13, opacity: disabled ? 0.45 : 1, cursor: disabled ? "default" : "pointer" }}>
@@ -22,9 +23,9 @@ export function KonfigKopieren({ P, dev, onClose }) {
     <Modal title={`Konfiguration von „${dev.name}“ kopieren`} width={520} onClose={onClose}
       footer={<>
         <button style={S.secondaryBtn} onClick={onClose}>Abbrechen</button>
-        <button style={S.primaryBtn} disabled={!teile.length} onClick={() => { ablegen(konfigAus(dev, P.vlans, teile)); onClose(); }}>⎘ Kopieren</button>
+        <button style={S.primaryBtn} disabled={!teile.length} onClick={() => { ablegen(konfigAus(dev, P.vlans, teile)); onClose(); }}><Copy size={14} /> Kopieren</button>
       </>}>
-      <div style={{ fontSize: 12, color: SUB, marginBottom: 8 }}>Welche Daten sollen kopiert werden? Einfügen geht danach bei jedem anderen Gerät über „📋 Konfig einfügen“, auch in einem anderen Projekt.</div>
+      <div style={{ fontSize: 12, color: SUB, marginBottom: 8 }}>Welche Daten sollen kopiert werden? Einfügen geht danach bei jedem anderen Gerät über „Konfig einfügen“, auch in einem anderen Projekt.</div>
       {KONFIG_TEILE.map((t) => (
         <Haken key={t.key} checked={teile.includes(t.key)} disabled={!vorhanden.includes(t.key)} hint={t.hint} onChange={(an) => umschalten(t.key, an)}>{t.label}</Haken>
       ))}
@@ -59,14 +60,14 @@ export function KonfigEinfuegen({ P, clip, ziele: start, mutate, onClose }) {
     <Modal title="Konfiguration eingefügt" width={460} onClose={onClose} footer={<button style={S.primaryBtn} onClick={onClose}>Schließen</button>}>
       <div style={{ color: OK }}>In {ergebnis.n} {ergebnis.n === 1 ? "Gerät" : "Geräte"} eingefügt: {KONFIG_TEILE.filter((t) => teile.includes(t.key)).map((t) => t.label).join(", ")}.</div>
       {ergebnis.fehlend > 0 && <div style={{ color: WARN, marginTop: 8 }}>{ergebnis.fehlend} Port-Einstellungen hatten im Ziel keinen passenden Port und wurden ausgelassen.</div>}
-      <div style={{ ...S.hint, marginTop: 10 }}>Rückgängig geht wie immer mit ↶ oder {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Z.</div>
+      <div style={{ ...S.hint, marginTop: 10 }}>Rückgängig geht wie immer mit <Undo2 size={12} style={{ verticalAlign: "-2px" }} /> oder {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Z.</div>
     </Modal>
   );
   return (
     <Modal title="Konfiguration einfügen" width={640} onClose={onClose}
       footer={<>
         <button style={S.secondaryBtn} onClick={onClose}>Abbrechen</button>
-        <button style={S.primaryBtn} disabled={!teile.length || !ziele.length} onClick={einfuegen}>📋 In {ziele.length} {ziele.length === 1 ? "Gerät" : "Geräte"} einfügen</button>
+        <button style={S.primaryBtn} disabled={!teile.length || !ziele.length} onClick={einfuegen}><ClipboardPaste size={14} /> In {ziele.length} {ziele.length === 1 ? "Gerät" : "Geräte"} einfügen</button>
       </>}>
       <div style={{ fontSize: 12, color: SUB, marginBottom: 10 }}>Kopiert von <b style={{ color: "#fff" }}>{q.name}</b>{q.modell ? ` (${q.modell})` : ""}. Namen, IP- und MAC-Adressen und Verbindungen der Zielgeräte bleiben.</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 16 }}>

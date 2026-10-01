@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { S, SUB, MUTED, ACCENT, ERR, WARN } from "../shared/constants.js";
 import { Modal, Field } from "./ui.jsx";
 import { serverApi, ladeEinstellungen, speichereEinstellungen } from "./sync.js";
+import { Lock, Save, RefreshCw } from "lucide-react";
 
 const zeit = (t) => new Date(t).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 const Punkt = ({ farbe }) => <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 5, background: farbe, marginRight: 6 }} />;
@@ -61,7 +62,7 @@ function Verbinden({ sitzung, projektName, onClose }) {
         {liste.map((s) => (
           <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #232a33", fontSize: 13 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{s.name}{s.codeNoetig && <span title="Sitzungscode nötig" style={{ marginLeft: 6 }}>🔒</span>}</div>
+              <div style={{ fontWeight: 600 }}>{s.name}{s.codeNoetig && <span title="Sitzungscode nötig" style={{ marginLeft: 6, display: "inline-flex", verticalAlign: "-2px" }}><Lock size={13} /></span>}</div>
               <div style={{ fontSize: 11, color: MUTED }}>{s.users} online · Version {s.appVersion || "?"} · geändert {zeit(s.geaendert)}</div>
             </div>
             <button style={S.primaryBtn} disabled={!ok} onClick={() => beitreten(s)} title={ok ? "" : "Server und Name eintragen"}>Beitreten</button>
@@ -92,7 +93,7 @@ function InSitzung({ sitzung, onKopieSpeichern }) {
           <div style={{ fontWeight: 700, fontSize: 15 }}>{z.info?.name || "Sitzung"}</div>
           <div style={{ fontSize: 12, color: farbe }}>{statusText}{z.ausstehend ? ` · ${z.ausstehend} Änderungen ausstehend` : ""}</div>
         </div>
-        <button style={S.secondaryBtn} onClick={onKopieSpeichern}>💾 Kopie speichern</button>
+        <button style={S.secondaryBtn} onClick={onKopieSpeichern}><Save size={14} /> Kopie speichern</button>
         <button style={S.dangerBtnWide} onClick={() => { if (confirm("Sitzung verlassen? Dein aktueller Stand bleibt als lokale Kopie erhalten.")) sitzung.verlassen(); }}>Verlassen</button>
       </div>
       {z.veraltet && <div style={{ background: "#3a2a1a", border: `1px solid ${WARN}`, borderRadius: 6, padding: "8px 10px", fontSize: 12, marginBottom: 10 }}>Die Sitzung ist beendet. Dein Stand ist eine veraltete Kopie: Änderungen anderer fehlen ab jetzt. Bitte speichern.</div>}
@@ -105,7 +106,7 @@ function InSitzung({ sitzung, onKopieSpeichern }) {
 
       <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
         <div className="sp-section-label" style={{ flex: 1, margin: 0 }}>Verlauf aller Teilnehmer</div>
-        {!z.veraltet && <button style={{ ...S.ghostBtn, padding: "3px 8px", fontSize: 11 }} onClick={ladeVerlauf}>↻</button>}
+        {!z.veraltet && <button style={{ ...S.ghostBtn, padding: "3px 8px", fontSize: 11 }} onClick={ladeVerlauf}><RefreshCw size={12} /></button>}
       </div>
       <div style={{ maxHeight: 320, overflow: "auto", marginTop: 6, fontSize: 12 }}>
         {verlauf === null ? <div style={{ color: MUTED }}>Lädt …</div> : !verlauf.length ? <div style={{ color: MUTED, fontStyle: "italic" }}>Noch keine Änderungen.</div>

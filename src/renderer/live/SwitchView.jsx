@@ -4,6 +4,7 @@ import { snmpSwitches, compareSwitchPorts, fmtUptime } from "../../shared/live.j
 import { useMonitor } from "./store.js";
 import { Table, td, Hint, Empty, Card, Pill, Age, mono } from "./common.jsx";
 import { Toggle, Dot } from "../ui.jsx";
+import { Play, OctagonX, RefreshCw } from "lucide-react";
 
 const speed = (m) => (!m ? "" : m >= 1000 ? `${m / 1000}G` : `${m}M`);
 
@@ -31,11 +32,11 @@ export default function SwitchView({ P, X, onSelectDevice }) {
           <span style={S.fieldLabel}>Community (nur lesen)</span>
           <input style={{ ...S.input, width: 140 }} value={community} onChange={(e) => setCommunity(e.target.value)} />
         </label>
-        <button style={S.primaryBtn} disabled={!host.trim()} onClick={() => query()}>▶ Abfragen</button>
+        <button style={S.primaryBtn} disabled={!host.trim()} onClick={() => query()}><Play size={12} fill="currentColor" /> Abfragen</button>
         {switches.length > 1 && <button style={S.secondaryBtn} onClick={() => switches.forEach((x) => query(x.ip))}>Alle {switches.length} Switches aus dem Plan</button>}
         <Toggle checked={s?.auto} onChange={auto} label="alle 10 s aktualisieren" />
       </div>
-      {mon.error && <div style={{ color: ERR, fontSize: 12, marginBottom: 10 }}>⛔ {mon.error}</div>}
+      {mon.error && <div style={{ color: ERR, fontSize: 12, marginBottom: 10, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {mon.error}</div>}
       {!hosts.length && <Empty>Noch kein Switch abgefragt. Managed Switches aus dem Plan stehen in der Auswahlliste.</Empty>}
       {hosts.map((h) => {
         const r = s?.results?.[h];
@@ -46,8 +47,8 @@ export default function SwitchView({ P, X, onSelectDevice }) {
         const probleme = cmp.filter((c) => c.hinweise.length).length;
         return (
           <Card key={h} title={<>{r?.sysName || dev?.name || h} <span style={{ ...mono, color: SUB, fontWeight: 400 }}>{h}</span></>}
-            right={<>{busy && <span style={{ fontSize: 12, color: SUB }}>frage ab …</span>}{r && <Age ms={Date.now() - r.t} />}<button style={S.smallBtn} onClick={() => query(h)}>↻</button></>}>
-            {err && <div style={{ color: ERR, fontSize: 12 }}>⛔ {err}</div>}
+            right={<>{busy && <span style={{ fontSize: 12, color: SUB }}>frage ab …</span>}{r && <Age ms={Date.now() - r.t} />}<button style={S.smallBtn} onClick={() => query(h)}><RefreshCw size={12} /></button></>}>
+            {err && <div style={{ color: ERR, fontSize: 12, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {err}</div>}
             {r && (
               <>
                 <div style={{ fontSize: 11, color: SUB, marginBottom: 8 }}>
@@ -65,7 +66,7 @@ export default function SwitchView({ P, X, onSelectDevice }) {
                   {cmp.map((c) => {
                     const v = vlanByVid.get(+c.istUntagged[0]);
                     return (
-                      <div key={c.snmp.ifIndex} title={`${c.snmp.ifName || c.snmp.ifDescr}: ${c.snmp.up ? "Link" : "kein Link"}${c.istUntagged.length ? `, VLAN ${c.istUntagged.join("/")}` : ""}${c.snmp.tagged?.length ? `, tagged ${c.snmp.tagged.join(",")}` : ""}${c.hinweise.length ? `\n⚠ ${c.hinweise.join("; ")}` : ""}`}
+                      <div key={c.snmp.ifIndex} title={`${c.snmp.ifName || c.snmp.ifDescr}: ${c.snmp.up ? "Link" : "kein Link"}${c.istUntagged.length ? `, VLAN ${c.istUntagged.join("/")}` : ""}${c.snmp.tagged?.length ? `, tagged ${c.snmp.tagged.join(",")}` : ""}${c.hinweise.length ? `\nHinweis: ${c.hinweise.join("; ")}` : ""}`}
                         style={{ width: 26, height: 22, borderRadius: 3, background: v?.farbe || "#2a313a", border: `2px solid ${c.hinweise.length ? WARN : c.snmp.up ? OK : LINE}`, fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Consolas,monospace", opacity: c.snmp.adminUp === false ? 0.4 : 1 }}>
                         {(c.snmp.ifName || String(c.snmp.ifIndex)).replace(/^\D+/, "").slice(-3)}
                       </div>

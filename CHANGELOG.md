@@ -3,6 +3,17 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.5] – 2026-10-01
+
+- Oberfläche: Die Werkzeugleiste der Topologie steht fest über Geräteliste, Zeichenfläche und Seitenleiste. Öffnet sich rechts der Editor, springen Knöpfe und Zeichenfläche nicht mehr um. Die Knöpfe sind in zwei feste Reihen sortiert
+- Oberfläche: Eingeklappt zeigt die Geräteliste links die Typ-Icons als Miniaturen. Sie lassen sich weiter auf die Fläche ziehen oder per Doppelklick einfügen
+- Oberfläche: Alle Emojis sind durch einheitliche Icons ersetzt
+- Oberfläche: Die App scrollt nicht mehr als Ganzes. Scrollbalken gibt es nur noch in den Bereichen, die scrollen, z. B. Listen und Seitenleisten
+- Topologie: Die Ansicht „Frontplatten“ heißt jetzt „Anschlüsse“
+- Topologie: Linien lassen sich wieder direkt greifen. Im Werkzeug „Bewegen“ eine Verbindung ziehen verschiebt ihren Verlauf
+- Topologie: „Auto-Layout“ und das Einschalten von „Auto-Anordnen“ fragen nach, wenn das Layout von Hand angepasst wurde
+- Anschlüsse: „Kabel bündeln“ fasst alle Kabel eines Switches, die in dieselbe Richtung laufen, in einem Kanal direkt am Switch zusammen. Ohne Bündeln haben die einzelnen Bahnen doppelt so viel Abstand, in der Mindmap etwas mehr
+
 ## [0.7.0-beta.4] – 2026-09-30
 
 - Topologie: Neuer Linienmodus „Linien: direkt“. Jede Verbindung ist die kürzeste gerade Linie von Port zu Port, in Mindmap und Frontplatten
