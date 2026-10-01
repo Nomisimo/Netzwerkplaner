@@ -5,7 +5,7 @@ import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ip
 import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
-import { DevicePicker, Modal } from "./ui.jsx";
+import { DevicePicker, Modal, EingabeHost, frageText } from "./ui.jsx";
 import { topologySvg, svgToPngBase64, buildXlsxBase64, buildIpCsv, buildPdfHtml, buildPatchCsv, fileBase } from "./exports.js";
 import PatchlisteTab from "./tabs/PatchlisteTab.jsx";
 import { ProtokollDetail } from "./tabs/BibliothekTab.jsx";
@@ -338,8 +338,8 @@ export default function App() {
     setSelection((s) => (s?.id === id ? null : s));
   }, [mutate]);
 
-  const saveVorlage = (dev) => {
-    const name = prompt("Name der Vorlage:", [dev.hersteller, dev.modell].filter(Boolean).join(" ") || dev.name);
+  const saveVorlage = async (dev) => {
+    const name = await frageText("Name der Vorlage:", [dev.hersteller, dev.modell].filter(Boolean).join(" ") || dev.name, "Als Vorlage speichern");
     if (!name) return;
     const g = snapshotDevice(dev, P.vlans);
     g.ports.forEach((i) => { i.ip = ""; i.mac = ""; });
@@ -512,6 +512,7 @@ export default function App() {
 
       {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={library.bestand || []} customIcons={allIcons} title={picker.umbauFor ? `Modell für „${X.devById.get(picker.umbauFor)?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
         onClose={() => setPicker(null)} onPick={(item) => { if (picker.umbauFor) { umbauen(picker.umbauFor, item); setPicker(null); return; } const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
+      <EingabeHost />
       {protoModal && <Modal title="Protokoll" width={860} onClose={() => setProtoModal(null)}
         footer={<button style={S.secondaryBtn} onClick={() => { setProtoId(protoModal); setBibSub("protokolle"); setTab("bibliothek"); setProtoModal(null); }}>Im Katalog öffnen</button>}>
         <ProtokollDetail p={PROTOKOLLE.find((p) => p.id === protoModal)} P={Pv} onSelectDevice={(id) => { setProtoModal(null); selectDevice(id); }} />
