@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, katColor, TYPEN, KATEGORIEN, PORT_TYPEN } from "../shared/constants.js";
 import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid, hardwareFest } from "../shared/catalog.js";
 import { portSeiten } from "../shared/anschluesse.js";
-import { otherEnd, suggestIp, webUrl, clone } from "../shared/model.js";
+import { otherEnd, suggestIp, webUrl, clone, vlanQuelle } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
 import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot } from "./ui.jsx";
 import { api } from "./api.js";
@@ -108,6 +108,25 @@ const PortLoeschen = ({ dev, p, mutate }) => (
   })}><XIcon size={12} /></button>
 );
 
+/* VLAN eines Endgeräte-Ports: nur Anzeige, es kommt vom Switch-Port (oder aus dem Subnetz der IP) */
+function VlanVomSwitch({ P, X, dev, p, v, onSelectDevice }) {
+  const q = X ? vlanQuelle(P, X, dev, p) : null;
+  const sw = q?.sw ? <a href="#" style={{ color: "#8ec5ff" }} onClick={(e) => { e.preventDefault(); onSelectDevice?.(q.sw.id); }}>{q.sw.name} · {q.swPort.name}</a> : null;
+  const text = q?.art === "switch" ? <>von {sw}</>
+    : q?.art === "switch-ohne" ? <>{sw} hat kein VLAN</>
+    : q?.art === "ip" ? <>aus der IP{sw ? <> (Trunk {sw})</> : ""}</>
+    : q?.art === "trunk" ? <>Trunk {sw}</>
+    : "nicht gesteckt";
+  return (
+    <Field label="VLAN">
+      <div style={{ ...S.inputSm, display: "flex", flexDirection: "column", justifyContent: "center", minHeight: 30, padding: "3px 8px", background: "#ffffff06", cursor: "default" }} title="VLANs werden nur an Switch-Ports eingestellt. Das Endgerät übernimmt das VLAN des Ports, an dem es steckt. Steckt es nirgends, gilt das VLAN, in dessen Subnetz die IP liegt.">
+        {v ? <span style={{ fontSize: 12 }}><Dot color={v.farbe} size={7} /> {v.vid} {v.name}</span> : <span style={{ fontSize: 12, color: MUTED }}>kein VLAN</span>}
+        <span style={{ fontSize: 10, color: MUTED, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{text}</span>
+      </div>
+    </Field>
+  );
+}
+
 /* Port eines Endgeräts oder Management-Interface eines Switches: Anschluss und IP-Daten in einem */
 function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest }) {
   const hw = fest && !p.virtuell; // Buchse aus dem Modell: Name, Typ und P2P fest
@@ -119,12 +138,12 @@ function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest
       <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : ip ? "1.3fr 1.3fr 1.7fr .6fr 1.3fr 1.4fr" : "1.3fr 1.3fr 3fr", gap: 8, alignItems: "end" }}>
         <Field label={p.virtuell ? "Name" : "Port"} hint={p.virtuell ? "ohne Buchse" : undefined}><input style={{ ...S.inputSm, ...festStil(hw) }} value={p.name} readOnly={hw} title={hw ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.name = e.target.value))} /></Field>
         {ip ? <>
-          <Field label="VLAN"><VlanSelect vlans={P.vlans} value={p.vlan} onChange={(val) => setP((x) => {
+          {dev.isSwitch ? <Field label="VLAN"><VlanSelect vlans={P.vlans} value={p.vlan} onChange={(val) => setP((x) => {
             x.vlan = val;
             const nv = P.vlans.find((y) => y.id === val);
             const pr = nv && parsePrefix((nv.subnetz || "").split("/")[1]);
             if (pr !== null && pr !== undefined) x.prefix = pr;
-          })} /></Field>
+          })} /></Field> : <VlanVomSwitch P={P} X={X} dev={dev} p={p} v={v} onSelectDevice={onSelectDevice} />}
           <Field label="IP-Adresse">
             <div style={{ display: "flex", gap: 4 }}>
               <input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.ip} placeholder={p.dhcp ? "DHCP" : "10.10.10.21"} onChange={(e) => setP((x) => (x.ip = e.target.value.trim()))} />

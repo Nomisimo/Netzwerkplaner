@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY } from "../shared/constants.js";
-import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl } from "../shared/model.js";
+import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl, vlansAbleiten } from "../shared/model.js";
 import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ipPorts } from "../shared/catalog.js";
 import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
 import { demoProject } from "../shared/demo.js";
@@ -89,6 +89,7 @@ export default function App() {
     const prev = Pref.current;
     const next = clone(prev);
     fn(next);
+    vlansAbleiten(next); // VLAN der Endgeräte kommt vom Switch-Port
     const ops = diff(prev, next);
     if (!ops.length) return;
     // Tippen in dasselbe Feld ist ein Undo-Schritt (solange das Eingabefeld den Fokus hat oder kurz danach)

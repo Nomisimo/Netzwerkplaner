@@ -44,7 +44,7 @@ const KAPITEL = [
       "Einen Typ aus der Geräteliste links auf die Fläche ziehen. Auf ein vorhandenes Gerät gezogen, wird das neue Gerät an den nächsten freien Port angeschlossen. Eingeklappt zeigt die Liste nur die Icons; die lassen sich genauso ziehen.",
       "Die Werkzeugleiste steht fest über Geräteliste, Zeichenfläche und Seitenleiste. Öffnet sich rechts der Editor, springt nichts mehr um.",
       "„+ Aus Katalog …“ öffnet die Suche über Herstellermodelle, eigene Vorlagen und deinen Gerätebestand. Ist ein Gerät ausgewählt, hängt das neue direkt daran.",
-      "„Verbinden“ (Taste C): von Gerät zu Gerät ziehen. Switch-Ports übernehmen das VLAN des Endgeräts. Switch-zu-Switch-Verbindungen werden Trunks mit allen VLANs.",
+      "„Verbinden“ (Taste C): von Gerät zu Gerät ziehen. Das Endgerät übernimmt das VLAN des Switch-Ports. Switch-zu-Switch-Verbindungen werden Trunks mit allen VLANs.",
       "„Bewegen“ (Taste M): Geräte ziehen, der ganze Ast zieht mit. „Auto-Layout“ setzt die Verschiebungen zurück, „Äste“ klappt Äste ein.",
       "Rechtsklick auf ein Gerät zeigt Ports, Verbindungen und IPs. Entf löscht die Auswahl.",
       "Mausrad zoomt. Shift + Mausrad schiebt die Fläche hoch und runter, ⌘ (Mac) bzw. Strg (Windows) + Mausrad schiebt sie nach links und rechts.",
@@ -89,11 +89,11 @@ const KAPITEL = [
     <Bild id="geraete" text="Tab Geräte: alle Geräte als Tabelle, Klick öffnet den Editor" />
     <Liste items={[
       "Klick auf ein Gerät öffnet den Editor: Name, Netzwerkname (Hostname), Hersteller/Modell, Standort, eigene Felder, Ports, Web-UI, Protokolle und Notizen.",
-      "Ports: Jeder Port eines Endgeräts ist zugleich sein Interface mit VLAN, IP, Maske, Gateway, MAC und DHCP. Der Kreispfeil neben der IP schlägt die nächste freie Adresse im VLAN vor, „IPs vergeben“ füllt alle leeren Ports auf einmal (je Gerät eine Adresse pro VLAN).",
+      "Ports: Jeder Port eines Endgeräts ist zugleich sein Interface mit IP, Maske, Gateway, MAC und DHCP. VLANs werden nur an Switches eingestellt: Das Endgerät zeigt das VLAN des Switch-Ports, an dem es steckt (auch über unmanaged Switches hinweg), und verlinkt auf diesen Port. Steckt es nirgends, gilt das VLAN, in dessen Subnetz die IP liegt. Der Kreispfeil neben der IP schlägt die nächste freie Adresse im VLAN vor, „IPs vergeben“ füllt alle leeren Ports auf einmal (je Gerät eine Adresse pro VLAN).",
       "Switch-Ports: Access- oder Trunk-VLANs, PoE und Punkt-zu-Punkt (AES50, SLink, HDBaseT …). Die IP des Switches steht am Anschluss „Management“ ohne Buchse („+ Management“).",
       "„Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs, VLANs und eigene Felder erhalten. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und eigene Felder, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
       "„im Katalog speichern“ legt das Gerät als eigene Vorlage oder im Gerätebestand ab.",
-      "Geräte aus dem Katalog (Herstellermodelle) und aus dem Gerätebestand haben feste Hardware: Gerätetyp, Hersteller, Modell, Ports, Buchsen, P2P und PoE-Werte lassen sich im Editor nicht ändern. Einstellbar bleiben Name, VLAN, IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen. Ein anderes Modell setzt man mit „Modell zuweisen“. Generische und selbst angelegte Geräte bleiben frei bearbeitbar.",
+      "Geräte aus dem Katalog (Herstellermodelle) und aus dem Gerätebestand haben feste Hardware: Gerätetyp, Hersteller, Modell, Ports, Buchsen, P2P und PoE-Werte lassen sich im Editor nicht ändern. Einstellbar bleiben Name, VLAN (an Switches), IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen. Ein anderes Modell setzt man mit „Modell zuweisen“. Generische und selbst angelegte Geräte bleiben frei bearbeitbar.",
       "„Duplizieren“ kopiert das Gerät mit allen Einstellungen, aber ohne IP- und MAC-Adressen.",
       "„Konfig kopieren“: im Dialog wählen, was mitkommt (Port-Einstellungen mit VLAN und Maske, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen). Bei jedem anderen Gerät dann „Konfig einfügen“, Teile und Zielgeräte wählen („Gleiches Modell“, „Gleicher Typ“, „Alle Switches“) und einfügen. Namen, IPs, MACs und Verbindungen der Ziele bleiben. Ports werden nach Namen zugeordnet, sonst nach Reihenfolge.",
     ]} />
@@ -159,7 +159,7 @@ const KAPITEL = [
     <Liste items={[
       "Der Bestand enthält deine realen Geräte mit Namen, Netzwerknamen, IPs und eigenen Feldern. „+ ins Projekt“ setzt ein Gerät samt Adressen ein.",
       "„+ Neues Gerät“ legt ein Gerät direkt im Katalog an, ohne es ins Projekt zu setzen: Grundtyp wählen und im Editor ausfüllen.",
-      "„Neues VLAN für dieses Gerät“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“): VLAN-ID und Namen eingeben, wählen, ob es alle Ports (Access) oder ein einzelner Port bekommt, und „Anlegen und zuweisen“. Das VLAN wird mit dem Gerät gespeichert. Fügst du das Gerät in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
+      "„Neues VLAN für dieses Gerät“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“): VLAN-ID und Namen eingeben, bei Switches wählen, ob es alle Ports (Access) oder ein einzelner Port bekommt, und „Anlegen und zuweisen“. Das VLAN wird mit dem Gerät gespeichert. Fügst du das Gerät in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
       "„Projektgeräte übernehmen“ kopiert alle Geräte des offenen Projekts in den Bestand.",
       "„Export CSV“ und „Import“ tauschen den Bestand mit anderen Netzwerkplaner-Installationen oder mit einer eigenen Excel-Liste aus (Spalten: Name; Netzwerkname; Hersteller; Modell; Typ; IP1; VLAN1; MAC1 …, danach eine Spalte je eigenem Feld). Unbekannte Spalten werden beim Import zu eigenen Feldern. Modelle werden über Katalog-ID oder Modellname erkannt.",
       "„Eigene Felder“: Felder wie Inventar-Nr., Seriennummer, Case oder Eigentümer einmal anlegen, danach im Geräte-Editor mit „+ Feld …“ bei einem Gerät einfügen und ausfüllen. Umbenennen und Löschen wirkt auf alle Geräte in Projekt, Bestand und Vorlagen.",
