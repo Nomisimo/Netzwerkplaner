@@ -3,6 +3,13 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.7] – 2026-10-01
+
+- Neuer Tab „Patchliste“: alle Geräte mit Netzwerkname, IPs je Interface, „Gesteckt auf“ (Switch und Port), weiteren Kabeln, Abteilung, Standort, eigenen Feldern als „Name: Inhalt“ und Notizen
+- Patchliste: sortiert nach Aufbau-Logik. Vom Haupt-Switch aus, Geräte eines Switches nach Portnummer, Unter-Switches mit ihren Geräten an der Stelle ihres Ports, Stapel zusammen
+- Patchliste: Reihenfolge per Ziehen oder Pfeilen anpassbar, „Automatisch sortieren“ setzt sie zurück. Notizen direkt in der Tabelle bearbeitbar
+- Patchliste im Export: eigenes PDF zum Ausdrucken mit linierter Spalte „Notizen vor Ort“ und Abhak-Kästchen, als CSV, als erstes Blatt im Excel und als Seite im Gesamt-PDF
+
 ## [0.7.0-beta.6] – 2026-10-01
 
 - Anschlüsse: Switches zeigen Vorder- und Rückseite. Liegen Buchsen auf beiden Seiten (z. B. GigaCore 16Xt: 10 vorne, 2 hinten), steht links „VORNE“ und rechts „HINTEN“ auf der Platte

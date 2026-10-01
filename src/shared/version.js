@@ -5,6 +5,12 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.7": [
+    "Neuer Tab „Patchliste“: alle Geräte mit Netzwerkname, IPs je Interface, „Gesteckt auf“ (Switch und Port), weiteren Kabeln, Abteilung, Standort, eigenen Feldern als „Name: Inhalt“ und Notizen",
+    "Patchliste: sortiert nach Aufbau-Logik. Vom Haupt-Switch aus, Geräte eines Switches nach Portnummer, Unter-Switches mit ihren Geräten an der Stelle ihres Ports, Stapel zusammen",
+    "Patchliste: Reihenfolge per Ziehen oder Pfeilen anpassbar, „Automatisch sortieren“ setzt sie zurück. Notizen direkt in der Tabelle bearbeitbar",
+    "Patchliste im Export: eigenes PDF zum Ausdrucken mit linierter Spalte „Notizen vor Ort“ und Abhak-Kästchen, als CSV, als erstes Blatt im Excel und als Seite im Gesamt-PDF",
+  ],
   "0.7.0-beta.6": [
     "Anschlüsse: Switches zeigen Vorder- und Rückseite. Liegen Buchsen auf beiden Seiten (z. B. GigaCore 16Xt: 10 vorne, 2 hinten), steht links „VORNE“ und rechts „HINTEN“ auf der Platte",
     "Anschlüsse: Steckertypen sehen unterschiedlich aus. RJ45 eckig mit Rastnase, etherCON rund, opticalCON rund mit Glasfaser-Ring und Faserpunkten, SFP/SFP+ mit türkisem Rahmen",

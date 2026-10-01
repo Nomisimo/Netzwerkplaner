@@ -6,6 +6,7 @@ import { ladeLogo } from "./logo.js";
 import { vlanBaum, aeusseresVlan } from "../shared/qinq.js";
 import { ipPorts, physPorts } from "../shared/catalog.js";
 import { feldSpalten, feldWert } from "../shared/felder.js";
+import { patchZeilen, patchExportZeilen } from "../shared/patchliste.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const fileBase = (P) => (P.meta.veranstaltung || "Netzwerkplan").replace(/[\\/:*?"<>|]+/g, "_").trim() || "Netzwerkplan";
@@ -97,6 +98,7 @@ export const buildXlsxBase64 = (P, X, issues) => {
     ws["!cols"] = keys.map((k) => ({ wch: Math.min(48, Math.max(k.length + 2, ...rows.map((r) => String(r[k] ?? "").length + 1))) }));
     XLSX.utils.book_append_sheet(wb, ws, name);
   };
+  add("Patchliste", patchExportZeilen(P, X));
   add("IP-Liste", ipRows(P, X));
   add("VLANs", vlanRows(P));
   add("Verbindungen", patchRows(P, X));
@@ -113,6 +115,24 @@ export const buildIpCsv = (P, X) => {
   return "﻿" + [keys.join(";"), ...rows.map((r) => keys.map((k) => q(r[k])).join(";"))].join("\r\n");
 };
 
+/* Patchliste fürs PDF: mehrzeilige Zellen, linierte Spalte für Notizen vor Ort, Kästchen zum Abhaken */
+const patchTabelle = (P, X) => {
+  const z = patchZeilen(P, X);
+  if (!z.length) return `<p class="empty">Keine Geräte.</p>`;
+  const zl = (l) => l.map(esc).join("<br>");
+  return `<table class="patch"><thead><tr><th>#</th><th>Gerät</th><th>IPs / Interfaces</th><th>Gesteckt auf</th><th>Weitere Kabel</th><th>Abteilung · Standort</th><th>Felder</th><th>Notizen</th><th>Notizen vor Ort</th><th>OK</th></tr></thead><tbody>${z.map((r, i) => {
+    const grp = i > 0 && (r.isSwitch || (r.aufSwitch !== z[i - 1].aufSwitch && !z[i - 1].isSwitch));
+    return `<tr class="${r.isSwitch ? "sw" : ""}${grp ? " grp" : ""}"><td>${r.nr}</td><td><div class="nm">${esc(r.name)}</div>${r.netzname ? `<div class="mono">${esc(r.netzname)}</div>` : ""}<div class="sub">${esc(r.modell)}${r.stapel ? " · Stapel " + esc(r.stapel) : ""}</div></td>
+<td class="mono">${zl(r.ips)}</td><td>${esc(r.gesteckt)}</td><td>${zl(r.weitereKabel)}</td><td>${esc(r.abteilung)}${r.standort ? "<br>" + esc(r.standort) : ""}</td><td>${zl(r.felder)}</td><td>${esc(r.notizen).replace(/\n/g, "<br>")}</td><td class="vorort"></td><td class="box"><span></span></td></tr>`;
+  }).join("")}</tbody></table>`;
+};
+export const buildPatchCsv = (P, X) => {
+  const rows = patchExportZeilen(P, X);
+  const keys = Object.keys(rows[0] || { "#": "" });
+  const q = (v) => { const s = String(v ?? ""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  return "\ufeff" + [keys.join(";"), ...rows.map((r) => keys.map((k) => q(r[k])).join(";"))].join("\r\n");
+};
+
 /* ── PDF-Dokumentation ────────────────────────────────────────────────── */
 const table = (rows, cols) => {
   if (!rows.length) return `<p class="empty">Keine Einträge.</p>`;
@@ -120,7 +140,7 @@ const table = (rows, cols) => {
   return `<table><thead><tr>${keys.map((k) => `<th>${esc(k)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${keys.map((k) => `<td>${esc(r[k])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 };
 
-export const buildPdfHtml = (P, X, issues, topo) => {
+export const buildPdfHtml = (P, X, issues, topo, { nurPatch = false } = {}) => {
   const m = P.meta;
   const sev = { error: "Fehler", warn: "Warnung", info: "Hinweis" };
   const logo = ladeLogo();
@@ -147,8 +167,14 @@ td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } 
 .topo svg { width: 100%; height: 100%; }
 .sev-error { color: #c0392b; font-weight: 700; } .sev-warn { color: #d68910; font-weight: 700; } .sev-info { color: #2e86de; }
 .empty { color: #888; font-style: italic; }
+.patch td { font-size: 8.5px; } .patch .sw td { background: #e9ecf3 !important; font-weight: 700; } .patch .grp td { border-top: 1.5px solid #9aa4af; }
+.patch .nm { font-weight: 700; font-size: 9.5px; } .patch .sub { color: #666; font-size: 8px; } .patch .mono { font-family: Consolas, monospace; } .patch td.mono { white-space: nowrap; }
+.patch .vorort { width: 46mm; height: 38px; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 11px, #c9ced6 11px, #c9ced6 12px); min-height: 26px; }
+.patch .box { width: 7mm; } .patch .box span { display: inline-block; width: 11px; height: 11px; border: 1.2px solid #555; border-radius: 2px; }
+.patch tr { page-break-inside: avoid; }
 .foot { position: absolute; bottom: 6mm; left: 12mm; right: 12mm; font-size: 8px; color: #999; display: flex; justify-content: space-between; }
 </style></head><body>
+${nurPatch ? `<div class="page">${head("Patchliste")}${patchTabelle(P, X)}</div>` : `
 <div class="page">
   ${head("Deckblatt")}
   ${logo ? `<div style="margin-top:22mm">${logoImg(70)}</div>` : ""}
@@ -158,10 +184,12 @@ td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } 
   <h2>VLANs</h2>${table(vlanTable, ["VLAN", "S-VLAN (QinQ)", "Name", "Zweck", "IGMP", "EEE aus", "QoS", "DHCP"])}
 </div>
 ${topo ? `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>` : ""}
+<div class="page">${head("Patchliste")}${patchTabelle(P, X)}</div>
 <div class="page">${head("IP-Liste")}${table(ipRows(P, X), ["IP", "CIDR", "VLAN", "Gerät", "Port", "Gateway", "MAC", "Standort", "Modell", "Web-UI"])}</div>
 <div class="page">${head("Switch-Ports")}${table(switchPortRows(P, X))}</div>
 <div class="page">${head("Geräte")}${table(deviceRows(P, X), ["Name", "Typ", "Bereich", "Standort", "Hersteller", "Modell", "IPs", "Web-UI", "Protokolle"])}</div>
 <div class="page">${head("Prüfung")}${issues.length ? `<table><thead><tr><th style="width:70px">Schwere</th><th>Meldung</th></tr></thead><tbody>${issues.map((i) => `<tr><td class="sev-${i.sev}">${sev[i.sev]}</td><td>${esc(i.msg)}</td></tr>`).join("")}</tbody></table>` : `<p>Keine Auffälligkeiten.</p>`}
 <p class="empty">Protokoll- und Gerätedaten aus der Projektrecherche; teils nicht datenblattgeprüft.</p></div>
+`}
 </body></html>`;
 };
