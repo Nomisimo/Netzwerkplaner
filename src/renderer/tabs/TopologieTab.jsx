@@ -713,7 +713,7 @@ export default function TopologieTab(props) {
                 }
                 const z = laschenZustand(id, T, X);
                 const own = X.vlanById.get(ipPorts(d).find((i) => i.ip)?.vlan || ipPorts(d)[0]?.vlan);
-                return <FrontCard key={id} {...common} tab={laschenText(id, T, X)} farbe={z ? kartenFarbe(z) : own?.farbe || MUTED} />;
+                return <FrontCard key={id} {...common} X={X} tab={laschenText(id, T, X)} farbe={z ? kartenFarbe(z) : own?.farbe || MUTED} />;
               })}
               {!front && [...L.pos.keys()].map((id) => {
                 const d = X.devById.get(id);

@@ -66,8 +66,12 @@ const KAPITEL = [
     <H>Ansicht „Anschlüsse“</H>
     <Bild id="topologie-frontplatten" text="Anschlüsse: Switches mit echten Ports, Geräte als Karten an den Ports" />
     <Liste items={[
-      "Umschalten oben links zwischen „Mindmap“ und „Anschlüsse“. Die Ansicht Anschlüsse zeigt die Switches mit Kupfer-, SFP- und etherCON-Ports.",
+      "Umschalten oben links zwischen „Mindmap“ und „Anschlüsse“. Die Ansicht Anschlüsse zeigt die Switches mit ihren echten Buchsen und die Endgeräte als Karten.",
       "Ein Klick auf einen Port wählt die Verbindung dahinter aus. Belegte Ports tragen die VLAN-Farbe, Trunks sind weiß.",
+      "Vorder- und Rückseite: Hat ein Switch Buchsen auf beiden Seiten (z. B. GigaCore 16Xt: 10 vorne, 2 hinten), stehen auf der Platte links „VORNE“ und rechts „HINTEN“, getrennt durch eine gestrichelte Linie. Die Seiten stammen aus den Herstellerhandbüchern.",
+      "Steckertypen: RJ45 eckig mit Rastnase, etherCON rund, opticalCON rund mit türkisem Glasfaser-Ring und Faserpunkten, SFP/SFP+ eckig mit türkisem Rahmen (SFP+ mit kräftigerem Einsatz).",
+      "Endgeräte zeigen unten rechts auf der Karte ihre Netzwerkbuchsen als kleine Symbole, mit V (vorne) bzw. H (hinten) davor. Belegte Buchsen sind hell. Der Tooltip nennt alle Anschlüsse des Modells laut Hersteller.",
+      "Stimmt eine Seite nicht, im Geräte-Editor bei den Ports unter „Seite“ vorne oder hinten fest einstellen. „auto“ nimmt die Herstellerangabe.",
     ]} />
     <H>Darstellung</H>
     <Bild id="topologie-eckig" text="Linien eckig, Farbe nach VLAN, Port & VLAN an jeder Verbindung" />

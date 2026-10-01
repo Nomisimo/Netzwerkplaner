@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, katColor, TYPEN, KATEGORIEN, PORT_TYPEN } from "../shared/constants.js";
 import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid, hardwareFest } from "../shared/catalog.js";
+import { portSeiten } from "../shared/anschluesse.js";
 import { otherEnd, suggestIp, webUrl, clone } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
 import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot } from "./ui.jsx";
@@ -146,6 +147,7 @@ function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest
         {ip && <Toggle checked={p.dhcp} onChange={(c) => setP((x) => (x.dhcp = c))} label="DHCP" />}
         {ip && <span style={{ fontSize: 11, color: MUTED }}>{prefixToMaskStr(+p.prefix)}</span>}
         {!p.virtuell && ip && <select style={{ ...S.selectSm, width: 100, padding: "2px 4px" }} value={p.typ} disabled={hw} title={hw ? FEST_TIP : "Porttyp"} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select>}
+        {!p.virtuell && <SeiteSelect dev={dev} p={p} setP={setP} style={{ width: 110, padding: "2px 4px" }} />}
         {!p.virtuell && <Toggle checked={!!p.p2p} disabled={hw} title={hw ? FEST_TIP : undefined} onChange={(c) => setP((x) => (x.p2p = c))} label="P2P" />}
         <span style={{ fontSize: 11, flex: 1 }}>{!p.virtuell && ip && <Gegenstellen cons={cons} onSelectDevice={onSelectDevice} />}</span>
         {!hw && <PortLoeschen dev={dev} p={p} mutate={mutate} />}
@@ -156,6 +158,17 @@ function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest
 
 /* Generisches Gerät (per Discovery oder Scan gefunden): leere Maske mit den
    Fundangaben und nur zwei Wegen weiter, Modell zuweisen oder leeres Gerät eines Typs. */
+/* Geräteseite eines Ports: Auto (aus der Recherche) oder fest vorne/hinten */
+function SeiteSelect({ dev, p, setP, style }) {
+  const auto = portSeiten({ ...dev, ports: dev.ports.map((x) => (x.id === p.id ? { ...x, seite: undefined } : x)) }).get(p.id);
+  return (
+    <select style={{ ...S.selectSm, padding: "3px 4px", ...style }} value={p.seite || ""} title="Auf welcher Geräteseite liegt die Buchse? Auto = laut Herstellerangaben"
+      onChange={(e) => setP((x) => { if (e.target.value) x.seite = e.target.value; else delete x.seite; })}>
+      <option value="">{auto ? `auto (${auto === "vorne" ? "V" : "H"})` : "auto"}</option><option value="vorne">vorne</option><option value="hinten">hinten</option>
+    </select>
+  );
+}
+
 function GenerischeMaske({ dev, status, upd, onUmbauen, onTypWaehlen, onDelete, onCheck }) {
   const [typ, setTyp] = useState(null);
   const ifc = ipPorts(dev).find((i) => i.ip) || ipPorts(dev)[0];
@@ -311,9 +324,9 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
       {dev.ports.length === 0 && <div style={{ ...S.empty, padding: "4px 0" }}>Keine Ports.</div>}
       {dev.ports.filter((p) => !dev.isSwitch || p.virtuell).map((p) => <IpPort key={p.id} P={P} X={X} dev={dev} p={p} upd={upd} mutate={mutate} compact={compact} cons={connOf(p)} onSelectDevice={onSelectDevice} fest={fest} />)}
       {dev.isSwitch && physPorts(dev).length > 0 && <div style={{ overflowX: "auto" }}>
-        <table style={{ ...S.table, marginTop: 0, fontSize: 12 }}>
+        <table style={{ ...S.table, marginTop: 0, fontSize: 12, minWidth: 660 }}>
           <thead><tr>
-            <th style={S.th}>Port</th><th style={S.th}>Typ</th>
+            <th style={S.th}>Port</th><th style={S.th}>Typ</th><th style={S.th}>Seite</th>
             {!unmanaged && <><th style={S.th}>Modus</th><th style={S.th}>VLAN</th><th style={S.th}>PoE</th></>}
             <th style={S.th} title="Punkt-zu-Punkt (AES50, SLink, HDBaseT …) – kein Ethernet">P2P</th>
             <th style={S.th}>Verbunden mit</th><th style={S.th}></th>
@@ -325,7 +338,8 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
               return (
                 <tr key={p.id} style={{ background: cons.length > 1 ? ERR + "18" : undefined }}>
                   <td style={{ ...S.td, width: 80 }}><input style={{ ...S.inputSm, padding: "3px 6px", ...festStil(fest) }} value={p.name} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.name = e.target.value))} /></td>
-                  <td style={{ ...S.td, width: 92 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.typ} disabled={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></td>
+                  <td style={{ ...S.td, minWidth: 92 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.typ} disabled={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></td>
+                  <td style={{ ...S.td, minWidth: 104 }}><SeiteSelect dev={dev} p={p} setP={setP} /></td>
                   {!unmanaged && <>
                     <td style={{ ...S.td, width: 84 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.modus} onChange={(e) => setP((x) => (x.modus = e.target.value))}><option value="access">Access</option><option value="trunk">Trunk</option></select></td>
                     <td style={{ ...S.td, minWidth: 120 }}>{p.modus === "trunk"
