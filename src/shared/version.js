@@ -5,6 +5,14 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.9": [
+    "Gemeinsam arbeiten: „Verlassen“ fragt jetzt, ob nur du gehst oder die Sitzung für alle beendet wird. Beim Beenden bekommen die anderen den Hinweis, wer beendet hat, und behalten ihren Stand als veraltete Kopie",
+    "Sitzungen, in denen seit 72 Stunden niemand war, lassen sich in der Liste mit „Beenden“ löschen, ohne beizutreten (mit Sitzungscode, falls gesetzt). Die Liste zeigt, seit wann niemand mehr online ist",
+    "„Beitreten“ ist ausgegraut, wenn die Sitzung eine neuere App-Version nutzt oder mit einer anderen Version gerade Teilnehmer hat; der Grund steht darunter. Eine leere Sitzung mit älterer Version wird beim Beitreten nach Rückfrage auf deine Version umgestellt",
+    "Sitzungscode wird jetzt direkt im Fenster abgefragt und vor dem Beitreten geprüft. Vorher ließ sich einer Sitzung mit Code in der App gar nicht beitreten",
+    "Scheitert der Beitritt (falscher Code, falsche Version), bleibt dein Projekt unverändert und es erscheint kein „Sitzung beendet“ mehr. Wer selbst verlässt, bekommt ebenfalls keine Beendet-Meldung mehr",
+    "Benötigt den aktuellen Planer-Server",
+  ],
   "0.7.0-beta.8": [
     "VLANs nur an Switches: Netzwerkkarten von Endgeräten haben kein eigenes VLAN mehr. Sie übernehmen das VLAN des Switch-Ports, an dem sie stecken (auch über unmanaged Switches hinweg). Steckt eine Karte nirgends, gilt das VLAN, in dessen Subnetz ihre IP liegt. Der Editor zeigt das VLAN mit Link zum Switch-Port. Bestehende Projekte übernehmen das bisherige Geräte-VLAN einmalig auf leere Switch-Ports",
     "Meldungszentrum links in der Werkzeugleiste: Fehler, Warnungen und Hinweise als Zähler, Klick listet die Meldungen mit „Zeigen“ und Link zur Prüfung",

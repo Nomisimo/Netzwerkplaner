@@ -1,6 +1,6 @@
 // Anbindung an den Planer-Server (Mehrbenutzerbetrieb). Ohne Sitzung ändert sich nichts.
 import { useState, useRef, useCallback, useEffect } from "react";
-import { createSyncClient } from "../shared/sync-client.js";
+import { createSyncClient, vergleicheVersion } from "../shared/sync-client.js";
 import { pathKey } from "../shared/ops.js";
 
 export const APP_ID = "netzwerkplaner";
@@ -67,14 +67,25 @@ export const serverApi = (server, token) => {
     if (ziel !== roheBasis(server)) umleitung.set(roheBasis(server), ziel);
     let body = {};
     try { body = JSON.parse(r.text); } catch { if (r.ok) throw new Error(`Unter ${ziel} antwortet kein Planer-Server`); }
-    if (!r.ok) throw new Error(body.error === "Unauthorized" ? "Server-Token falsch" : body.error || `HTTP ${r.status} von ${ziel}`);
+    if (!r.ok) throw new Error(body.error === "Unauthorized" ? "Server-Token falsch" : GRUND[body.error] || body.error || `HTTP ${r.status} von ${ziel}`);
     return body;
   };
   return {
     liste: () => req(`/api/sessions?app=${APP_ID}`),
     erstellen: (b) => req("/api/sessions", { method: "POST", body: JSON.stringify({ app: APP_ID, ...b }) }),
+    pruefeCode: (id, code) => req(`/api/sessions/${id}/verlauf?limit=1`, { headers: { "X-Session-Code": code || "" } }),
     loeschen: (id, code) => req(`/api/sessions/${id}`, { method: "DELETE", headers: { "X-Session-Code": code || "" } }),
   };
+};
+
+// Darf diese App-Version der Sitzung beitreten? Gleiche Version immer; eine neuere App übernimmt
+// eine leere Sitzung (der Server stellt sie um), eine ältere nie.
+export const beitrittMoeglich = (s, version) => {
+  const v = version || "dev";
+  if (!s.appVersion || s.appVersion === v) return { ok: true };
+  if (vergleicheVersion(v, s.appVersion) < 0) return { ok: false, grund: `Die Sitzung läuft mit Version ${s.appVersion}, deine App ist älter (${v}). Bitte zuerst aktualisieren.` };
+  if (s.users) return { ok: false, grund: `Die Sitzung läuft mit Version ${s.appVersion} und hat gerade Teilnehmer. Alle brauchen dieselbe Version.` };
+  return { ok: true, umstellen: true, grund: `Die Sitzung läuft noch mit Version ${s.appVersion}. Beim Beitreten wird sie auf deine Version ${v} umgestellt; ältere Apps können danach nicht mehr beitreten.` };
 };
 
 const GRUND = { "code-falsch": "Sitzungscode falsch.", gesperrt: "Zu viele Fehlversuche, bitte eine Minute warten.", token: "Server-Token falsch.", version: "Andere App-Version als die Sitzung.", unbekannt: "Sitzung nicht gefunden.", protokoll: "Server und App passen nicht zusammen.", "sitzung-geloescht": "Die Sitzung wurde gelöscht." };
@@ -98,9 +109,16 @@ export function useSitzung({ Pref, setP, notify, version }) {
       onUsers: (users, you) => upd(you ? { users, you } : { users }),
       onSperren: (sperren) => upd({ sperren }),
       onStatus: (status, d) => {
-        if (status === "fehler") notify(GRUND[d?.reason] || d?.detail || "Verbindung zum Server fehlgeschlagen.", "err");
-        // Sitzung vorbei (Q7): alle behalten ihre Kopie, als veraltet markiert
-        if (status === "beendet") { upd({ status, veraltet: true }); notify("Sitzung beendet. Dein Stand ist eine veraltete Kopie, bitte speichern.", "warn"); return; }
+        if (status === "fehler") { if (d?.reason !== "sitzung-geloescht") notify((d?.reason === "version" && d?.detail) || GRUND[d?.reason] || d?.detail || "Verbindung zum Server fehlgeschlagen.", "err"); return; }
+        if (status === "beendet") {
+          // Beitritt gescheitert: nichts wurde ersetzt, also auch keine veraltete Kopie
+          if (!d?.warVerbunden) { setZustand(null); client.current = null; return; }
+          // Sitzung vorbei (Q7): alle behalten ihre Kopie, als veraltet markiert
+          upd({ status, veraltet: true });
+          const von = d?.detail?.von;
+          notify(`${von ? `${von} hat die Sitzung beendet.` : "Sitzung beendet."} Dein Stand ist eine veraltete Kopie, bitte speichern.`, "warn");
+          return;
+        }
         upd({ status, ausstehend: d?.pending ?? client.current?.ausstehend ?? 0 });
       },
       onHinweis: (h) => {
@@ -122,6 +140,14 @@ export function useSitzung({ Pref, setP, notify, version }) {
 
   const verlassen = useCallback(() => {
     client.current?.close();
+    client.current = null;
+    setZustand(null);
+  }, []);
+  // Sitzung für alle beenden (Q7): die anderen behalten eine veraltete Kopie, du deinen Stand als lokales Projekt
+  const beenden = useCallback(async () => {
+    const c = client.current;
+    if (!c) return;
+    await c.beenden();
     client.current = null;
     setZustand(null);
   }, []);
@@ -159,5 +185,5 @@ export function useSitzung({ Pref, setP, notify, version }) {
     return l?.name || null;
   }, []);
 
-  return { zustand, aktiv, verbinden, erstellen, verlassen, senden, intent, verlauf, presence, sperreVon };
+  return { zustand, aktiv, verbinden, erstellen, verlassen, beenden, senden, intent, verlauf, presence, sperreVon };
 }
