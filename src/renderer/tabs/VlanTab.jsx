@@ -4,6 +4,7 @@ import { newVlan } from "../../shared/model.js";
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
 import { ipPorts } from "../../shared/catalog.js";
+import { CornerDownRight, TriangleAlert, ChevronUp, ChevronDown, Trash2 } from "lucide-react";
 
 function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
   const [open, setOpen] = useState(false);
@@ -15,7 +16,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
     <div style={{ ...S.card, borderLeft: `4px solid ${v.farbe}`, marginLeft: tiefe * 28 }}>
       <div style={S.cardHead} onClick={() => setOpen((o) => !o)}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-          {tiefe > 0 && <span style={{ color: MUTED, marginLeft: -6 }} title="Inneres VLAN (C-VLAN) im äußeren VLAN darüber">↳</span>}
+          {tiefe > 0 && <span style={{ color: MUTED, marginLeft: -6, display: "inline-flex" }} title="Inneres VLAN (C-VLAN) im äußeren VLAN darüber"><CornerDownRight size={14} /></span>}
           <span style={{ fontWeight: 800, fontSize: 15, minWidth: 44, textAlign: "center", color: "#fff", background: v.farbe + "33", border: `1px solid ${v.farbe}`, borderRadius: 6, padding: "1px 6px" }} title={aussen ? `VLAN-ID ${v.vid} · Tags: ${vlanPfad(v, P.vlans)} (außen › innen)` : `VLAN-ID ${v.vid}`}>{v.vid}</span>
           <div style={{ minWidth: 0 }}>
             <div style={S.cardTitle}>{v.name || "(ohne Name)"}</div>
@@ -35,9 +36,9 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
             const w = iss.filter((i) => i.sev === "error" || i.sev === "warn");
             if (!w.length) return null;
             const err = w.some((i) => i.sev === "error");
-            return <span style={{ color: err ? ERR : WARN, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }} title={w.map((i) => "• " + i.msg).join("\n")}>⚠ {w.length}</span>;
+            return <span style={{ color: err ? ERR : WARN, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3 }} title={w.map((i) => "• " + i.msg).join("\n")}><TriangleAlert size={13} /> {w.length}</span>;
           })()}
-          <span style={{ color: MUTED }}>{open ? "▴" : "▾"}</span>
+          <span style={{ color: MUTED, display: "inline-flex" }}>{open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
         </div>
       </div>
       {open && (
@@ -63,7 +64,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
           </div>
           <Field label="Notiz" style={{ marginTop: 10 }}><input style={S.inputSm} value={v.notiz} onChange={(e) => upd((x) => (x.notiz = e.target.value))} /></Field>
           {iss.map((i, n) => <div key={n} style={{ fontSize: 11, marginTop: 6, display: "flex", gap: 6 }}><SevBadge sev={i.sev} /><span>{i.msg}</span></div>)}
-          <button style={{ ...S.dangerBtnWide, marginTop: 12 }} onClick={() => {
+          <button style={{ ...S.dangerBtnWide, marginTop: 12, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => {
             if (!confirm(`VLAN ${v.vid} löschen? Ports verlieren die Zuordnung.`)) return;
             mutate((d) => {
               d.vlans = d.vlans.filter((x) => x.id !== v.id);
@@ -72,7 +73,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
                 g.ports.forEach((p) => { if (p.vlan === v.id) p.vlan = null; p.vlans = (p.vlans || []).filter((x) => x !== v.id); });
               }
             });
-          }}>🗑 VLAN löschen</button>
+          }}><Trash2 size={14} /> VLAN löschen</button>
         </div>
       )}
     </div>
@@ -84,7 +85,7 @@ export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
   const baum = useMemo(() => vlanBaum(P.vlans), [P.vlans]);
   return (
     <>
-      <Section title="VLANs" subtitle="ID, Name und Switch-Einstellungen je VLAN. ⚠ erscheint nur, wenn Geräte im VLAN es verlangen: Multicast-Protokolle (sACN, Dante-Multicast, MA-Net3, NDI …) ohne IGMP-Snooping, Audio over IP ohne „EEE aus“, doppelte IDs oder QinQ-Fehler. Ein leeres VLAN hat keine Warnung. Maus auf ⚠ zeigt den Grund."
+      <Section title="VLANs" subtitle={<>ID, Name und Switch-Einstellungen je VLAN. <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> erscheint nur, wenn Geräte im VLAN es verlangen: Multicast-Protokolle (sACN, Dante-Multicast, MA-Net3, NDI …) ohne IGMP-Snooping, Audio over IP ohne „EEE aus“, doppelte IDs oder QinQ-Fehler. Ein leeres VLAN hat keine Warnung. Maus auf <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> zeigt den Grund.</>}
         right={<div style={{ display: "flex", gap: 6 }}>
           <button style={S.primaryBtn} onClick={() => mutate((d) => {
             const vid = Math.max(0, ...d.vlans.map((v) => +v.vid)) + 1;

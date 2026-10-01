@@ -88,6 +88,13 @@ test("Frontplatten: parallele Kabel bekommen eigene Bahnen, gebündelt teilen si
   assert.equal(r.get("c"), 50); // kein Überlapp → Mitte
   const g = bahnenVergeben(k, { abstand: 6, buendeln: true });
   assert.equal(g.get("a"), g.get("b"));
+  // mit Quelle: alle Kabel des Switches nach unten teilen einen Kanal dicht am Switch, auch zu verschiedenen Zeilen
+  const q = bahnenVergeben([
+    { id: "u1", x1: 0, y1: 0, x2: 200, y2: 100, gruppe: "sw", gy: 0 },
+    { id: "u2", x1: 10, y1: 0, x2: -200, y2: 300, gruppe: "sw", gy: 0 },
+  ], { abstand: 12, rand: 14, buendeln: true });
+  assert.equal(q.get("u1"), 14);
+  assert.equal(q.get("u2"), 14);
   const e = endenVerteilen([{ id: "x", dev: "d", gegenX: 300 }, { id: "y", dev: "d", gegenX: -100 }], { abstand: 6 });
   assert.ok(e.get("y") < e.get("x"));
   assert.equal(knickPfad(0, 0, 10, 10, { x: 5, y: 2 }, "h", "direkt"), "M0,0 L5,2 L10,10");

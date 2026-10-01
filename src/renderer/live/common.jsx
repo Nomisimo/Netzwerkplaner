@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, WARN } from "../../shared/constants.js";
 import { findPlanned, fmtAge } from "../../shared/live.js";
 import { Dot, th, td } from "../ui.jsx";
+import { Square, Play, OctagonX, TriangleAlert } from "lucide-react";
 
 export { th, td };
 
@@ -11,16 +12,16 @@ export function MonBar({ mon, label = "Mitlesen", onStart, children, stopLabel =
     <div style={{ marginBottom: 14 }}>
       <div style={{ ...S.row, marginBottom: 0 }}>
         {mon.running
-          ? <button style={S.secondaryBtn} onClick={mon.stop}>■ {stopLabel}</button>
-          : <button style={S.primaryBtn} disabled={mon.busy} onClick={onStart}>▶ {label}</button>}
+          ? <button style={S.secondaryBtn} onClick={mon.stop}><Square size={12} fill="currentColor" /> {stopLabel}</button>
+          : <button style={S.primaryBtn} disabled={mon.busy} onClick={onStart}><Play size={12} fill="currentColor" /> {label}</button>}
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: mon.running ? OK : MUTED }}>
           <Dot color={mon.running ? OK : "#5b6570"} /> {mon.running ? "läuft" : "gestoppt"}
         </span>
         {children}
       </div>
-      {mon.error && <div style={{ color: ERR, fontSize: 12, marginTop: 8 }}>⛔ {mon.error}</div>}
-      {mon.snapshot?.err && <div style={{ color: WARN, fontSize: 12, marginTop: 8 }}>⚠ {mon.snapshot.err}</div>}
-      {(mon.snapshot?.errors || []).map((e, i) => <div key={i} style={{ color: WARN, fontSize: 12, marginTop: 6 }}>⚠ {e}</div>)}
+      {mon.error && <div style={{ color: ERR, fontSize: 12, marginTop: 8, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {mon.error}</div>}
+      {mon.snapshot?.err && <div style={{ color: WARN, fontSize: 12, marginTop: 8, display: "flex", alignItems: "flex-start", gap: 5 }}><TriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {mon.snapshot.err}</div>}
+      {(mon.snapshot?.errors || []).map((e, i) => <div key={i} style={{ color: WARN, fontSize: 12, marginTop: 6, display: "flex", alignItems: "flex-start", gap: 5 }}><TriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {e}</div>)}
     </div>
   );
 }

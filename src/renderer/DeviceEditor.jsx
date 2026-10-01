@@ -10,6 +10,7 @@ import { KonfigKopieren, KonfigEinfuegen } from "./KonfigDialog.jsx";
 import { useZwischenablage } from "./zwischenablage.js";
 import { geraetKopie } from "../shared/konfig.js";
 import { newFeld } from "../shared/felder.js";
+import { X as XIcon, ChevronDown, RefreshCw, ArrowLeftRight, Plus, Trash2, Globe, Star, Download, Copy, CopyPlus, ClipboardPaste, Lock, Link } from "lucide-react";
 
 /* Eigene Felder aus dem Katalog (Katalog → Eigene Felder) einfügen und ausfüllen */
 function EigeneFelder({ dev, katalog, upd, grid }) {
@@ -44,7 +45,7 @@ function EigeneFelder({ dev, katalog, upd, grid }) {
             <Field key={f.id} label={f.name}>
               <div style={{ display: "flex", gap: 4 }}>
                 <input style={S.inputSm} value={f.wert || ""} onChange={(e) => upd((g) => { const x = g.felder.find((y) => y.id === f.id); if (x) x.wert = e.target.value; })} />
-                <button style={{ ...S.smallBtn, padding: "4px 7px" }} title="Feld aus diesem Gerät entfernen" onClick={() => upd((g) => { g.felder = g.felder.filter((y) => y.id !== f.id); })}>✕</button>
+                <button style={{ ...S.smallBtn, padding: "4px 7px" }} title="Feld aus diesem Gerät entfernen" onClick={() => upd((g) => { g.felder = g.felder.filter((y) => y.id !== f.id); })}><XIcon size={12} /></button>
               </div>
             </Field>
           ))}
@@ -67,7 +68,7 @@ function TrunkVlans({ vlans, value, onChange }) {
   const label = [...vlans].filter((v) => sel.has(v.id)).sort((a, b) => a.vid - b.vid).map((v) => v.vid).join(", ") || "keine";
   return (
     <div style={{ position: "relative" }}>
-      <button style={{ ...S.smallBtn, width: "100%", textAlign: "left" }} onClick={() => setOpen((o) => !o)} title="Erlaubte VLANs (tagged)">{label} ▾</button>
+      <button style={{ ...S.smallBtn, width: "100%", textAlign: "left" }} onClick={() => setOpen((o) => !o)} title="Erlaubte VLANs (tagged)">{label} <ChevronDown size={12} /></button>
       {open && (
         <div style={{ position: "absolute", zIndex: 40, top: "100%", right: 0, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,.5)" }} onMouseLeave={() => setOpen(false)}>
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
@@ -94,7 +95,7 @@ const Gegenstellen = ({ cons, onSelectDevice }) => <>
 </>;
 
 const festStil = (an) => (an ? { opacity: 0.6, cursor: "not-allowed" } : {});
-const FEST_TIP = "Fest durch das Modell aus Katalog bzw. Gerätebestand. Ändern über „⇄ Modell zuweisen“ oder im Katalog.";
+const FEST_TIP = "Fest durch das Modell aus Katalog bzw. Gerätebestand. Ändern über „Modell zuweisen“ oder im Katalog.";
 
 const PortLoeschen = ({ dev, p, mutate }) => (
   <button style={{ ...S.dangerBtn, padding: "1px 6px" }} title={p.virtuell ? "Management-Interface löschen" : "Port löschen (inkl. Verbindung)"} onClick={() => mutate((d) => {
@@ -103,7 +104,7 @@ const PortLoeschen = ({ dev, p, mutate }) => (
     if (g.webUi?.iface === p.id) g.webUi.iface = null;
     for (const s of g.stroeme || []) if (s.iface === p.id) s.iface = null;
     d.verbindungen = d.verbindungen.filter((c) => !((c.a.dev === dev.id && c.a.port === p.id) || (c.b.dev === dev.id && c.b.port === p.id)));
-  })}>✕</button>
+  })}><XIcon size={12} /></button>
 );
 
 /* Port eines Endgeräts oder Management-Interface eines Switches: Anschluss und IP-Daten in einem */
@@ -127,7 +128,7 @@ function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest
             <div style={{ display: "flex", gap: 4 }}>
               <input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.ip} placeholder={p.dhcp ? "DHCP" : "10.10.10.21"} onChange={(e) => setP((x) => (x.ip = e.target.value.trim()))} />
               <button style={{ ...S.smallBtn, padding: "4px 6px" }} title="Nächste freie Adresse im VLAN vorschlagen" disabled={!v}
-                onClick={() => { const a = suggestIp(P, v, p.id); if (a) setP((x) => (x.ip = a)); }}>⟳</button>
+                onClick={() => { const a = suggestIp(P, v, p.id); if (a) setP((x) => (x.ip = a)); }}><RefreshCw size={12} /></button>
             </div>
           </Field>
           <Field label="Maske">
@@ -174,20 +175,20 @@ function GenerischeMaske({ dev, status, upd, onUmbauen, onTypWaehlen, onDelete, 
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
         {onUmbauen && <button style={{ ...S.primaryBtn, padding: "8px 10px" }} onClick={() => onUmbauen(dev.id)}
-          title="Katalogmodell, eigene Vorlage oder Bestandseintrag wählen. Name, IP und Verbindungen bleiben.">⇄ Modell zuweisen</button>}
+          title="Katalogmodell, eigene Vorlage oder Bestandseintrag wählen. Name, IP und Verbindungen bleiben."><ArrowLeftRight size={14} /> Modell zuweisen</button>}
         {typ === null
-          ? <button style={{ ...S.smallBtn, padding: "8px 10px" }} onClick={() => setTyp(dev.typVorschlag || "sonstiges")}>＋ Leeres Gerät anlegen</button>
+          ? <button style={{ ...S.smallBtn, padding: "8px 10px" }} onClick={() => setTyp(dev.typVorschlag || "sonstiges")}><Plus size={14} /> Leeres Gerät anlegen</button>
           : <div style={{ display: "flex", gap: 6 }}>
               <select style={{ ...S.selectSm, flex: 1 }} value={typ} onChange={(e) => setTyp(e.target.value)} autoFocus>
                 {Object.entries(TYPEN).map(([key, t]) => <option key={key} value={key}>{t.label}{key === dev.typVorschlag ? " (Vorschlag)" : ""}</option>)}
               </select>
               <button style={S.primaryBtn} onClick={() => onTypWaehlen && onTypWaehlen(dev.id, typ)}>Anlegen</button>
-              <button style={S.smallBtn} onClick={() => setTyp(null)}>✕</button>
+              <button style={S.smallBtn} onClick={() => setTyp(null)}><XIcon size={14} /></button>
             </div>}
       </div>
       <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
-        <button style={S.smallBtn} onClick={() => onCheck && onCheck([dev.id])}>⟳ Erreichbarkeit</button>
-        <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={() => onDelete && onDelete(dev.id)}>🗑 Löschen</button>
+        <button style={S.smallBtn} onClick={() => onCheck && onCheck([dev.id])}><RefreshCw size={14} /> Erreichbarkeit</button>
+        <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={() => onDelete && onDelete(dev.id)}><Trash2 size={14} /> Löschen</button>
       </div>
     </div>
   );
@@ -227,22 +228,22 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
         {dev.webUi?.vorhanden && (
           <button style={{ ...S.primaryBtn, padding: "6px 10px", fontSize: 12, opacity: url ? 1 : 0.5 }} disabled={!url} title={url || "Keine IP-Adresse für die Web-UI eingetragen"}
-            onClick={() => url && api.openExternal(url)}>🌐 Web-UI öffnen</button>
+            onClick={() => url && api.openExternal(url)}><Globe size={14} /> Web-UI öffnen</button>
         )}
-        <button style={S.smallBtn} onClick={() => onCheck && onCheck([dev.id])} title="Ping bzw. TCP-Prüfung auf den Web-UI-Port">⟳ Erreichbarkeit</button>
+        <button style={S.smallBtn} onClick={() => onCheck && onCheck([dev.id])} title="Ping bzw. TCP-Prüfung auf den Web-UI-Port"><RefreshCw size={14} /> Erreichbarkeit</button>
         {X && <button style={{ ...S.smallBtn, ...(isRoot ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={() => mutate((d) => { d.layout.rootId = isRoot ? null : dev.id; })}
-          title="Dieses Gerät als Mitte der Mindmap verwenden">{isRoot ? "★ Core (Mitte)" : "☆ Als Core setzen"}</button>}
-        {onUmbauen && <button style={S.smallBtn} onClick={() => onUmbauen(dev.id)} title="Dieses Gerät auf ein Katalogmodell, eine eigene Vorlage oder einen Bestandseintrag umstellen. Name, Netzwerkname, IPs und Verbindungen bleiben.">⇄ Modell zuweisen</button>}
-        <button style={S.smallBtn} onClick={() => onSaveVorlage && onSaveVorlage(dev)} title="Als eigene Gerätevorlage (ohne IPs) im Katalog speichern">＋ Vorlage</button>
+          title="Dieses Gerät als Mitte der Mindmap verwenden">{isRoot ? <><Star size={14} fill="currentColor" /> Core (Mitte)</> : <><Star size={14} /> Als Core setzen</>}</button>}
+        {onUmbauen && <button style={S.smallBtn} onClick={() => onUmbauen(dev.id)} title="Dieses Gerät auf ein Katalogmodell, eine eigene Vorlage oder einen Bestandseintrag umstellen. Name, Netzwerkname, IPs und Verbindungen bleiben."><ArrowLeftRight size={14} /> Modell zuweisen</button>}
+        <button style={S.smallBtn} onClick={() => onSaveVorlage && onSaveVorlage(dev)} title="Als eigene Gerätevorlage (ohne IPs) im Katalog speichern"><Plus size={14} /> Vorlage</button>
         {onSaveBestand && (() => {
           const inB = dev.bestandId && bestand.some((b) => b.id === dev.bestandId);
           return <button style={{ ...S.smallBtn, ...(inB ? { borderColor: "#2ecc7188" } : {}) }} onClick={() => onSaveBestand(dev)}
-            title={inB ? "Den Eintrag im Gerätebestand mit dem aktuellen Stand (Name, IPs, Ports …) überschreiben" : "Dieses konkrete Gerät mit Name, IPs, MACs und Ports im Gerätebestand speichern"}>{inB ? "⟳ Bestand aktualisieren" : "⇩ In Bestand"}</button>;
+            title={inB ? "Den Eintrag im Gerätebestand mit dem aktuellen Stand (Name, IPs, Ports …) überschreiben" : "Dieses konkrete Gerät mit Name, IPs, MACs und Ports im Gerätebestand speichern"}>{inB ? <><RefreshCw size={14} /> Bestand aktualisieren</> : <><Download size={14} /> In Bestand</>}</button>;
         })()}
-        <button style={S.smallBtn} title="Gerät mit allen Einstellungen kopieren (ohne IP- und MAC-Adressen)" onClick={() => mutate((d) => { d.geraete.push(geraetKopie(dev)); })}>⧉ Duplizieren</button>
-        <button style={S.smallBtn} title="Einstellungen dieses Geräts kopieren, um sie in andere Geräte einzufügen. Im Dialog wählst du, welche Daten." onClick={() => setKonfigDlg("kopieren")}>⎘ Konfig kopieren</button>
-        {konfigClip && <button style={S.smallBtn} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in dieses und weitere Geräte einfügen`} onClick={() => setKonfigDlg("einfuegen")}>📋 Konfig einfügen</button>}
-        <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={() => onDelete && onDelete(dev.id)}>🗑 Löschen</button>
+        <button style={S.smallBtn} title="Gerät mit allen Einstellungen kopieren (ohne IP- und MAC-Adressen)" onClick={() => mutate((d) => { d.geraete.push(geraetKopie(dev)); })}><CopyPlus size={14} /> Duplizieren</button>
+        <button style={S.smallBtn} title="Einstellungen dieses Geräts kopieren, um sie in andere Geräte einzufügen. Im Dialog wählst du, welche Daten." onClick={() => setKonfigDlg("kopieren")}><Copy size={14} /> Konfig kopieren</button>
+        {konfigClip && <button style={S.smallBtn} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in dieses und weitere Geräte einfügen`} onClick={() => setKonfigDlg("einfuegen")}><ClipboardPaste size={14} /> Konfig einfügen</button>}
+        <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={() => onDelete && onDelete(dev.id)}><Trash2 size={14} /> Löschen</button>
       </div>
       {konfigDlg === "kopieren" && <KonfigKopieren P={P} dev={dev} onClose={() => setKonfigDlg(null)} />}
       {konfigDlg === "einfuegen" && konfigClip && <KonfigEinfuegen P={P} clip={konfigClip} ziele={[dev.id]} mutate={mutate} onClose={() => setKonfigDlg(null)} />}
@@ -255,8 +256,8 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
 
       {fest && (
         <div style={{ marginTop: 12, padding: "7px 10px", border: `1px solid ${LINE}`, borderRadius: 7, background: "#1f242b", fontSize: 11.5, color: SUB, lineHeight: 1.45 }}>
-          🔒 {dev.bestandId ? "Aus dem Gerätebestand" : "Herstellermodell aus dem Katalog"}: Gerätetyp, Hersteller, Modell, Ports, Buchsen und PoE-Werte sind fest.
-          Einstellbar bleiben Name, VLAN, IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen.{onUmbauen ? " Anderes Modell: „⇄ Modell zuweisen“." : ""}
+          <Lock size={12} style={{ verticalAlign: "-2px" }} /> {dev.bestandId ? "Aus dem Gerätebestand" : "Herstellermodell aus dem Katalog"}: Gerätetyp, Hersteller, Modell, Ports, Buchsen und PoE-Werte sind fest.
+          Einstellbar bleiben Name, VLAN, IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen.{onUmbauen ? " Anderes Modell: „Modell zuweisen“." : ""}
         </div>
       )}
 
@@ -370,8 +371,8 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
             <span key={n} style={{ ...S.chip, borderColor: r ? (r.flags.p2p ? ERR + "88" : ACCENT + "66") : LINE, cursor: r ? "pointer" : "default" }}
               title={r ? `${r.name}\nPorts: ${r.raw.Ports}\nÜber Switch: ${r.raw["Über Switch / routbar?"]}` : "Nicht in der Protokollrecherche"}
               onClick={() => r && onShowProto && onShowProto(r.id)}>
-              {r?.flags.p2p && "⛓ "}{s}
-              <span style={{ color: MUTED, cursor: "pointer", marginLeft: 2 }} onClick={(e) => { e.stopPropagation(); upd((g) => g.protokolle.splice(n, 1)); }}>✕</span>
+              {r?.flags.p2p && <Link size={11} />}{s}
+              <span style={{ color: MUTED, cursor: "pointer", marginLeft: 2 }} onClick={(e) => { e.stopPropagation(); upd((g) => g.protokolle.splice(n, 1)); }}><XIcon size={11} style={{ display: "block" }} /></span>
             </span>
           );
         })}
@@ -380,7 +381,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
           <datalist id="np-protos">{PROTOKOLLE.map((p) => <option key={p.id} value={p.name} />)}</datalist>
         </form>
       </div>
-      <div style={{ ...S.hint, marginTop: 6 }}>⛓ = Punkt-zu-Punkt-Protokoll, läuft nicht über Switches. Klick auf ein Protokoll zeigt Ports und Anforderungen.</div>
+      <div style={{ ...S.hint, marginTop: 6 }}><Link size={11} style={{ verticalAlign: "-1px" }} /> = Punkt-zu-Punkt-Protokoll, läuft nicht über Switches. Klick auf ein Protokoll zeigt Ports und Anforderungen.</div>
 
       {/* Datenströme */}
       {!dev.isSwitch && X && <>

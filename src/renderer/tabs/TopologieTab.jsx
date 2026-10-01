@@ -4,7 +4,7 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGOR
 import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts } from "../../shared/model.js";
 import { layoutMindmap, NODE_W, NODE_H } from "../../shared/layout.js";
 import { SvgIcon, IconView } from "../icons.jsx";
-import { Toggle, VlanSelect, Dot } from "../ui.jsx";
+import { Toggle, VlanSelect, Dot, Modal } from "../ui.jsx";
 import DeviceEditor from "../DeviceEditor.jsx";
 import ConnEditor from "../ConnEditor.jsx";
 import { api } from "../api.js";
@@ -22,6 +22,7 @@ import { stapelEinfuegen } from "../../shared/konfig.js";
 import { useZwischenablage } from "../zwischenablage.js";
 import { einrasten, mitlaeufer, gruppeBewegen } from "../../shared/einrasten.js";
 import { KonfigEinfuegen } from "../KonfigDialog.jsx";
+import { Network, Cable, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap } from "lucide-react";
 
 const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: "#9aa4af", p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
@@ -111,6 +112,16 @@ export default function TopologieTab(props) {
     if (an) { delete d.layout.fix; delete d.layout.fpFix; }
     else d.layout[fixKey] = positionenSichern(Lbase);
   });
+  /* Von Hand angepasstes Layout dieser Ansicht: verschobene Geräte oder Kabel, oder
+     (bei Auto-Anordnen aus) Positionen, die vom automatischen Stand abweichen. */
+  const manuellAngepasst = () => {
+    const lay = P.layout;
+    if (Object.keys(lay[offKey] || {}).length || Object.keys(lay[knickKey] || {}).length) return true;
+    if (!auto) for (const [id, z] of Object.entries(lay[fixKey] || {})) { const p = Lroh.pos.get(id); if (p && !pins[id] && Math.hypot(p.x - z.x, p.y - z.y) > 4) return true; }
+    return false;
+  };
+  const [warnung, setWarnung] = useState(null); // { text, ok }
+  const mitWarnung = (text, ok) => (manuellAngepasst() ? setWarnung({ text, ok }) : ok());
   // Geräte im Stapel pinnen den ganzen Stapel (über das oberste Gerät, den Anker)
   const togglePin = (id0) => mutate((d) => {
     const id = stapelAnker(d.layout.stapel || [], id0);
@@ -408,6 +419,14 @@ export default function TopologieTab(props) {
     const y1 = pa.y + 4 + i * 3, y2 = pb.y - 4 - i * 3;
     return { d: eckPfad(x1, y1, x2, y2, "h", xo), x1, y1, x2, y2, mx: xo, my: (y1 + y2) / 2 };
   };
+  // Linie direkt greifen: im Bewegen-Werkzeug verschiebt Ziehen an einer Verbindung ihre Knickstelle
+  const linieGreifen = (e, c) => {
+    e.stopPropagation();
+    if (e.button || tool !== "move" || e.shiftKey || stapelKlammer.has(c.id)) return;
+    const k = P.layout[knickKey]?.[c.id] || { dx: 0, dy: 0 };
+    setSelection({ type: "conn", id: c.id });
+    setDrag({ kind: "knick", id: c.id, bx: k.dx, by: k.dy, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false });
+  };
   // Griff zum Verschieben der ausgewählten Verbindung
   const knickGriff = (c, mx, my) => tool === "move" && selConn?.id === c.id && (
     <g className="np-ui" style={{ cursor: "move" }} onMouseDown={(e) => { if (e.button) return; e.stopPropagation(); const k = P.layout[knickKey]?.[c.id] || { dx: 0, dy: 0 }; setDrag({ kind: "knick", id: c.id, bx: k.dx, by: k.dy, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false }); }}
@@ -481,7 +500,7 @@ export default function TopologieTab(props) {
       if (!r.sa) enden.push({ id: r.c.id + "|a", dev: r.c.a.dev + (r.a1.dir > 0 ? "u" : "o"), gegenX: r.b1.x });
       if (!r.sb) enden.push({ id: r.c.id + "|b", dev: r.c.b.dev + (r.b1.dir > 0 ? "u" : "o"), gegenX: r.a1.x });
     }
-    const versatz = endenVerteilen(enden, { abstand: 7, breite: CARD_W * 0.6 });
+    const versatz = endenVerteilen(enden, { abstand: 12, breite: CARD_W * 0.8 });
     for (const r of roh) {
       r.a1 = { ...r.a1, x: r.a1.x + (versatz.get(r.c.id + "|a") || 0) };
       r.b1 = { ...r.b1, x: r.b1.x + (versatz.get(r.c.id + "|b") || 0) };
@@ -491,83 +510,100 @@ export default function TopologieTab(props) {
     const bahn = bahnenVergeben(roh.filter((r) => !r.kl && !r.straight && !knickOf(r.c)).map((r) => ({
       id: r.c.id, x1: r.a1.x, y1: r.a1.y, x2: r.b1.x, y2: r.b1.y,
       gruppe: r.pa.kind === "switch" ? r.c.a.dev : r.pb.kind === "switch" ? r.c.b.dev : r.c.a.dev, devs: [r.c.a.dev, r.c.b.dev],
-    })), { abstand: 6, buendeln, hindernisse: [...L.pos].filter(([id]) => X.devById.has(id)).map(([id, p]) => {
+      gy: r.pa.kind === "switch" ? r.a1.y : r.pb.kind === "switch" ? r.b1.y : undefined,
+    })), { abstand: 12, rand: 22, buendeln, hindernisse: [...L.pos].filter(([id]) => X.devById.has(id)).map(([id, p]) => {
       const w = p.w || CARD_W, h = p.h || CARD_H, top = p.y - h / 2 - (p.kind === "card" ? TAB_H : 0);
       return { dev: id, x0: p.x - w / 2, x1: p.x + w / 2, y0: top, y1: p.y + h / 2 };
     }) });
     for (const [id, y] of bahn) fpWeg.get(id).bahn = y;
   }
 
-  const H = "calc(100vh - 96px)";
   const closeCtx = useCallback(() => setCtx(null), []);
+  const trenner = <span style={{ width: 1, height: 22, background: LINE, flexShrink: 0 }} />;
+  const zeile = { display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap", overflow: "hidden", minHeight: 32 };
+  const knopf = { ...S.ghostBtn, whiteSpace: "nowrap", flexShrink: 0 };
+  const ico = { size: 14, strokeWidth: 2 };
 
   return (
-    <div style={{ display: "flex", height: H, minHeight: 500 }}>
-      {/* Palette */}
-      <div style={{ width: paletteOpen ? 176 : 34, background: DARK, borderRight: `1px solid ${LINE}`, overflowY: "auto", flexShrink: 0, transition: "width .15s" }}>
-        <button style={{ ...S.ghostBtn, border: "none", width: "100%", justifyContent: paletteOpen ? "space-between" : "center", borderRadius: 0, borderBottom: `1px solid ${LINE}` }} onClick={() => setPaletteOpen((o) => !o)} title="Palette ein-/ausklappen">
-          {paletteOpen && <span className="sp-section-label" style={{ margin: 0 }}>Geräte</span>}{paletteOpen ? "‹" : "›"}
-        </button>
-        {paletteOpen && <>
-          <div style={{ padding: 8 }}>
-            <button style={{ ...S.primaryBtn, width: "100%", padding: "7px 8px", fontSize: 12 }} onClick={() => onAddDevice(null, { connectTo: selDev?.id, picker: true })}>+ Aus Katalog …</button>
-            <div style={{ ...S.hint, marginTop: 6 }}>Typ auf ein Gerät ziehen = anschließen. Auf leere Fläche = frei platzieren.</div>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+      {/* Werkzeugleiste: feste Reihen über Palette, Zeichenfläche und Seitenleiste, damit nichts umspringt */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexShrink: 0 }}>
+        <div style={zeile}>
+          <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
+            {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"]].map(([k, i, l]) => (
+              <button key={k} onClick={() => setAnsicht(k)} title={k === "front" ? "Geräte mit ihren Anschlüssen, Kabel von Buchse zu Buchse" : "Baum vom Hauptswitch aus"} style={{ ...knopf, border: "none", borderRadius: 0, ...((front ? "front" : "mindmap") === k ? { background: "#2c3b93", color: "#fff" } : {}) }}>{i}{l}</button>
+            ))}
           </div>
-          {Object.entries(TYPEN).map(([k, t]) => (
-            <div key={k} draggable onDragStart={(e) => e.dataTransfer.setData("application/x-netplan", JSON.stringify({ kind: "typ", key: k }))}
-              onDoubleClick={() => { const id = onAddDevice({ kind: "typ", key: k }, { connectTo: selDev?.id }); if (id) setSelection({ type: "dev", id }); }}
-              title="Ziehen oder Doppelklick" style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", cursor: "grab", fontSize: 12, color: "#c8d0d8", borderBottom: "1px solid #232a33" }}>
-              <IconView icon={t.icon} color={katColor(t.kat)} size={18} />{t.label}
-            </div>
-          ))}
-        </>}
+          <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
+            {[["move", <Move {...ico} />, "Bewegen", "M"], ["connect", <Link2 {...ico} />, "Verbinden", "C"], ["stack", <Layers {...ico} />, "Stapeln", "S"]].map(([k, i, l, key]) => (
+              <button key={k} title={k === "stack" ? "Taste S · von einem Gerät auf ein anderes ziehen: stapelt sie grafisch (Rack, Tower). Keine Netzwerkverbindung." : `Taste ${key}`} onClick={() => setTool(k)} style={{ ...knopf, border: "none", borderRadius: 0, ...(tool === k ? { background: ACCENT, color: "#fff" } : {}) }}>{i}{l}</button>
+            ))}
+          </div>
+          {trenner}
+          <button style={knopf} onClick={fit} title="Alles einpassen"><Maximize {...ico} />Einpassen</button>
+          <button style={knopf} onClick={() => mitWarnung("Auto-Layout setzt alle von Hand verschobenen Geräte und Verbindungen dieser Ansicht zurück. Angepinnte Geräte und Stapel bleiben stehen.", () => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; }))}
+            title="Verschiebungen von Geräten und Verbindungen zurücksetzen. Angepinnte Geräte und Stapel bleiben."><RotateCcw {...ico} />Auto-Layout</button>
+          <Toggle checked={rasten} onChange={(v) => mutate((d) => { d.layout.einrasten = v; })} label="Einrasten"
+            title="An: Geräte rasten beim Ziehen im Raster ein und richten sich an Kanten und Mitten benachbarter Geräte aus. Alt gedrückt halten = frei ziehen." />
+          <Toggle checked={auto} onChange={(an) => an ? mitWarnung("Auto-Anordnen ordnet alle Geräte neu an. Die von Hand gesetzten Positionen gehen dabei verloren, angepinnte Geräte bleiben stehen.", () => setAuto(true)) : setAuto(false)} label="Auto-Anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
+          {trenner}
+          <button style={{ ...knopf, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan"><ImageIcon {...ico} />Hintergrund</button>
+          <button style={knopf} title="Alle Äste ein- oder ausklappen" onClick={() => mutate((d) => { const any = Object.values(d.layout.collapsed || {}).some(Boolean); d.layout.collapsed = any ? {} : Object.fromEntries([...T.children].filter(([id, ch]) => ch.length && !T.roots.includes(id)).map(([id]) => [id, true])); })}><ListTree {...ico} />Äste</button>
+          <button style={knopf} disabled={!stapelClip} onClick={() => { if (!stapelClip) return; let neu = null; mutate((d) => { neu = stapelEinfuegen(d, stapelClip); }); if (neu?.stapelId) setSelection({ type: "stapel", id: neu.stapelId }); else if (neu?.ids[0]) setSelection({ type: "dev", id: neu.ids[0] }); }}
+            title={stapelClip ? `Kopierten Stapel „${stapelClip.name || "Stapel"}“ (${stapelClip.geraete.length} Geräte) einfügen` : "Erst im Stapel-Fenster einen Stapel kopieren"}><ClipboardPaste {...ico} />Stapel einfügen</button>
+          <span style={{ flex: 1 }} />
+          <button style={knopf} onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen"><RefreshCw {...ico} />Status</button>
+          <Toggle checked={autoStatus} onChange={setAutoStatus} label="alle 15 s" title="Erreichbarkeit zyklisch prüfen" />
+        </div>
+        <div style={zeile}>
+          <select style={{ ...S.selectSm, width: 130, flexShrink: 0 }} value={colorBy} onChange={(e) => setColorBy(e.target.value)} title="Farbe der Verbindungen">
+            <option value="vlan">Farbe: VLAN</option><option value="kat">Farbe: Bereich</option><option value="kabel">Farbe: Kabel</option>
+          </select>
+          <select style={{ ...S.selectSm, width: 130, flexShrink: 0 }} value={linien} onChange={(e) => mutate((d) => { d.layout.linien = e.target.value; })} title="Form der Verbindungslinien">
+            <option value="rund">Linien: rund</option><option value="eckig">Linien: eckig</option><option value="direkt">Linien: direkt</option>
+          </select>
+          <Toggle checked={buendeln} disabled={linien !== "eckig"} onChange={(v) => mutate((d) => { d.layout.kabelBuendel = v; })} label="Kabel bündeln"
+            title={linien !== "eckig" ? "Nur bei „Linien: eckig“" : front ? "An: die Kabel eines Switches laufen gemeinsam in einem Kanal. Aus: jedes Kabel läuft auf eigener Bahn daneben." : "An: Kabel teilen sich den Weg, mehrere Kabel zwischen denselben Geräten werden eine Linie mit Anzahl. Aus: jedes Kabel läuft einzeln auf eigener Spur daneben."} />
+          <select style={{ ...S.selectSm, width: 170, flexShrink: 0 }} value={titel} onChange={(e) => setTitel(e.target.value)} title="Beschriftung der Geräte">
+            <option value="name">Titel: Gerätename</option><option value="netzname">Titel: Netzwerkname</option><option value="typ">Titel: Typ / Modell</option>{(P.feldKatalog || []).map((f) => <option key={f.id} value={"feld:" + f.id}>Titel: {f.name}</option>)}
+          </select>
+          {trenner}
+          <select style={{ ...S.selectSm, width: 130, flexShrink: 0 }} value={katFilter} onChange={(e) => setKatFilter(e.target.value)} title="Nur einen Bereich hervorheben">
+            <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
+          </select>
+          <VlanSelect vlans={P.vlans} value={vlanFilter} onChange={setVlanFilter} style={{ width: 150, flexShrink: 0 }} noneLabel="Alle VLANs" />
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <Search size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: MUTED, pointerEvents: "none" }} />
+            <input style={{ ...S.inputSm, width: 170, paddingLeft: 26 }} placeholder="Suchen (Name, IP)" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <Toggle checked={showPorts && !front} disabled={front} onChange={setShowPorts} label="Port & VLAN" title={front ? "In der Anschluss-Ansicht stehen die Ports direkt an den Buchsen" : "Switch-Port und VLAN an jeder Verbindung anzeigen"} />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+      {/* Palette: eingeklappt bleiben die Typ-Icons als Miniaturen sichtbar und ziehbar */}
+      <div style={{ width: paletteOpen ? 176 : 46, background: DARK, borderRight: `1px solid ${LINE}`, overflowY: "auto", overflowX: "hidden", flexShrink: 0, transition: "width .15s" }}>
+        <button style={{ ...S.ghostBtn, border: "none", width: "100%", justifyContent: paletteOpen ? "space-between" : "center", borderRadius: 0, borderBottom: `1px solid ${LINE}` }} onClick={() => setPaletteOpen((o) => !o)} title={paletteOpen ? "Geräteliste einklappen" : "Geräteliste ausklappen"}>
+          {paletteOpen && <span className="sp-section-label" style={{ margin: 0 }}>Geräte</span>}{paletteOpen ? <PanelLeftClose {...ico} /> : <PanelLeftOpen {...ico} />}
+        </button>
+        <div style={{ padding: paletteOpen ? 8 : "6px 4px" }}>
+          <button style={{ ...S.primaryBtn, width: "100%", padding: paletteOpen ? "7px 8px" : "6px 0", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }} onClick={() => onAddDevice(null, { connectTo: selDev?.id, picker: true })} title="Gerät aus dem Katalog hinzufügen">
+            <Plus {...ico} />{paletteOpen && "Aus Katalog …"}
+          </button>
+          {paletteOpen && <div style={{ ...S.hint, marginTop: 6 }}>Typ auf ein Gerät ziehen = anschließen. Auf leere Fläche = frei platzieren.</div>}
+        </div>
+        {Object.entries(TYPEN).map(([k, t]) => (
+          <div key={k} draggable onDragStart={(e) => e.dataTransfer.setData("application/x-netplan", JSON.stringify({ kind: "typ", key: k }))}
+            onDoubleClick={() => { const id = onAddDevice({ kind: "typ", key: k }, { connectTo: selDev?.id }); if (id) setSelection({ type: "dev", id }); }}
+            title={paletteOpen ? "Ziehen oder Doppelklick" : `${t.label} · ziehen oder Doppelklick`}
+            style={{ display: "flex", alignItems: "center", justifyContent: paletteOpen ? "flex-start" : "center", gap: 8, padding: paletteOpen ? "5px 10px" : "6px 0", cursor: "grab", fontSize: 12, color: "#c8d0d8", borderBottom: "1px solid #232a33" }}>
+            <IconView icon={t.icon} color={katColor(t.kat)} size={paletteOpen ? 18 : 22} />{paletteOpen && t.label}
+          </div>
+        ))}
       </div>
 
       {/* Zeichenfläche */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }} title="Darstellung der Topologie">
-            {[["mindmap", "◉ Mindmap"], ["front", "▦ Frontplatten"]].map(([k, l]) => (
-              <button key={k} onClick={() => setAnsicht(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, ...((front ? "front" : "mindmap") === k ? { background: "#2c3b93", color: "#fff" } : {}) }}>{l}</button>
-            ))}
-          </div>
-          <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }}>
-            {[["move", "✥ Bewegen", "M"], ["connect", "🔗 Verbinden", "C"], ["stack", "▤ Stapeln", "S"]].map(([k, l, key]) => (
-              <button key={k} title={k === "stack" ? "Taste S · von einem Gerät auf ein anderes ziehen: stapelt sie grafisch (Rack, Tower). Keine Netzwerkverbindung." : `Taste ${key}`} onClick={() => setTool(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, ...(tool === k ? { background: ACCENT, color: "#fff" } : {}) }}>{l}</button>
-            ))}
-          </div>
-          <button style={S.ghostBtn} onClick={fit} title="Alles einpassen">⤢ Einpassen</button>
-          {stapelClip && <button style={S.ghostBtn} onClick={() => { let neu = null; mutate((d) => { neu = stapelEinfuegen(d, stapelClip); }); if (neu?.stapelId) setSelection({ type: "stapel", id: neu.stapelId }); else if (neu?.ids[0]) setSelection({ type: "dev", id: neu.ids[0] }); }}
-            title={`Kopierten Stapel „${stapelClip.name || "Stapel"}“ (${stapelClip.geraete.length} Geräte) einfügen`}>📋 Stapel einfügen</button>}
-          <button style={S.ghostBtn} onClick={() => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; })} title="Verschiebungen von Geräten und Verbindungen zurücksetzen. Angepinnte Geräte und Stapel bleiben.">↺ Auto-Layout</button>
-          <Toggle checked={rasten} onChange={(v) => mutate((d) => { d.layout.einrasten = v; })} label="Einrasten"
-            title="An: Geräte rasten beim Ziehen im Raster ein und richten sich an Kanten und Mitten benachbarter Geräte aus. Alt gedrückt halten = frei ziehen." />
-          <Toggle checked={auto} onChange={setAuto} label="Auto-Anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
-          <button style={{ ...S.ghostBtn, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan">🖼 Hintergrund</button>
-          <button style={S.ghostBtn} onClick={() => mutate((d) => { const any = Object.values(d.layout.collapsed || {}).some(Boolean); d.layout.collapsed = any ? {} : Object.fromEntries([...T.children].filter(([id, ch]) => ch.length && !T.roots.includes(id)).map(([id]) => [id, true])); })}>⊟ Äste</button>
-          <span style={{ width: 1, height: 22, background: LINE }} />
-          <select style={{ ...S.selectSm, width: "auto" }} value={colorBy} onChange={(e) => setColorBy(e.target.value)} title="Farbe der Verbindungen">
-            <option value="vlan">Farbe: VLAN</option><option value="kat">Farbe: Bereich</option><option value="kabel">Farbe: Kabel</option>
-          </select>
-          <select style={{ ...S.selectSm, width: "auto" }} value={linien} onChange={(e) => mutate((d) => { d.layout.linien = e.target.value; })} title="Form der Verbindungslinien">
-            <option value="rund">Linien: rund</option><option value="eckig">Linien: eckig</option><option value="direkt">Linien: direkt</option>
-          </select>
-          {linien === "eckig" && <Toggle checked={buendeln} onChange={(v) => mutate((d) => { d.layout.kabelBuendel = v; })} label="Kabel bündeln"
-            title={front ? "An: die Kabel eines Switches laufen gemeinsam in einem Kanal. Aus: jedes Kabel läuft auf eigener Bahn daneben." : "An: Kabel teilen sich den Weg, mehrere Kabel zwischen denselben Geräten werden eine Linie mit Anzahl. Aus: jedes Kabel läuft einzeln auf eigener Spur daneben."} />}
-          <select style={{ ...S.selectSm, width: "auto" }} value={titel} onChange={(e) => setTitel(e.target.value)} title="Beschriftung der Geräte">
-            <option value="name">Titel: Gerätename</option><option value="netzname">Titel: Netzwerkname</option><option value="typ">Titel: Typ / Modell</option>{(P.feldKatalog || []).map((f) => <option key={f.id} value={"feld:" + f.id}>Titel: {f.name}</option>)}
-          </select>
-          <select style={{ ...S.selectSm, width: "auto" }} value={katFilter} onChange={(e) => setKatFilter(e.target.value)}>
-            <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
-          </select>
-          <VlanSelect vlans={P.vlans} value={vlanFilter} onChange={setVlanFilter} style={{ width: "auto" }} noneLabel="Alle VLANs" />
-          <input style={{ ...S.inputSm, width: 150 }} placeholder="🔍 Suchen (Name, IP)" value={q} onChange={(e) => setQ(e.target.value)} />
-          {!front && <Toggle checked={showPorts} onChange={setShowPorts} label="Port & VLAN" title="Switch-Port und VLAN an jeder Verbindung anzeigen" />}
-          <span style={{ flex: 1 }} />
-          <button style={S.ghostBtn} onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen">⟳ Status</button>
-          <Toggle checked={autoStatus} onChange={setAutoStatus} label="alle 15 s" title="Erreichbarkeit zyklisch prüfen" />
-        </div>
-
         <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FP_BG : "#12161a", cursor: tool !== "move" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
           onMouseDown={(e) => onDown(e, null)} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { setDrag(null); setDraw(null); }}
           onWheel={onWheel} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
@@ -588,8 +624,9 @@ export default function TopologieTab(props) {
               {(L.stapel || []).map((b) => (
                 <g key={b.id} data-stapel={b.id} onMouseDown={(e) => onDown(e, b.ids[0], null, b.id)} style={{ cursor: "move" }}>
                   <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke={selection?.type === "stapel" && selection.id === b.id ? ACCENT : "#8a96a3"} strokeWidth={selection?.type === "stapel" && selection.id === b.id ? 2 : 1.2} strokeDasharray="5 4" />
+                  {pins[b.ids[0]] && <Pin x={b.x + b.w - 15} y={b.y + 3} size={11} color={ACCENT} strokeWidth={2.2} />}
                   <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill="#aeb8c2" style={{ cursor: "pointer" }}>
-                    {pins[b.ids[0]] ? "📌 " : ""}▤ {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
+                    {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
                   </text>
                 </g>
               ))}
@@ -613,8 +650,8 @@ export default function TopologieTab(props) {
                 const sel = selConn?.id === c.id;
                 const dim = filtering && !(matches(X.devById.get(c.a.dev)) && matches(X.devById.get(c.b.dev)));
                 return (
-                  <g key={c.id} opacity={dim ? 0.12 : 1} style={{ cursor: "pointer" }}
-                    onMouseDown={(e) => { e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}>
+                  <g key={c.id} opacity={dim ? 0.12 : 1} style={{ cursor: tool === "move" && !stapelKlammer.has(c.id) ? "grab" : "pointer" }}
+                    onMouseDown={(e) => linieGreifen(e, c)} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}>
                     <path d={dPath} stroke="transparent" strokeWidth="12" fill="none" />
                     {(sel || st.errs) && <path d={dPath} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={dPath} stroke={st.color} strokeWidth={straight ? Math.max(2, st.width - 1) : 1.8} fill="none" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
@@ -639,8 +676,8 @@ export default function TopologieTab(props) {
                 const dim = filtering && !(matches(da) && matches(db));
                 const pName = (end) => X.portRef.get(`${end.dev}:${end.port}`)?.port.name || "?";
                 return (
-                  <g key={c.id} opacity={dim ? 0.12 : 1} style={{ cursor: "pointer" }}
-                    onMouseDown={(e) => { e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}>
+                  <g key={c.id} opacity={dim ? 0.12 : 1} style={{ cursor: tool === "move" && !stapelKlammer.has(c.id) ? "grab" : "pointer" }}
+                    onMouseDown={(e) => linieGreifen(e, c)} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}>
                     <path d={g.d} stroke="transparent" strokeWidth="14" fill="none" />
                     {(sel || st.errs) && <path d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
@@ -712,11 +749,11 @@ export default function TopologieTab(props) {
                     <circle cx={NODE_W - 11} cy="11" r="4.5" fill={!st || st.ok === null || st.ok === undefined ? "#4a535e" : st.ok ? OK : ERR} stroke="#12161a" strokeWidth="1.5">
                       <title>{!st ? "Status unbekannt" : st.ok ? `erreichbar (${st.method}, ${st.ms} ms)` : st.ok === false ? `nicht erreichbar (${st.method})` : st.method}</title>
                     </circle>
-                    {worst && <text x={NODE_W - 26} y="15" fontSize="11" fill={worst} textAnchor="middle">⚠<title>{iss.map((i) => i.msg).join("\n")}</title></text>}
+                    {worst && <g><TriangleAlert x={NODE_W - 32} y={4} size={12} color={worst} strokeWidth={2.2} /><rect x={NODE_W - 32} y={4} width="12" height="12" fill="transparent"><title>{iss.map((i) => i.msg).join("\n")}</title></rect></g>}
                     {url && (
                       <g className="np-ui" transform={`translate(${NODE_W - 22},${NODE_H - 22})`} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); api.openExternal(url); }} style={{ cursor: "pointer" }}>
                         <rect width="16" height="16" rx="4" fill="#2c343e" stroke={LINE} />
-                        <text x="8" y="12" fontSize="10" textAnchor="middle">🌐</text>
+                        <Globe x={2} y={2} size={12} color="#7fb2ff" strokeWidth={2} />
                         <title>Web-UI öffnen: {url}</title>
                       </g>
                     )}
@@ -748,7 +785,7 @@ export default function TopologieTab(props) {
                   <g key={"pin" + id} className="np-ui" transform={`translate(${p.x - w / 2 - 7},${top - 7})`} style={{ cursor: "pointer" }}
                     onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); togglePin(id); }}>
                     <circle cx="7" cy="7" r="8" fill="#1b2026" stroke={ACCENT} />
-                    <text x="7" y="11" fontSize="10" textAnchor="middle">📌</text>
+                    <Pin x={1.5} y={1.5} size={11} color={ACCENT} strokeWidth={2.2} />
                     <title>Angepinnt: bleibt beim automatischen Anordnen stehen. Klick = lösen</title>
                   </g>
                 );
@@ -765,6 +802,11 @@ export default function TopologieTab(props) {
             {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · Fläche ziehen = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"}{rasten && tool === "move" ? " · Alt = ohne Einrasten" : ""}{tool === "move" ? " · Shift+Klick oder Shift+Fläche ziehen = mehrere wählen" : ""} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
+          {warnung && <Modal title="Layout von Hand angepasst" width={460} onClose={() => setWarnung(null)}
+            footer={<><button style={S.secondaryBtn} onClick={() => setWarnung(null)}>Abbrechen</button><button style={S.primaryBtn} onClick={() => { const w = warnung; setWarnung(null); w.ok(); }}>Trotzdem anordnen</button></>}>
+            <div style={{ fontSize: 13, lineHeight: 1.6 }}>{warnung.text}</div>
+            <div style={{ ...S.hint, marginTop: 8 }}>Mit Rückgängig (Strg+Z) lässt sich das wieder zurückholen.</div>
+          </Modal>}
           {tausch && <PortTauschen P={P} X={X} voll={tausch.voll} onClose={() => setTausch(null)} onOk={(w) => { const t = tausch; setTausch(null); connect(t.from, t.to, w); }} />}
           {bgOpen && <HintergrundPanel bg={bg} bounds={Lbase.bounds} onClose={() => setBgOpen(false)} onChange={(fn) => mutate((d) => { d.layout[bgKey] = fn(d.layout[bgKey] ? { ...d.layout[bgKey] } : null); })} />}
           {ctx && X.devById.get(ctx.id) && (() => {
@@ -785,7 +827,7 @@ export default function TopologieTab(props) {
       {(selDev || selConn || selStapel || selIds.length > 1) && (
         <div style={{ width: 420, background: PANEL, borderLeft: `1px solid ${LINE}`, overflowY: "auto", padding: 14, flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-            <button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}>✕</button>
+            <button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)} title="Schließen"><XIcon size={14} /></button>
           </div>
           {selDev && <DeviceEditor key={selDev.id} compact P={P} X={X} dev={selDev} mutate={mutate} status={status[selDev.id]} onCheck={checkReach}
             issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />}
@@ -795,6 +837,7 @@ export default function TopologieTab(props) {
           {selConn && <ConnEditor P={P} X={X} conn={selConn} mutate={mutate} onDelete={onDeleteConn} issues={connIssues.get(selConn.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} />}
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -817,19 +860,19 @@ function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onS
       <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{devs.length} Geräte ausgewählt</div>
       <div style={{ ...S.hint, marginBottom: 10 }}>Ziehen an einem der Geräte verschiebt alle. Shift+Klick nimmt Geräte dazu oder heraus, Esc hebt die Auswahl auf.</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <button style={{ ...S.smallBtn, ...(allePins ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={onPin} title="Taste P">{allePins ? "📌 Alle lösen" : "📌 Alle anpinnen"}</button>
-        <button style={S.smallBtn} onClick={alsStapel} title="Die gewählten Geräte in dieser Reihenfolge übereinander als Stapel (Rack, Tower)">▤ Als Stapel</button>
-        {konfigClip && <button style={S.smallBtn} onClick={() => setKonfig(true)} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in alle gewählten Geräte einfügen`}>📋 Konfig einfügen</button>}
-        <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={onDelete} title="Entf">🗑 Alle löschen</button>
+        <button style={{ ...S.smallBtn, ...(allePins ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={onPin} title="Taste P"><Pin size={12} />{allePins ? "Alle lösen" : "Alle anpinnen"}</button>
+        <button style={S.smallBtn} onClick={alsStapel} title="Die gewählten Geräte in dieser Reihenfolge übereinander als Stapel (Rack, Tower)"><Layers size={12} />Als Stapel</button>
+        {konfigClip && <button style={S.smallBtn} onClick={() => setKonfig(true)} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in alle gewählten Geräte einfügen`}><ClipboardPaste size={12} />Konfig einfügen</button>}
+        <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={onDelete} title="Entf"><Trash2 size={12} />Alle löschen</button>
       </div>
       <div className="sp-section-label" style={{ marginTop: 16 }}>Auswahl</div>
       {devs.map((g) => (
         <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", border: `1px solid ${LINE}`, borderLeft: `3px solid ${katColor(g.kategorie)}`, borderRadius: 6, marginBottom: 4, background: "#1f242b" }}>
           <IconView icon={g.icon} customIcons={P.icons} color={katColor(g.kategorie)} size={18} />
           <a style={{ flex: 1, minWidth: 0, cursor: "pointer", fontSize: 13 }} onClick={() => onSelect([g.id])} title="Nur dieses Gerät bearbeiten">
-            {pins[stapelAnker(stapel, g.id)] ? "📌 " : ""}{g.name}<div style={{ fontSize: 11, color: MUTED }}>{[g.hersteller, g.modell].filter(Boolean).join(" ") || TYPEN[g.typ]?.label}</div>
+            {pins[stapelAnker(stapel, g.id)] && <Pin size={11} color={ACCENT} style={{ marginRight: 4, verticalAlign: -1 }} />}{g.name}<div style={{ fontSize: 11, color: MUTED }}>{[g.hersteller, g.modell].filter(Boolean).join(" ") || TYPEN[g.typ]?.label}</div>
           </a>
-          <button style={{ ...S.smallBtn, padding: "1px 6px" }} onClick={() => onSelect(ids.filter((x) => x !== g.id))} title="Aus der Auswahl nehmen">✕</button>
+          <button style={{ ...S.smallBtn, padding: "1px 6px" }} onClick={() => onSelect(ids.filter((x) => x !== g.id))} title="Aus der Auswahl nehmen"><XIcon size={12} /></button>
         </div>
       ))}
       {konfig && konfigClip && <KonfigEinfuegen P={P} clip={konfigClip} ziele={ids} mutate={mutate} onClose={() => setKonfig(false)} />}
@@ -863,11 +906,11 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
   const ep = sw === a ? b : a;
   const seg = [];
   if (a.sw && b.sw) seg.push({ t: `${portLabel(a.port)} ⇄ ${portLabel(b.port)}`, fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
-  else if (sw) seg.push({ t: portLabel(sw.port) + (sw.port.poe ? " ⚡" : ""), fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
+  else if (sw) seg.push({ t: portLabel(sw.port), poe: !!sw.port.poe, fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
   else seg.push({ t: `${portLabel(a.port)} ⇄ ${portLabel(b.port)}`, fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
   const info = sw && sw.managed ? sw : a.vlans.length ? a : b;
   if (sw && !ep.sw && ep.dev.ports.length > 1 && !/^\d+$/.test(ep.port.name)) seg.push({ t: ep.port.name, fill: "transparent", stroke: "transparent", col: SUB });
-  const widths = seg.map((s) => Math.round(s.t.length * CW + 10));
+  const widths = seg.map((s) => Math.round(s.t.length * CW + 10 + (s.poe ? 9 : 0)));
   const total = widths.reduce((x, y) => x + y, 0);
   const vertical = Math.abs(g.x2 - g.x1) < 2 || Math.abs(g.x2 - g.x1) < Math.abs(g.y2 - g.y1) * 0.25 && Math.abs(g.x2 - g.x1) < 40;
   const dir = g.x2 >= g.x1 ? 1 : -1;
@@ -893,7 +936,8 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
         return (
           <g key={n} transform={`translate(${x},0)`}>
             <rect width={widths[n]} height="14" rx={first || last ? 4 : 0} fill={s.fill === "transparent" ? "#12161acc" : s.fill} stroke={s.stroke} strokeWidth=".8" />
-            <text x={widths[n] / 2} y="10.3" fontSize="10" fill={s.col} fontWeight={s.bold ? 700 : 500} textAnchor="middle" fontFamily="'Segoe UI',system-ui,sans-serif">{s.t}</text>
+            <text x={(widths[n] - (s.poe ? 9 : 0)) / 2} y="10.3" fontSize="10" fill={s.col} fontWeight={s.bold ? 700 : 500} textAnchor="middle" fontFamily="'Segoe UI',system-ui,sans-serif">{s.t}</text>
+            {s.poe && <Zap x={widths[n] - 13} y={2.5} size={9} color="#ffe066" fill="#ffe066" strokeWidth={1.5} />}
           </g>
         );
       })}

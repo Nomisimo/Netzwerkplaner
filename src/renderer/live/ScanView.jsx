@@ -5,6 +5,7 @@ import { inSubnet } from "../../shared/net.js";
 import { fundZuGeraet } from "../../shared/discovery.js";
 import { useMonitor } from "./store.js";
 import { Table, td, Hint, Empty, Pill, mono } from "./common.jsx";
+import { Square, Play, X as XIcon, OctagonX } from "lucide-react";
 
 const STATUS = {
   ok: { label: "wie geplant", color: OK },
@@ -60,16 +61,16 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
           <input style={S.input} value={ports} onChange={(e) => setPorts(e.target.value)} />
         </label>
         {snap?.running
-          ? <button style={S.secondaryBtn} onClick={() => mon.action("cancel")}>■ Abbrechen</button>
-          : <button style={S.primaryBtn} onClick={run} disabled={!cidr.trim()}>▶ Scan starten</button>}
-        {(cmp || snap?.err) && !snap.running && <button style={S.secondaryBtn} onClick={leeren} title="Scan-Ergebnis verwerfen">✕ Leeren</button>}
+          ? <button style={S.secondaryBtn} onClick={() => mon.action("cancel")}><Square size={12} fill="currentColor" /> Abbrechen</button>
+          : <button style={S.primaryBtn} onClick={run} disabled={!cidr.trim()}><Play size={12} fill="currentColor" /> Scan starten</button>}
+        {(cmp || snap?.err) && !snap.running && <button style={S.secondaryBtn} onClick={leeren} title="Scan-Ergebnis verwerfen"><XIcon size={14} /> Leeren</button>}
       </div>
       {targets.length > 0 && (
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: -6, marginBottom: 12 }}>
           {targets.map((t) => <button key={t.cidr} style={{ ...S.smallBtn, borderColor: t.farbe || undefined }} onClick={() => setCidr(t.cidr)}>{t.label} · {t.cidr}</button>)}
         </div>
       )}
-      {(mon.error || snap?.err) && <div style={{ color: ERR, fontSize: 12, marginBottom: 10 }}>⛔ {mon.error || snap.err}</div>}
+      {(mon.error || snap?.err) && <div style={{ color: ERR, fontSize: 12, marginBottom: 10, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {mon.error || snap.err}</div>}
       {snap?.running && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: SUB, marginBottom: 4 }}>Scanne {snap.cidr} … {snap.progress.done} / {snap.progress.total} Adressen, {snap.hosts.length} Geräte gefunden</div>

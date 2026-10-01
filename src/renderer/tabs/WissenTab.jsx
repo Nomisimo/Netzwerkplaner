@@ -7,6 +7,7 @@ import { fmtMbit } from "../../shared/analyse.js";
 import { Section, Dot } from "../ui.jsx";
 import { api } from "../api.js";
 import ProtokollPoster from "../ProtokollPoster.jsx";
+import { ExternalLink } from "lucide-react";
 
 // Wikipedia-Artikel, soweit vorhanden
 const WIKI = {
@@ -25,7 +26,7 @@ const WIKI = {
   osi: "https://de.wikipedia.org/wiki/OSI-Modell",
   mdns: "https://de.wikipedia.org/wiki/Zeroconf",
 };
-const WikiLink = ({ id }) => WIKI[id] ? <a href="#" style={{ color: "#8ec5ff", fontSize: 12, fontWeight: 400, whiteSpace: "nowrap" }} onClick={(e) => { e.preventDefault(); api.openExternal(WIKI[id]); }}>Wikipedia ↗</a> : null;
+const WikiLink = ({ id }) => WIKI[id] ? <a href="#" style={{ color: "#8ec5ff", fontSize: 12, fontWeight: 400, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3 }} onClick={(e) => { e.preventDefault(); api.openExternal(WIKI[id]); }}>Wikipedia <ExternalLink size={12} /></a> : null;
 
 // Recherche-Einträge (hardware/fokus) je Kernprotokoll
 const RECHERCHE_NAMEN = { dante: ["Dante"], manet: ["MA-Net3", "MA-Net2", "MA-Net1"], artnet: ["Art-Net 4"], sacn: ["sACN (ANSI E1.31)"], ndi: ["NDI (NDI 5/6)"], osc: ["OSC (Open Sound Control)"], citp: ["CITP / MSEx"] };
@@ -142,7 +143,7 @@ export default function WissenTab() {
   );
   return (
     <div style={{ display: "grid", gridTemplateColumns: "230px 1fr", gap: 20, alignItems: "start" }}>
-      <div style={{ ...S.section, padding: "10px 0", position: "sticky", top: 100 }}>
+      <div style={{ ...S.section, padding: "10px 0", position: "sticky", top: 12 }}>
         <div className="sp-section-label" style={{ padding: "0 12px" }}>Grundlagen</div>
         {ARTIKEL.map((a) => <Nav key={a.id} id={a.id}>{a.titel}</Nav>)}
         <Nav id="switches">Switch-Einstellungen</Nav>

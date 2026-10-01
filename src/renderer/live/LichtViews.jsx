@@ -3,6 +3,7 @@ import { S, ACCENT, OK, WARN, ERR, MUTED, SUB, INFO } from "../../shared/constan
 import { useMonitor } from "./store.js";
 import { MonBar, Table, td, Hint, Empty, PlanName, Age, Levels, LevelModeSwitch, Card, Pill, mono } from "./common.jsx";
 import { Toggle } from "../ui.jsx";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 // "1-4, 10" → [1,2,3,4,10]
 export const parseList = (s, max = 64) => {
@@ -68,7 +69,7 @@ export function SacnView({ P, iface, onSelectDevice }) {
                           <td style={td(mono)}>{src.slots}</td>
                           <td style={td({ ...mono, color: src.seqErr ? WARN : MUTED })}>{src.seqErr}</td>
                           <td style={td()}><Age ms={src.age} /></td>
-                          <td style={td()}>{i === 0 && <span style={{ fontSize: 11, color: SUB }}>{sel === u.universe ? "▲" : "Werte ▼"}</span>}</td>
+                          <td style={td()}>{i === 0 && <span style={{ fontSize: 11, color: SUB, display: "inline-flex", alignItems: "center", gap: 3 }}>{sel === u.universe ? <ChevronUp size={12} /> : <>Werte <ChevronDown size={12} /></>}</span>}</td>
                         </>
                       ) : <td colSpan={8} style={td({ color: MUTED, fontSize: 12 })}>beobachtet, keine Quelle <button style={{ ...S.smallBtn, marginLeft: 8 }} onClick={(e) => { e.stopPropagation(); mon.action("unwatch", { universe: u.universe }); }}>entfernen</button></td>}
                     </tr>
@@ -154,7 +155,7 @@ export function ArtnetView({ P, iface, onSelectDevice }) {
                     <td style={td({ ...mono, color: x.fps < 1 ? ERR : "#fff" })}>{x.fps}</td>
                     <td style={td(mono)}>{x.slots}</td>
                     <td style={td()}><Age ms={x.age} /></td>
-                    <td style={td()}>{i === 0 && <span style={{ fontSize: 11, color: SUB }}>{sel === u.portAddress ? "▲" : "Werte ▼"}</span>}</td>
+                    <td style={td()}>{i === 0 && <span style={{ fontSize: 11, color: SUB, display: "inline-flex", alignItems: "center", gap: 3 }}>{sel === u.portAddress ? <ChevronUp size={12} /> : <>Werte <ChevronDown size={12} /></>}</span>}</td>
                   </tr>
                 )))}
               </Table>

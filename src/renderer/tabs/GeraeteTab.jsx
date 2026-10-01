@@ -8,6 +8,7 @@ import DeviceEditor from "../DeviceEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { ipPorts } from "../../shared/catalog.js";
+import { RefreshCw, TriangleAlert, Globe, X as XIcon } from "lucide-react";
 
 export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand }) {
   const [q, setQ] = useState("");
@@ -45,11 +46,11 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
   return (
     <div style={{ display: "grid", gridTemplateColumns: sel ? "minmax(420px,1fr) minmax(520px,1.25fr)" : "1fr", gap: 20, alignItems: "start" }}>
       <Section title={`Geräte (${P.geraete.length})`} right={<div style={{ display: "flex", gap: 6 }}>
-        <button style={S.secondaryBtn} onClick={autoIps} title="Freie IPs automatisch vergeben">⟳ IPs vergeben</button>
+        <button style={S.secondaryBtn} onClick={autoIps} title="Freie IPs automatisch vergeben"><RefreshCw size={14} /> IPs vergeben</button>
         <button style={S.primaryBtn} onClick={() => onAddDevice(null, { picker: true })}>+ Gerät</button>
       </div>}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <input style={{ ...S.inputSm, flex: 1, minWidth: 160 }} placeholder="🔍 Name, IP, MAC, Modell, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input style={{ ...S.inputSm, flex: 1, minWidth: 160 }} placeholder="Name, IP, MAC, Modell, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
           <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}>
             <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
           </select>
@@ -75,7 +76,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <StatusDot st={status[d.id]} size={8} />
                           <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{d.name}</span>
-                          {iss.some((i) => i.sev === "error") ? <span style={{ color: ERR }} title={iss.map((i) => i.msg).join("\n")}>⚠</span> : iss.some((i) => i.sev === "warn") ? <span style={{ color: WARN }} title={iss.map((i) => i.msg).join("\n")}>⚠</span> : null}
+                          {iss.some((i) => i.sev === "error") ? <span style={{ color: ERR, display: "inline-flex" }} title={iss.map((i) => i.msg).join("\n")}><TriangleAlert size={14} /></span> : iss.some((i) => i.sev === "warn") ? <span style={{ color: WARN, display: "inline-flex" }} title={iss.map((i) => i.msg).join("\n")}><TriangleAlert size={14} /></span> : null}
                         </div>
                         <div style={{ fontSize: 11, color: MUTED }}>{[d.hersteller, d.modell].filter(Boolean).join(" ") || TYPEN[d.typ]?.label}{d.netzname ? ` · ${d.netzname}` : ""}</div>
                       </td>
@@ -83,7 +84,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
                       <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{ip || <span style={{ color: MUTED }}>{ipPorts(d).some((i) => i.dhcp) ? "DHCP" : "–"}</span>}{ipPorts(d).filter((i) => i.ip).length > 1 && <span style={{ color: MUTED }}> +{ipPorts(d).filter((i) => i.ip).length - 1}</span>}</td>
                       <td style={S.td}><VlanChip v={v} small /></td>
                       <td style={{ ...S.td, fontSize: 12 }}>{d.bereich}</td>
-                      <td style={S.td}>{url ? <button style={{ ...S.smallBtn, padding: "2px 6px" }} title={url} onClick={(e) => { e.stopPropagation(); api.openExternal(url); }}>🌐</button> : d.webUi?.vorhanden ? <span style={{ color: MUTED }} title="IP fehlt">🌐</span> : ""}</td>
+                      <td style={S.td}>{url ? <button style={{ ...S.smallBtn, padding: "2px 6px" }} title={url} onClick={(e) => { e.stopPropagation(); api.openExternal(url); }}><Globe size={12} /></button> : d.webUi?.vorhanden ? <span style={{ color: MUTED, display: "inline-flex" }} title="IP fehlt"><Globe size={12} /></span> : ""}</td>
                     </tr>
                   );
                 })}
@@ -95,8 +96,8 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
       {ctx && X.devById.get(ctx.id) && <DeviceContextMenu P={P} X={X} dev={X.devById.get(ctx.id)} x={ctx.x} y={ctx.y} status={status[ctx.id]} issues={devIssues(ctx.id)} onClose={closeCtx}
         onEdit={() => setSelection({ type: "dev", id: ctx.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(ctx.id)} />}
       {sel && (
-        <Section style={{ position: "sticky", top: 100, maxHeight: "calc(100vh - 120px)", overflowY: "auto" }}
-          right={<button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}>✕</button>} title=" ">
+        <Section style={{ position: "sticky", top: 12, maxHeight: "calc(100vh - 140px)", overflowY: "auto" }}
+          right={<button style={{ ...S.ghostBtn, padding: "2px 8px" }} onClick={() => setSelection(null)}><XIcon size={14} /></button>} title=" ">
           <DeviceEditor key={sel.id} P={P} X={X} dev={sel} mutate={mutate} status={status[sel.id]} onCheck={checkReach} issues={devIssues(sel.id)}
             onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />
         </Section>

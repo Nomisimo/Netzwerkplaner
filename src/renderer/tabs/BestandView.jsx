@@ -6,6 +6,7 @@ import { IconView } from "../icons.jsx";
 import { api } from "../api.js";
 import { bestandZuCsv, csvZuBestand } from "../../shared/bestandcsv.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
+import { Download, X as XIcon, Check } from "lucide-react";
 
 const datum = (iso) => (iso ? new Date(iso).toLocaleDateString("de-DE") : "");
 
@@ -82,9 +83,9 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
 
   return (
     <Section title={`Gerätebestand (${bestand.length})`}
-      subtitle="Deine eigenen Geräte mit Name, Netzwerkname, IPs, MACs, Ports und eigenen Feldern. Speichern im Geräte-Editor mit „⇩ In Bestand“. Beim Einfügen bleiben IPs und Einstellungen erhalten; VLANs werden über die VLAN-ID zugeordnet."
+      subtitle="Deine eigenen Geräte mit Name, Netzwerkname, IPs, MACs, Ports und eigenen Feldern. Speichern im Geräte-Editor mit „In Bestand“. Beim Einfügen bleiben IPs und Einstellungen erhalten; VLANs werden über die VLAN-ID zugeordnet."
       right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <button style={S.secondaryBtn} onClick={onSaveAlleBestand} title="Alle Geräte dieses Projekts, die noch nicht im Bestand sind, übernehmen">⇩ Projektgeräte übernehmen</button>
+        <button style={S.secondaryBtn} onClick={onSaveAlleBestand} title="Alle Geräte dieses Projekts, die noch nicht im Bestand sind, übernehmen"><Download size={14} /> Projektgeräte übernehmen</button>
         <button style={S.primaryBtn} onClick={() => setAnlegen(true)}>+ Neues Gerät</button>
         <button style={S.secondaryBtn} onClick={exportCsv} disabled={!bestand.length} title="Als CSV (Excel, andere Netzwerkplaner-Installationen)">Export CSV</button>
         <button style={S.secondaryBtn} onClick={exportJson} disabled={!bestand.length} title="Als JSON mit eigenen Icons">Export JSON</button>
@@ -92,17 +93,17 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
         <input ref={fileRef} type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv" style={{ display: "none" }} onChange={importDatei} />
       </div>}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="🔍 Name, IP, MAC, Modell, eigene Felder" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="Name, IP, MAC, Modell, eigene Felder" value={q} onChange={(e) => setQ(e.target.value)} />
         <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}>
           <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>
         {selIds.length > 0 && <>
           <button style={S.primaryBtn} onClick={() => einfuegen(selIds)}>+ {selIds.length} ins Projekt</button>
-          <button style={S.dangerBtn} onClick={() => remove(selIds)}>✕ {selIds.length} löschen</button>
+          <button style={S.dangerBtn} onClick={() => remove(selIds)}><XIcon size={14} /> {selIds.length} löschen</button>
         </>}
       </div>
       {!bestand.length ? (
-        <p style={S.empty}>Noch keine Geräte im Bestand. Öffne ein Gerät im Geräte-Editor und klicke „⇩ In Bestand“, oder übernimm alle Geräte dieses Projekts mit dem Knopf oben rechts.</p>
+        <p style={S.empty}>Noch keine Geräte im Bestand. Öffne ein Gerät im Geräte-Editor und klicke „In Bestand“, oder übernimm alle Geräte dieses Projekts mit dem Knopf oben rechts.</p>
       ) : !list.length ? <p style={S.empty}>Kein Gerät passt zum Filter.</p> : (
         <div style={{ overflowX: "auto" }}>
           <table style={S.table}>
@@ -132,9 +133,9 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
                     <td style={{ ...S.td, fontSize: 11, color: MUTED, whiteSpace: "nowrap" }}>{datum(b.geaendert || b.angelegt)}</td>
                     <td style={{ ...S.td, whiteSpace: "nowrap", textAlign: "right" }}>
                       {drin
-                        ? <button style={{ ...S.smallBtn, borderColor: OK + "88", color: OK }} onClick={() => onSelectDevice(drin.id)} title="Ist bereits im Projekt – zum Gerät springen">✓ im Projekt</button>
+                        ? <button style={{ ...S.smallBtn, borderColor: OK + "88", color: OK }} onClick={() => onSelectDevice(drin.id)} title="Ist bereits im Projekt – zum Gerät springen"><Check size={14} /> im Projekt</button>
                         : <button style={S.smallBtn} onClick={() => einfuegen([b.id])}>+ ins Projekt</button>}
-                      <button style={{ ...S.dangerBtn, marginLeft: 6, padding: "3px 8px" }} onClick={() => remove([b.id])}>✕</button>
+                      <button style={{ ...S.dangerBtn, marginLeft: 6, padding: "3px 8px" }} onClick={() => remove([b.id])}><XIcon size={12} /></button>
                     </td>
                   </tr>
                 );

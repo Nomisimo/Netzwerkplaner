@@ -4,6 +4,7 @@ import { emptyProject, buildIndex, newVlan } from "../shared/model.js";
 import { createDevice, snapshotDevice, uid, ipPorts, physPorts } from "../shared/catalog.js";
 import { Modal, Field } from "./ui.jsx";
 import DeviceEditor from "./DeviceEditor.jsx";
+import { Plus } from "lucide-react";
 
 /* Neues Gerät direkt im Katalog anlegen, ohne es in ein Projekt einzufügen.
    Der Geräte-Editor arbeitet dafür auf einem kleinen Übungsprojekt mit den
@@ -91,7 +92,7 @@ function NeuesVlan({ S0, dev, mutate }) {
             <option value="nur">Nur anlegen</option>
           </select>
         </Field>
-        <button style={S.primaryBtn} disabled={ungueltig} onClick={anlegen}>{vorhanden ? "Zuweisen" : "＋ Anlegen und zuweisen"}</button>
+        <button style={S.primaryBtn} disabled={ungueltig} onClick={anlegen}>{vorhanden ? "Zuweisen" : <><Plus size={14} /> Anlegen und zuweisen</>}</button>
       </div>
       {ungueltig && <div style={{ color: ERR, fontSize: 12, marginTop: 6 }}>Die VLAN-ID muss zwischen 1 und 4094 liegen.</div>}
       {info && <div style={{ color: SUB, fontSize: 12, marginTop: 6 }}>{info}</div>}

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, KATEGORIEN } from "../../shared/constants.js";
 import { KATALOG, ipPorts } from "../../shared/catalog.js";
 import { Section, Field } from "../ui.jsx";
+import { X as XIcon, RotateCcw } from "lucide-react";
 
 const Stat = ({ label, value, color, onClick }) => (
   <div onClick={onClick} style={{ background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: "12px 14px", cursor: onClick ? "pointer" : "default" }}>
@@ -60,7 +61,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
       <Section title="Standorte / Äste" subtitle="Vorschläge für das Feld „Standort / Ast“ der Geräte (z. B. FOH, Bühne, Delay-Tower).">
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
           {P.bereiche.map((b, i) => (
-            <span key={b + i} style={S.chip}>{b} <span style={{ cursor: "pointer", color: MUTED }} onClick={() => mutate((d) => d.bereiche.splice(i, 1))}>✕</span></span>
+            <span key={b + i} style={S.chip}>{b} <span style={{ cursor: "pointer", color: MUTED, display: "inline-flex" }} onClick={() => mutate((d) => d.bereiche.splice(i, 1))}><XIcon size={11} /></span></span>
           ))}
         </div>
         <form style={S.row} onSubmit={(e) => { e.preventDefault(); if (neuBereich.trim()) { mutate((d) => d.bereiche.push(neuBereich.trim())); setNeuBereich(""); } }}>
@@ -72,7 +73,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
       <Section title="Projekt zurücksetzen">
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button style={S.secondaryBtn} onClick={loadDemo}>Beispielprojekt laden</button>
-          <button style={S.dangerBtnWide} onClick={newProject}>↺ Neues leeres Projekt</button>
+          <button style={{ ...S.dangerBtnWide, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={newProject}><RotateCcw size={14} /> Neues leeres Projekt</button>
         </div>
       </Section>
     </>

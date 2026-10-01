@@ -7,6 +7,7 @@ import { StatusDot, Toggle, VlanChip } from "../ui.jsx";
 import { api } from "../api.js";
 import { Table, td, Hint, Empty, mono } from "./common.jsx";
 import { ipPorts } from "../../shared/catalog.js";
+import { RefreshCw, ExternalLink } from "lucide-react";
 
 // Online/Offline aller geplanten Geräte. Nutzt dieselbe Prüfung wie die Topologie,
 // daher erscheinen die Punkte dort ebenfalls.
@@ -21,7 +22,7 @@ export default function StatusView({ P, X, status, checkReach, autoStatus, setAu
   return (
     <div>
       <div style={{ ...S.row, marginBottom: 14 }}>
-        <button style={S.primaryBtn} onClick={() => checkReach()}>↻ Jetzt prüfen</button>
+        <button style={S.primaryBtn} onClick={() => checkReach()}><RefreshCw size={14} /> Jetzt prüfen</button>
         <Toggle checked={autoStatus} onChange={setAutoStatus} label="Automatisch alle 15 s (auch in der Topologie)" />
         <span style={{ fontSize: 12, color: "#c8d0d8" }}>
           <b style={{ color: OK }}>{n.on}</b> online · <b style={{ color: ERR }}>{n.off}</b> offline · <b style={{ color: MUTED }}>{n.unk}</b> ungeprüft
@@ -42,7 +43,7 @@ export default function StatusView({ P, X, status, checkReach, autoStatus, setAu
                   {!st ? "–" : st.ok == null ? st.method : st.ok ? `erreichbar · ${st.method} · ${st.ms} ms` : `keine Antwort (${st.method})`}
                 </td>
                 <td style={td({ fontSize: 12, color: MUTED })}>{st?.t ? fmtAge(Date.now() - st.t) : "–"}</td>
-                <td style={td()}>{url && <button style={S.smallBtn} onClick={() => api.openExternal(url)}>Öffnen ↗</button>}</td>
+                <td style={td()}>{url && <button style={S.smallBtn} onClick={() => api.openExternal(url)}>Öffnen <ExternalLink size={12} /></button>}</td>
               </tr>
             );
           })}

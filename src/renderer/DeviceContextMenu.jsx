@@ -8,6 +8,7 @@ import { Dot } from "./ui.jsx";
 import { portLabel, portBelegung, vlanKurz, vlanLang } from "./portinfo.js";
 import { api } from "./api.js";
 import { ipPorts } from "../shared/catalog.js";
+import { Pencil, Globe, Check, RefreshCw, Pin, Layers } from "lucide-react";
 
 const W = 400;
 const Row = ({ k, children }) => (
@@ -134,13 +135,13 @@ export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = []
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "8px 12px", borderTop: `1px solid ${LINE}`, background: "#171b20", borderRadius: "0 0 10px 10px" }}>
-        {onEdit && <button style={S.smallBtn} onClick={act(onEdit)}>✎ Bearbeiten</button>}
-        {url && <button style={S.smallBtn} onClick={act(() => api.openExternal(url))}>🌐 Web-UI</button>}
-        {ip && <button style={S.smallBtn} onClick={() => copy(ip, "main")}>{kopiert === "main" ? "✓ kopiert" : "IP kopieren"}</button>}
-        {onCheck && ip && <button style={S.smallBtn} onClick={act(() => onCheck([dev.id]))}>⟳ Status</button>}
+        {onEdit && <button style={S.smallBtn} onClick={act(onEdit)}><Pencil size={14} /> Bearbeiten</button>}
+        {url && <button style={S.smallBtn} onClick={act(() => api.openExternal(url))}><Globe size={14} /> Web-UI</button>}
+        {ip && <button style={S.smallBtn} onClick={() => copy(ip, "main")}>{kopiert === "main" ? <><Check size={14} /> kopiert</> : "IP kopieren"}</button>}
+        {onCheck && ip && <button style={S.smallBtn} onClick={act(() => onCheck([dev.id]))}><RefreshCw size={14} /> Status</button>}
         {onToggleCollapse && <button style={S.smallBtn} onClick={act(onToggleCollapse)}>{collapsed ? "Ast ausklappen" : "Ast einklappen"}</button>}
-        {onPin && <button style={S.smallBtn} onClick={act(onPin)} title="Angepinnte Geräte bleiben beim automatischen Anordnen stehen (Taste P)">{pinned ? "📌 Lösen" : "📌 Anpinnen"}</button>}
-        {onEditStack && <button style={S.smallBtn} onClick={act(onEditStack)}>▤ Stapel bearbeiten</button>}
+        {onPin && <button style={S.smallBtn} onClick={act(onPin)} title="Angepinnte Geräte bleiben beim automatischen Anordnen stehen (Taste P)"><Pin size={14} />{pinned ? "Lösen" : "Anpinnen"}</button>}
+        {onEditStack && <button style={S.smallBtn} onClick={act(onEditStack)}><Layers size={14} /> Stapel bearbeiten</button>}
         {onUnstack && <button style={S.smallBtn} onClick={act(onUnstack)}>Aus Stapel lösen</button>}
         {onSetRoot && <button style={S.smallBtn} onClick={act(onSetRoot)}>Als Core</button>}
         <span style={{ flex: 1 }} />
