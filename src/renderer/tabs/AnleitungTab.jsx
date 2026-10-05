@@ -93,11 +93,11 @@ const KAPITEL = [
       "Klick auf ein Gerät öffnet den Editor: Name, Netzwerkname (Hostname), Hersteller/Modell, Standort, eigene Felder, Ports, Web-UI, Protokolle und Notizen.",
       "Ports: Jeder Port eines Endgeräts ist zugleich sein Interface mit IP, Maske, Gateway, MAC und DHCP. VLANs werden nur an Switches eingestellt: Das Endgerät zeigt das VLAN des Switch-Ports, an dem es steckt (auch über unmanaged Switches hinweg), und verlinkt auf diesen Port. Steckt es nirgends, gilt das VLAN, in dessen Subnetz die IP liegt. Der Kreispfeil neben der IP schlägt die nächste freie Adresse im VLAN vor, „IPs vergeben“ füllt alle leeren Ports auf einmal (je Gerät eine Adresse pro VLAN).",
       "Switch-Ports: Access- oder Trunk-VLANs, PoE und Punkt-zu-Punkt (AES50, SLink, HDBaseT …). Die IP des Switches steht am Anschluss „Management“ ohne Buchse („+ Management“).",
-      "„Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs, VLANs und eigene Felder erhalten. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und eigene Felder, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
+      "„Modell zuweisen“: ein generisch angelegtes Gerät nachträglich zu einem Katalogmodell machen. Bei Herstellermodellen und Vorlagen bleiben Name, Netzwerkname, IPs und eigene Felder erhalten, bei Switches auch die Port-VLANs. Bei einem Gerät aus dem eigenen Bestand gelten dessen feste IPs, Name und eigene Felder, genau wie beim Einfügen. Die Verbindungen bleiben immer.",
       "„im Katalog speichern“ legt das Gerät als eigene Vorlage oder im Gerätebestand ab.",
       "Geräte aus dem Katalog (Herstellermodelle) und aus dem Gerätebestand haben feste Hardware: Gerätetyp, Hersteller, Modell, Ports, Buchsen, P2P und PoE-Werte lassen sich im Editor nicht ändern. Einstellbar bleiben Name, VLAN (an Switches), IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen. Ein anderes Modell setzt man mit „Modell zuweisen“. Generische und selbst angelegte Geräte bleiben frei bearbeitbar.",
       "„Duplizieren“ kopiert das Gerät mit allen Einstellungen, aber ohne IP- und MAC-Adressen.",
-      "„Konfig kopieren“: im Dialog wählen, was mitkommt (Port-Einstellungen mit VLAN und Maske, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen). Bei jedem anderen Gerät dann „Konfig einfügen“, Teile und Zielgeräte wählen („Gleiches Modell“, „Gleicher Typ“, „Alle Switches“) und einfügen. Namen, IPs, MACs und Verbindungen der Ziele bleiben. Ports werden nach Namen zugeordnet, sonst nach Reihenfolge.",
+      "„Konfig kopieren“: im Dialog wählen, was mitkommt (Port-Einstellungen mit Maske, bei Switches auch die VLANs, Protokolle, Datenströme, Web-UI, PoE, Bereich, Notizen). Bei jedem anderen Gerät dann „Konfig einfügen“, Teile und Zielgeräte wählen („Gleiches Modell“, „Gleicher Typ“, „Alle Switches“) und einfügen. Namen, IPs, MACs und Verbindungen der Ziele bleiben. Ports werden nach Namen zugeordnet, sonst nach Reihenfolge.",
     ]} />
     <Bild id="geraet-editor" text="Geräte-Editor in der Topologie" />
     <H>Generische Geräte aus der Discovery</H>
@@ -164,9 +164,10 @@ const KAPITEL = [
     <Liste items={[
       "Der Bestand enthält deine realen Geräte mit Namen, Netzwerknamen, IPs und eigenen Feldern. „+ ins Projekt“ setzt ein Gerät samt Adressen ein.",
       "„+ Neues Gerät“ legt ein Gerät direkt im Katalog an, ohne es ins Projekt zu setzen: Grundtyp wählen und im Editor ausfüllen.",
-      "„Neues VLAN für dieses Gerät“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“): VLAN-ID und Namen eingeben, bei Switches wählen, ob es alle Ports (Access) oder ein einzelner Port bekommt, und „Anlegen und zuweisen“. Das VLAN wird mit dem Gerät gespeichert. Fügst du das Gerät in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
+      "„Neues VLAN für diesen Switch“ (bei „+ Neues Gerät“ und „+ Neue Vorlage“, nur bei managed Switches): VLAN-ID und Namen eingeben, wählen, ob es alle Ports (Access) oder ein einzelner Port bekommt, und „Anlegen und zuweisen“. Das VLAN wird mit dem Switch gespeichert. Fügst du ihn in ein Projekt ohne diese VLAN-ID ein, legt der Netzwerkplaner das VLAN dort an.",
+      "Endgeräte, Vorlagen und Bestandseinträge haben kein eigenes VLAN. Sie übernehmen es im Projekt vom Switch-Port, an dem sie stecken. Ältere Vorlagen und Bestandseinträge mit VLAN werden ohne VLAN eingefügt.",
       "„Projektgeräte übernehmen“ kopiert alle Geräte des offenen Projekts in den Bestand.",
-      "„Export CSV“ und „Import“ tauschen den Bestand mit anderen Netzwerkplaner-Installationen oder mit einer eigenen Excel-Liste aus (Spalten: Name; Netzwerkname; Hersteller; Modell; Typ; IP1; VLAN1; MAC1 …, danach eine Spalte je eigenem Feld). Unbekannte Spalten werden beim Import zu eigenen Feldern. Modelle werden über Katalog-ID oder Modellname erkannt.",
+      "„Export CSV“ und „Import“ tauschen den Bestand mit anderen Netzwerkplaner-Installationen oder mit einer eigenen Excel-Liste aus (Spalten: Name; Netzwerkname; Hersteller; Modell; Typ; IP1; MAC1 …, danach eine Spalte je eigenem Feld; VLAN-Spalten älterer Listen gelten nur noch für das Management von Switches). Unbekannte Spalten werden beim Import zu eigenen Feldern. Modelle werden über Katalog-ID oder Modellname erkannt.",
       "„Eigene Felder“: Felder wie Inventar-Nr., Seriennummer, Case oder Eigentümer einmal anlegen, danach im Geräte-Editor mit „+ Feld …“ bei einem Gerät einfügen und ausfüllen. Umbenennen und Löschen wirkt auf alle Geräte in Projekt, Bestand und Vorlagen.",
     ]} />
     <Bild id="katalog-neu" text="Neues Gerät im Katalog anlegen" />
@@ -182,7 +183,8 @@ const KAPITEL = [
   { id: "wissen", titel: "Wissen", tab: ["wissen", "Wissen"], inhalt: () => <>
     <Bild id="wissen-poster" text="OSI-Modell & Ports: Protokoll-Poster im App-Design" />
     <Liste items={[
-      "Grundlagen zu IGMP, QoS, Bandbreite, Latenz, PTP, EEE, Spanning Tree, VLANs, Redundanz und Switch-Einstellungen je Hersteller.",
+      "Grundlagen zu IGMP, QoS, Bandbreite, Latenz, PTP, EEE, Spanning Tree, IP-Adressen, VLANs, Redundanz und Switch-Einstellungen je Hersteller.",
+      "„IP-Adressen & Netzrechner“: Adresse mit Präfix oder Maske eingeben (IPv4 oder IPv6, z. B. 10.10.20.5/24 oder fd00::1/64). Der Rechner zeigt Netz, Maske, Wildcard, Broadcast, erste und letzte Host-Adresse, Anzahl Hosts, Klasse und ob die Adresse privat, öffentlich, link-local oder Multicast ist, dazu die Binärdarstellung. „Aufteilen in“ zerlegt das Netz in kleinere Teilnetze. Bei IPv6 kommen Kurz- und Langform, Interface-ID und die MAC aus EUI-64 dazu, darunter rechnet eine MAC in ihre Link-Local-Adresse um. Ein Klick auf einen Wert kopiert ihn. Darunter steht alles zu IPv4 und IPv6: Klassen, private und besondere Bereiche, Masken-Tabelle und IPv6-Adressarten.",
       "„OSI-Modell & Ports“ zeigt die Protokoll-Poster: je Protokoll Port, TCP/UDP und Unicast/Broadcast/Multicast. Mauszeiger auf eine Spalte zeigt Details.",
       "„mDNS-Dienste“ und „Infrastruktur-Protokolle“ (früher im Katalog) erklären Discovery sowie DHCP, LLDP, SNMP und NTP.",
       "Kernprotokolle mit Bandbreiten-Rechner. Wo vorhanden, führt ein Wikipedia-Link oben rechts weiter.",

@@ -1,13 +1,14 @@
 /* ── Gerätebestand als CSV ────────────────────────────────────────────────
    Austausch zwischen Netzwerkplaner-Installationen und Import aus eigenen
-   Listen (Excel → CSV). Eine Zeile je Gerät, bis zu drei IP-Ports. */
+   Listen (Excel → CSV). Eine Zeile je Gerät, bis zu drei IP-Ports. VLAN-Spalten
+   älterer Listen werden bei Endgeräten ignoriert: deren VLAN kommt vom Switch. */
 import { bestandSchluessel } from "./bestandschluessel.js";
 import { KATALOG_GERAETE, createDevice, snapshotDevice, newPort, ipPorts, uid } from "./catalog.js";
 import { TYPEN } from "./constants.js";
 import { feldSpalten } from "./felder.js";
 
 export const CSV_SPALTEN = ["Name", "Netzwerkname", "Hersteller", "Modell", "Typ", "Bereich", "Standort",
-  "IP1", "VLAN1", "MAC1", "IP2", "VLAN2", "MAC2", "IP3", "VLAN3", "MAC3",
+  "IP1", "MAC1", "IP2", "MAC2", "IP3", "MAC3",
   "Notiz", "Katalog-ID"];
 // Danach folgt je eigenem Feld eine Spalte mit dem Feldnamen
 
@@ -27,7 +28,6 @@ export const bestandZuCsv = (bestand, feldDefs = []) => {
       Notiz: g.notizen || "", "Katalog-ID": g.katalogId || "" };
     ifs.forEach((i, n) => {
       r[`IP${n + 1}`] = i.dhcp ? "DHCP" : i.ip ? `${i.ip}/${i.prefix || 24}` : "";
-      r[`VLAN${n + 1}`] = i.vid ?? "";
       r[`MAC${n + 1}`] = i.mac || "";
     });
     for (const f of felder) r[f.name] = (g.felder || []).find((x) => x.id === f.id)?.wert || "";
@@ -118,7 +118,7 @@ export const csvZuBestand = (text, vlans = [], feldDefs = []) => {
         if (p) ifc.prefix = +p;
       }
       if (mac) ifc.mac = mac;
-      if (vid && !Number.isNaN(+vid)) vids[ifc.id] = +vid;
+      if (dev.isSwitch && vid && !Number.isNaN(+vid)) vids[ifc.id] = +vid; // VLAN-Spalten nur noch für das Management von Switches
     }
     const g = snapshotDevice(dev, vlans);
     g.ports.forEach((p) => { if (vids[p.id] != null) p.vid = vids[p.id]; });

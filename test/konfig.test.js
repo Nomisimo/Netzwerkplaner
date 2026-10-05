@@ -127,7 +127,7 @@ test("Katalog- und Bestandsgeräte: Konfig einfügen lässt Buchsen, P2P und PoE
   frei.ports[0].typ = "SFP"; frei.ports[0].p2p = true; frei.ports[0].vlan = P.vlans[0].id; frei.poeBedarf = 13;
   const typ0 = rs.ports[0].typ;
   konfigAnwenden(rs, konfigAus(frei, P.vlans, ["ports", "poe"]), ["ports", "poe"], P.vlans);
-  assert.equal(rs.ports[0].vlan, P.vlans[0].id);
+  assert.equal(rs.ports[0].vlan, null, "Endgerät: VLAN kommt nur vom Switch");
   assert.equal(rs.ports[0].typ, typ0);
   assert.equal(!!rs.ports[0].p2p, false);
   assert.equal(rs.poeBedarf || 0, 0);

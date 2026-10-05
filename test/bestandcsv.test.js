@@ -9,7 +9,7 @@ test("CSV liest Semikolon, Komma und Anführungszeichen", () => {
   assert.deepEqual(parseCsv('A,B\r\n"he said ""hi""",2\r\n'), [{ A: 'he said "hi"', B: "2" }]);
 });
 
-test("Bestand übersteht CSV-Export und -Import (Katalogmodell, IPs, VLAN, Inventar)", () => {
+test("Bestand übersteht CSV-Export und -Import (Katalogmodell, IPs, Inventar; VLAN-Spalten nur für Switches)", () => {
   const P = emptyProject();
   const csv = [
     "Name;Netzwerkname;Hersteller;Modell;IP1;VLAN1;IP2;VLAN2;IP3;Inventar-Nr.",
@@ -24,7 +24,7 @@ test("Bestand übersteht CSV-Export und -Import (Katalogmodell, IPs, VLAN, Inven
   assert.ok(KATALOG_GERAETE.some((k) => k.id === pu.katalogId), "Katalogmodell erkannt");
   assert.equal(pu.netzname, "PU-M1_AUE");
   assert.equal(ipPorts(pu)[0].ip, "172.16.2.131");
-  assert.equal(ipPorts(pu)[0].vid, 50);
+  assert.equal(ipPorts(pu)[0].vid, null, "Endgerät: VLAN-Spalte wird ignoriert");
   assert.equal(ipPorts(pu)[1].prefix, 8);
   assert.equal(ipPorts(pu)[2].dhcp, true);
   assert.deepEqual(pu.felder.map((f) => [f.id, f.name, f.wert]), [["inventar-nr", "Inventar-Nr.", "INV-1"]]);
@@ -36,9 +36,12 @@ test("Bestand übersteht CSV-Export und -Import (Katalogmodell, IPs, VLAN, Inven
   assert.equal(wieder[0].geraet.katalogId, pu.katalogId);
   assert.equal(wieder[1].geraet.netzname, "BL_Lap");
   assert.equal(wieder[0].geraet.felder[0].wert, "INV-1", "eigenes Feld übersteht die Rundreise");
-  // eingefügt ins Projekt: VLAN 50 wird zugeordnet
+  assert.ok(!bestandZuCsv(bestand).split("\r\n")[0].includes("VLAN"), "Export ohne VLAN-Spalten");
+  // eingefügt ins Projekt: kein VLAN am Gerät, das kommt vom Switch-Port
+  const n = P.vlans.length;
   const d = createDevice({ eigeneVorlage: wieder[0], vlans: P.vlans, mitAdressen: true });
-  assert.equal(P.vlans.find((v) => v.id === ipPorts(d)[0].vlan)?.vid, 50);
+  assert.ok(ipPorts(d).every((p) => !p.vlan));
+  assert.equal(P.vlans.length, n);
 });
 
 test("CSV: unbekannte Spalten werden eigene Felder, Katalogfelder über den Namen", () => {

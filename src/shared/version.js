@@ -5,6 +5,13 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.11": [
+    "Wissen: neuer Eintrag „IP-Adressen & Netzrechner“. Der Netzrechner nimmt IPv4 oder IPv6 mit Präfix oder Maske und zeigt Netz, Maske, Wildcard, Broadcast, erste und letzte Host-Adresse, Anzahl Hosts, Klasse, Art der Adresse (privat, öffentlich, link-local, Multicast …) und die Binärdarstellung. „Aufteilen in“ zerlegt ein Netz in Teilnetze. Bei IPv6 kommen Kurz- und Langform, Interface-ID, MAC aus EUI-64 und ein MAC→Link-Local-Rechner dazu. Klick auf einen Wert kopiert ihn",
+    "Wissen: IPv4 und IPv6 erklärt, mit Adressklassen A–E, privaten Bereichen (RFC 1918), Link-Local/APIPA, Loopback, Multicast, CGNAT, Masken-Tabelle /8 bis /32 und den IPv6-Adressarten (Link-Local, ULA, Global, Multicast)",
+    "VLANs gibt es jetzt nur noch an Switches, in der ganzen App: neue Geräte, Vorlagen, Bestandseinträge und Katalogmodelle bringen kein VLAN mehr mit. Ältere Vorlagen und Bestandseinträge mit VLAN werden ohne VLAN eingefügt und legen keine VLANs mehr an. Im Projekt übernimmt das Endgerät weiter das VLAN des Switch-Ports",
+    "„Konfig kopieren“, „Modell zuweisen“ und der Netzwerkscan setzen bei Endgeräten kein VLAN mehr. Der Bestand-CSV-Export hat keine VLAN-Spalten mehr; beim Import gelten sie nur noch für das Management von Switches",
+    "„Neues VLAN für diesen Switch“ erscheint beim Anlegen nur noch bei managed Switches",
+  ],
   "0.7.0-beta.10": [
     "Geräte-Editor: „+ Feld … → Neues Feld anlegen …“ und „Vorlage“ funktionieren wieder in der Desktop-App. Beide öffnen jetzt einen eigenen Eingabedialog (Enter = OK, Esc = Abbrechen)",
   ],

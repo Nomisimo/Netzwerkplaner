@@ -48,7 +48,7 @@ export default function GeraetAnlegen({ P, ziel, onSave, onClose }) {
           {Object.entries(TYPEN).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
         </select>
       </Field>
-      <NeuesVlan key={typ} S0={S0} dev={dev} mutate={mutate} />
+      {dev.isSwitch && !TYPEN[dev.typ]?.unmanaged && <NeuesVlan key={typ} S0={S0} dev={dev} mutate={mutate} />}
       <div style={{ marginTop: 12 }}>
         <DeviceEditor P={S0} X={X0} dev={dev} mutate={mutate} compact={false} />
       </div>
@@ -63,7 +63,7 @@ function NeuesVlan({ S0, dev, mutate }) {
   const naechste = () => { let n = 100; const belegt = new Set(S0.vlans.map((v) => +v.vid)); while (belegt.has(n)) n++; return n; };
   const [vid, setVid] = useState(naechste);
   const [name, setName] = useState("");
-  const [ziel, setZiel] = useState(dev.isSwitch ? "ports" : "nur");
+  const [ziel, setZiel] = useState("ports");
   const [info, setInfo] = useState("");
   const vorhanden = S0.vlans.find((v) => +v.vid === +vid);
   const ungueltig = !(+vid >= 1 && +vid <= 4094);
@@ -81,14 +81,14 @@ function NeuesVlan({ S0, dev, mutate }) {
   };
   return (
     <div style={{ marginTop: 12, border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
-      <div className="sp-section-label" style={{ marginTop: 0 }}>Neues VLAN für dieses Gerät</div>
+      <div className="sp-section-label" style={{ marginTop: 0 }}>Neues VLAN für diesen Switch</div>
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
         <Field label="VLAN-ID"><input type="number" min="1" max="4094" style={{ ...S.inputSm, width: 90 }} value={vid} onChange={(e) => setVid(e.target.value)} /></Field>
         <Field label="Name"><input style={{ ...S.inputSm, width: 180 }} value={vorhanden ? vorhanden.name : name} disabled={!!vorhanden} placeholder={`VLAN ${vid}`} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Zuweisen an">
           <select style={{ ...S.selectSm, width: 220 }} value={ziel} onChange={(e) => setZiel(e.target.value)}>
-            {dev.isSwitch && physPorts(dev).length > 0 && <option value="ports">Alle Ports (Access)</option>}
-            {dev.isSwitch && ipPorts(dev).map((i, n) => <option key={i.id} value={`if:${n}`}>Port „{i.name}“</option>)}
+            {physPorts(dev).length > 0 && <option value="ports">Alle Ports (Access)</option>}
+            {ipPorts(dev).map((i, n) => <option key={i.id} value={`if:${n}`}>Port „{i.name}“</option>)}
             <option value="nur">Nur anlegen</option>
           </select>
         </Field>
