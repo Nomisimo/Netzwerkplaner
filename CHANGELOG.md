@@ -5,6 +5,8 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 
 ## [0.7.0-beta.15] – unveröffentlicht
 
+- Clean Cat ordnet automatisch so an, dass die Kabelwege möglichst kurz sind (Reihenfolge von Standorten, Switches und Geräten)
+- Clean Cat: Geräte lassen sich mit der Maus verschieben. Sie bleiben dabei immer in ihrem Standort und, wenn sie in einem Stack sind, in dessen Rahmen; Geräte ohne Stack bleiben aus den Stacks heraus. „Auto-Anordnen“ setzt die Verschiebungen zurück
 - Clean Cat sortiert jetzt nach Standort und darin nach Stacks: jeder Stack (Rack, Case) ist ein eigener Kasten mit seinem Namen im Standort-Raum, die Geräte ohne Stack stehen daneben
 - Gerätebestand-CSV: Switches exportieren ihr Management-VLAN wieder (Spalten VLAN1–VLAN3). Bei Endgeräten bleiben die Spalten leer, deren VLAN kommt weiter vom Switch-Port
 

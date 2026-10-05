@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText } from "../src/shared/cleancat.js";
+import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText, cleanCatOptimieren, ccLaenge } from "../src/shared/cleancat.js";
 import { emptyProject } from "../src/shared/model.js";
 import { demoProject } from "../src/shared/demo.js";
 import { buildIndex } from "../src/shared/model.js";
@@ -87,4 +87,32 @@ test("Clean Cat: Stacks als Unterräume im Standort", () => {
   assert.ok(b.x + b.w <= st.x || b.x >= st.x + st.w, "Gerät ohne Stack liegt außerhalb");
   assert.equal(L.linien.length, P.verbindungen.length);
   assert.ok(L.legende.stapel);
+});
+
+test("Clean Cat: automatische Anordnung verkürzt die Kabelwege und ist stabil", () => {
+  const P = demoProject(), X = buildIndex(P);
+  const a = cleanCatOptimieren(P, X), b = cleanCatOptimieren(P, X);
+  assert.ok(a.laenge < a.start, `${a.laenge} < ${a.start}`);
+  assert.deepEqual(a.ordnung, b.ordnung);
+  const L = cleanCatLayout(P, X, { ordnung: a.ordnung });
+  assert.ok(Math.abs(ccLaenge(L) - a.laenge) < 1);
+  assert.equal(L.boxen.length, P.geraete.length);
+});
+
+test("Clean Cat: von Hand verschoben bleibt im Standort bzw. Stack, Leitungen hängen dran", () => {
+  const P = demoProject();
+  const by = (n) => P.geraete.find((d) => d.name === n).id;
+  P.layout.stapel = [{ id: "s1", name: "Rack", ids: [by("SW FOH"), by("FOH CL5")] }];
+  const X = buildIndex(P);
+  const L = cleanCatLayout(P, X, { positionen: { [by("PTZ 1")]: { dx: 5000, dy: 5000 }, [by("FOH CL5")]: { dx: -5000, dy: 0 } } });
+  const foh = L.raeume.find((r) => r.name === "FOH"), st = L.stapel[0];
+  const innen = (b, f) => b.x >= f.x && b.x + b.w <= f.x + f.w && b.y >= f.y && b.y + b.h <= f.y + f.h;
+  const ptz = L.boxen.find((b) => b.id === by("PTZ 1")), cl5 = L.boxen.find((b) => b.id === by("FOH CL5"));
+  assert.ok(innen(ptz, foh) && innen(cl5, st));
+  assert.ok(!(ptz.x < st.x + st.w && st.x < ptz.x + ptz.w && ptz.y < st.y + st.h && st.y < ptz.y + ptz.h), "PTZ nicht im Stack");
+  assert.ok(L.handVersatz[by("PTZ 1")]);
+  for (const l of L.linien.filter((x) => x.von === by("PTZ 1"))) {
+    const [x, y] = l.pts[0];
+    assert.ok(x >= ptz.x && x <= ptz.x + ptz.w && Math.abs(y - (ptz.y + ptz.h)) < 0.01, "Leitung startet am verschobenen Gerät");
+  }
 });
