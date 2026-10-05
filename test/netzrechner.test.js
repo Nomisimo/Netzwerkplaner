@@ -55,3 +55,11 @@ test("Netzrechner IPv6: Kurz-/Langform, Bereiche, EUI-64", () => {
   assert.equal(netzRechnen("10.0.0.1/8").v, 4);
   assert.equal(netzRechnen("::1").v, 6);
 });
+
+test("v4Aufteilen: /8 in /24-Netze, seitenweise", () => {
+  const a = v4Aufteilen("10.0.0.0/8", 24, 512);
+  assert.equal(a.anzahl, 65536);
+  assert.equal(a.netze.length, 512);
+  assert.equal(a.netze[256].cidr, "10.1.0.0/24");
+  assert.ok(a.gekuerzt);
+});

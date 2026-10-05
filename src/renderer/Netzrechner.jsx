@@ -42,19 +42,23 @@ function Binaer({ r }) {
   );
 }
 
+const SEITE = 256;
+
 function Aufteilen({ r }) {
-  const [p, setP] = useState(Math.min(32, r.prefix + 2));
-  const a = useMemo(() => v4Aufteilen(r.cidr, p, 64), [r.cidr, p]);
-  const optionen = Array.from({ length: Math.min(32, r.prefix + 10) - r.prefix }, (_, k) => r.prefix + k + 1);
+  const [p, setP] = useState(Math.min(32, r.prefix < 24 ? 24 : r.prefix + 2));
+  const [max, setMax] = useState(SEITE);
+  const a = useMemo(() => v4Aufteilen(r.cidr, p, max), [r.cidr, p, max]);
+  // Jede Zielgröße bis /32 wählbar, auch /8 in /24-Netze
+  const optionen = Array.from({ length: 32 - r.prefix }, (_, k) => r.prefix + k + 1);
   if (!optionen.length) return null;
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 700 }}>Aufteilen in</span>
-        <select style={{ ...S.selectSm, width: "auto" }} value={p} onChange={(e) => setP(+e.target.value)}>
+        <select style={{ ...S.selectSm, width: "auto" }} value={p} onChange={(e) => { setP(+e.target.value); setMax(SEITE); }}>
           {optionen.map((x) => <option key={x} value={x}>/{x} ({(2 ** (x - r.prefix)).toLocaleString("de-DE")} Netze)</option>)}
         </select>
-        {a && <span style={{ fontSize: 12, color: SUB }}>{a.anzahl.toLocaleString("de-DE")} Teilnetze mit je {a.hostsJe.toLocaleString("de-DE")} Hosts{a.gekuerzt ? ", die ersten 64 gezeigt" : ""}</span>}
+        {a && <span style={{ fontSize: 12, color: SUB }}>{a.anzahl.toLocaleString("de-DE")} Teilnetze mit je {a.hostsJe.toLocaleString("de-DE")} {a.hostsJe === 1 ? "Host" : "Hosts"}{a.gekuerzt ? `, die ersten ${a.netze.length.toLocaleString("de-DE")} gezeigt` : ""}</span>}
       </div>
       {a && <div style={{ overflowX: "auto", maxHeight: 280, overflowY: "auto", marginTop: 6 }}>
         <table style={{ ...S.table, fontSize: 12.5 }}>
@@ -62,6 +66,7 @@ function Aufteilen({ r }) {
           <tbody>{a.netze.map((n) => <tr key={n.cidr}>{[n.cidr, n.erste, n.letzte, n.broadcast || "–"].map((x, k) => <td key={k} style={{ ...S.td, fontFamily: "ui-monospace, Menlo, Consolas, monospace" }}>{x}</td>)}</tr>)}</tbody>
         </table>
       </div>}
+      {a?.gekuerzt && <button style={{ ...S.smallBtn, marginTop: 6 }} onClick={() => setMax((m) => m + SEITE)}>Weitere {Math.min(SEITE, a.anzahl - a.netze.length).toLocaleString("de-DE")} anzeigen</button>}
     </div>
   );
 }
