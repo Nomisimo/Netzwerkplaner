@@ -6,6 +6,11 @@ export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
   "0.7.0-beta.16": [
+    "Clean Cat: Leitungen zwischen Geräten desselben Standorts bleiben im Standort-Kasten, auch zwischen zwei Stacks. Nur Verbindungen zwischen Standorten laufen außen herum",
+    "Clean Cat: jedes Gerät zeigt seine Notiz, Verbindungen ihre Notiz an der Leitung. Alle Blöcke bleiben gleich groß",
+    "Clean Cat: unter dem Standortnamen steht die Anmerkung des Standorts",
+    "Standorte lassen sich auf der Projekt-Seite umbenennen (gilt im ganzen Projekt, auch an allen Geräten) und bekommen dort eine Anmerkung, die nur in Clean Cat erscheint",
+    "Clean Cat: Geräte sind nicht mehr mit der Maus verschiebbar, die Anordnung macht der Plan selbst",
     "Live: Wenn man einen Monitor oder die Discovery-Suche stoppt, bleiben die bisherigen Einträge stehen (mit Uhrzeit des Stopps). „Einträge verwerfen“ räumt sie weg, ein neuer Start beginnt frisch",
   ],
   "0.7.0-beta.15": [

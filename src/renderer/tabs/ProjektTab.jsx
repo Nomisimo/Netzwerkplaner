@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, KATEGORIEN, INPUT, STRONG } from "../../shared/constants.js";
 import { KATALOG, ipPorts } from "../../shared/catalog.js";
 import { Section, Field } from "../ui.jsx";
+import { standortUmbenennen } from "../../shared/model.js";
 import { X as XIcon, RotateCcw } from "lucide-react";
 
 const Stat = ({ label, value, color, onClick }) => (
@@ -17,6 +18,8 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
   const setMeta = (k, v) => mutate((d) => (d.meta[k] = v));
   const n = (s) => issues.filter((i) => i.sev === s).length;
   const ips = P.geraete.reduce((s, d) => s + ipPorts(d).filter((i) => i.ip).length, 0);
+  // Standorte: die Liste des Projekts plus alles, was an Geräten steht
+  const standorte = [...new Set([...P.bereiche, ...P.geraete.map((d) => (d.bereich || "").trim()).filter(Boolean)])];
   const perKat = Object.keys(KATEGORIEN).map((k) => [k, P.geraete.filter((d) => d.kategorie === k).length]).filter(([, c]) => c);
 
   return (
@@ -58,13 +61,26 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
         )}
       </Section>
 
-      <Section title="Standorte / Äste" subtitle="Vorschläge für das Feld „Standort / Ast“ der Geräte (z. B. FOH, Bühne, Delay-Tower).">
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-          {P.bereiche.map((b, i) => (
-            <span key={b + i} style={S.chip}>{b} <span style={{ cursor: "pointer", color: MUTED, display: "inline-flex" }} onClick={() => mutate((d) => d.bereiche.splice(i, 1))}><XIcon size={11} /></span></span>
-          ))}
+      <Section title="Standorte / Äste" subtitle="Standorte der Geräte (Feld „Standort / Ast“, z. B. FOH, Bühne, Delay-Tower). Umbenennen gilt für das ganze Projekt. Die Anmerkung erscheint nur in der Clean-Cat-Ansicht.">
+        <div style={{ display: "grid", gap: 8 }}>
+          {standorte.map((b) => {
+            const anzahl = P.geraete.filter((g) => (g.bereich || "").trim() === b).length;
+            return (
+              <div key={b} style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap", border: `1px solid ${LINE}`, borderRadius: 8, padding: 8 }}>
+                <input style={{ ...S.input, width: 200 }} defaultValue={b} key={"n" + b}
+                  title="Name ändern: gilt im ganzen Projekt, auch an allen Geräten"
+                  onBlur={(e) => { const v = e.target.value.trim(); if (!v || v === b) { e.target.value = b; return; } mutate((d) => standortUmbenennen(d, b, v)); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") { e.target.value = b; e.target.blur(); } }} />
+                <input style={{ ...S.input, flex: 1, minWidth: 240 }} placeholder="Anmerkung (nur in Clean Cat)" value={P.standortInfo?.[b]?.anmerkung || ""}
+                  onChange={(e) => mutate((d) => { const i = d.standortInfo || (d.standortInfo = {}); i[b] = { ...(i[b] || {}), anmerkung: e.target.value }; })} />
+                <span style={{ fontSize: 12, color: SUB, alignSelf: "center" }}>{anzahl} {anzahl === 1 ? "Gerät" : "Geräte"}</span>
+                <button style={S.smallBtn} title={anzahl ? "Erst die Geräte umtragen" : "Aus der Liste entfernen"} disabled={!!anzahl}
+                  onClick={() => mutate((d) => { const i = d.bereiche.indexOf(b); if (i >= 0) d.bereiche.splice(i, 1); if (d.standortInfo) delete d.standortInfo[b]; })}><XIcon size={12} /></button>
+              </div>
+            );
+          })}
         </div>
-        <form style={S.row} onSubmit={(e) => { e.preventDefault(); if (neuBereich.trim()) { mutate((d) => d.bereiche.push(neuBereich.trim())); setNeuBereich(""); } }}>
+        <form style={{ ...S.row, marginTop: 10 }} onSubmit={(e) => { e.preventDefault(); const v = neuBereich.trim(); if (v && !standorte.includes(v)) mutate((d) => d.bereiche.push(v)); setNeuBereich(""); }}>
           <input style={S.input} placeholder="Neuer Standort" value={neuBereich} onChange={(e) => setNeuBereich(e.target.value)} />
           <button style={S.secondaryBtn}>+ Hinzufügen</button>
         </form>
