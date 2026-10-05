@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor, DARK, INPUT, TEXT } from "../../shared/constants.js";
 import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid, ipPorts, physPorts } from "../../shared/catalog.js";
 import { Section, KatChip, Toggle } from "../ui.jsx";
 import { IconView, ICON_NAMES } from "../icons.jsx";
@@ -98,7 +98,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
             </select>
             <div style={{ overflowY: "auto", flex: 1 }}>
               {protos.map((p) => (
-                <div key={p.id} onClick={() => setProtoId(p.id)} style={{ padding: "6px 8px", borderRadius: 5, cursor: "pointer", fontSize: 13, background: cur?.id === p.id ? ACCENT : "transparent", color: cur?.id === p.id ? "#1c2127" : "#e8eaed", fontWeight: cur?.id === p.id ? 700 : 400, display: "flex", gap: 6, alignItems: "center" }}>
+                <div key={p.id} onClick={() => setProtoId(p.id)} style={{ padding: "6px 8px", borderRadius: 5, cursor: "pointer", fontSize: 13, background: cur?.id === p.id ? ACCENT : "transparent", color: cur?.id === p.id ? DARK : TEXT, fontWeight: cur?.id === p.id ? 700 : 400, display: "flex", gap: 6, alignItems: "center" }}>
                   <span style={{ flex: 1 }}>{p.name}</span>
                   {p.flags.p2p && <span title="Punkt-zu-Punkt" style={{ display: "inline-flex" }}><Link size={12} /></span>}
                   <span style={{ fontSize: 10, opacity: 0.7 }}>{p.kategorie}</span>
@@ -132,7 +132,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
                     <td style={S.td}><button style={S.smallBtn} onClick={(e) => { e.stopPropagation(); onAddDevice({ kind: "katalog", key: g.id }, {}); }}>+ ins Projekt</button></td>
                   </tr>
                   {open === g.id && (
-                    <tr><td colSpan="6" style={{ ...S.td, background: "#1b2026" }}>
+                    <tr><td colSpan="6" style={{ ...S.td, background: INPUT }}>
                       <table style={{ ...S.table, marginTop: 0, fontSize: 12 }}><tbody>
                         {Object.entries(g.raw).filter(([k, v]) => v && !["Hersteller", "Modell"].includes(k)).map(([k, v]) => (
                           <tr key={k}><td style={{ ...S.td, color: SUB, width: 190 }}>{k}</td><td style={S.td}>{k === "Protokolle" ? v.split(/,(?![^(]*\))/).map((s) => s.trim()).map((s, i) => {
@@ -176,8 +176,8 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
           <div className="sp-section-label">Mitgeliefert ({ICON_NAMES.length})</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(96px,1fr))", gap: 8 }}>
             {ICON_NAMES.map((n) => (
-              <div key={n} style={{ background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                <IconView icon={n} size={32} color="#e8eaed" /><span style={{ fontSize: 10, color: SUB }}>{n}</span>
+              <div key={n} style={{ background: INPUT, border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                <IconView icon={n} size={32} color={TEXT} /><span style={{ fontSize: 10, color: SUB }}>{n}</span>
               </div>
             ))}
           </div>
@@ -185,7 +185,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
           {!allIcons.length && <p style={S.empty}>Noch keine eigenen Icons.</p>}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 8 }}>
             {allIcons.map((ic) => (
-              <div key={ic.id} style={{ background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <div key={ic.id} style={{ background: INPUT, border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                 <img src={ic.data} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
                 <span style={{ fontSize: 10, color: SUB, textAlign: "center", wordBreak: "break-all" }}>{ic.name}</span>
                 <button style={{ ...S.dangerBtn, padding: "1px 6px", fontSize: 10 }} onClick={() => {

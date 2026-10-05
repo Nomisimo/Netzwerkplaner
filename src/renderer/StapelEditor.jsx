@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, TYPEN, katColor } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, TYPEN, katColor, CARD } from "../shared/constants.js";
 import { entstapeln } from "../shared/anordnung.js";
 import { stapelAus, stapelEinfuegen } from "../shared/konfig.js";
 import { IconView } from "./icons.jsx";
@@ -47,7 +47,7 @@ export default function StapelEditor({ P, stapelId, mutate, onSelectDevice, onSe
 
       <div className="sp-section-label" style={{ marginTop: 18 }}>Geräte von oben nach unten ({devs.length})</div>
       {devs.map((g, i) => (
-        <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", border: `1px solid ${LINE}`, borderLeft: `3px solid ${katColor(g.kategorie)}`, borderRadius: 6, marginBottom: 4, background: "#1f242b" }}>
+        <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", border: `1px solid ${LINE}`, borderLeft: `3px solid ${katColor(g.kategorie)}`, borderRadius: 6, marginBottom: 4, background: CARD }}>
           <IconView icon={g.icon} customIcons={P.icons} color={katColor(g.kategorie)} size={18} />
           <a style={{ flex: 1, minWidth: 0, cursor: "pointer", fontSize: 13 }} onClick={() => onSelectDevice(g.id)} title="Gerät bearbeiten">
             {g.name}<div style={{ fontSize: 11, color: MUTED }}>{[g.hersteller, g.modell].filter(Boolean).join(" ") || TYPEN[g.typ]?.label}{i === 0 ? " · oben (Anker)" : ""}</div>

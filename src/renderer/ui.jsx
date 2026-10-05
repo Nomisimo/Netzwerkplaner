@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, TYPEN, KATEGORIEN } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, TYPEN, KATEGORIEN, INPUT, LINE2, MID, TEXT, TEXT2, STRONG } from "../shared/constants.js";
 import { KATALOG_GERAETE, ipPorts } from "../shared/catalog.js";
 import { IconView, ICON_GRUPPEN, ICON_LABEL } from "./icons.jsx";
 import { vlanBaum, vlanPfad } from "../shared/qinq.js";
@@ -40,7 +40,7 @@ export function Modal({ title, onClose, children, width = 640, footer }) {
     <div style={S.modalOverlay} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div style={{ ...S.modalBox, width, maxWidth: "94vw" }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", flex: 1 }}>{title}</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: STRONG, flex: 1 }}>{title}</div>
           <button style={{ ...S.ghostBtn, padding: "3px 9px" }} onClick={onClose}><XIcon size={14} /></button>
         </div>
         {children}
@@ -64,14 +64,14 @@ export const Dot = ({ color, size = 9, title }) => (
 );
 
 export const StatusDot = ({ st, size = 9 }) => {
-  const c = !st || st.ok === null || st.ok === undefined ? "#5b6570" : st.ok ? OK : ERR;
+  const c = !st || st.ok === null || st.ok === undefined ? MID : st.ok ? OK : ERR;
   const t = !st ? "Status unbekannt" : st.ok === null ? st.method : st.ok ? `erreichbar (${st.method}, ${st.ms} ms)` : `nicht erreichbar (${st.method})`;
   return <Dot color={c} size={size} title={t} />;
 };
 
 export function Toggle({ checked, onChange, label, title, disabled }) {
   return (
-    <label title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, cursor: disabled ? "default" : "pointer", fontSize: 12, color: "#c8d0d8", userSelect: "none", opacity: disabled ? 0.55 : 1 }}>
+    <label title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, cursor: disabled ? "default" : "pointer", fontSize: 12, color: TEXT2, userSelect: "none", opacity: disabled ? 0.55 : 1 }}>
       <input type="checkbox" checked={!!checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} style={{ accentColor: ACCENT }} />
       {label}
     </label>
@@ -127,14 +127,14 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
         {items.length === 0 && <div style={{ ...S.empty, padding: 16 }}>Nichts gefunden.</div>}
         {items.slice(0, 250).map((i) => (
           <button key={i.kind + i.key} onClick={() => onPick(i)}
-            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: `1px solid #232a33`, padding: "8px 12px", cursor: "pointer", color: "#e8eaed" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#232a33")} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
+            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: `1px solid ${LINE2}`, padding: "8px 12px", cursor: "pointer", color: TEXT }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = LINE2)} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
             <IconView icon={i.icon} customIcons={customIcons} color={katColor(i.kat)} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 13 }}>{i.title}</div>
               <div style={{ fontSize: 11, color: SUB }}>{i.sub}</div>
             </div>
-            {i.kind === "bestand" && <span style={{ ...S.badge, background: "#2ecc71", color: "#10261a" }}>Bestand</span>}
+            {i.kind === "bestand" && <span style={{ ...S.badge, background: OK, color: "#10261a" }}>Bestand</span>}
             {i.kind === "vorlage" && <span style={{ ...S.badge, background: ACCENT, color: "#fff" }}>Vorlage</span>}
             {i.kind === "typ" && <span style={{ ...S.badge, border: `1px solid ${LINE}`, color: SUB }}>generisch</span>}
           </button>
@@ -153,11 +153,11 @@ export function IconPicker({ value, onChange, customIcons, color }) {
         <IconView icon={value} customIcons={customIcons} color={color} /> <ChevronDown size={12} />
       </button>
       {open && (
-        <div style={{ position: "absolute", zIndex: 50, top: "100%", left: 0, marginTop: 4, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, width: 320, maxHeight: 380, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.5)" }}
+        <div style={{ position: "absolute", zIndex: 50, top: "100%", left: 0, marginTop: 4, background: INPUT, border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, width: 320, maxHeight: 380, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.5)" }}
           onMouseLeave={() => setOpen(false)}>
           {[...ICON_GRUPPEN, ...(customIcons.length ? [{ titel: "Eigene Icons", icons: customIcons.map((c) => "custom:" + c.id) }] : [])].map((g) => (
             <div key={g.titel}>
-              <div style={{ fontSize: 11, color: "#8a939d", margin: "6px 2px 4px" }}>{g.titel}</div>
+              <div style={{ fontSize: 11, color: SUB, margin: "6px 2px 4px" }}>{g.titel}</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
                 {g.icons.map((n) => (
                   <button key={n} title={n.startsWith("custom:") ? customIcons.find((c) => "custom:" + c.id === n)?.name : ICON_LABEL[n] || n}
@@ -194,7 +194,7 @@ export function EingabeHost() {
   return (
     <Modal title={f.titel} width={460} onClose={() => fertig(null)}
       footer={<><button style={S.ghostBtn} onClick={() => fertig(null)}>Abbrechen</button><button style={S.primaryBtn} disabled={!wert.trim()} onClick={() => fertig(wert.trim())}>OK</button></>}>
-      <div style={{ fontSize: 13, color: "#c8d0d8", marginBottom: 8 }}>{f.frage}</div>
+      <div style={{ fontSize: 13, color: TEXT2, marginBottom: 8 }}>{f.frage}</div>
       <input autoFocus style={S.input} value={wert} onChange={(e) => setWert(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && wert.trim()) fertig(wert.trim()); }} />
     </Modal>
   );

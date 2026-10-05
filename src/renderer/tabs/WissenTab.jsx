@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, OK, WARN } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, OK, WARN, HINTBG, LINK, TEXT, TEXT2, STRONG } from "../../shared/constants.js";
 import { KERN, defaultParams } from "../../shared/kernprotokolle.js";
 import { KATALOG } from "../../shared/catalog.js";
 import { ARTIKEL } from "../../shared/wissen.js";
@@ -8,6 +8,7 @@ import { Section, Dot } from "../ui.jsx";
 import { api } from "../api.js";
 import ProtokollPoster from "../ProtokollPoster.jsx";
 import Netzrechner from "../Netzrechner.jsx";
+import Schaubild from "../Schaubilder.jsx";
 import { ExternalLink } from "lucide-react";
 
 // Wikipedia-Artikel, soweit vorhanden
@@ -28,7 +29,7 @@ const WIKI = {
   osi: "https://de.wikipedia.org/wiki/OSI-Modell",
   mdns: "https://de.wikipedia.org/wiki/Zeroconf",
 };
-const WikiLink = ({ id }) => WIKI[id] ? <a href="#" style={{ color: "#8ec5ff", fontSize: 12, fontWeight: 400, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3 }} onClick={(e) => { e.preventDefault(); api.openExternal(WIKI[id]); }}>Wikipedia <ExternalLink size={12} /></a> : null;
+const WikiLink = ({ id }) => WIKI[id] ? <a href="#" style={{ color: LINK, fontSize: 12, fontWeight: 400, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3 }} onClick={(e) => { e.preventDefault(); api.openExternal(WIKI[id]); }}>Wikipedia <ExternalLink size={12} /></a> : null;
 
 // Recherche-Einträge (hardware/fokus) je Kernprotokoll
 const RECHERCHE_NAMEN = { dante: ["Dante"], manet: ["MA-Net3", "MA-Net2", "MA-Net1"], artnet: ["Art-Net 4"], sacn: ["sACN (ANSI E1.31)"], ndi: ["NDI (NDI 5/6)"], osc: ["OSC (Open Sound Control)"], citp: ["CITP / MSEx"] };
@@ -48,21 +49,22 @@ const Tabelle = ({ kopf, zeilen }) => (
 const Links = ({ text }) => (
   <div style={{ fontSize: 11.5, lineHeight: 1.6 }}>
     {String(text).split(/\s*;\s*/).filter(Boolean).map((u, i) => /^https?:\/\//.test(u)
-      ? <div key={i}><a href="#" style={{ color: "#8ec5ff", wordBreak: "break-all" }} onClick={(e) => { e.preventDefault(); api.openExternal(u); }}>{u}</a></div>
+      ? <div key={i}><a href="#" style={{ color: LINK, wordBreak: "break-all" }} onClick={(e) => { e.preventDefault(); api.openExternal(u); }}>{u}</a></div>
       : <div key={i}>{u}</div>)}
   </div>
 );
 
 function Block({ b }) {
-  const P = { fontSize: 13.5, lineHeight: 1.6, color: "#dfe3e8", margin: "8px 0", maxWidth: 900 };
+  const P = { fontSize: 13.5, lineHeight: 1.6, color: TEXT, margin: "8px 0", maxWidth: 900 };
   if (b.t === "p") return <p style={P}>{b.x}</p>;
   if (b.t === "h") return <h3 style={{ fontSize: 14, color: ACCENT, margin: "18px 0 6px" }}>{b.x}</h3>;
   if (b.t === "ul") return <ul style={{ ...P, paddingLeft: 20 }}>{b.x.map((x, i) => <li key={i} style={{ marginBottom: 4 }}>{x}</li>)}</ul>;
-  if (b.t === "hint") return <div style={{ ...P, borderLeft: `3px solid ${WARN}`, background: "#2a2418", padding: "8px 12px", borderRadius: 4 }}>{b.x}</div>;
+  if (b.t === "hint") return <div style={{ ...P, borderLeft: `3px solid ${WARN}`, background: HINTBG, padding: "8px 12px", borderRadius: 4 }}>{b.x}</div>;
   if (b.t === "table" && b.zeilen === "refs") return <Tabelle kopf={b.kopf} zeilen={(KATALOG.kernprotokolle || []).map((r) => [r.Protokoll, r.Ports, r.Multicast, r.Discovery || "–"])} />;
   if (b.t === "table") return <Tabelle kopf={b.kopf} zeilen={b.zeilen} />;
   if (b.t === "poster") return <ProtokollPoster />;
   if (b.t === "rechner") return <Netzrechner />;
+  if (b.t === "bild") return <Schaubild id={b.id} />;
   if (b.t === "mdns") return <Tabelle kopf={["Service-Typ", "Protokoll", "Zweck"]} zeilen={(KATALOG.mdns || []).map((m) => [<span style={{ fontFamily: "monospace" }}>{m["Service-Typ"]}</span>, m.Protokoll, m.Zweck])} />;
   if (b.t === "infra") return <Tabelle kopf={["Protokoll", "Port / Schicht", "Rolle im Veranstaltungsnetz"]} zeilen={(KATALOG.infrastruktur || []).map((m) => [m.Protokoll, m["Port / Schicht"], m["Rolle im Veranstaltungsnetz"]])} />;
   if (b.t === "qos") return <Tabelle kopf={["System", "DSCP", "Hinweis"]} zeilen={(KATALOG.qos || []).map((q) => [q.System, q["DSCP-Werte"], q.Hinweis])} />;
@@ -89,7 +91,7 @@ function ProtokollSeite({ k }) {
       <Tabelle kopf={[k.einheit, "Last", "Anteil an 1 Gbit/s"]} zeilen={beispiele.map((n) => { const r = k.rechne(n, p); return [n, fmtMbit(r.mbit), `${((r.mbit / 1000) * 100).toFixed(1)} %`]; })} />
       <h3 style={{ fontSize: 14, color: ACCENT, margin: "18px 0 6px" }}>Latenz</h3>
       <Tabelle kopf={["Wert", "Bedeutung"]} zeilen={k.latenz} />
-      {k.id === "dante" && <div style={{ fontSize: 12.5, borderLeft: `3px solid ${WARN}`, background: "#2a2418", padding: "8px 12px", borderRadius: 4, marginTop: 8, maxWidth: 900 }}>Die Fokus-Recherche nennt vorsichtigere Hop-Zahlen (0,25 ms bei 1 Hop, 0,5 ms bei 3, 1 ms bei 5, 2 ms bei 10). Im Zweifel die höhere Latenz wählen und in Dante Controller auf späte Pakete prüfen.</div>}
+      {k.id === "dante" && <div style={{ fontSize: 12.5, borderLeft: `3px solid ${WARN}`, background: HINTBG, padding: "8px 12px", borderRadius: 4, marginTop: 8, maxWidth: 900 }}>Die Fokus-Recherche nennt vorsichtigere Hop-Zahlen (0,25 ms bei 1 Hop, 0,5 ms bei 3, 1 ms bei 5, 2 ms bei 10). Im Zweifel die höhere Latenz wählen und in Dante Controller auf späte Pakete prüfen.</div>}
       {k.varianten && <>
         <h3 style={{ fontSize: 14, color: ACCENT, margin: "18px 0 6px" }}>Varianten</h3>
         <Tabelle kopf={["Variante", "Beschreibung", "Datenstand"]} zeilen={k.varianten} />
@@ -129,7 +131,7 @@ function SwitchSeite() {
     <div key={g} style={{ marginBottom: 16 }}>
       <h3 style={{ fontSize: 14, color: ACCENT, margin: "12px 0 6px" }}>{g}</h3>
       <table style={{ ...S.table, fontSize: 12.5 }}><tbody>
-        {l.map((e, i) => <tr key={i}><td style={{ ...S.td, width: 150, fontWeight: 600, verticalAlign: "top" }}>{e.Einstellung}</td><td style={S.td}>{e.Wert}</td><td style={{ ...S.td, width: 60, textAlign: "right" }}>{/^https?:/.test(e.Quelle || "") && <a href="#" style={{ color: "#8ec5ff", fontSize: 11 }} onClick={(ev) => { ev.preventDefault(); api.openExternal(e.Quelle.split(/\s*;\s*/)[0]); }}>Quelle</a>}</td></tr>)}
+        {l.map((e, i) => <tr key={i}><td style={{ ...S.td, width: 150, fontWeight: 600, verticalAlign: "top" }}>{e.Einstellung}</td><td style={S.td}>{e.Wert}</td><td style={{ ...S.td, width: 60, textAlign: "right" }}>{/^https?:/.test(e.Quelle || "") && <a href="#" style={{ color: LINK, fontSize: 11 }} onClick={(ev) => { ev.preventDefault(); api.openExternal(e.Quelle.split(/\s*;\s*/)[0]); }}>Quelle</a>}</td></tr>)}
       </tbody></table>
     </div>
   ));
@@ -140,7 +142,7 @@ export default function WissenTab() {
   const art = ARTIKEL.find((a) => a.id === sel);
   const k = KERN.find((x) => "p-" + x.id === sel);
   const Nav = ({ id, children, color }) => (
-    <button onClick={() => setSel(id)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: sel === id ? ACCENT + "26" : "none", border: "none", borderLeft: `3px solid ${sel === id ? ACCENT : "transparent"}`, color: sel === id ? "#fff" : "#c8d0d8", padding: "6px 10px", cursor: "pointer", fontSize: 13 }}>
+    <button onClick={() => setSel(id)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: sel === id ? ACCENT + "26" : "none", border: "none", borderLeft: `3px solid ${sel === id ? ACCENT : "transparent"}`, color: sel === id ? STRONG : TEXT2, padding: "6px 10px", cursor: "pointer", fontSize: 13 }}>
       {color && <Dot color={color} size={8} />}{children}
     </button>
   );

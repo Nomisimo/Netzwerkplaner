@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, katColor } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, katColor, STRONG } from "../../shared/constants.js";
 import { patchZeilen } from "../../shared/patchliste.js";
 import { Section } from "../ui.jsx";
 import { GripVertical, ChevronUp, ChevronDown, RotateCcw, Printer, FileSpreadsheet } from "lucide-react";
@@ -60,7 +60,7 @@ export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport }
                   </td>
                   <td style={{ ...S.td, color: SUB, width: 28 }}>{z.nr}</td>
                   <td style={{ ...S.td, minWidth: 170 }}>
-                    <button onClick={() => onSelectDevice(z.id)} style={{ background: "none", border: "none", padding: 0, color: "#fff", fontWeight: z.isSwitch ? 800 : 700, cursor: "pointer", textAlign: "left", fontSize: 12.5 }}>{z.name}</button>
+                    <button onClick={() => onSelectDevice(z.id)} style={{ background: "none", border: "none", padding: 0, color: STRONG, fontWeight: z.isSwitch ? 800 : 700, cursor: "pointer", textAlign: "left", fontSize: 12.5 }}>{z.name}</button>
                     {z.netzname && <div style={{ fontFamily: "ui-monospace,monospace", fontSize: 11, color: "#c8d0ff" }}>{z.netzname}</div>}
                     <div style={{ fontSize: 11, color: MUTED }}>{z.modell}{z.stapel ? ` · Stapel ${z.stapel}` : ""}</div>
                   </td>

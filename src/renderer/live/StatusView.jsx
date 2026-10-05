@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { S, OK, ERR, MUTED } from "../../shared/constants.js";
+import { S, OK, ERR, MUTED, TEXT2, STRONG } from "../../shared/constants.js";
 import { webUrl } from "../../shared/model.js";
 import { ipSort } from "../../shared/net.js";
 import { fmtAge } from "../../shared/live.js";
@@ -24,7 +24,7 @@ export default function StatusView({ P, X, status, checkReach, autoStatus, setAu
       <div style={{ ...S.row, marginBottom: 14 }}>
         <button style={S.primaryBtn} onClick={() => checkReach()}><RefreshCw size={14} /> Jetzt prüfen</button>
         <Toggle checked={autoStatus} onChange={setAutoStatus} label="Automatisch alle 15 s (auch in der Topologie)" />
-        <span style={{ fontSize: 12, color: "#c8d0d8" }}>
+        <span style={{ fontSize: 12, color: TEXT2 }}>
           <b style={{ color: OK }}>{n.on}</b> online · <b style={{ color: ERR }}>{n.off}</b> offline · <b style={{ color: MUTED }}>{n.unk}</b> ungeprüft
         </span>
       </div>
@@ -36,7 +36,7 @@ export default function StatusView({ P, X, status, checkReach, autoStatus, setAu
             return (
               <tr key={d.id}>
                 <td style={td({ width: 20 })}><StatusDot st={st} /></td>
-                <td style={td()}><a href="#" style={{ color: "#fff" }} onClick={(e) => { e.preventDefault(); onSelectDevice(d.id); }}>{d.name}</a></td>
+                <td style={td()}><a href="#" style={{ color: STRONG }} onClick={(e) => { e.preventDefault(); onSelectDevice(d.id); }}>{d.name}</a></td>
                 <td style={td(mono)}>{st?.ok && st.ip ? st.ip : ifc.ip}{ipPorts(d).filter((i) => i.ip).length > 1 && <span style={{ color: MUTED, fontFamily: "inherit", fontSize: 11 }}> +{ipPorts(d).filter((i) => i.ip).length - 1}</span>}</td>
                 <td style={td()}>{ifc.vlan && <VlanChip v={X.vlanById.get(ifc.vlan)} small />}</td>
                 <td style={td({ fontSize: 12, color: !st ? MUTED : st.ok ? OK : st.ok === false ? ERR : MUTED })}>

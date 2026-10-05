@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, WARN } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, WARN, INPUT, MID, STRONG } from "../../shared/constants.js";
 import { findPlanned, fmtAge } from "../../shared/live.js";
 import { Dot, th, td } from "../ui.jsx";
 import { Square, Play, OctagonX, TriangleAlert } from "lucide-react";
@@ -15,7 +15,7 @@ export function MonBar({ mon, label = "Mitlesen", onStart, children, stopLabel =
           ? <button style={S.secondaryBtn} onClick={mon.stop}><Square size={12} fill="currentColor" /> {stopLabel}</button>
           : <button style={S.primaryBtn} disabled={mon.busy} onClick={onStart}><Play size={12} fill="currentColor" /> {label}</button>}
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: mon.running ? OK : MUTED }}>
-          <Dot color={mon.running ? OK : "#5b6570"} /> {mon.running ? "läuft" : "gestoppt"}
+          <Dot color={mon.running ? OK : MID} /> {mon.running ? "läuft" : "gestoppt"}
         </span>
         {children}
       </div>
@@ -32,7 +32,7 @@ export const Empty = ({ children }) => <div style={S.empty}>{children}</div>;
 export function PlanName({ P, ip, mac, onSelectDevice, fallback = "" }) {
   const hit = useMemo(() => findPlanned(P, { ip, mac }), [P, ip, mac]);
   if (!hit) return <span style={{ color: MUTED }}>{fallback || "nicht im Plan"}</span>;
-  return <a href="#" onClick={(e) => { e.preventDefault(); onSelectDevice?.(hit.dev.id); }} style={{ color: "#fff", textDecoration: "underline dotted" }}>{hit.dev.name}</a>;
+  return <a href="#" onClick={(e) => { e.preventDefault(); onSelectDevice?.(hit.dev.id); }} style={{ color: STRONG, textDecoration: "underline dotted" }}>{hit.dev.name}</a>;
 }
 
 export const Age = ({ ms }) => <span style={{ color: ms > 5000 ? WARN : SUB, fontSize: 12 }}>{fmtAge(ms)}</span>;
@@ -45,7 +45,7 @@ export function Levels({ levels, mode = "dez" }) {
     <div style={{ display: "grid", gridTemplateColumns: "repeat(32, minmax(0, 1fr))", gap: 1, fontFamily: "Consolas,monospace", fontSize: 10, marginTop: 10 }}>
       {levels.map((v, i) => (
         <div key={i} title={`Kanal ${i + 1}: ${v} (${Math.round((v / 255) * 100)} %)`}
-          style={{ background: v ? `rgba(179,72,63,${0.18 + (v / 255) * 0.82})` : "#1b2026", color: v > 140 ? "#fff" : v ? "#f0d0cc" : "#4a5563", textAlign: "center", padding: "3px 0", borderRadius: 2 }}>
+          style={{ background: v ? `rgba(179,72,63,${0.18 + (v / 255) * 0.82})` : INPUT, color: v > 140 ? "#fff" : v ? "#f0d0cc" : MID, textAlign: "center", padding: "3px 0", borderRadius: 2 }}>
           {fmt(v)}
         </div>
       ))}

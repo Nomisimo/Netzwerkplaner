@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { S, OK, INFO, MUTED, SUB, TYPEN } from "../../shared/constants.js";
+import { S, OK, INFO, MUTED, SUB, TYPEN, STRONG } from "../../shared/constants.js";
 import { sammleFunde, fundeMitPlan, fundZuGeraet } from "../../shared/discovery.js";
 import { useMonitor } from "./store.js";
 import { Table, td, Hint, Empty, Pill, mono } from "./common.jsx";
@@ -59,7 +59,7 @@ export default function DiscoveryView({ P, mutate, iface, onSelectDevice, notify
             <tr key={f.ip}>
               <td style={td()}>{f.plan ? <Pill color={OK}>im Plan</Pill> : <Pill color={INFO}>neu</Pill>}</td>
               <td style={td(mono)}>{f.ip}</td>
-              <td style={td()}>{f.plan ? <a href="#" style={{ color: "#fff" }} onClick={(e) => { e.preventDefault(); onSelectDevice(f.plan.dev.id); }}>{f.plan.dev.name}</a> : f.name || <span style={{ color: MUTED }}>–</span>}{f.plan && f.name && f.name !== f.plan.dev.name && <div style={{ fontSize: 11, color: MUTED }}>im Netz: {f.name}</div>}</td>
+              <td style={td()}>{f.plan ? <a href="#" style={{ color: STRONG }} onClick={(e) => { e.preventDefault(); onSelectDevice(f.plan.dev.id); }}>{f.plan.dev.name}</a> : f.name || <span style={{ color: MUTED }}>–</span>}{f.plan && f.name && f.name !== f.plan.dev.name && <div style={{ fontSize: 11, color: MUTED }}>im Netz: {f.name}</div>}</td>
               <td style={td(mono)}>{f.mac}</td>
               <td style={td({ fontSize: 12 })}>{f.protokolle.join(", ")}</td>
               <td style={td({ fontSize: 12, color: SUB })}>{f.typ ? TYPEN[f.typ]?.label : ""}</td>

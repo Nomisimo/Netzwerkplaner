@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { removeDevices } from "../../shared/invarianten.js";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor, BG, BTN, CANVAS, CARD, INPUT, LINE2, LINK, MID, TEXT, TEXT2, TRUNK, STRONG , HELL } from "../../shared/constants.js";
 import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts } from "../../shared/model.js";
 import { layoutMindmap, NODE_W, NODE_H } from "../../shared/layout.js";
 import { SvgIcon, IconView } from "../icons.jsx";
@@ -26,7 +26,7 @@ import Meldungen from "../Meldungen.jsx";
 import MehrfachBearbeiten from "../MehrfachBearbeiten.jsx";
 import { Network, Cable, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap } from "lucide-react";
 
-const KABEL_FARBEN = { cat5e: "#8fa3b8", cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: "#9aa4af", p2p: "#e74c3c" };
+const KABEL_FARBEN = { cat5e: SUB, cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: SUB, p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
 
 export default function TopologieTab(props) {
@@ -413,9 +413,9 @@ export default function TopologieTab(props) {
     const cv = connVlan(c, X);
     const p2p = isP2PConn(c, X);
     const errs = (connIssues.get(c.id) || []).some((i) => i.sev === "error");
-    let color = "#5b6570", width = 2.2;
+    let color = MID, width = 2.2;
     if (colorBy === "vlan") {
-      if (cv.kind === "trunk") { color = "#d8dde3"; width = 4; }
+      if (cv.kind === "trunk") { color = TRUNK; width = 4; }
       else if (cv.vlans[0]) color = X.vlanById.get(cv.vlans[0])?.farbe || color;
     } else if (colorBy === "kabel") color = KABEL_FARBEN[c.kabel] || color;
     else {
@@ -645,7 +645,7 @@ export default function TopologieTab(props) {
           <div key={k} draggable onDragStart={(e) => e.dataTransfer.setData("application/x-netplan", JSON.stringify({ kind: "typ", key: k }))}
             onDoubleClick={() => { const id = onAddDevice({ kind: "typ", key: k }, { connectTo: selDev?.id }); if (id) setSelection({ type: "dev", id }); }}
             title={paletteOpen ? "Ziehen oder Doppelklick" : `${t.label} · ziehen oder Doppelklick`}
-            style={{ display: "flex", alignItems: "center", justifyContent: paletteOpen ? "flex-start" : "center", gap: 8, padding: paletteOpen ? "5px 10px" : "6px 0", cursor: "grab", fontSize: 12, color: "#c8d0d8", borderBottom: "1px solid #232a33" }}>
+            style={{ display: "flex", alignItems: "center", justifyContent: paletteOpen ? "flex-start" : "center", gap: 8, padding: paletteOpen ? "5px 10px" : "6px 0", cursor: "grab", fontSize: 12, color: TEXT2, borderBottom: `1px solid ${LINE2}` }}>
             <IconView icon={t.icon} color={katColor(t.kat)} size={paletteOpen ? 18 : 22} />{paletteOpen && t.label}
           </div>
         ))}
@@ -653,18 +653,18 @@ export default function TopologieTab(props) {
 
       {/* Zeichenfläche */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FP_BG : "#12161a", cursor: tool !== "move" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
+        <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FP_BG : CANVAS, cursor: tool !== "move" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
           onMouseDown={(e) => onDown(e, null)} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { setDrag(null); setDraw(null); }}
           onWheel={onWheel} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
           <svg ref={svgRef} width="100%" height="100%" style={{ display: "block", userSelect: "none" }} xmlns="http://www.w3.org/2000/svg" fontFamily="'Segoe UI',system-ui,sans-serif">
             <defs>
               <pattern id="np-grid" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform={`translate(${view.x},${view.y}) scale(${view.k})`}>
-                {front ? <path d="M40 0 L0 0 0 40" fill="none" stroke="#1c2552" strokeWidth="1" /> : <circle cx="1" cy="1" r="1" fill="#252b33" />}
+                {front ? <path d="M40 0 L0 0 0 40" fill="none" stroke="#1c2552" strokeWidth="1" /> : <circle cx="1" cy="1" r="1" fill={PANEL} />}
               </pattern>
               <filter id="np-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" /></filter>
             </defs>
             <rect className="np-ui" width="100%" height="100%" fill="url(#np-grid)" />
-            <g id="np-world" transform={`translate(${view.x},${view.y}) scale(${view.k})`} data-bounds={JSON.stringify(L.bounds)} data-bg={front ? FP_BG : "#15191e"}>
+            <g id="np-world" transform={`translate(${view.x},${view.y}) scale(${view.k})`} data-bounds={JSON.stringify(L.bounds)} data-bg={front ? FP_BG : BG}>
               {/* Hintergrundbild (z. B. Stage-Plot) */}
               {bgPos?.src && <image href={bgPos.src} x={bgPos.x} y={bgPos.y} width={bgPos.w} height={bgPos.h} opacity={bgPos.deckkraft ?? 0.5} preserveAspectRatio="none"
                 style={{ cursor: bgPos.fest === false && tool === "move" ? "move" : undefined, pointerEvents: bgPos.fest === false && tool === "move" ? "auto" : "none" }}
@@ -672,9 +672,9 @@ export default function TopologieTab(props) {
               {/* Stapel (grafische Gruppen, z. B. Rack oder Tower) */}
               {(L.stapel || []).map((b) => (
                 <g key={b.id} data-stapel={b.id} onMouseDown={(e) => onDown(e, b.ids[0], null, b.id)} style={{ cursor: "move" }}>
-                  <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke={selection?.type === "stapel" && selection.id === b.id ? ACCENT : "#8a96a3"} strokeWidth={selection?.type === "stapel" && selection.id === b.id ? 2 : 1.2} strokeDasharray="5 4" />
+                  <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke={selection?.type === "stapel" && selection.id === b.id ? ACCENT : SUB} strokeWidth={selection?.type === "stapel" && selection.id === b.id ? 2 : 1.2} strokeDasharray="5 4" />
                   {pins[b.ids[0]] && <Pin x={b.x + b.w - 15} y={b.y + 3} size={11} color={ACCENT} strokeWidth={2.2} />}
-                  <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill="#aeb8c2" style={{ cursor: "pointer" }}>
+                  <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill={SUB} style={{ cursor: "pointer" }}>
                     {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
                   </text>
                 </g>
@@ -705,7 +705,7 @@ export default function TopologieTab(props) {
                     {(sel || st.errs) && <path d={dPath} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={dPath} stroke={st.color} strokeWidth={straight ? Math.max(2, st.width - 1) : 1.8} fill="none" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
                     <circle cx={a1.x} cy={a1.y} r="2.2" fill={st.color} /><circle cx={b1.x} cy={b1.y} r="2.2" fill={st.color} />
-                    {c.label && <text x={(a1.x + b1.x) / 2 + 4} y={(a1.y + b1.y) / 2} fontSize="10" fill="#c8d0d8">{c.label}</text>}
+                    {c.label && <text x={(a1.x + b1.x) / 2 + 4} y={(a1.y + b1.y) / 2} fontSize="10" fill={TEXT2}>{c.label}</text>}
                     {knickGriff(c, mx, my)}
                   </g>
                 );
@@ -732,14 +732,14 @@ export default function TopologieTab(props) {
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
                     {kl && <title>{`${da?.name} [${pName(c.a)}] ⇄ ${db?.name} [${pName(c.b)}] · im selben Stapel`}</title>}
                     {showPorts && !kl && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} />}
-                    {sp?.anzahl > 1 && <g><rect x={g.mx - 11} y={g.my - 8} width="22" height="16" rx="8" fill="#1b2026" stroke={st.color} /><text x={g.mx} y={g.my + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill="#e8eaed">{sp.anzahl}×</text><title>{sp.anzahl} Kabel gebündelt</title></g>}
-                    {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill="#c8d0d8" textAnchor="middle">{c.label}</text>}
+                    {sp?.anzahl > 1 && <g><rect x={g.mx - 11} y={g.my - 8} width="22" height="16" rx="8" fill={INPUT} stroke={st.color} /><text x={g.mx} y={g.my + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill={TEXT}>{sp.anzahl}×</text><title>{sp.anzahl} Kabel gebündelt</title></g>}
+                    {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill={TEXT2} textAnchor="middle">{c.label}</text>}
                     {knickGriff(c, g.mx, g.my)}
                   </g>
                 );
               })}
               {draw && posOf(draw.from) && (
-                <line x1={posOf(draw.from).x} y1={posOf(draw.from).y} x2={draw.x} y2={draw.y} stroke={draw.tool === "stack" ? "#aeb8c2" : ACCENT} strokeWidth="2" strokeDasharray="6 4" />
+                <line x1={posOf(draw.from).x} y1={posOf(draw.from).y} x2={draw.x} y2={draw.y} stroke={draw.tool === "stack" ? SUB : ACCENT} strokeWidth="2" strokeDasharray="6 4" />
               )}
 
               {/* Geräte */}
@@ -786,31 +786,31 @@ export default function TopologieTab(props) {
                   <g key={id} transform={`translate(${p.x - HW},${p.y - HH})`} opacity={dim ? 0.2 : 1}
                     onMouseDown={(e) => onDown(e, id)} style={{ cursor: tool !== "move" ? "crosshair" : "pointer" }}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtx({ id, x: e.clientX, y: e.clientY }); }}>
-                    {(sel || hover === id || hit) && <rect x="-4" y="-4" width={NODE_W + 8} height={NODE_H + 8} rx="11" fill="none" stroke={sel ? ACCENT : hover === id ? OK : "#fff"} strokeWidth="2" opacity=".9" />}
-                    <rect width={NODE_W} height={NODE_H} rx="8" fill={isRoot ? "#262d36" : "#1f242b"} stroke={isRoot ? ACCENT : worst || LINE} strokeWidth={isRoot || worst ? 1.6 : 1} />
+                    {(sel || hover === id || hit) && <rect x="-4" y="-4" width={NODE_W + 8} height={NODE_H + 8} rx="11" fill="none" stroke={sel ? ACCENT : hover === id ? OK : STRONG} strokeWidth="2" opacity=".9" />}
+                    <rect width={NODE_W} height={NODE_H} rx="8" fill={isRoot ? (HELL ? "#fbefed" : "#262d36") : CARD} stroke={isRoot ? ACCENT : worst || LINE} strokeWidth={isRoot || worst ? 1.6 : 1} />
                     <rect width="5" height={NODE_H} rx="2" fill={col} />
                     <rect x="12" y="11" width="36" height="36" rx="7" fill={col + "1f"} />
                     <SvgIcon icon={d.icon} customIcons={P.icons} x={18} y={17} size={24} color={col} />
-                    {(() => { const t = geraeteTitel(d, titel); return <text x="56" y="20" fontSize="13" fontWeight="700" fill="#fff">{t.length > 20 ? t.slice(0, 19) + "…" : t}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, ...feldZeilen(d)].filter(Boolean).join("\n")}</title></text>; })()}
-                    <text x="56" y="36" fontSize="11" fill={ip ? "#c8d0d8" : MUTED} fontFamily="Consolas,monospace">{ip || (ipPorts(d).some((i) => i.dhcp) ? "DHCP" : d.isSwitch && !ipPorts(d).length ? "unmanaged" : "keine IP")}</text>
-                    {v && <g transform={`translate(${56 + Math.max(ip.length, 7) * 6.6 + 6},27)`}><rect width={v.vid > 99 ? 30 : 24} height="12" rx="3" fill={v.farbe + "33"} stroke={v.farbe} strokeWidth=".8" /><text x={v.vid > 99 ? 15 : 12} y="9.5" fontSize="9" fill="#fff" textAnchor="middle">{v.vid}</text></g>}
+                    {(() => { const t = geraeteTitel(d, titel); return <text x="56" y="20" fontSize="13" fontWeight="700" fill={STRONG}>{t.length > 20 ? t.slice(0, 19) + "…" : t}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, ...feldZeilen(d)].filter(Boolean).join("\n")}</title></text>; })()}
+                    <text x="56" y="36" fontSize="11" fill={ip ? TEXT2 : MUTED} fontFamily="Consolas,monospace">{ip || (ipPorts(d).some((i) => i.dhcp) ? "DHCP" : d.isSwitch && !ipPorts(d).length ? "unmanaged" : "keine IP")}</text>
+                    {v && <g transform={`translate(${56 + Math.max(ip.length, 7) * 6.6 + 6},27)`}><rect width={v.vid > 99 ? 30 : 24} height="12" rx="3" fill={v.farbe + "33"} stroke={v.farbe} strokeWidth=".8" /><text x={v.vid > 99 ? 15 : 12} y="9.5" fontSize="9" fill={STRONG} textAnchor="middle">{v.vid}</text></g>}
                     <text x="56" y="50" fontSize="10" fill={MUTED}>{[d.bereich, d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ").slice(0, url ? 26 : 30)}</text>
-                    <circle cx={NODE_W - 11} cy="11" r="4.5" fill={!st || st.ok === null || st.ok === undefined ? "#4a535e" : st.ok ? OK : ERR} stroke="#12161a" strokeWidth="1.5">
+                    <circle cx={NODE_W - 11} cy="11" r="4.5" fill={!st || st.ok === null || st.ok === undefined ? MID : st.ok ? OK : ERR} stroke={CANVAS} strokeWidth="1.5">
                       <title>{!st ? "Status unbekannt" : st.ok ? `erreichbar (${st.method}, ${st.ms} ms)` : st.ok === false ? `nicht erreichbar (${st.method})` : st.method}</title>
                     </circle>
                     {worst && <g><TriangleAlert x={NODE_W - 32} y={4} size={12} color={worst} strokeWidth={2.2} /><rect x={NODE_W - 32} y={4} width="12" height="12" fill="transparent"><title>{iss.map((i) => i.msg).join("\n")}</title></rect></g>}
                     {url && (
                       <g className="np-ui" transform={`translate(${NODE_W - 22},${NODE_H - 22})`} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); api.openExternal(url); }} style={{ cursor: "pointer" }}>
-                        <rect width="16" height="16" rx="4" fill="#2c343e" stroke={LINE} />
-                        <Globe x={2} y={2} size={12} color="#7fb2ff" strokeWidth={2} />
+                        <rect width="16" height="16" rx="4" fill={BTN} stroke={LINE} />
+                        <Globe x={2} y={2} size={12} color={LINK} strokeWidth={2} />
                         <title>Web-UI öffnen: {url}</title>
                       </g>
                     )}
                     {kids.length > 0 && !isRoot && (
                       <g className="np-ui" transform={`translate(${side > 0 ? NODE_W + 2 : -18},${HH - 8})`} onMouseDown={(e) => e.stopPropagation()}
                         onClick={(e) => { e.stopPropagation(); mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [id]: !collapsed }; }); }} style={{ cursor: "pointer" }}>
-                        <circle cx="8" cy="8" r="8" fill={collapsed ? ACCENT : "#2c343e"} stroke={collapsed ? ACCENT : LINE} />
-                        <text x="8" y="11.5" fontSize={collapsed ? 8.5 : 11} fontWeight="700" textAnchor="middle" fill={collapsed ? DARK : "#c8d0d8"}>{collapsed ? "+" + (L.hidden.get(id) || kids.length) : "−"}</text>
+                        <circle cx="8" cy="8" r="8" fill={collapsed ? ACCENT : BTN} stroke={collapsed ? ACCENT : LINE} />
+                        <text x="8" y="11.5" fontSize={collapsed ? 8.5 : 11} fontWeight="700" textAnchor="middle" fill={collapsed ? DARK : TEXT2}>{collapsed ? "+" + (L.hidden.get(id) || kids.length) : "−"}</text>
                         <title>{collapsed ? "Ast ausklappen" : "Ast einklappen"}</title>
                       </g>
                     )}
@@ -833,7 +833,7 @@ export default function TopologieTab(props) {
                 return (
                   <g key={"pin" + id} className="np-ui" transform={`translate(${p.x - w / 2 - 7},${top - 7})`} style={{ cursor: "pointer" }}
                     onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); togglePin(id); }}>
-                    <circle cx="7" cy="7" r="8" fill="#1b2026" stroke={ACCENT} />
+                    <circle cx="7" cy="7" r="8" fill={INPUT} stroke={ACCENT} />
                     <Pin x={1.5} y={1.5} size={11} color={ACCENT} strokeWidth={2.2} />
                     <title>Angepinnt: bleibt beim automatischen Anordnen stehen. Klick = lösen</title>
                   </g>
@@ -917,7 +917,7 @@ function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onS
       <MehrfachBearbeiten P={P} devs={devs} mutate={mutate} />
       <div className="sp-section-label" style={{ marginTop: 16 }}>Auswahl</div>
       {devs.map((g) => (
-        <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", border: `1px solid ${LINE}`, borderLeft: `3px solid ${katColor(g.kategorie)}`, borderRadius: 6, marginBottom: 4, background: "#1f242b" }}>
+        <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", border: `1px solid ${LINE}`, borderLeft: `3px solid ${katColor(g.kategorie)}`, borderRadius: 6, marginBottom: 4, background: CARD }}>
           <IconView icon={g.icon} customIcons={P.icons} color={katColor(g.kategorie)} size={18} />
           <a style={{ flex: 1, minWidth: 0, cursor: "pointer", fontSize: 13 }} onClick={() => onSelect([g.id])} title="Nur dieses Gerät bearbeiten">
             {pins[stapelAnker(stapel, g.id)] && <Pin size={11} color={ACCENT} style={{ marginRight: 4, verticalAlign: -1 }} />}{g.name}<div style={{ fontSize: 11, color: MUTED }}>{[g.hersteller, g.modell].filter(Boolean).join(" ") || TYPEN[g.typ]?.label}</div>
@@ -955,9 +955,9 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
   const sw = a.sw ? a : b.sw ? b : null;
   const ep = sw === a ? b : a;
   const seg = [];
-  if (a.sw && b.sw) seg.push({ t: `${portLabel(a.port)} ⇄ ${portLabel(b.port)}`, fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
-  else if (sw) seg.push({ t: portLabel(sw.port), poe: !!sw.port.poe, fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
-  else seg.push({ t: `${portLabel(a.port)} ⇄ ${portLabel(b.port)}`, fill: "#2a313a", stroke: "#56606c", col: "#fff", bold: true });
+  if (a.sw && b.sw) seg.push({ t: `${portLabel(a.port)} ⇄ ${portLabel(b.port)}`, fill: BTN, stroke: MID, col: STRONG, bold: true });
+  else if (sw) seg.push({ t: portLabel(sw.port), poe: !!sw.port.poe, fill: BTN, stroke: MID, col: STRONG, bold: true });
+  else seg.push({ t: `${portLabel(a.port)} ⇄ ${portLabel(b.port)}`, fill: BTN, stroke: MID, col: STRONG, bold: true });
   const info = sw && sw.managed ? sw : a.vlans.length ? a : b;
   if (sw && !ep.sw && ep.dev.ports.length > 1 && !/^\d+$/.test(ep.port.name)) seg.push({ t: ep.port.name, fill: "transparent", stroke: "transparent", col: SUB });
   const widths = seg.map((s) => Math.round(s.t.length * CW + 10 + (s.poe ? 9 : 0)));
@@ -985,7 +985,7 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
         const first = n === 0, last = n === seg.length - 1;
         return (
           <g key={n} transform={`translate(${x},0)`}>
-            <rect width={widths[n]} height="14" rx={first || last ? 4 : 0} fill={s.fill === "transparent" ? "#12161acc" : s.fill} stroke={s.stroke} strokeWidth=".8" />
+            <rect width={widths[n]} height="14" rx={first || last ? 4 : 0} fill={s.fill === "transparent" ? CANVAS + "cc" : s.fill} stroke={s.stroke} strokeWidth=".8" />
             <text x={(widths[n] - (s.poe ? 9 : 0)) / 2} y="10.3" fontSize="10" fill={s.col} fontWeight={s.bold ? 700 : 500} textAnchor="middle" fontFamily="'Segoe UI',system-ui,sans-serif">{s.t}</text>
             {s.poe && <Zap x={widths[n] - 13} y={2.5} size={9} color="#ffe066" fill="#ffe066" strokeWidth={1.5} />}
           </g>
@@ -997,11 +997,11 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
 
 function Legend({ P, colorBy, front }) {
   const items = colorBy === "vlan" || front
-    ? [...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => [v.farbe, `${v.vid} ${v.name}`]).concat([["#d8dde3", "Trunk"], ["#ff8c42", "Punkt-zu-Punkt"]])
+    ? [...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => [v.farbe, `${v.vid} ${v.name}`]).concat([[TRUNK, "Trunk"], ["#ff8c42", "Punkt-zu-Punkt"]])
     : colorBy === "kabel" ? Object.entries(KABEL).map(([k, v]) => [KABEL_FARBEN[k], v.label])
     : Object.keys(KATEGORIEN).map((k) => [katColor(k), k]);
   return (
-    <div className="np-legend" style={{ position: "absolute", right: 10, bottom: 10, background: "#1b2026e6", border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#c8d0d8", maxHeight: "45%", overflowY: "auto", pointerEvents: "none", opacity: .92 }}>
+    <div className="np-legend" style={{ position: "absolute", right: 10, bottom: 10, background: INPUT + "e6", border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 10px", fontSize: 11, color: TEXT2, maxHeight: "45%", overflowY: "auto", pointerEvents: "none", opacity: .92 }}>
       {items.map(([c, l]) => <div key={l} style={{ display: "flex", alignItems: "center", gap: 6, padding: "1px 0" }}><span style={{ width: 16, height: 3, background: c, borderRadius: 2 }} />{l}</div>)}
     </div>
   );

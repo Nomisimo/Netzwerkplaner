@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { S, LINE, SUB, MUTED, ACCENT } from "../shared/constants.js";
+import { S, LINE, SUB, MUTED, ACCENT, INPUT } from "../shared/constants.js";
 import { KERN, KERN_BY_ID, defaultParams, streamRate, streamVorschlag } from "../shared/kernprotokolle.js";
 import { newStream, streamVlans, fmtMbit } from "../shared/analyse.js";
 import { Toggle, VlanChip } from "./ui.jsx";
@@ -29,7 +29,7 @@ function ZielePicker({ P, dev, value, onChange }) {
     <div style={{ position: "relative" }}>
       <button style={{ ...S.smallBtn, width: "100%", textAlign: "left" }} title={[...sel].map((id) => P.geraete.find((d) => d.id === id)?.name).filter(Boolean).join("\n") || "Keine Empfänger festgelegt: Worst Case (alles Richtung Core)"} onClick={() => setOpen((o) => !o)}>{label} <ChevronDown size={12} /></button>
       {open && (
-        <div style={{ position: "absolute", zIndex: 40, top: "100%", right: 0, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, width: 240, maxHeight: 280, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.5)" }} onMouseLeave={() => setOpen(false)}>
+        <div style={{ position: "absolute", zIndex: 40, top: "100%", right: 0, background: INPUT, border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, width: 240, maxHeight: 280, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.5)" }} onMouseLeave={() => setOpen(false)}>
           <input autoFocus style={{ ...S.inputSm, marginBottom: 6 }} placeholder="Empfänger suchen" value={q} onChange={(e) => setQ(e.target.value)} />
           {cand.map((d) => (
             <div key={d.id} style={{ padding: "2px 0" }}>

@@ -32,6 +32,7 @@ export const ARTIKEL = [
     id: "igmp", titel: "IGMP & Multicast", kurz: "Warum Multicast ohne IGMP-Snooping das ganze VLAN flutet und wozu der Querier da ist.",
     bloecke: [
       { t: "p", x: "Multicast schickt ein Paket einmal ab, und das Netz verteilt es an alle Empfänger, die sich für die Gruppe angemeldet haben. Dante-Multicast-Flows, PTP, sACN-Universen, MA-Net3-Sessions und NDI-Multicast arbeiten so." },
+      { t: "bild", id: "igmp" },
       { t: "h", x: "Ohne IGMP-Snooping" },
       { t: "p", x: "Ein Switch ohne Snooping behandelt Multicast wie Broadcast und schickt jedes Paket an jeden Port im VLAN. 64 sACN-Universen (≈16 Mbit/s) landen dann auch bei jeder Kamera, jedem Laptop und jedem 100-Mbit-Gerät. Schwache Geräte verlieren dadurch Pakete oder reagieren träge." },
       { t: "h", x: "IGMP-Snooping" },
@@ -54,6 +55,7 @@ export const ARTIKEL = [
     id: "qos", titel: "QoS & DSCP", kurz: "Priorisierung, damit Taktpakete und Audio nicht hinter großen Datenmengen warten.",
     bloecke: [
       { t: "p", x: "QoS sortiert Pakete in Warteschlangen. Solange ein Port nicht voll ist, ändert QoS nichts. Wichtig wird es, wenn kurzzeitig mehr Daten auf einen Port wollen, als er abgeben kann (z. B. Showfile-Transfer, Video, Updates): Dann dürfen PTP- und Audiopakete nicht hinter großen Paketen warten." },
+      { t: "bild", id: "qos" },
       { t: "ul", x: [
         "DSCP steht im IP-Header und wird vom Gerät gesetzt. Der Switch muss dem DSCP-Wert „vertrauen“ (Trust DSCP).",
         "Strict Priority: Die höchste Queue wird immer zuerst geleert.",
@@ -113,6 +115,7 @@ export const ARTIKEL = [
     id: "ptp", titel: "PTP-Takt", kurz: "Wie Dante und AES67 ihren gemeinsamen Takt über das Netz verteilen.",
     bloecke: [
       { t: "p", x: "PTP (Precision Time Protocol, IEEE 1588) verteilt einen gemeinsamen Takt. Ein Gerät wird per Best-Master-Clock-Algorithmus zum Leader, alle anderen folgen. Die Pakete sind klein, aber zeitkritisch: Schwankungen in der Laufzeit werden als Taktschwankung sichtbar." },
+      { t: "bild", id: "ptp" },
       { t: "ul", x: [
         "Dante nutzt PTPv1 (Multicast 224.0.1.129, UDP 319/320). Im AES67-Modus kommt PTPv2 dazu.",
         "Ein Leader je Netz. In Dante Controller lässt sich ein bevorzugter Leader festlegen, z. B. das FOH-Pult.",
@@ -138,6 +141,7 @@ export const ARTIKEL = [
     id: "stp", titel: "Spanning Tree & Schleifen", kurz: "Loops erkennen und verhindern, ohne dass Geräteports lange blockieren.",
     bloecke: [
       { t: "p", x: "Eine Schleife im Netz lässt Broadcasts endlos kreisen und legt innerhalb von Sekunden alles lahm. Spanning Tree (RSTP) findet Schleifen und blockiert einen Port. Im Showbetrieb sind Schleifen oft versehentlich: ein zweites Kabel zwischen zwei Switches oder Primary und Secondary verbunden." },
+      { t: "bild", id: "stp" },
       { t: "ul", x: [
         "RSTP (802.1w) statt klassischem STP, damit Umschaltungen in Sekunden statt Minuten passieren.",
         "Geräteports als Edge-Port (Cisco: PortFast), damit Pulte und Stageboxen sofort Link haben.",
@@ -154,6 +158,7 @@ export const ARTIKEL = [
       { t: "rechner" },
       { t: "h", x: "IPv4: Aufbau" },
       { t: "p", x: "Eine IPv4-Adresse hat 32 Bit, geschrieben als vier Zahlen von 0 bis 255 (z. B. 10.10.20.15). Die Subnetzmaske (oder das Präfix, z. B. /24) teilt sie in Netzanteil und Hostanteil: /24 heißt, die ersten 24 Bit sind das Netz, die letzten 8 Bit zählen die Geräte. Geräte im selben Netz sprechen direkt miteinander, alles andere geht über das Gateway (den Router)." },
+      { t: "bild", id: "ip" },
       { t: "ul", x: [
         "Netzadresse: alle Host-Bits 0 (10.10.20.0/24). Sie bezeichnet das Netz und wird nicht vergeben.",
         "Broadcast: alle Host-Bits 1 (10.10.20.255/24). Ein Paket daran erreicht alle im Netz, z. B. ArtPoll.",
@@ -201,6 +206,7 @@ export const ARTIKEL = [
         [31, "2 Adressen ohne Netz/Broadcast, Router-Links (RFC 3021)"],
         [32, "einzelne Adresse (Loopback, Host-Route)"],
       ].map(([p, z]) => [`/${p}`, prefixToMaskStr(p), (p >= 31 ? 2 ** (32 - p) : 2 ** (32 - p) - 2).toLocaleString("de-DE"), z]) },
+      { t: "bild", id: "subnetze" },
       { t: "ul", x: [
         "Teilnetze bilden: Präfix um 1 erhöhen halbiert das Netz. Aus 10.10.0.0/22 werden vier /24 (10.10.0.0 bis 10.10.3.0). Der Rechner oben zeigt die Aufteilung.",
         "Subnetze dürfen sich nicht überschneiden. Der Netzwerkplaner warnt, wenn zwei VLAN-Subnetze sich überlappen.",
@@ -240,6 +246,7 @@ export const ARTIKEL = [
     id: "vlan", titel: "VLANs & Trunks", kurz: "Gewerke trennen, Uplinks richtig taggen.",
     bloecke: [
       { t: "p", x: "Ein VLAN ist ein eigenes Netz auf derselben Hardware. Broadcasts und Multicast bleiben im VLAN. So stört Art-Net-Broadcast nicht das Audio, und Video-Last bleibt vom Licht getrennt." },
+      { t: "bild", id: "vlan" },
       { t: "ul", x: [
         "Access-Port: gehört genau zu einem VLAN, das Gerät merkt nichts davon (untagged).",
         "Trunk: trägt mehrere VLANs mit Tag (802.1Q). Beide Enden müssen dieselben VLANs erlauben.",
@@ -285,6 +292,7 @@ export const ARTIKEL = [
   {
     id: "redundanz", titel: "Redundanz", kurz: "Zweite Wege für Audio, Licht und Steuerung.",
     bloecke: [
+      { t: "bild", id: "redundanz" },
       { t: "ul", x: [
         "Dante: Primary und Secondary als zwei physisch getrennte Netze (eigene Switches oder eigene VLANs auf getrennter Hardware). Fällt ein Netz aus, läuft das andere ohne Unterbrechung weiter.",
         "sACN: Backup-Pult mit niedrigerer Priorität sendet parallel. Fällt das Hauptpult aus, übernimmt der Node die nächste Priorität.",

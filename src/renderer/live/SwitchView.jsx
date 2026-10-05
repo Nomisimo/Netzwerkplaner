@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { S, OK, ERR, WARN, MUTED, SUB, LINE } from "../../shared/constants.js";
+import { S, OK, ERR, WARN, MUTED, SUB, LINE, BTN, MID, STRONG } from "../../shared/constants.js";
 import { snmpSwitches, compareSwitchPorts, fmtUptime } from "../../shared/live.js";
 import { useMonitor } from "./store.js";
 import { Table, td, Hint, Empty, Card, Pill, Age, mono } from "./common.jsx";
@@ -53,7 +53,7 @@ export default function SwitchView({ P, X, iface, onSelectDevice }) {
               <>
                 <div style={{ fontSize: 11, color: SUB, marginBottom: 8 }}>
                   {r.sysDescr.slice(0, 160)} · läuft seit {fmtUptime(r.uptime)}
-                  {dev ? <> · im Plan: <a href="#" style={{ color: "#fff" }} onClick={(e) => { e.preventDefault(); onSelectDevice(dev.id); }}>{dev.name}</a></> : <> · nicht als Switch im Plan</>}
+                  {dev ? <> · im Plan: <a href="#" style={{ color: STRONG }} onClick={(e) => { e.preventDefault(); onSelectDevice(dev.id); }}>{dev.name}</a></> : <> · nicht als Switch im Plan</>}
                   <div style={{ marginTop: 4 }}>
                     <Pill color={r.supports.qbridge ? OK : MUTED}>VLAN-Tabelle {r.supports.qbridge ? "ja" : "nein"}</Pill>
                     <Pill color={r.supports.lldp ? OK : MUTED}>LLDP {r.supports.lldp ? "ja" : "nein"}</Pill>
@@ -67,7 +67,7 @@ export default function SwitchView({ P, X, iface, onSelectDevice }) {
                     const v = vlanByVid.get(+c.istUntagged[0]);
                     return (
                       <div key={c.snmp.ifIndex} title={`${c.snmp.ifName || c.snmp.ifDescr}: ${c.snmp.up ? "Link" : "kein Link"}${c.istUntagged.length ? `, VLAN ${c.istUntagged.join("/")}` : ""}${c.snmp.tagged?.length ? `, tagged ${c.snmp.tagged.join(",")}` : ""}${c.hinweise.length ? `\nHinweis: ${c.hinweise.join("; ")}` : ""}`}
-                        style={{ width: 26, height: 22, borderRadius: 3, background: v?.farbe || "#2a313a", border: `2px solid ${c.hinweise.length ? WARN : c.snmp.up ? OK : LINE}`, fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Consolas,monospace", opacity: c.snmp.adminUp === false ? 0.4 : 1 }}>
+                        style={{ width: 26, height: 22, borderRadius: 3, background: v?.farbe || BTN, border: `2px solid ${c.hinweise.length ? WARN : c.snmp.up ? OK : LINE}`, fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Consolas,monospace", opacity: c.snmp.adminUp === false ? 0.4 : 1 }}>
                         {(c.snmp.ifName || String(c.snmp.ifIndex)).replace(/^\D+/, "").slice(-3)}
                       </div>
                     );
@@ -81,13 +81,13 @@ export default function SwitchView({ P, X, iface, onSelectDevice }) {
                       return (
                         <tr key={sp.ifIndex}>
                           <td style={td()}><span style={mono}>{sp.ifName || sp.ifDescr}</span>{sp.ifAlias && <div style={{ fontSize: 10, color: MUTED }}>{sp.ifAlias}</div>}</td>
-                          <td style={td({ fontSize: 12, whiteSpace: "nowrap" })}><Dot color={sp.up ? OK : sp.adminUp === false ? MUTED : "#5b6570"} size={8} /> {sp.up ? speed(sp.ifHighSpeed) || "up" : sp.adminUp === false ? "aus" : "down"}</td>
+                          <td style={td({ fontSize: 12, whiteSpace: "nowrap" })}><Dot color={sp.up ? OK : sp.adminUp === false ? MUTED : MID} size={8} /> {sp.up ? speed(sp.ifHighSpeed) || "up" : sp.adminUp === false ? "aus" : "down"}</td>
                           <td style={td(mono)}>{c.istUntagged.length ? <span style={{ borderLeft: `4px solid ${vl?.farbe || MUTED}`, paddingLeft: 5 }}>{c.istUntagged.join(", ")}{vl ? ` ${vl.name}` : ""}</span> : "–"}</td>
                           <td style={td(mono)}>{c.plan ? (c.sollTagged?.length ? `Trunk ${c.sollTagged.join(",")}` : c.sollVid ?? "–") : <span style={{ color: MUTED }}>–</span>}</td>
                           <td style={td({ ...mono, fontSize: 11 })}>{(sp.tagged || []).join(", ")}</td>
                           <td style={td({ fontSize: 12, color: sp.poe === "liefert" ? OK : SUB })}>{sp.poe || ""}</td>
                           <td style={td({ fontSize: 12 })}>{(sp.lldp || []).map((n, i) => <div key={i}>{n.system}{n.port && <span style={{ color: SUB }}> · {n.port}</span>}</div>)}</td>
-                          <td style={td({ fontSize: 12 })}>{c.peer ? <a href="#" style={{ color: "#fff" }} onClick={(e) => { e.preventDefault(); onSelectDevice(c.peer.id); }}>{c.peer.name}</a> : ""}</td>
+                          <td style={td({ fontSize: 12 })}>{c.peer ? <a href="#" style={{ color: STRONG }} onClick={(e) => { e.preventDefault(); onSelectDevice(c.peer.id); }}>{c.peer.name}</a> : ""}</td>
                           <td style={td({ fontSize: 12, color: WARN })}>{c.hinweise.join("; ")}</td>
                         </tr>
                       );

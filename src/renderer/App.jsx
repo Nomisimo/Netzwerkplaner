@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY, DARK, INPUT, LINE2, MID, OK, TEXT, TEXT2 } from "../shared/constants.js";
 import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl, vlansAbleiten } from "../shared/model.js";
 import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ipPorts } from "../shared/catalog.js";
 import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
@@ -17,6 +17,7 @@ import VlanTab from "./tabs/VlanTab.jsx";
 import PruefungTab from "./tabs/PruefungTab.jsx";
 import BibliothekTab from "./tabs/BibliothekTab.jsx";
 import WissenTab from "./tabs/WissenTab.jsx";
+import CleanCatTab from "./tabs/CleanCatTab.jsx";
 import { analyseIssues } from "../shared/analyse.js";
 import { maNetIssues } from "../shared/manet.js";
 import { ladeLogo, speichereLogo, logoAusDatei } from "./logo.js";
@@ -26,14 +27,15 @@ import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } fro
 import AnleitungTab from "./tabs/AnleitungTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
 import SitzungDialog from "./SitzungDialog.jsx";
+import Einstellungen from "./Einstellungen.jsx";
 import { useSitzung } from "./sync.js";
 import { diff, apply, invert, valueAt, pathKey } from "../shared/ops.js";
 import { removeDevice } from "../shared/invarianten.js";
 import { bestandSchluessel } from "../shared/bestandschluessel.js";
-import { Pencil, Plus, X as XIcon, ArrowUpCircle, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, ScrollText, Download, ChevronDown, Printer, Sheet, Power } from "lucide-react";
+import { Pencil, Plus, X as XIcon, ArrowUpCircle, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, ScrollText, Download, ChevronDown, Printer, Sheet, Power, Settings } from "lucide-react";
 
 
-const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["patch", "Patchliste"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
+const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["cleancat", "Clean Cat"], ["geraete", "Geräte"], ["patch", "Patchliste"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
 
 const loadAutosave = () => {
   try { const s = localStorage.getItem(LS_KEY); if (s) return migrateProject(JSON.parse(s)); } catch (e) { console.error(e); }
@@ -51,6 +53,7 @@ export default function App() {
   const [autoStatus, setAutoStatus] = useState(false);
   const [library, setLibrary] = useState({ vorlagen: [], bestand: [], icons: [], felder: [] });
   const [libLoaded, setLibLoaded] = useState(false);
+  const [showEinst, setShowEinst] = useState(false);
   const [filePath, setFilePath] = useState(() => localStorage.getItem("netzwerkplaner_file") || null);
   const [recents, setRecents] = useState([]);
   const [showRecents, setShowRecents] = useState(false);
@@ -448,21 +451,21 @@ export default function App() {
         {version && <button onClick={() => setChangelog(true)} title="Version und Änderungen" style={{ background: "none", border: `1px solid ${LINE}`, borderRadius: 10, color: SUB, fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
           v{version.replace(/-beta\.?\d*$/i, "")}{istBeta(version) && <span style={{ marginLeft: 5, color: "#fff", background: ACCENT, borderRadius: 6, padding: "0 5px", fontSize: 9.5, fontWeight: 700 }}>BETA {(version.match(/beta\.?(\d+)/i) || [])[1] || ""}</span>}
         </button>}
-        {update?.tag && <button onClick={updateAusfuehren} title={autoUpdate ? "Update automatisch installieren" : macUpdate ? "Update laden und öffnen" : "Download-Seite öffnen"} style={{ background: "#2ecc7122", border: "1px solid #2ecc71", borderRadius: 10, color: "#2ecc71", fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowUpCircle size={12} /> {autoUpdate || macUpdate ? `${update.tag} installieren` : `${update.tag} verfügbar`}</button>}
+        {update?.tag && <button onClick={updateAusfuehren} title={autoUpdate ? "Update automatisch installieren" : macUpdate ? "Update laden und öffnen" : "Download-Seite öffnen"} style={{ background: "#2ecc7122", border: `1px solid ${OK}`, borderRadius: 10, color: OK, fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowUpCircle size={12} /> {autoUpdate || macUpdate ? `${update.tag} installieren` : `${update.tag} verfügbar`}</button>}
         <div style={S.headerMeta}>{P.meta.veranstaltung} · v{P.meta.version} · {P.meta.datum}{filePath && <span style={{ color: MUTED }}> · {filePath.split(/[\\/]/).pop()}</span>}</div>
-        <span style={{ fontSize: 10, color: "#555", display: "inline-flex", alignItems: "center", gap: 3 }} title="Automatisch gespeichert"><Save size={11} /> auto</span>
+        <span style={{ fontSize: 10, color: MID, display: "inline-flex", alignItems: "center", gap: 3 }} title="Automatisch gespeichert"><Save size={11} /> auto</span>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={undo} title="Rückgängig (Strg+Z)" disabled={!hist.current.undo.length}><Undo2 size={14} /></button>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={redo} title="Wiederholen (Strg+Umschalt+Z)" disabled={!hist.current.redo.length}><Redo2 size={14} /></button>
-        <button style={{ ...S.ghostBtn, ...(sitzung.zustand ? { borderColor: sitzung.zustand.veraltet ? ERR : sitzung.zustand.status === "online" ? "#2ecc71" : WARN } : {}) }} onClick={() => setShowSitzung(true)} title="Gemeinsam arbeiten über den Planer-Server">
+        <button style={{ ...S.ghostBtn, ...(sitzung.zustand ? { borderColor: sitzung.zustand.veraltet ? ERR : sitzung.zustand.status === "online" ? OK : WARN } : {}) }} onClick={() => setShowSitzung(true)} title="Gemeinsam arbeiten über den Planer-Server">
           <Users size={14} /> {sitzung.zustand ? (sitzung.zustand.veraltet ? "Sitzung beendet" : `${sitzung.zustand.users?.length || 0} online${sitzung.zustand.ausstehend ? ` · ${sitzung.zustand.ausstehend} ausstehend` : ""}`) : "Sitzung"}
         </button>
         <button style={S.ghostBtn} onClick={openProject}><FolderOpen size={14} /> Öffnen</button>
         {isElectron && <div style={{ position: "relative" }}>
           <button style={{ ...S.ghostBtn, padding: "4px 5px" }} title="Zuletzt geöffnet" onClick={() => setShowRecents((v) => !v)}><History size={14} /></button>
-          {showRecents && <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: "#1b2026", border: "1px solid #2e3640", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 280, maxWidth: 380, marginTop: 4 }} onMouseLeave={() => setShowRecents(false)}>
-            <div style={{ padding: "6px 10px", fontSize: 10, color: MUTED, borderBottom: "1px solid #2e3640", letterSpacing: 0.5, textTransform: "uppercase" }}>Zuletzt geöffnet</div>
+          {showRecents && <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: INPUT, border: `1px solid ${LINE2}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 280, maxWidth: 380, marginTop: 4 }} onMouseLeave={() => setShowRecents(false)}>
+            <div style={{ padding: "6px 10px", fontSize: 10, color: MUTED, borderBottom: `1px solid ${LINE2}`, letterSpacing: 0.5, textTransform: "uppercase" }}>Zuletzt geöffnet</div>
             {recents.length === 0 ? <div style={{ padding: "10px 12px", fontSize: 11, color: MUTED, fontStyle: "italic" }}>Noch keine Dateien geöffnet.</div>
-              : recents.map((r, i) => <button key={i} onClick={() => openRecent(r.filePath)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "7px 12px", cursor: "pointer", color: "#c8d0d8", fontSize: 11, borderBottom: "1px solid #232a33" }}>
+              : recents.map((r, i) => <button key={i} onClick={() => openRecent(r.filePath)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "7px 12px", cursor: "pointer", color: TEXT2, fontSize: 11, borderBottom: `1px solid ${LINE2}` }}>
                 <div style={{ fontWeight: 600 }}>{r.name}</div>
                 <div style={{ fontSize: 9, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString("de-DE")} · {r.filePath}</div>
               </button>)}
@@ -472,12 +475,13 @@ export default function App() {
         {isElectron && <button style={S.ghostBtn} onClick={() => save(true)} title="Speichern unter">…</button>}
         <button style={S.ghostBtn} onClick={newProject}><RotateCcw size={14} /> Neu</button>
         <button style={S.ghostBtn} onClick={() => setChangelog(true)} title="Was ist neu?"><ScrollText size={14} /></button>
+        <button style={S.ghostBtn} onClick={() => setShowEinst(true)} title="Einstellungen (Erscheinungsbild hell, dunkel oder wie das System)"><Settings size={14} /></button>
         <div style={{ position: "relative" }}>
           <button style={S.exportBtn} onClick={() => setShowExport((v) => !v)}><Download size={14} /> Export <ChevronDown size={14} /></button>
-          {showExport && <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: "#1b2026", border: "1px solid #2e3640", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 230, marginTop: 4, overflow: "hidden" }} onMouseLeave={() => setShowExport(false)}>
+          {showExport && <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: INPUT, border: `1px solid ${LINE2}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 230, marginTop: 4, overflow: "hidden" }} onMouseLeave={() => setShowExport(false)}>
             {[["pdf", "PDF-Dokumentation", Printer], ["xlsx", "Excel (Patchliste, IP-Liste, VLANs, Ports …)", Sheet], ["patch-pdf", "Patchliste (PDF zum Ausdrucken)", Printer], ["patch-csv", "Patchliste als CSV"], ["csv", "IP-Liste als CSV"], ["svg", "Topologie als SVG"], ["png", "Topologie als PNG"]].map(([k, l, Ic]) => (
-              <button key={k} onClick={() => doExport(k)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid #232a33", padding: "9px 12px", cursor: "pointer", color: "#e8eaed", fontSize: 12 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#232a33")} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>{Ic && <Ic size={14} />}{l}</button>
+              <button key={k} onClick={() => doExport(k)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: `1px solid ${LINE2}`, padding: "9px 12px", cursor: "pointer", color: TEXT, fontSize: 12 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = LINE2)} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>{Ic && <Ic size={14} />}{l}</button>
             ))}
           </div>}
         </div>
@@ -487,13 +491,15 @@ export default function App() {
           <button key={k} style={{ ...S.navBtn, ...(tab === k ? S.navBtnActive : {}) }} onClick={() => setTab(k)}>
             <span style={{ display: "block", height: 0, fontWeight: 600, overflow: "hidden", visibility: "hidden" }} aria-hidden="true">{label}</span>
             {label}
-            {k === "pruefung" && (nErr + nWarn > 0) && <span style={{ ...S.badge, marginLeft: 6, background: nErr ? ERR : WARN, color: "#1c2127" }}>{nErr || nWarn}</span>}
+            {k === "pruefung" && (nErr + nWarn > 0) && <span style={{ ...S.badge, marginLeft: 6, background: nErr ? ERR : WARN, color: DARK }}>{nErr || nWarn}</span>}
           </button>
         ))}
       </nav>
 
       {tab === "topologie" ? (
         <TopologieTab {...shared} svgRef={svgRef} autoStatus={autoStatus} setAutoStatus={setAutoStatus} />
+      ) : tab === "cleancat" ? (
+        <CleanCatTab P={Pv} X={X} onSelectDevice={selectDevice} notify={notify} />
       ) : (
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} key={tab}><main style={S.main}>
           <div style={{ animation: "npFade .18s ease" }}>
@@ -525,12 +531,13 @@ export default function App() {
           {update?.tag && macUpdate && update.macOffen && <button style={S.primaryBtn} onClick={() => api.appBeenden()} title="Beendet den Netzwerkplaner, damit du die neue Version nach „Programme“ ziehen kannst. Vorher speichern!"><Power size={14} /> Netzwerkplaner beenden</button>}
           {update?.tag && !autoUpdate && !macUpdate && <button style={S.primaryBtn} onClick={updateAusfuehren} title="Öffnet die Download-Seite."><Download size={14} /> {update.tag} herunterladen</button>}
           <button style={S.ghostBtn} onClick={() => api.openExternal(update?.url || RELEASES_URL)}>Alle Versionen auf GitHub</button>
-          <span style={{ fontSize: 12, color: update ? "#2ecc71" : SUB }}>{updateStatus}</span>
+          <span style={{ fontSize: 12, color: update ? OK : SUB }}>{updateStatus}</span>
         </div>
         {Object.entries(CHANGELOG).map(([v, items]) => <div key={v}><div className="sp-section-label">Version {v}{v === version ? " (installiert)" : ""}</div><ul style={{ margin: "0 0 12px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13 }}>{items.map((t, i) => <li key={i}>{t}</li>)}</ul></div>)}
       </Modal>}
+      {showEinst && <Einstellungen onClose={() => setShowEinst(false)} inSitzung={!!sitzung.zustand && !sitzung.zustand.veraltet} vorReload={() => { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) { console.error(e); } }} />}
       {showSitzung && <SitzungDialog sitzung={sitzung} version={version} projektName={P.meta.veranstaltung} onClose={() => setShowSitzung(false)} onKopieSpeichern={() => save(true)} />}
-      {toast && <div style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", background: "#1b2026", border: `1px solid ${toast.kind === "err" ? ERR : toast.kind === "warn" ? WARN : ACCENT}`, color: "#e8eaed", padding: "9px 16px", borderRadius: 8, fontSize: 13, zIndex: 2000, boxShadow: "0 8px 24px rgba(0,0,0,.5)", maxWidth: "80vw" }}>{toast.msg}</div>}
+      {toast && <div style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", background: INPUT, border: `1px solid ${toast.kind === "err" ? ERR : toast.kind === "warn" ? WARN : ACCENT}`, color: TEXT, padding: "9px 16px", borderRadius: 8, fontSize: 13, zIndex: 2000, boxShadow: "0 8px 24px rgba(0,0,0,.5)", maxWidth: "80vw" }}>{toast.msg}</div>}
     </div>
   );
 }

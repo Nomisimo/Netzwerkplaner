@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { S, ACCENT, OK, WARN, ERR, MUTED, SUB, INFO } from "../../shared/constants.js";
+import { S, ACCENT, OK, WARN, ERR, MUTED, SUB, INFO, STRONG } from "../../shared/constants.js";
 import { useMonitor } from "./store.js";
 import { MonBar, Table, td, Hint, Empty, PlanName, Age, Levels, LevelModeSwitch, Card, Pill, mono } from "./common.jsx";
 import { Toggle } from "../ui.jsx";
@@ -65,7 +65,7 @@ export function SacnView({ P, iface, onSelectDevice }) {
                           <td style={td()}>{src.source}{src.preview && <Pill color={MUTED}>Preview</Pill>}{src.perAddrPrio && <Pill color={INFO}>Prio je Kanal</Pill>}</td>
                           <td style={td()}><span style={mono}>{src.ip}</span><div style={{ fontSize: 11 }}><PlanName P={P} ip={src.ip} onSelectDevice={onSelectDevice} /></div></td>
                           <td style={td(mono)}>{src.priority}</td>
-                          <td style={td({ ...mono, color: src.fps < 1 ? ERR : src.fps < 20 ? WARN : "#fff" })}>{src.fps}</td>
+                          <td style={td({ ...mono, color: src.fps < 1 ? ERR : src.fps < 20 ? WARN : STRONG })}>{src.fps}</td>
                           <td style={td(mono)}>{src.slots}</td>
                           <td style={td({ ...mono, color: src.seqErr ? WARN : MUTED })}>{src.seqErr}</td>
                           <td style={td()}><Age ms={src.age} /></td>
@@ -152,7 +152,7 @@ export function ArtnetView({ P, iface, onSelectDevice }) {
                     <td style={td({ fontWeight: 700 })}>{i === 0 ? u.label : ""}{i === 0 && u.senders.length > 1 && <div><Pill color={WARN}>{u.senders.length} Sender</Pill></div>}</td>
                     <td style={td(mono)}>{i === 0 ? u.portAddress : ""}</td>
                     <td style={td()}><span style={mono}>{x.ip}</span> <span style={{ fontSize: 11 }}><PlanName P={P} ip={x.ip} onSelectDevice={onSelectDevice} /></span></td>
-                    <td style={td({ ...mono, color: x.fps < 1 ? ERR : "#fff" })}>{x.fps}</td>
+                    <td style={td({ ...mono, color: x.fps < 1 ? ERR : STRONG })}>{x.fps}</td>
                     <td style={td(mono)}>{x.slots}</td>
                     <td style={td()}><Age ms={x.age} /></td>
                     <td style={td()}>{i === 0 && <span style={{ fontSize: 11, color: SUB, display: "inline-flex", alignItems: "center", gap: 3 }}>{sel === u.portAddress ? <ChevronUp size={12} /> : <>Werte <ChevronDown size={12} /></>}</span>}</td>
