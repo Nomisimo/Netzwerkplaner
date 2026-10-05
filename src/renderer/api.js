@@ -46,8 +46,8 @@ export const api = {
     downloadBlob(encoding === "base64" ? Uint8Array.from(atob(data), (c) => c.charCodeAt(0)) : data, name);
     return name;
   },
-  exportPdf: async (html, name) => {
-    if (E) return E.exportPdf({ html, name });
+  exportPdf: async (html, name, { pageSize } = {}) => {
+    if (E) return E.exportPdf({ html, name, pageSize });
     const w = window.open("", "_blank");
     if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400); }
     return null;

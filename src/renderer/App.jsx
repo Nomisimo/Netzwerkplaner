@@ -17,7 +17,6 @@ import VlanTab from "./tabs/VlanTab.jsx";
 import PruefungTab from "./tabs/PruefungTab.jsx";
 import BibliothekTab from "./tabs/BibliothekTab.jsx";
 import WissenTab from "./tabs/WissenTab.jsx";
-import CleanCatTab from "./tabs/CleanCatTab.jsx";
 import { analyseIssues } from "../shared/analyse.js";
 import { maNetIssues } from "../shared/manet.js";
 import { ladeLogo, speichereLogo, logoAusDatei } from "./logo.js";
@@ -35,7 +34,7 @@ import { bestandSchluessel } from "../shared/bestandschluessel.js";
 import { Pencil, Plus, X as XIcon, ArrowUpCircle, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, ScrollText, Download, ChevronDown, Printer, Sheet, Power, Settings } from "lucide-react";
 
 
-const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["cleancat", "Clean Cat"], ["geraete", "Geräte"], ["patch", "Patchliste"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
+const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["patch", "Patchliste"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
 
 const loadAutosave = () => {
   try { const s = localStorage.getItem(LS_KEY); if (s) return migrateProject(JSON.parse(s)); } catch (e) { console.error(e); }
@@ -46,7 +45,7 @@ export default function App() {
   const [P, setP] = useState(loadAutosave);
   const Pref = useRef(P);
   const hist = useRef({ undo: [], redo: [] }); // Transaktionen als Operationen (nur eigene Änderungen)
-  const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || t === "analyse" ? "projekt" : t; });
+  const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || t === "analyse" ? "projekt" : t === "cleancat" ? "topologie" : t; });
   const [selection, setSelection] = useState(null);
   const [picker, setPicker] = useState(null); // { connectTo }
   const [status, setStatus] = useState({});
@@ -497,9 +496,7 @@ export default function App() {
       </nav>
 
       {tab === "topologie" ? (
-        <TopologieTab {...shared} svgRef={svgRef} autoStatus={autoStatus} setAutoStatus={setAutoStatus} />
-      ) : tab === "cleancat" ? (
-        <CleanCatTab P={Pv} X={X} onSelectDevice={selectDevice} notify={notify} />
+        <TopologieTab {...shared} notify={notify} svgRef={svgRef} autoStatus={autoStatus} setAutoStatus={setAutoStatus} />
       ) : (
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} key={tab}><main style={S.main}>
           <div style={{ animation: "npFade .18s ease" }}>

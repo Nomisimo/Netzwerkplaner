@@ -24,7 +24,8 @@ import { einrasten, mitlaeufer, gruppeBewegen } from "../../shared/einrasten.js"
 import { KonfigEinfuegen } from "../KonfigDialog.jsx";
 import Meldungen from "../Meldungen.jsx";
 import MehrfachBearbeiten from "../MehrfachBearbeiten.jsx";
-import { Network, Cable, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap } from "lucide-react";
+import { Network, Cable, FileText, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap } from "lucide-react";
+import CleanCatTab from "./CleanCatTab.jsx";
 
 const KABEL_FARBEN = { cat5e: SUB, cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: SUB, p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
@@ -570,6 +571,21 @@ export default function TopologieTab(props) {
   }, []);
   const lbl = (t) => (kompakt ? null : t);
 
+  const aktAnsicht = P.layout.ansicht === "front" || P.layout.ansicht === "cleancat" ? P.layout.ansicht : "mindmap";
+  const ANSICHT_TITEL = { mindmap: "Baum vom Hauptswitch aus", front: "Geräte mit ihren Anschlüssen, Kabel von Buchse zu Buchse", cleancat: "Aufgeräumter Signalfluss-Plan als A3-Blatt mit Legende und Plankopf" };
+  const ansichtWahl = (
+    <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
+      {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"], ["cleancat", <FileText {...ico} />, "Clean Cat"]].map(([k, i, l]) => (
+        <button key={k} onClick={() => setAnsicht(k)} title={ANSICHT_TITEL[k]} style={{ ...knopf, border: "none", borderRadius: 0, ...(aktAnsicht === k ? { background: "#2c3b93", color: "#fff" } : {}) }}>{i}{l}</button>
+      ))}
+    </div>
+  );
+  // Clean Cat: eigenes Blatt statt Zeichenfläche; Klick auf ein Gerät öffnet den Geräte-Editor
+  if (aktAnsicht === "cleancat") {
+    return <CleanCatTab P={P} X={X} svgRef={svgRef} notify={props.notify} kopf={ansichtWahl}
+      onSelectDevice={(id) => { setSelection({ type: "dev", id }); goTab("geraete"); }} />;
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {/* Werkzeugleiste: feste Reihen über Palette, Zeichenfläche und Seitenleiste, damit nichts umspringt */}
@@ -577,11 +593,7 @@ export default function TopologieTab(props) {
       <Meldungen issues={issues} onShowIssue={onShowIssue} goPruefung={() => goTab("pruefung")} breite={166} />
       <div ref={leisteRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 0 }}>
         <div style={zeile}>
-          <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
-            {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"]].map(([k, i, l]) => (
-              <button key={k} onClick={() => setAnsicht(k)} title={k === "front" ? "Geräte mit ihren Anschlüssen, Kabel von Buchse zu Buchse" : "Baum vom Hauptswitch aus"} style={{ ...knopf, border: "none", borderRadius: 0, ...((front ? "front" : "mindmap") === k ? { background: "#2c3b93", color: "#fff" } : {}) }}>{i}{l}</button>
-            ))}
-          </div>
+          {ansichtWahl}
           <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
             {[["move", <Move {...ico} />, "Bewegen", "M"], ["connect", <Link2 {...ico} />, "Verbinden", "C"], ["stack", <Layers {...ico} />, "Stapeln", "S"]].map(([k, i, l, key]) => (
               <button key={k} title={k === "stack" ? "Taste S · von einem Gerät auf ein anderes ziehen: stapelt sie grafisch (Rack, Tower). Keine Netzwerkverbindung." : `Taste ${key}`} onClick={() => setTool(k)} style={{ ...knopf, border: "none", borderRadius: 0, ...(tool === k ? { background: ACCENT, color: "#fff" } : {}) }}>{i}{l}</button>

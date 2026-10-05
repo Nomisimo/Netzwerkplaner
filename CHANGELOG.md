@@ -3,6 +3,15 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.14] – 2026-10-05
+
+- Clean Cat ist jetzt eine Ansicht im Topologie-Tab (neben Mindmap und Anschlüsse) statt eines eigenen Tabs
+- Clean Cat ist immer ein A3-Blatt quer mit Rahmen. Die Räume liegen in mehreren Reihen, damit das Blatt gut gefüllt ist; Verbindungen zwischen Reihen laufen links am Blatt entlang
+- Plankopf aus den Projektdaten: Veranstaltung, Ort, Ersteller, Planinhalt, Planversion, Projektdatum, Exportdatum und dein Logo
+- Legende mit allen Leitungs- und Gerätefarben, die im Plan vorkommen
+- Gleiche Geräte sind immer gleich groß: alle Endgeräte gleich breit, Switches nach Portzahl. Zu lange Texte werden kleiner geschrieben oder gekürzt und bleiben immer im Feld
+- Neuer Export „PDF A3“ für Clean Cat
+
 ## [0.7.0-beta.13] – 2026-10-05
 
 - Netzrechner: „Aufteilen in“ bietet jetzt jede Zielgröße bis /32 an, auch große Netze wie /8 oder /16 in /24-Netze. Vorher ging die Auswahl nur 10 Stufen unter das Ausgangsnetz. Die Liste zeigt die ersten 256 Teilnetze, „Weitere anzeigen“ lädt mehr nach

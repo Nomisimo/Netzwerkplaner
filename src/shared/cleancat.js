@@ -10,6 +10,8 @@ import { KATEGORIEN, KABEL } from "./constants.js";
 import { physPorts, ipPorts } from "./catalog.js";
 
 export const CC_FARBEN = { primary: "#e53935", secondary: "#2e9e44", glas: "#c05bd6", trunk: "#3a3f45", sonst: "#55595f" };
+export const CC_SWITCH_FILL = "#fff176";
+export const ccKatFill = (kat) => mische((KATEGORIEN[kat] || KATEGORIEN.Sonstiges).color, 0.5);
 const SPUR = 7, MAX_SPALTEN = 6, RAUM_KOPF = 34, RAUM_RAND = 22, GRUPPE_ABSTAND = 46, RAUM_ABSTAND = 70;
 
 const mische = (hex, anteil = 0.55) => {
@@ -17,7 +19,27 @@ const mische = (hex, anteil = 0.55) => {
   const k = (v) => Math.round(v + (255 - v) * anteil);
   return "#" + [n >> 16, (n >> 8) & 255, n & 255].map((v) => k(v).toString(16).padStart(2, "0")).join("");
 };
-const textB = (s, px) => String(s || "").length * px * 0.56;
+const textB = (s, px, mono = false) => String(s || "").length * px * (mono ? 0.62 : 0.56);
+
+/* Text passend für eine Breite: erst kleiner (bis minPx), dann mit „…“ kürzen.
+   Die Zeichnung misst danach noch einmal genau und staucht notfalls (textLength). */
+export const passeText = (t, px, maxW, minPx = px, mono = false) => {
+  const s = String(t || "");
+  if (textB(s, px, mono) <= maxW) return { t: s, fs: px };
+  const fs = Math.max(minPx, Math.floor((px * maxW) / textB(s, px, mono) * 10) / 10);
+  if (textB(s, fs, mono) <= maxW) return { t: s, fs };
+  let k = s;
+  while (k.length > 1 && textB(k + "…", fs, mono) > maxW) k = k.slice(0, -1);
+  return { t: k.trimEnd() + "…", fs, voll: s };
+};
+
+/* Feste Größen: alle Endgeräte gleich breit, Switches nach Portzahl
+   (gleiches Modell = gleiche Größe, egal wie viel angeschlossen ist). */
+export const CC_BOX_W = 150;
+export const ccBoxBreite = (d) => (d.isSwitch ? Math.max(170, Math.min(340, physPorts(d).length * 8 + 40)) : CC_BOX_W);
+const INNEN = 10; // Textabstand links und rechts in der Box
+// Zeichenfläche des A3-Blatts (siehe ccBlatt), nach ihr richtet sich die Reihenaufteilung
+const CC_FLAECHE = { w: 1572, h: 928 };
 const istGlas = (c) => /fiber|opticalcon/.test(c.kabel || "");
 
 // Text mittig über das längste waagrechte Stück einer Leitung (wenn er hinpasst)
@@ -40,9 +62,10 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
   const box = (d) => {
     const sub = [d.hersteller, d.modell].filter(Boolean).join(" ") || "";
     const ip = zeigeIp ? ipPorts(d).map((p) => p.ip).filter(Boolean).slice(0, 2).join(" · ") : "";
-    const w = Math.max(d.isSwitch ? 150 : 124, Math.min(250, Math.max(textB(d.name, 12.5), textB(sub, 9.5), textB(ip, 9.5)) + 26));
-    const fill = d.isSwitch ? "#fff176" : mische((KATEGORIEN[d.kategorie] || KATEGORIEN.Sonstiges).color, 0.5);
-    return { id: d.id, name: d.name, sub, ip, w, h: BOX_H, fill, isSwitch: !!d.isSwitch, kategorie: d.kategorie };
+    const w = ccBoxBreite(d), frei = w - INNEN * 2;
+    const fill = d.isSwitch ? CC_SWITCH_FILL : ccKatFill(d.kategorie);
+    return { id: d.id, name: d.name, sub, ip, w, h: BOX_H, fill, isSwitch: !!d.isSwitch, kategorie: d.kategorie,
+      tName: passeText(d.name, 12.5, frei, 9.5), tSub: sub ? passeText(sub, 9.5, frei, 8) : null, tIp: ip ? passeText(ip, 9.5, frei, 7.5, true) : null };
   };
 
   // Verbindungen je Gerät
@@ -80,16 +103,17 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
     const A = X.devById.get(c.a.dev), B = X.devById.get(c.b.dev);
     const end = !A.isSwitch ? c.a : !B.isSwitch ? c.b : null;
     const rolle = end ? ccRolle(portVon(end)) : null;
-    let col = CC_FARBEN.sonst, text = "";
+    let col = CC_FARBEN.sonst, text = "", leg = "Sonstige Verbindung";
     if (farbe === "vlan") {
       const p = end ? portVon(end) : null;
       const v = p && X.vlanById.get(p.vlan);
       col = v ? v.farbe : A.isSwitch && B.isSwitch ? CC_FARBEN.trunk : CC_FARBEN.sonst;
       text = v ? `${v.vid} ${v.name}` : A.isSwitch && B.isSwitch ? "Trunk" : "";
-    } else if (rolle) { col = CC_FARBEN[rolle]; text = rolle === "primary" ? "Dante Primary" : "Dante Secondary"; }
-    else if (istGlas(c)) col = CC_FARBEN.glas;
-    else if (A.isSwitch && B.isSwitch) col = CC_FARBEN.trunk;
-    return { col, text, dash: c.kabel === "wlan" ? "4 4" : c.kabel === "p2p" ? "8 3 2 3" : "" };
+      leg = v ? `VLAN ${v.vid} ${v.name}` : A.isSwitch && B.isSwitch ? "Trunk (Switch zu Switch)" : "Ohne VLAN";
+    } else if (rolle) { col = CC_FARBEN[rolle]; text = rolle === "primary" ? "Dante Primary" : "Dante Secondary"; leg = text; }
+    else if (istGlas(c)) { col = CC_FARBEN.glas; leg = "Glasfaser"; }
+    else if (A.isSwitch && B.isSwitch) { col = CC_FARBEN.trunk; leg = "Switch zu Switch"; }
+    return { col, text, leg, dash: c.kabel === "wlan" ? "4 4" : c.kabel === "p2p" ? "8 3 2 3" : "" };
   };
 
   /* ── Räume aufbauen ── */
@@ -141,7 +165,6 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
       const obenW = spW.reduce((a, b) => a + b, 0) + gapW.reduce((a, b) => a + b, 0);
       const untenW = g.unten.reduce((a, u) => a + u.b.w, 0) + Math.max(0, g.unten.length - 1) * 24;
       // Switch breit genug für seine Anschlüsse
-      if (g.sw) { const nA = g.wege.filter((w) => w.art === "lokal").length; g.unten[0].b.w = Math.max(g.unten[0].b.w, nA * 12 + 30, Math.min(obenW, 260)); }
       const untenW2 = g.unten.reduce((a, u) => a + u.b.w, 0) + Math.max(0, g.unten.length - 1) * 24;
       const innenW = Math.max(obenW, untenW2, untenW);
       g.x = gx; g.w = randW * 2 + innenW; g.randX = gx; g.randXr = gx + randW + innenW; // Randspuren links und rechts
@@ -213,7 +236,7 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
       p.pts.push([last[0], yS], [xs, yS], [xs, sb.y]);
       const st = stil(p.w.c);
       const swPort = portVon(eigenes(p.w.c, g.sw.id));
-      linien.push({ id: p.w.c.id, pts: p.pts, ...st, labels: [
+      linien.push({ id: p.w.c.id, raum: r.name, pts: p.pts, ...st, labels: [
         st.text && textAufLinie(p.pts, st.text),
         swPort && { x: xs - 2, y: sb.y - 3, t: swPort.name, rot: true },
       ].filter(Boolean) });
@@ -255,7 +278,7 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
       const kab = c.label || (istGlas(c) ? KABEL[c.kabel]?.label : "");
       if (kab) labels.push({ x: (ax + bx) / 2, y: y - 3, t: kab, anchor: "middle" });
       else if (st.text) { const t = textAufLinie(pts, st.text); if (t) labels.push(t); }
-      linien.push({ id: c.id, pts, ...st, labels: [...labels, ...endLabels(A, portA, dev(c.a.dev)), ...endLabels(B, portB, dev(c.b.dev))] });
+      linien.push({ id: c.id, raum: A.r.name, pts, ...st, labels: [...labels, ...endLabels(A, portA, dev(c.a.dev)), ...endLabels(B, portB, dev(c.b.dev))] });
     } else busLinien.push({ c, A, B, st, portA, portB });
   }
   function endLabels(E, port, d) {
@@ -265,22 +288,116 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
   }
   // Raumhöhen festlegen
   for (const r of raeume) { r.h = r.trunkY + Math.max(1, r.spurTrunk) * SPUR + 16; }
-  const busY0 = Math.max(...raeume.map((r) => r.h), 0) + 30;
-  busLinien.forEach(({ c, A, B, st, portA, portB }, i) => {
-    const y = busY0 + i * (SPUR + 4);
-    const ax = A.pts[A.pts.length - 1][0], bx = B.pts[B.pts.length - 1][0];
-    const pts = [...A.pts, [ax, y], [bx, y], ...[...B.pts].reverse()];
-    const kab = [c.label, KABEL[c.kabel]?.label, c.laenge ? `${c.laenge} m` : ""].filter(Boolean).join(" · ");
-    linien.push({ id: c.id, pts, ...st, col: farbe === "dante" && !st.text ? (istGlas(c) ? CC_FARBEN.glas : CC_FARBEN.trunk) : st.col,
-      labels: [{ x: (ax + bx) / 2, y: y - 3, t: kab, anchor: "middle" }, ...endLabels(A, portA, dev(c.a.dev)), ...endLabels(B, portB, dev(c.b.dev))] });
+
+  /* ── Räume in Reihen anordnen, damit das A3-Blatt gut gefüllt ist ──
+     Verbindungen zwischen Räumen laufen in einer Trasse unter ihrer Reihe;
+     zwischen zwei Reihen zusätzlich durch einen Schacht links neben allen Räumen. */
+  const planen = (grenze) => {
+    const reihen = [[]];
+    let breite = 0;
+    for (const r of raeume) {
+      const zeile = reihen[reihen.length - 1];
+      if (zeile.length && breite + RAUM_ABSTAND + r.w > grenze) { reihen.push([r]); breite = r.w; }
+      else { zeile.push(r); breite += (zeile.length > 1 ? RAUM_ABSTAND : 0) + r.w; }
+    }
+    const idx = new Map(); reihen.forEach((z, i) => z.forEach((r) => idx.set(r.name, i)));
+    const spuren = reihen.map(() => 0);
+    let schacht = 0;
+    for (const b of busLinien) {
+      const ia = idx.get(b.A.r.name), ib = idx.get(b.B.r.name);
+      spuren[ia]++; if (ib !== ia) { spuren[ib]++; schacht++; }
+    }
+    const schachtW = schacht ? 28 + schacht * (SPUR + 2) : 0;
+    const zeilenW = reihen.map((z) => z.reduce((a, r) => a + r.w, 0) + (z.length - 1) * RAUM_ABSTAND);
+    const zeilenH = reihen.map((z, i) => Math.max(...z.map((r) => r.h)) + (spuren[i] ? 30 + spuren[i] * (SPUR + 4) + 10 : 0));
+    const W = schachtW + Math.max(...zeilenW), H = zeilenH.reduce((a, b) => a + b, 0) + (reihen.length - 1) * RAUM_ABSTAND;
+    return { reihen, idx, spuren, schachtW, zeilenH, W, H, k: Math.min(CC_FLAECHE.w / W, CC_FLAECHE.h / H) };
+  };
+  const gesamt = raeume.reduce((a, r) => a + r.w, 0) + Math.max(0, raeume.length - 1) * RAUM_ABSTAND;
+  const breitester = Math.max(0, ...raeume.map((r) => r.w));
+  let plan = null;
+  for (let n = 1; n <= Math.max(1, raeume.length); n++) {
+    const p = planen(Math.max(breitester, gesamt / n + 1));
+    if (!plan || p.k > plan.k + 1e-9) plan = p;
+  }
+  // Räume, Boxen und Leitungen im Raum verschieben
+  const versatz = new Map();
+  let yZeile = 0;
+  plan.reihen.forEach((z, i) => {
+    let x = plan.schachtW;
+    for (const r of z) { versatz.set(r.name, { dx: x - r.x, dy: yZeile - r.y }); x += r.w + RAUM_ABSTAND; }
+    z.trasseY = yZeile + Math.max(...z.map((r) => r.h)) + 30;
+    yZeile += plan.zeilenH[i] + RAUM_ABSTAND;
   });
-  const h = busLinien.length ? busY0 + busLinien.length * (SPUR + 4) + 20 : Math.max(0, ...raeume.map((r) => r.h)) + 10;
-  const w = Math.max(0, x0 - RAUM_ABSTAND);
+  const schiebePt = (pt, v) => [pt[0] + v.dx, pt[1] + v.dy];
+  for (const r of raeume) { const v = versatz.get(r.name); r.x += v.dx; r.y += v.dy; }
+  for (const [id, b] of boxen) { const v = versatz.get(raumVon(dev(id))); b.x += v.dx; b.y += v.dy; }
+  for (const l of linien) {
+    const v = versatz.get(l.raum);
+    l.pts = l.pts.map((pt) => schiebePt(pt, v));
+    l.labels = l.labels.map((t) => ({ ...t, x: t.x + v.dx, y: t.y + v.dy }));
+  }
+  // Leitungen zwischen Räumen
+  const spurZaehl = plan.reihen.map(() => 0);
+  let schachtZaehl = 0;
+  for (const { c, A, B, st, portA, portB } of busLinien) {
+    const ia = plan.idx.get(A.r.name), ib = plan.idx.get(B.r.name);
+    const aPts = A.pts.map((pt) => schiebePt(pt, versatz.get(A.r.name))), bPts = B.pts.map((pt) => schiebePt(pt, versatz.get(B.r.name)));
+    const ax = aPts[aPts.length - 1][0], bx = bPts[bPts.length - 1][0];
+    const yA = plan.reihen[ia].trasseY + spurZaehl[ia]++ * (SPUR + 4);
+    let pts, lab;
+    if (ia === ib) {
+      pts = [...aPts, [ax, yA], [bx, yA], ...[...bPts].reverse()];
+      lab = { x: (ax + bx) / 2, y: yA - 3 };
+    } else {
+      const yB = plan.reihen[ib].trasseY + spurZaehl[ib]++ * (SPUR + 4);
+      const xs = 14 + schachtZaehl++ * (SPUR + 2);
+      pts = [...aPts, [ax, yA], [xs, yA], [xs, yB], [bx, yB], ...[...bPts].reverse()];
+      lab = Math.abs(bx - xs) >= Math.abs(ax - xs) ? { x: (xs + bx) / 2, y: yB - 3 } : { x: (xs + ax) / 2, y: yA - 3 };
+    }
+    const kab = [c.label, KABEL[c.kabel]?.label, c.laenge ? `${c.laenge} m` : ""].filter(Boolean).join(" · ");
+    const umf = farbe === "dante" && !st.text;
+    linien.push({ id: c.id, pts, ...st, col: umf ? (istGlas(c) ? CC_FARBEN.glas : CC_FARBEN.trunk) : st.col, leg: umf ? (istGlas(c) ? "Glasfaser" : "Switch zu Switch") : st.leg,
+      labels: [{ ...lab, t: kab, anchor: "middle" }, ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))] });
+  }
+  const h = raeume.length ? plan.H : 0;
+  const w = raeume.length ? plan.W : 0;
+  // Legende: nur, was im Plan vorkommt
+  const legL = new Map();
+  for (const l of linien) if (!legL.has(l.col + l.leg)) legL.set(l.col + l.leg, { col: l.col, t: l.leg });
+  const reihenfolge = ["Dante Primary", "Dante Secondary", "Glasfaser", "Switch zu Switch", "Trunk (Switch zu Switch)"];
+  const legLinien = [...legL.values()].sort((a, b) => ((reihenfolge.indexOf(a.t) + 1 || 99) - (reihenfolge.indexOf(b.t) + 1 || 99)) || a.t.localeCompare(b.t, "de", { numeric: true }));
+  if (conns.some((c) => c.kabel === "wlan")) legLinien.push({ col: CC_FARBEN.sonst, t: "WLAN", dash: "4 4" });
+  if (conns.some((c) => c.kabel === "p2p")) legLinien.push({ col: CC_FARBEN.sonst, t: "Punkt-zu-Punkt", dash: "8 3 2 3" });
+  const legBoxen = [];
+  if (P.geraete.some((d) => d.isSwitch)) legBoxen.push({ fill: CC_SWITCH_FILL, t: "Switch" });
+  for (const k of [...new Set(P.geraete.filter((d) => !d.isSwitch).map((d) => d.kategorie || "Sonstiges"))].sort((a, b) => a.localeCompare(b, "de")))
+    legBoxen.push({ fill: ccKatFill(k), t: k });
   return {
     w, h,
     raeume: raeume.map(({ name, x, y, w: rw, h: rh }) => ({ name, x, y, w: rw, h: rh })),
     boxen: [...boxen.entries()].map(([id, b]) => ({ ...b, id })),
     linien,
+    legende: { linien: legLinien, boxen: legBoxen },
+  };
+};
+
+/* ── A3-Blatt (quer, 420 × 297 mm, 4 px je mm) ──────────────────────────────
+   Rahmen, unten links die Legende, unten rechts der Plankopf, darüber die
+   Zeichnung, auf die freie Fläche eingepasst (nie größer als 1,6-fach). */
+export const A3 = { w: 1680, h: 1188, mm: 4 };
+export const ccBlatt = (L) => {
+  const rand = 10 * A3.mm, fuss = 38 * A3.mm, luft = 14;
+  const kopfW = 175 * A3.mm;
+  const flaeche = { x: rand + luft, y: rand + luft, w: A3.w - 2 * (rand + luft), h: A3.h - 2 * rand - fuss - 2 * luft };
+  const k = L.w > 0 && L.h > 0 ? Math.min(1.6, flaeche.w / L.w, flaeche.h / L.h) : 1;
+  return {
+    ...A3, rand, k,
+    x: flaeche.x + (flaeche.w - L.w * k) / 2, y: flaeche.y + (flaeche.h - L.h * k) / 2,
+    flaeche,
+    fuss: { y: A3.h - rand - fuss, h: fuss },
+    kopf: { x: A3.w - rand - kopfW, y: A3.h - rand - fuss, w: kopfW, h: fuss },
+    legende: { x: rand, y: A3.h - rand - fuss, w: A3.w - 2 * rand - kopfW, h: fuss },
   };
 };
 

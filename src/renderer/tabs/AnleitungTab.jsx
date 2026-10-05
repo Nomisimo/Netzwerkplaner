@@ -87,13 +87,16 @@ const KAPITEL = [
       "Meldungszentrum links in der Werkzeugleiste: Fehler, Warnungen und Hinweise der Prüfung als Zähler. Klick auf einen Zähler listet die Meldungen, „Zeigen“ springt zum Gerät, „Alle in Prüfung“ öffnet den Prüfungs-Tab.",
     ]} />
   </> },
-  { id: "cleancat", titel: "Clean Cat", tab: ["cleancat", "Clean Cat"], inhalt: () => <>
+  { id: "cleancat", titel: "Clean Cat", tab: ["topologie", "Topologie"], inhalt: () => <>
     <Liste items={[
-      "Clean Cat zeichnet den Plan wie eine aufgeräumte Visio-Zeichnung auf weißem Grund: jeder Standort / Ast ist ein gestrichelter Raum, jedes Gerät ein farbiger Block (Farbe nach Bereich, Switches gelb).",
+      "Clean Cat ist eine Ansicht im Topologie-Tab: oben links zwischen „Mindmap“, „Anschlüsse“ und „Clean Cat“ umschalten.",
+      "Der Plan ist immer ein A3-Blatt quer mit Rahmen, wie eine aufgeräumte Visio-Zeichnung: jeder Standort ist ein gestrichelter Raum, jedes Gerät ein farbiger Block (Farbe nach Bereich, Switches gelb). Die Räume werden so in Reihen gelegt, dass das Blatt möglichst gut gefüllt ist.",
+      "Alle Endgeräte sind gleich groß, Switches richten sich nach ihrer Portzahl: gleiches Modell, gleiche Größe. Zu lange Namen werden kleiner geschrieben und notfalls mit „…“ gekürzt, der volle Name steht im Tooltip. Text läuft nie aus seinem Feld.",
       "Je Switch stehen seine Endgeräte in Reihen darüber, die Leitungen laufen rechtwinklig in eigenen Spuren. Dante Primary ist rot, Dante Secondary grün (erkannt am Portnamen Primary/Secondary), Glasfaser lila, Switch zu Switch dunkelgrau. Pfeile zeigen die Anschlüsse, am Switch steht die Portnummer.",
-      "Verbindungen zwischen Räumen laufen unter allen Räumen entlang und tragen Kabelbezeichnung, Kabeltyp und Länge.",
+      "Verbindungen zwischen Räumen laufen in einer Trasse unter ihrer Reihe, zwischen zwei Reihen links am Blatt entlang. Sie tragen Kabelbezeichnung, Kabeltyp und Länge.",
+      "Unten links steht die Legende mit allen Leitungsfarben und Gerätefarben, die im Plan vorkommen. Unten rechts der Plankopf aus den Projektdaten (Veranstaltung, Ort, Ersteller, Planversion, Projektdatum), dazu das Exportdatum und dein Logo, wenn eins hinterlegt ist.",
       "„Farbe: VLAN“ färbt die Leitungen nach dem VLAN statt nach Dante. „IP-Adressen“ blendet die IPs in den Blöcken ein oder aus.",
-      "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt alles. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „SVG“ und „PNG“ speichern die Zeichnung, z. B. für Visio oder die Doku.",
+      "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt das ganze Blatt. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „PDF A3“, „SVG“ und „PNG“ speichern das Blatt, z. B. für Visio oder die Doku.",
       "Die Anordnung entsteht automatisch aus Standort und Verbindungen. Ein Gerät landet im Raum seines Standorts; ohne Standort im Raum „Ohne Standort“.",
     ]} />
   </> },
