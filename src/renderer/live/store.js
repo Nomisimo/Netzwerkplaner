@@ -13,7 +13,8 @@ function init() {
   if (started) return;
   started = true;
   api.monState().then((s) => { state = { ...s, ...state }; listeners.forEach((l) => l()); });
-  api.onMonEvent((msg) => set(msg.kind, msg.running ? msg : { running: false }));
+  // Gestoppte Monitore schicken ihren letzten Stand mit; die Einträge bleiben sichtbar, bis man sie verwirft
+  api.onMonEvent((msg) => set(msg.kind, msg));
 }
 
 const subscribe = (l) => { init(); listeners.add(l); return () => listeners.delete(l); };
@@ -31,12 +32,15 @@ export function useMonitor(kind) {
   }, [kind]);
   const stop = useCallback(async () => { await api.monStop(kind); }, [kind]);
   const action = useCallback(async (name, args) => {
+    // Gestoppte Monitore zeigen nur ihren letzten Stand; Klicks darin starten nichts neu
+    if (!state[kind]?.running && !["scan", "snmp"].includes(kind)) return undefined;
     const r = await api.monAction(kind, name, args);
     if (!r?.ok) setError(r?.error || "Aktion fehlgeschlagen.");
     else setError("");
     return r?.result;
   }, [kind]);
-  return { running: !!m?.running, snapshot: m?.snapshot || null, opts: m?.opts || {}, started: m?.started, start, stop, action, error, busy };
+  const verwerfen = useCallback(async () => { set(kind, { running: false }); await api.monAction(kind, "verwerfen"); }, [kind]);
+  return { running: !!m?.running, snapshot: m?.snapshot || null, opts: m?.opts || {}, started: m?.started, stopped: m?.stopped, start, stop, action, verwerfen, error, busy };
 }
 
 // Wie viele Monitore laufen gerade (für den Punkt am Tab)

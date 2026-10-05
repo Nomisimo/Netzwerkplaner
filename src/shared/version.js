@@ -5,6 +5,9 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.16": [
+    "Live: Wenn man einen Monitor oder die Discovery-Suche stoppt, bleiben die bisherigen Einträge stehen (mit Uhrzeit des Stopps). „Einträge verwerfen“ räumt sie weg, ein neuer Start beginnt frisch",
+  ],
   "0.7.0-beta.15": [
     "Clean Cat ordnet automatisch so an, dass die Kabelwege möglichst kurz sind (Reihenfolge von Standorten, Switches und Geräten)",
     "Clean Cat: Geräte lassen sich mit der Maus verschieben. Sie bleiben dabei immer in ihrem Standort und, wenn sie in einem Stack sind, in dessen Rahmen; Geräte ohne Stack bleiben aus den Stacks heraus. „Auto-Anordnen“ setzt die Verschiebungen zurück",

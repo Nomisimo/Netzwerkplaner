@@ -3,6 +3,10 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.16] – unveröffentlicht
+
+- Live: Wenn man einen Monitor oder die Discovery-Suche stoppt, bleiben die bisherigen Einträge stehen (mit Uhrzeit des Stopps). „Einträge verwerfen“ räumt sie weg, ein neuer Start beginnt frisch
+
 ## [0.7.0-beta.15] – 2026-10-05
 
 - Clean Cat ordnet automatisch so an, dass die Kabelwege möglichst kurz sind (Reihenfolge von Standorten, Switches und Geräten)
