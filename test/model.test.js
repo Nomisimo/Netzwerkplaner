@@ -233,3 +233,18 @@ test("Verbindungen: nicht mehr Kabel als Anschlüsse", async () => {
   assert.ok(addConnection(P, sw.id, g.id, { portIdB: alt.b.port }));
   assert.equal(P.verbindungen.length, 2);
 });
+
+test("Switch-Vorlage behält Port-VLANs (Access und Trunk), auch in einem anderen Projekt", () => {
+  const P = emptyProject();
+  const sw = createDevice({ typ: "switch_managed", vlans: P.vlans });
+  const [a, b] = P.vlans;
+  sw.ports[0].vlan = a.id;
+  sw.ports[1].modus = "trunk"; sw.ports[1].vlans = [a.id, b.id];
+  const snap = JSON.parse(JSON.stringify(snapshotDevice(sw, P.vlans))); // wie im Katalog gespeichert
+  const Q = emptyProject(); Q.vlans = [];
+  const s2 = createDevice({ eigeneVorlage: { geraet: snap }, vlans: Q.vlans });
+  const vid = (id) => Q.vlans.find((v) => v.id === id)?.vid;
+  assert.equal(vid(s2.ports[0].vlan), a.vid);
+  assert.deepEqual(s2.ports[1].vlans.map(vid), [a.vid, b.vid]);
+  assert.equal(Q.vlans.length, 2, "fehlende VLANs werden angelegt");
+});

@@ -36,7 +36,10 @@ test("Bestand übersteht CSV-Export und -Import (Katalogmodell, IPs, Inventar; V
   assert.equal(wieder[0].geraet.katalogId, pu.katalogId);
   assert.equal(wieder[1].geraet.netzname, "BL_Lap");
   assert.equal(wieder[0].geraet.felder[0].wert, "INV-1", "eigenes Feld übersteht die Rundreise");
-  assert.ok(!bestandZuCsv(bestand).split("\r\n")[0].includes("VLAN"), "Export ohne VLAN-Spalten");
+  const zeilen = bestandZuCsv(bestand).split("\r\n").map((z) => z.split(";"));
+  const sp = zeilen[0].indexOf("VLAN1");
+  assert.ok(sp > 0, "VLAN-Spalten für Switches");
+  assert.equal(zeilen[1][sp], "", "Endgerät: VLAN-Spalte leer");
   // eingefügt ins Projekt: kein VLAN am Gerät, das kommt vom Switch-Port
   const n = P.vlans.length;
   const d = createDevice({ eigeneVorlage: wieder[0], vlans: P.vlans, mitAdressen: true });
@@ -73,4 +76,16 @@ test("CSV-Import: gleiche Datei zweimal importiert ergibt gleiche Bestand-IDs", 
   assert.equal(a[0].id, b[0].id);
   assert.equal(a[1].id, b[1].id);
   assert.notEqual(a[2].id, b[2].id); // ohne Merkmal bleibt es eine Zufalls-ID
+});
+
+test("CSV: Switch behält sein Management-VLAN über Export und Import", () => {
+  const P = emptyProject();
+  const csv = "Name;Typ;IP1;VLAN1\nSW 1;switch_managed;10.10.99.11/24;99\n";
+  const { bestand } = csvZuBestand(csv, P.vlans);
+  const sw = bestand[0].geraet;
+  assert.ok(sw.isSwitch);
+  assert.equal(ipPorts(sw)[0].vid, 99);
+  const zeilen = bestandZuCsv(bestand).split("\r\n").map((z) => z.split(";"));
+  assert.equal(zeilen[1][zeilen[0].indexOf("VLAN1")], "99");
+  assert.equal(ipPorts(csvZuBestand(bestandZuCsv(bestand), P.vlans).bestand[0].geraet)[0].vid, 99);
 });
