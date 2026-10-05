@@ -5,6 +5,9 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.15": [
+    "Gerätebestand-CSV: Switches exportieren ihr Management-VLAN wieder (Spalten VLAN1–VLAN3). Bei Endgeräten bleiben die Spalten leer, deren VLAN kommt weiter vom Switch-Port",
+  ],
   "0.7.0-beta.14": [
     "Clean Cat ist jetzt eine Ansicht im Topologie-Tab (neben Mindmap und Anschlüsse) statt eines eigenen Tabs",
     "Clean Cat ist immer ein A3-Blatt quer mit Rahmen. Die Räume liegen in mehreren Reihen, damit das Blatt gut gefüllt ist; Verbindungen zwischen Reihen laufen links am Blatt entlang",
