@@ -5,10 +5,8 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
-  "0.7.0-beta.16": [
-    "Clean Cat sortiert jetzt nach Standort und darin nach Stacks: jeder Stack (Rack, Case) ist ein eigener Kasten mit seinem Namen im Standort-Raum, die Geräte ohne Stack stehen daneben",
-  ],
   "0.7.0-beta.15": [
+    "Clean Cat sortiert jetzt nach Standort und darin nach Stacks: jeder Stack (Rack, Case) ist ein eigener Kasten mit seinem Namen im Standort-Raum, die Geräte ohne Stack stehen daneben",
     "Gerätebestand-CSV: Switches exportieren ihr Management-VLAN wieder (Spalten VLAN1–VLAN3). Bei Endgeräten bleiben die Spalten leer, deren VLAN kommt weiter vom Switch-Port",
   ],
   "0.7.0-beta.14": [

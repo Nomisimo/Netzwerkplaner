@@ -2,13 +2,7 @@
 
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
-
-## [0.7.0-beta.16] – 2026-10-05
-
 - Clean Cat sortiert jetzt nach Standort und darin nach Stacks: jeder Stack (Rack, Case) ist ein eigener Kasten mit seinem Namen im Standort-Raum, die Geräte ohne Stack stehen daneben
-
-## [0.7.0-beta.15] – 2026-10-05
-
 - Gerätebestand-CSV: Switches exportieren ihr Management-VLAN wieder (Spalten VLAN1–VLAN3). Bei Endgeräten bleiben die Spalten leer, deren VLAN kommt weiter vom Switch-Port
 
 ## [0.7.0-beta.14] – 2026-10-05
