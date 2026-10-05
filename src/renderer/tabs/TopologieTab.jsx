@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { removeDevices } from "../../shared/invarianten.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor, BG, BTN, CANVAS, CARD, INPUT, LINE2, LINK, MID, TEXT, TEXT2, TRUNK, STRONG , HELL } from "../../shared/constants.js";
-import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts } from "../../shared/model.js";
+import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts, unmanagedVlans } from "../../shared/model.js";
 import { layoutMindmap, NODE_W, NODE_H } from "../../shared/layout.js";
 import { SvgIcon, IconView } from "../icons.jsx";
 import { Toggle, VlanSelect, Dot, Modal } from "../ui.jsx";
@@ -13,7 +13,7 @@ import { endInfo, portLabel, vlanLang, geraeteTitel } from "../portinfo.js";
 import { feldZeilen } from "../../shared/felder.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
-import { anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren, bahnenVergeben, endenVerteilen } from "../../shared/anordnung.js";
+import { STAPEL_PAD, anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren, bahnenVergeben, endenVerteilen } from "../../shared/anordnung.js";
 import { uid, ipPorts } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
 import StapelEditor from "../StapelEditor.jsx";
@@ -26,6 +26,7 @@ import Meldungen from "../Meldungen.jsx";
 import MehrfachBearbeiten from "../MehrfachBearbeiten.jsx";
 import { Network, Cable, FileText, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap } from "lucide-react";
 import CleanCatTab from "./CleanCatTab.jsx";
+import { useVlanZuweisen, setVlanZuweisen } from "../vlanZuweisen.js";
 
 const KABEL_FARBEN = { cat5e: SUB, cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: SUB, p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
@@ -205,7 +206,29 @@ export default function TopologieTab(props) {
     return () => el.removeEventListener("wheel", h);
   }, []);
 
+  // Kabel von einem Port aus: Linie hängt am Port, der nächste Klick (oder Loslassen) auf ein Gerät steckt es dort ein
+  const zuweisen = useVlanZuweisen();
+  const portDown = (e, devId, c, port, s) => {
+    if (e.button !== 0 || leertaste.current) return;
+    const dev = X.devById.get(devId);
+    if (zuweisen && dev?.isSwitch && dev.typ !== "switch_unmanaged") {
+      e.stopPropagation();
+      const v = X.vlanById.get(zuweisen.vlan);
+      mutate((d) => { const p = d.geraete.find((g) => g.id === devId)?.ports.find((x) => x.id === port.id); if (p) { p.modus = "access"; p.vlan = zuweisen.vlan; } });
+      props.notify?.(`${dev.name} · Port ${port.name}: VLAN ${v ? `${v.vid} ${v.name}` : "zugewiesen"}`);
+      return;
+    }
+    if (draw?.sticky) return; // Ziel eines laufenden Kabels: das erledigt onUp
+    if (tool === "connect" || !c) {
+      e.stopPropagation();
+      const w = toWorld(e);
+      setDraw({ from: devId, port: port.id, portName: port.name, x0: s.ax, y0: s.ay, x: w.x, y: w.y, tool: "connect", klick: true, sx: e.clientX, sy: e.clientY });
+      return;
+    }
+    if (tool === "move") onDown(e, devId, c);
+  };
   const onDown = (e, nodeId, conn = null, stapelId = null) => {
+    if (draw?.sticky) { e.stopPropagation(); return; } // Kabel hängt am Port: Klick wählt das Ziel (in onUp)
     // Verschieben der Ansicht: mittlere Maustaste oder Leertaste + Ziehen
     if (e.button === 1 || (e.button === 0 && leertaste.current)) { e.preventDefault(); e.stopPropagation(); setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false }); return; }
     if (e.button !== 0) return;
@@ -270,6 +293,15 @@ export default function TopologieTab(props) {
     if (draw) {
       const w = toWorld(e);
       let target = hitNode(w);
+      // Losgelassen auf einem Port: genau dort einstecken
+      const pz = e.target?.closest?.("[data-port]");
+      const zielPort = pz && pz.getAttribute("data-dev") !== draw.from ? { dev: pz.getAttribute("data-dev"), port: pz.getAttribute("data-port") } : null;
+      if (zielPort) target = zielPort.dev;
+      // Nur angeklickt (nicht gezogen): das Kabel bleibt am Port hängen, bis man ein Gerät anklickt
+      if (draw.klick && !draw.sticky && (!target || target === draw.from) && Math.abs(e.clientX - draw.sx) + Math.abs(e.clientY - draw.sy) < 6) {
+        setDraw({ ...draw, sticky: true });
+        return;
+      }
       // Im Stapel-Werkzeug zählt auch Rahmen oder Name eines Stapels als Ziel
       if (!target && draw.tool === "stack") {
         const sid = e.target?.closest?.("[data-stapel]")?.getAttribute("data-stapel");
@@ -277,7 +309,7 @@ export default function TopologieTab(props) {
       }
       if (target && target !== draw.from) {
         if (draw.tool === "stack") stapelOben(draw.from, target);
-        else connect(draw.from, target);
+        else connect(draw.from, target, { ...(draw.port ? { [draw.from]: draw.port } : {}), ...(zielPort ? { [zielPort.dev]: zielPort.port } : {}) });
       }
       setDraw(null); setHover(null);
       return;
@@ -335,7 +367,7 @@ export default function TopologieTab(props) {
   const connect = (fromId, toId, ports = {}) => {
     // Nur so viele Kabel, wie das Gerät Anschlüsse hat: sonst fragen, welcher ersetzt wird
     const voll = [fromId, toId].filter((id) => !ports[id] && X.devById.get(id) && !freiePorts(P, X.devById.get(id)).length);
-    if (voll.length) { setTausch({ from: fromId, to: toId, voll }); return; }
+    if (voll.length) { setTausch({ from: fromId, to: toId, voll, ports }); return; }
     let newId = null;
     mutate((d) => {
       for (const [dev, port] of Object.entries(ports)) d.verbindungen = d.verbindungen.filter((c) => !((c.a.dev === dev && c.a.port === port) || (c.b.dev === dev && c.b.port === port)));
@@ -383,7 +415,7 @@ export default function TopologieTab(props) {
         else if (selection.type === "stapel") { mutate((d) => { d.layout.stapel = (d.layout.stapel || []).filter((x) => x.id !== selection.id); }); setSelection(null); }
         else onDeleteConn(selection.id);
       }
-      if (e.key === "Escape") { setSelection(null); setDraw(null); }
+      if (e.key === "Escape") { setSelection(null); setDraw(null); setVlanZuweisen(null); }
       if (e.metaKey || e.ctrlKey || e.altKey) return; // ⌘C / Strg+C usw. nicht abfangen
       const key = e.key.toLowerCase();
       if (key === "m" || key === "v") setTool("move");
@@ -425,7 +457,13 @@ export default function TopologieTab(props) {
       color = katColor(ep?.kategorie);
     }
     if (p2p) color = colorBy === "kabel" ? color : "#ff8c42";
-    return { color: errs ? ERR : color, width, dash: p2p ? KABEL.p2p.dash : KABEL[c.kabel]?.dash || "", errs, trunk: cv.kind === "trunk" };
+    // Kabel an einem unmanaged Switch mit mehreren VLANs: in allen VLAN-Farben gestreift
+    let farben = null;
+    if (colorBy === "vlan" && !p2p && !errs) {
+      const um = [c.a.dev, c.b.dev].map((id) => unmanagedVlans(X, X.devById.get(id))).find((l) => l.length > 1);
+      if (um) farben = um.map((id) => X.vlanById.get(id)?.farbe).filter(Boolean);
+    }
+    return { color: errs ? ERR : farben ? farben[0] : color, farben, width, dash: p2p ? KABEL.p2p.dash : KABEL[c.kabel]?.dash || "", errs, trunk: cv.kind === "trunk" };
   };
 
   const edgePath = (pa, pb, k, sp) => {
@@ -449,9 +487,11 @@ export default function TopologieTab(props) {
   /* Kabel zwischen zwei Geräten desselben Stapels: als Klammer an der Außenseite
      des Stapels statt als unsichtbar kurze Linie zwischen den Geräten. */
   const imStapel = (a, b) => { const s0 = stapelVon(stapel, a); return s0 && s0.ids.includes(b) ? s0 : null; };
-  const klammerPfad = (pa, pb, i, seite, halb) => {
+  /* Klammer bleibt im Stapel-Rahmen: alle Klammern eines Stapels teilen sich den Rand (STAPEL_PAD). */
+  const klammerPfad = (pa, pb, i, seite, halb, n = 1) => {
     const x1 = pa.x + seite * halb(pa), x2 = pb.x + seite * halb(pb);
-    const xo = (seite > 0 ? Math.max(x1, x2) : Math.min(x1, x2)) + seite * (5 + i * 4);
+    const schritt = n > 1 ? Math.min(3, (STAPEL_PAD - 5) / (n - 1)) : 0;
+    const xo = (seite > 0 ? Math.max(x1, x2) : Math.min(x1, x2)) + seite * (3 + i * schritt);
     const y1 = pa.y + 4 + i * 3, y2 = pb.y - 4 - i * 3;
     return { d: eckPfad(x1, y1, x2, y2, "h", xo), x1, y1, x2, y2, mx: xo, my: (y1 + y2) / 2 };
   };
@@ -488,6 +528,7 @@ export default function TopologieTab(props) {
     const n = [...stapelKlammer.entries()].filter(([, v]) => v.stapel === s0.id).length;
     stapelKlammer.set(c.id, { stapel: s0.id, i: n });
   }
+  for (const v of stapelKlammer.values()) v.n = [...stapelKlammer.values()].filter((x) => x.stapel === v.stapel).length;
   const kabelWeg = new Map();
   if (!front) for (const c of allConns) {
     let from = posOf(c.a.dev), to = posOf(c.b.dev), fromEnd = c.a, toEnd = c.b;
@@ -701,7 +742,7 @@ export default function TopologieTab(props) {
                 let mx = (a1.x + b1.x) / 2 + (kn?.dx || 0), my = (bahn ?? (a1.y + b1.y) / 2) + (kn?.dy || 0);
                 let dPath;
                 if (kl) { // im selben Stapel: Klammer an der rechten Seite der Karten
-                  const g = klammerPfad(pa, pb, kl.i, 1, (p) => (p.w || CARD_W) / 2);
+                  const g = klammerPfad(pa, pb, kl.i, 1, (p) => (p.w || CARD_W) / 2, kl.n);
                   dPath = g.d; a1 = { x: g.x1, y: g.y1 }; b1 = { x: g.x2, y: g.y2 }; mx = g.mx; my = g.my;
                 } else if (kn) dPath = straight ? `M${a1.x},${a1.y} L${mx},${my} L${b1.x},${b1.y}` : knickPfad(a1.x, a1.y, b1.x, b1.y, { x: mx, y: my }, "v", linien);
                 else if (straight || linien === "direkt") dPath = `M${a1.x},${a1.y} L${b1.x},${b1.y}`;
@@ -716,6 +757,7 @@ export default function TopologieTab(props) {
                     <path d={dPath} stroke="transparent" strokeWidth="12" fill="none" />
                     {(sel || st.errs) && <path d={dPath} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={dPath} stroke={st.color} strokeWidth={straight ? Math.max(2, st.width - 1) : 1.8} fill="none" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
+                    {st.farben && <Streifen d={dPath} farben={st.farben} breite={straight ? Math.max(2, st.width - 1) : 1.8} />}
                     <circle cx={a1.x} cy={a1.y} r="2.2" fill={st.color} /><circle cx={b1.x} cy={b1.y} r="2.2" fill={st.color} />
                     {c.label && <text x={(a1.x + b1.x) / 2 + 4} y={(a1.y + b1.y) / 2} fontSize="10" fill={TEXT2}>{c.label}</text>}
                     {knickGriff(c, mx, my)}
@@ -728,7 +770,7 @@ export default function TopologieTab(props) {
                 const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
                 const sp = spuren.get(c.id);
                 const kl = stapelKlammer.get(c.id);
-                const g = kl ? klammerPfad(from, to, kl.i, from.side || (from.x >= 0 ? 1 : -1), () => HW) : edgePath(from, to, knickOf(c), sp);
+                const g = kl ? klammerPfad(from, to, kl.i, from.side || (from.x >= 0 ? 1 : -1), () => HW, kl.n) : edgePath(from, to, knickOf(c), sp);
                 // gebündelt: parallele Kabel als eine Linie, die Port-Plaketten bleiben sichtbar
                 if (sp?.versteckt && selConn?.id !== c.id) return showPorts && plakettenReihe.has(c.id) ? <g key={c.id} style={{ cursor: "pointer" }} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}><PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} /></g> : null;
                 const st = edgeStyle(c);
@@ -742,6 +784,7 @@ export default function TopologieTab(props) {
                     <path d={g.d} stroke="transparent" strokeWidth="14" fill="none" />
                     {(sel || st.errs) && <path d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
+                    {st.farben && <Streifen d={g.d} farben={st.farben} breite={st.width} />}
                     {kl && <title>{`${da?.name} [${pName(c.a)}] ⇄ ${db?.name} [${pName(c.b)}] · im selben Stapel`}</title>}
                     {showPorts && !kl && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} />}
                     {sp?.anzahl > 1 && <g><rect x={g.mx - 11} y={g.my - 8} width="22" height="16" rx="8" fill={INPUT} stroke={st.color} /><text x={g.mx} y={g.my + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill={TEXT}>{sp.anzahl}×</text><title>{sp.anzahl} Kabel gebündelt</title></g>}
@@ -750,9 +793,24 @@ export default function TopologieTab(props) {
                   </g>
                 );
               })}
-              {draw && posOf(draw.from) && (
-                <line x1={posOf(draw.from).x} y1={posOf(draw.from).y} x2={draw.x} y2={draw.y} stroke={draw.tool === "stack" ? SUB : ACCENT} strokeWidth="2" strokeDasharray="6 4" />
-              )}
+              {draw && posOf(draw.from) && (() => {
+                // Gummiband mit Pfeil: rastet am Gerät unter der Maus ein
+                const x1 = draw.x0 ?? posOf(draw.from).x, y1 = draw.y0 ?? posOf(draw.from).y;
+                const ziel = hover && hover !== draw.from ? posOf(hover) : null;
+                const x2 = ziel ? ziel.x : draw.x, y2 = ziel ? ziel.y : draw.y;
+                const col = draw.tool === "stack" ? SUB : ACCENT;
+                return (
+                  <g className="np-ui" pointerEvents="none">
+                    <defs><marker id="np-pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L10 5 L0 9 z" fill={col} /></marker></defs>
+                    {draw.x0 != null && <circle cx={x1} cy={y1} r="6" fill="none" stroke={col} strokeWidth="2" />}
+                    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth="2.2" strokeDasharray="6 4" markerEnd="url(#np-pfeil)" />
+                    {draw.portName && <g transform={`translate(${draw.x + 12 / view.k},${draw.y + 16 / view.k}) scale(${1 / view.k})`}>
+                      <rect width={draw.portName.length * 6.5 + 104} height="20" rx="5" fill={INPUT} stroke={col} />
+                      <text x="8" y="14" fontSize="11" fill={TEXT}>Port {draw.portName} → {ziel ? X.devById.get(hover)?.name : "Gerät anklicken"}</text>
+                    </g>}
+                  </g>
+                );
+              })()}
 
               {/* Geräte */}
               {front && [...L.pos.keys()].map((id) => {
@@ -768,7 +826,7 @@ export default function TopologieTab(props) {
                   const collapsed = !!P.layout.collapsed?.[id];
                   const url = webUrl(d);
                   return <FrontPlate key={id} {...common} X={X} slots={slotsOf(id)} url={url} onWeb={() => api.openExternal(url)}
-                    onPortDown={(e, c) => { if (tool === "move" && e.button === 0) { onDown(e, id, c); } }}
+                    onPortDown={(e, c, port, s) => portDown(e, id, c, port, s)} markPort={draw?.from === id ? draw.port : null}
                     canCollapse={kids.length > 0 && !T.roots.includes(id)} collapsed={collapsed} hidden={L.hidden.get(id)}
                     onToggle={() => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [id]: !collapsed }; })} />;
                 }
@@ -863,12 +921,23 @@ export default function TopologieTab(props) {
             {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · {tool === "move" ? "Leertaste/mittlere Taste + ziehen" : "Fläche ziehen"} = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"}{rasten && tool === "move" ? " · Alt = ohne Einrasten" : ""}{tool === "move" ? " · Fläche ziehen = Rahmen, Shift+Klick = mehrere wählen · ⌘/Strg+C/V = kopieren/einfügen" : ""} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
+          {zuweisen && (() => {
+            const v = X.vlanById.get(zuweisen.vlan);
+            return (
+              <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", display: "flex", gap: 10, alignItems: "center", background: INPUT, border: `2px solid ${v?.farbe || ACCENT}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: TEXT, boxShadow: "0 4px 14px rgba(0,0,0,.25)", zIndex: 3 }}>
+                <span style={{ width: 12, height: 12, borderRadius: 3, background: v?.farbe || ACCENT }} />
+                <span>VLAN-Zuweisung: Klick auf einen Switch-Port setzt <b>{v ? `VLAN ${v.vid} ${v.name}` : "das VLAN"}</b>{!front && " (in der Ansicht „Anschlüsse“)"}</span>
+                {!front && <button style={S.smallBtn} onClick={() => setAnsicht("front")}>Zu „Anschlüsse“</button>}
+                <button style={S.smallBtn} onClick={() => setVlanZuweisen(null)}>Beenden</button>
+              </div>
+            );
+          })()}
           {warnung && <Modal title="Layout von Hand angepasst" width={460} onClose={() => setWarnung(null)}
             footer={<><button style={S.secondaryBtn} onClick={() => setWarnung(null)}>Abbrechen</button><button style={S.primaryBtn} onClick={() => { const w = warnung; setWarnung(null); w.ok(); }}>Trotzdem anordnen</button></>}>
             <div style={{ fontSize: 13, lineHeight: 1.6 }}>{warnung.text}</div>
             <div style={{ ...S.hint, marginTop: 8 }}>Mit Rückgängig (Strg+Z) lässt sich das wieder zurückholen.</div>
           </Modal>}
-          {tausch && <PortTauschen P={P} X={X} voll={tausch.voll} onClose={() => setTausch(null)} onOk={(w) => { const t = tausch; setTausch(null); connect(t.from, t.to, w); }} />}
+          {tausch && <PortTauschen P={P} X={X} voll={tausch.voll} onClose={() => setTausch(null)} onOk={(w) => { const t = tausch; setTausch(null); connect(t.from, t.to, { ...(t.ports || {}), ...w }); }} />}
           {bgOpen && <HintergrundPanel bg={bg} bounds={Lbase.bounds} onClose={() => setBgOpen(false)} onChange={(fn) => mutate((d) => { d.layout[bgKey] = fn(d.layout[bgKey] ? { ...d.layout[bgKey] } : null); })} />}
           {ctx && X.devById.get(ctx.id) && (() => {
             const d = X.devById.get(ctx.id);
@@ -1005,6 +1074,12 @@ function PortBadge({ c, g, fromEnd, toEnd, X, extra, reihe, ziel }) {
       })}
     </g>
   );
+}
+
+// Mehrere VLAN-Farben auf einer Linie: abwechselnde Abschnitte
+function Streifen({ d, farben, breite }) {
+  const n = farben.length, l = 10;
+  return farben.slice(1).map((f, i) => <path key={i} d={d} stroke={f} strokeWidth={breite} fill="none" strokeDasharray={`${l} ${l * (n - 1)}`} strokeDashoffset={-l * (i + 1)} pointerEvents="none" />);
 }
 
 function Legend({ P, colorBy, front }) {

@@ -5,6 +5,12 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 
 ## [0.7.0-beta.16] – unveröffentlicht
 
+- Clean Cat: weniger Kabelkreuzungen. Die Spuren werden so vergeben, dass sich Leitungen möglichst nicht schneiden (im Beispielprojekt 8 statt 39 Kreuzungen), und die automatische Anordnung zählt Kreuzungen mit
+- Clean Cat: ganze Standorte lassen sich mit der Maus an eine andere Stelle im Plan ziehen. „Standorte automatisch“ setzt das zurück
+- Anschlüsse: Port anklicken, dann ein Gerät (oder einen Port eines anderen Switches) anklicken: das Kabel wird genau dort gesteckt. Das Gummiband beim Verbinden hat einen Pfeil und rastet am Zielgerät ein
+- VLAN per Klick: im Switch-Editor über der Portliste einschalten, VLAN wählen und in der Topologie auf die Ports klicken
+- Unmanaged Switches mit mehreren VLANs zeigen auf allen Ports alle VLAN-Farben, ihre Kabel sind gestreift
+- Kabel zwischen Geräten im selben Stapel bleiben in allen Ansichten im Stapel-Rahmen
 - Clean Cat: Leitungen zwischen Geräten desselben Standorts bleiben im Standort-Kasten, auch zwischen zwei Stacks. Nur Verbindungen zwischen Standorten laufen außen herum
 - Clean Cat: jedes Gerät zeigt seine Notiz, Verbindungen ihre Notiz an der Leitung. Alle Blöcke bleiben gleich groß
 - Clean Cat: unter dem Standortnamen steht die Anmerkung des Standorts

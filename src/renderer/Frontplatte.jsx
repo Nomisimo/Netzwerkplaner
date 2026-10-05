@@ -1,6 +1,6 @@
 import React from "react";
 import { ACCENT, OK, ERR, MUTED, TYPEN, katColor } from "../shared/constants.js";
-import { mainIp } from "../shared/model.js";
+import { mainIp, unmanagedVlans } from "../shared/model.js";
 import { CARD_W, CARD_H, TAB_H, plattenGeometrie } from "../shared/frontplatte.js";
 import { STECKER, STECKER_KATEGORIEN, SEITEN, portSeiten, steckerTyp, geraeteAnschluesse, anschlussText } from "../shared/anschluesse.js";
 import { SvgIcon } from "./icons.jsx";
@@ -48,6 +48,10 @@ export const portZustand = (d, port, X) => {
     kind = port.modus === "trunk" ? "trunk" : "access";
     const ids = kind === "trunk" ? port.vlans || [] : port.vlan ? [port.vlan] : [];
     vlans = ids.map((id) => X.vlanById.get(id)).filter(Boolean).sort((a, b) => a.vid - b.vid);
+  } else {
+    // unmanaged: auch freie Ports tragen alle VLANs, die am Switch ankommen
+    vlans = unmanagedVlans(X, d).map((id) => X.vlanById.get(id)).filter(Boolean);
+    kind = vlans.length > 1 ? "mehrere" : "access";
   }
   const o = c ? (c.a.dev === d.id && c.a.port === port.id ? c.b : c.a) : null;
   const other = o ? X.portRef.get(`${o.dev}:${o.port}`) : null;
@@ -57,8 +61,8 @@ export const portZustand = (d, port, X) => {
 // Farbe einer Karte / Kante: VLAN des Switch-Ports, sonst des Geräts
 export const kartenFarbe = (z) => (!z ? MUTED : z.kind === "trunk" ? TRUNK : z.vlans[0]?.farbe || MUTED);
 
-function Slot({ s, z, d, onPortDown }) {
-  const farben = z.kind === "trunk" ? (z.vlans.length && z.vlans.length <= 4 ? z.vlans.map((v) => v.farbe) : [TRUNK]) : [z.vlans[0]?.farbe || "#5a6272"];
+function Slot({ s, z, d, onPortDown, markiert }) {
+  const farben = z.kind === "trunk" || z.kind === "mehrere" ? (z.vlans.length && z.vlans.length <= 4 ? z.vlans.map((v) => v.farbe) : [TRUNK]) : [z.vlans[0]?.farbe || "#5a6272"];
   const aktiv = !!z.c;
   const x0 = s.x - s.w / 2, y0 = s.y - s.h / 2;
   const txt = hell(farben[0]) ? "#10131a" : "#fff";
@@ -69,7 +73,7 @@ function Slot({ s, z, d, onPortDown }) {
     z.other ? `→ ${z.other.dev.name} · ${z.other.port.name}` : "nicht verbunden",
   ].join("\n");
   return (
-    <g opacity={aktiv ? 1 : 0.55} onMouseDown={(e) => onPortDown(e, z.c)} style={{ cursor: "pointer" }}>
+    <g opacity={aktiv || markiert ? 1 : 0.55} onMouseDown={(e) => onPortDown(e, z.c, z.port, s)} style={{ cursor: "pointer" }} data-dev={d.id} data-port={z.port.id}>
       <title>{tip}</title>
       {s.fam === "ec" ? <>
         <clipPath id={clip}><circle cx={s.x} cy={s.y} r={s.w / 2} /></clipPath>
@@ -95,6 +99,7 @@ function Slot({ s, z, d, onPortDown }) {
           : <rect x={s.x - 3} y={s.row ? y0 + s.h - 3 : y0} width="6" height="3" fill="#0b0f1f" />}
         <text x={s.x} y={s.y + 3.3} fontSize="8.5" fontWeight="700" fill={txt} textAnchor="middle">{s.nr}</text>
       </>}
+      {markiert && <rect x={x0 - 2.5} y={y0 - 2.5} width={s.w + 5} height={s.h + 5} rx="3.5" fill="none" stroke={ACCENT} strokeWidth="2" />}
       {aktiv && <circle cx={x0 + s.w - 2.5} cy={s.row ? y0 + s.h - 2.5 : y0 + 2.5} r="1.8" fill={OK} stroke="#0b0f1f" strokeWidth=".5" />}
       {z.port.poe && <Zap x={x0 + 1.5} y={s.row ? y0 + s.h - 6.5 : y0 + 1.5} size={5} color={hell(farben[0]) ? "#10131a" : "#ffe066"} fill={hell(farben[0]) ? "#10131a" : "#ffe066"} strokeWidth={1} />}
     </g>
@@ -102,7 +107,7 @@ function Slot({ s, z, d, onPortDown }) {
 }
 
 // Switch als Frontplatte
-export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, worst, iss, titel, hidden, collapsed, canCollapse, onToggle, onDown, onPortDown, onContextMenu, onWeb, url, tool }) {
+export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, worst, iss, titel, hidden, collapsed, canCollapse, onToggle, onDown, onPortDown, onContextMenu, onWeb, url, tool, markPort }) {
   const pf = plattenFarbe(d);
   const ip = mainIp(d);
   const x0 = p.x - p.w / 2, y0 = p.y - p.h / 2;
@@ -123,7 +128,7 @@ export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, wo
         const s = slots?.get(port.id);
         if (!s) return null;
         const z = { ...portZustand(d, port, X), port };
-        return <Slot key={port.id} s={{ ...s, x: s.ax, y: s.ay }} z={z} d={d} onPortDown={onPortDown} />;
+        return <Slot key={port.id} s={{ ...s, x: s.ax, y: s.ay }} z={z} d={d} onPortDown={onPortDown} markiert={markPort === port.id} />;
       })}
       <circle cx={x0 + p.w - 14} cy={y0 + 11} r="4.5" fill={!status || status.ok == null ? "#4a535e" : status.ok ? OK : ERR} stroke="#0b0f1f" strokeWidth="1.2">
         <title>{!status ? "Status unbekannt" : status.ok ? `erreichbar (${status.method}, ${status.ms} ms)` : status.ok === false ? `nicht erreichbar (${status.method})` : status.method}</title>

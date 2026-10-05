@@ -9,6 +9,7 @@ import { api } from "./api.js";
 import StroemeEditor from "./StroemeEditor.jsx";
 import { KonfigKopieren, KonfigEinfuegen } from "./KonfigDialog.jsx";
 import { useZwischenablage } from "./zwischenablage.js";
+import { useVlanZuweisen, setVlanZuweisen } from "./vlanZuweisen.js";
 import { geraetKopie } from "../shared/konfig.js";
 import { newFeld } from "../shared/felder.js";
 import { X as XIcon, ChevronDown, RefreshCw, ArrowLeftRight, Plus, Trash2, Globe, Star, Download, Copy, CopyPlus, ClipboardPaste, Lock, Link } from "lucide-react";
@@ -336,6 +337,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
       </>}>
         Ports ({physPorts(dev).length})
       </Sub>
+      {dev.isSwitch && !unmanaged && <VlanZuweisenLeiste P={P} dev={dev} mutate={mutate} />}
       {dev.isSwitch && !unmanaged && (
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8, fontSize: 11, color: SUB }}>
           Alle Ports ohne Verbindung auf Access-VLAN:
@@ -440,6 +442,27 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
 
       <Sub>Notizen</Sub>
       <textarea style={{ ...S.inputSm, minHeight: 60, resize: "vertical", fontFamily: "inherit" }} value={dev.notizen} onChange={(e) => upd((g) => (g.notizen = e.target.value))} />
+    </div>
+  );
+}
+
+/* Zuweisungsmodus: VLAN wählen, dann in der Topologie (Ansicht „Anschlüsse“) auf Switch-Ports klicken */
+function VlanZuweisenLeiste({ P, dev, mutate }) {
+  const z = useVlanZuweisen();
+  const an = !!z;
+  const [vlan, setVlan] = useState(() => z?.vlan || P.vlans[0]?.id || null);
+  const einschalten = (on) => {
+    if (!on) { setVlanZuweisen(null); return; }
+    if (!vlan) return;
+    setVlanZuweisen({ vlan, dev: dev.id });
+    if (P.layout.ansicht !== "front") mutate((d) => { d.layout.ansicht = "front"; });
+  };
+  const waehle = (v) => { setVlan(v); if (an && v) setVlanZuweisen({ vlan: v, dev: dev.id }); };
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8, padding: "6px 8px", borderRadius: 6, border: `1px solid ${an ? ACCENT : LINE}`, background: an ? ACCENT + "14" : undefined, fontSize: 11, color: SUB }}>
+      <Toggle checked={an} onChange={einschalten} label="VLAN per Klick zuweisen" title="An: in der Topologie (Ansicht „Anschlüsse“) setzt ein Klick auf einen Switch-Port dieses VLAN als Access-VLAN. Esc oder Aus beendet den Modus." />
+      <VlanSelect vlans={P.vlans} value={vlan} style={{ width: 170 }} noneLabel="VLAN wählen …" onChange={waehle} />
+      {an && <span>Jetzt in der Topologie auf die Ports klicken · Esc beendet</span>}
     </div>
   );
 }
