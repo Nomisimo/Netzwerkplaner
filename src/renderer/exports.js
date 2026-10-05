@@ -14,6 +14,12 @@ export const fileBase = (P) => (P.meta.veranstaltung || "Netzwerkplan").replace(
 /* ── Topologie als eigenständiges SVG ─────────────────────────────────── */
 export const topologySvg = (svgEl, P) => {
   if (!svgEl) return null;
+  // Clean-Cat-Ansicht: das A3-Blatt so übernehmen, wie es ist
+  if (svgEl.hasAttribute("data-cleancat")) {
+    const c = svgEl.cloneNode(true);
+    c.removeAttribute("style");
+    return { svg: new XMLSerializer().serializeToString(c), w: +c.getAttribute("width"), h: +c.getAttribute("height") };
+  }
   const clone = svgEl.cloneNode(true);
   const world = clone.querySelector("#np-world");
   const b = JSON.parse(world.getAttribute("data-bounds"));

@@ -246,7 +246,7 @@ ipcMain.handle('save-file', async (_e, { data, name, filters, encoding }) => {
   return r.filePath;
 });
 
-ipcMain.handle('export-pdf', async (_e, { html, name }) => {
+ipcMain.handle('export-pdf', async (_e, { html, name, pageSize }) => {
   const tmpPath = path.join(os.tmpdir(), `netzplan-${Date.now()}.html`);
   let win;
   try {
@@ -258,7 +258,7 @@ ipcMain.handle('export-pdf', async (_e, { html, name }) => {
     fs.writeFileSync(tmpPath, html, 'utf8');
     win = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false } });
     await win.loadFile(tmpPath);
-    const pdf = await win.webContents.printToPDF({ pageSize: 'A4', landscape: true, printBackground: true, margins: { marginType: 'none' } });
+    const pdf = await win.webContents.printToPDF({ pageSize: pageSize === 'A3' ? 'A3' : 'A4', landscape: true, printBackground: true, margins: { marginType: 'none' } });
     fs.writeFileSync(r.filePath, pdf);
     shell.showItemInFolder(r.filePath);
     return r.filePath;
