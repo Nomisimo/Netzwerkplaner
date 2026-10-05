@@ -4,7 +4,7 @@ import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText } from "../../sh
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
-import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText } from "lucide-react";
+import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText, RotateCcw } from "lucide-react";
 
 /* Clean Cat: Signalfluss-Plan als A3-Blatt (quer) wie eine Visio-Zeichnung.
    Räume = Standorte, Geräte als gleich große Blöcke, Leitungen rechtwinklig,
@@ -90,7 +90,7 @@ function Legende({ B, L }) {
   );
 }
 
-function Zeichnung({ L, B, P, stand, logo, svgRef, onBox }) {
+function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh }) {
   const mid = (c) => "cc-" + c.replace("#", "");
   const farben = [...new Set(L.linien.map((l) => l.col))];
   // Nach dem Zeichnen genau messen: was trotz Schätzung zu breit ist, wird gestaucht
@@ -112,7 +112,8 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox }) {
       <rect x={B.rand} y={B.rand} width={B.w - 2 * B.rand} height={B.h - 2 * B.rand} fill="none" stroke="#222" strokeWidth="1.6" />
       <g transform={`translate(${B.x},${B.y}) scale(${B.k})`}>
         {L.raeume.map((r) => (
-          <g key={r.name}>
+          <g key={r.name} onMouseDown={onRaumDown ? (e) => onRaumDown(e, r.name) : undefined} style={{ cursor: onRaumDown ? "move" : undefined }} opacity={zieh?.name === r.name && zieh.bewegt ? 0.45 : 1}>
+            <title>{`Standort ${r.name} · ziehen = an eine andere Stelle im Plan setzen`}</title>
             <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#f6f7f8" stroke="#8a8f96" strokeWidth="1.2" strokeDasharray="6 4" rx="3" />
             <rect x={r.x} y={r.y} width={r.w} height={24} fill="#dfeefb" stroke="none" />
             <line x1={r.x} y1={r.y + 24} x2={r.x + r.w} y2={r.y + 24} stroke="#b9cfe3" />
@@ -159,6 +160,15 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox }) {
             </g>
           );
         })}
+        {zieh?.bewegt && (() => {
+          const r = L.raeume.find((x) => x.name === zieh.name);
+          if (!r) return null;
+          const z = zieh.ziel && L.raeume.find((x) => x.name === zieh.ziel.name);
+          return <g pointerEvents="none">
+            <rect x={r.x + zieh.dx} y={r.y + zieh.dy} width={r.w} height={r.h} fill="#2c3b9314" stroke="#2c3b93" strokeWidth="2" strokeDasharray="8 5" rx="3" />
+            {z && <line x1={zieh.ziel.vor ? z.x - 12 : z.x + z.w + 12} x2={zieh.ziel.vor ? z.x - 12 : z.x + z.w + 12} y1={z.y} y2={z.y + z.h} stroke="#2c3b93" strokeWidth="5" strokeLinecap="round" />}
+          </g>;
+        })()}
       </g>
       <Legende B={B} L={L} />
       <Plankopf B={B} P={P} stand={stand} logo={logo} />
@@ -166,12 +176,37 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox }) {
   );
 }
 
-export default function CleanCatTab({ P, X, onSelectDevice, notify, kopf, svgRef: fremdRef }) {
+/* Ziel beim Ziehen eines Standorts: neben dem nächstgelegenen anderen Standort,
+   davor oder dahinter je nachdem, auf welcher Seite seiner Mitte man loslässt. */
+const standortZiel = (L, name, dx, dy) => {
+  const r = L.raeume.find((x) => x.name === name);
+  if (!r) return null;
+  const cx = r.x + r.w / 2 + dx, cy = r.y + r.h / 2 + dy;
+  let best = null;
+  for (const o of L.raeume) {
+    if (o.name === name) continue;
+    const ex = Math.max(o.x - cx, 0, cx - (o.x + o.w)), ey = Math.max(o.y - cy, 0, cy - (o.y + o.h));
+    const d = Math.hypot(ex, ey);
+    if (!best || d < best.d) best = { d, name: o.name, vor: cx < o.x + o.w / 2 };
+  }
+  return best;
+};
+export const standortVerschieben = (namen, name, ziel) => {
+  if (!ziel) return namen;
+  const rest = namen.filter((n) => n !== name);
+  const i = rest.indexOf(ziel.name);
+  if (i < 0) return namen;
+  rest.splice(ziel.vor ? i : i + 1, 0, name);
+  return rest;
+};
+
+export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf, svgRef: fremdRef }) {
   const [farbe, setFarbe] = useState(() => localStorage.getItem("np_cc_farbe") || "dante");
   const [zeigeIp, setZeigeIp] = useState(() => localStorage.getItem("np_cc_ip") !== "0");
   // Automatische Anordnung mit kurzen Kabelwegen: nur neu rechnen, wenn sich Geräte, Kabel oder Stacks ändern
-  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp }), [P.geraete, P.verbindungen, P.layout.stapel, P.bereiche, zeigeIp]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.bereiche, P.standortInfo, zeigeIp]); // eslint-disable-line react-hooks/exhaustive-deps
   const L = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung }), [P, X, farbe, zeigeIp, ordnung]);
+  const [zieh, setZieh] = useState(null); // Standort ziehen: { name, sx, sy, dx, dy, bewegt, ziel }
   const B = useMemo(() => ccBlatt(L), [L]);
   const [view, setView] = useState({ x: 20, y: 20, k: 0.6 });
   const wrap = useRef(null), eigenRef = useRef(null), drag = useRef(null);
@@ -219,6 +254,31 @@ export default function CleanCatTab({ P, X, onSelectDevice, notify, kopf, svgRef
     } catch (e) { console.error(e); notify?.("Export fehlgeschlagen: " + e.message, "err"); }
   };
 
+  // Ganze Standorte ziehen: setzt den Standort an eine andere Stelle der Reihenfolge, der Plan ordnet neu
+  const raumDown = (e, name) => {
+    if (e.button !== 0 || !mutate) return;
+    e.stopPropagation();
+    setZieh({ name, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, bewegt: false, ziel: null });
+  };
+  const raumBewegen = (e) => {
+    if (!zieh) return false;
+    const f = view.k * B.k, dx = (e.clientX - zieh.sx) / f, dy = (e.clientY - zieh.sy) / f;
+    const bewegt = zieh.bewegt || Math.abs(e.clientX - zieh.sx) + Math.abs(e.clientY - zieh.sy) > 4;
+    setZieh({ ...zieh, dx, dy, bewegt, ziel: bewegt ? standortZiel(L, zieh.name, dx, dy) : null });
+    return true;
+  };
+  const raumEnde = () => {
+    if (!zieh) return false;
+    const { name, bewegt, ziel } = zieh;
+    setZieh(null);
+    if (bewegt && ziel) {
+      const namen = L.raeume.map((r) => r.name);
+      const neu = standortVerschieben(namen, name, ziel);
+      if (neu.join("\u0001") !== namen.join("\u0001")) mutate((d) => { d.layout.cleancatStandorte = neu; });
+    }
+    return true;
+  };
+  const vonHand = (P.layout.cleancatStandorte || []).length > 0;
   const knopf = { ...S.ghostBtn, whiteSpace: "nowrap" };
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -232,6 +292,7 @@ export default function CleanCatTab({ P, X, onSelectDevice, notify, kopf, svgRef
         <button style={knopf} onClick={() => zoom(1 / 1.25)} title="Verkleinern"><ZoomOut size={14} /></button>
         <button style={knopf} onClick={() => zoom(1.25)} title="Vergrößern"><ZoomIn size={14} /></button>
         <button style={knopf} onClick={einpassen} title="Ganzes Blatt zeigen"><Maximize2 size={14} /> Einpassen</button>
+        {mutate && <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; })} title="Von Hand gesetzte Reihenfolge der Standorte verwerfen. Der Plan ordnet sie wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Standorte automatisch</button>}
         <span style={{ flex: 1 }} />
         <button style={knopf} onClick={() => exportieren("pdf")} title="Als PDF im Format A3 quer speichern"><FileText size={14} /> PDF A3</button>
         <button style={knopf} onClick={() => exportieren("svg")} title="Als SVG speichern (z. B. für Visio, Illustrator)"><FileCode size={14} /> SVG</button>
@@ -239,13 +300,13 @@ export default function CleanCatTab({ P, X, onSelectDevice, notify, kopf, svgRef
       </div>
       <div ref={wrap} style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative", background: "#d9dde1", cursor: drag.current ? "grabbing" : "grab" }}
         onMouseDown={(e) => { if (e.button !== 0 && e.button !== 1) return; drag.current = { sx: e.clientX, sy: e.clientY, v: view, bewegt: false }; }}
-        onMouseMove={(e) => { const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
-        onMouseUp={() => { setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { drag.current = null; }}>
+        onMouseMove={(e) => { if (raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
+        onMouseUp={() => { if (raumEnde()) return; setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { raumEnde(); drag.current = null; }}>
         {!P.geraete.length && <div style={{ ...S.empty, padding: 30, color: MUTED }}>Noch keine Geräte im Projekt.</div>}
         {P.geraete.length > 0 && <div style={{ position: "absolute", left: 0, top: 0, transform: `translate(${view.x}px,${view.y}px) scale(${view.k})`, transformOrigin: "0 0", boxShadow: "0 4px 24px rgba(0,0,0,.25)" }}>
-          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} />
+          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} onRaumDown={mutate ? raumDown : null} zieh={zieh} />
         </div>}
-        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · A3 quer · Mausrad = Zoom · Ziehen = verschieben · Klick auf ein Gerät = bearbeiten</div>
+        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · A3 quer · Mausrad = Zoom · Ziehen = verschieben · Standort ziehen = an andere Stelle setzen · Klick auf ein Gerät = bearbeiten</div>
       </div>
     </div>
   );

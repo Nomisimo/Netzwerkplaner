@@ -77,6 +77,12 @@ export const ccRolle = (port) => (/primary|\bpri\b/i.test(port?.name || "") ? "p
 
 /* ordnung: Reihenfolge von Standorten, Switch-Gruppen je Raum und Geräten je Gruppe
    (von cleanCatOptimieren). */
+/* Spuren in einer Trasse vergeben, damit sich Leitungen nicht kreuzen: schmale
+   Leitungen (deren Enden innerhalb einer breiteren liegen) bekommen die oberen Spuren. */
+const spurenNachBreite = (eintraege) => {
+  const sortiert = [...eintraege].sort((a, b) => (a.hi - a.lo) - (b.hi - b.lo) || a.lo - b.lo);
+  return new Map(sortiert.map((e, i) => [e.key, i]));
+};
 const nachListe = (arr, liste, key = (x) => x.id) => {
   if (!liste) return arr;
   const i = new Map(liste.map((id, k) => [id, k]));
@@ -284,7 +290,7 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     pfade.forEach((p, i) => {
       const xs = verteile(sb, pfade.length, i);
       // Spur in der Lücke zum Switch: weiter außen liegende Leitungen tiefer, damit sie sich nicht kreuzen
-      const yS = g.gapY[letzte] + 12 + (p.xNah < xs ? i : pfade.length - 1 - i) * SPUR;
+      const yS = g.gapY[letzte] + 12 + (p.xNah < xs ? pfade.length - 1 - i : i) * SPUR;
       const last = p.pts[p.pts.length - 1];
       p.pts.push([last[0], yS], [xs, yS], [xs, sb.y]);
       const st = stil(p.w.c);
@@ -319,23 +325,34 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     }
     return { pts, r, c };
   };
-  const busLinien = [];
+  const busLinien = [], raumLinien = [];
   for (const c of conns) {
     if (lokal(c)) continue;
     const A = endeNachUnten(c.a.dev, c), B = endeNachUnten(c.b.dev, c);
+    if (A.r === B.r) { raumLinien.push({ c, A, B }); A.r.spurTrunk++; }
+    else busLinien.push({ c, A, B, st: stil(c), portA: portVon(c.a), portB: portVon(c.b) });
+  }
+  const xEnde = (E) => E.pts[E.pts.length - 1][0];
+  const raumSpur = new Map();
+  for (const r of raeume) {
+    const m = spurenNachBreite(raumLinien.map((x, i) => ({ x, i })).filter(({ x }) => x.A.r === r)
+      .map(({ x, i }) => ({ key: i, lo: Math.min(xEnde(x.A), xEnde(x.B)), hi: Math.max(xEnde(x.A), xEnde(x.B)) })));
+    for (const [k, v] of m) raumSpur.set(k, v);
+  }
+  raumLinien.forEach(({ c, A, B }, i) => {
     const st = stil(c);
     const labels = [];
     const portA = portVon(c.a), portB = portVon(c.b);
-    if (A.r === B.r) {
-      const y = A.r.trunkY + A.r.spurTrunk++ * SPUR;
+    {
+      const y = A.r.trunkY + raumSpur.get(i) * SPUR;
       const ax = A.pts[A.pts.length - 1][0], bx = B.pts[B.pts.length - 1][0];
       const pts = [...A.pts, [ax, y], [bx, y], ...[...B.pts].reverse()];
       const kab = [c.label || (istGlas(c) ? KABEL[c.kabel]?.label : ""), String(c.notiz || "").trim()].filter(Boolean).join(" · ");
       if (kab) labels.push({ x: (ax + bx) / 2, y: y - 3, t: kab, anchor: "middle" });
       else if (st.text) { const t = textAufLinie(pts, st.text); if (t) labels.push(t); }
       linien.push({ id: c.id, raum: A.r.name, von: c.a.dev, bis: c.b.dev, pts, ...st, labels: [...labels, ...endLabels(A, portA, dev(c.a.dev)), ...endLabels(B, portB, dev(c.b.dev))] });
-    } else busLinien.push({ c, A, B, st, portA, portB });
-  }
+    }
+  });
   function endLabels(E, port, d) {
     if (!port || !d || !d.isSwitch) return []; // nur Switch-Ports beschriften, Endgeräte tragen Dante Primary/Secondary an der Linie
     const [x, y] = E.pts[0];
@@ -428,29 +445,54 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     l.labels = l.labels.map((t) => ({ ...t, x: t.x + v.dx, y: t.y + v.dy }));
   }
   // Leitungen zwischen Räumen
-  const spurZaehl = plan.reihen.map(() => 0);
-  const innenZaehl = new Map();
-  let schachtZaehl = 0;
-  for (const bl of busLinien) {
-    const { c, A, B, st, portA, portB } = bl;
+  // Erst alle Wege vorbereiten, dann die Spuren je Trasse nach Breite vergeben
+  const trassen = new Map(); // Trassen-Schlüssel → [{ key, lo, hi }]
+  const inTrasse = (k, e) => { if (!trassen.has(k)) trassen.set(k, []); trassen.get(k).push(e); };
+  const wege = busLinien.map((bl, n) => {
+    const { A, B } = bl;
     const ia = plan.idx.get(A.r.name), ib = plan.idx.get(B.r.name);
     const aPts = A.pts.map((pt) => schiebePt(pt, versatz.get(A.r.name))), bPts = B.pts.map((pt) => schiebePt(pt, versatz.get(B.r.name)));
     const ax = aPts[aPts.length - 1][0], bx = bPts[bPts.length - 1][0];
+    const w = { bl, ia, ib, aPts, bPts, ax, bx };
+    if (innen(bl)) { w.art = "innen"; w.tA = "b:" + blockVon.get(A.r.name).standort; inTrasse(w.tA, { key: n, lo: Math.min(ax, bx), hi: Math.max(ax, bx) }); }
+    else if (ia === ib) { w.art = "reihe"; w.tA = "r:" + ia; inTrasse(w.tA, { key: n, lo: Math.min(ax, bx), hi: Math.max(ax, bx) }); }
+    else {
+      // Schacht links: in der oberen Reihe liegt die äußere Leitung oben, in der unteren unten
+      w.art = "schacht"; w.tA = "r:" + ia; w.tB = "r:" + ib;
+      w.oben = ia < ib ? "A" : "B";
+    }
+    return w;
+  });
+  const schacht = wege.map((w, n) => [w, n]).filter(([w]) => w.art === "schacht");
+  const schachtEintrag = (w, n, seite, mitXs) => {
+    const x = seite === "A" ? w.ax : w.bx;
+    return { key: n, lo: seite === w.oben || !mitXs ? 0 : w.xs, hi: x };
+  };
+  for (const [w, n] of schacht) { inTrasse(w.tA, schachtEintrag(w, n, "A", false)); inTrasse(w.tB, schachtEintrag(w, n, "B", false)); }
+  let spurIn = new Map([...trassen].map(([k, l]) => [k, spurenNachBreite(l)]));
+  // Äußerster Schacht für die Leitung, die in ihrer oberen Reihe am weitesten oben liegt
+  // (Leitungen über mehrere Reihen hinweg ganz außen, sonst kreuzen sie die kürzeren)
+  schacht.map(([w, n]) => ({ w, spanne: Math.abs(w.ia - w.ib), rang: spurIn.get(w.oben === "A" ? w.tA : w.tB).get(n) }))
+    .sort((a, b) => b.spanne - a.spanne || a.rang - b.rang).forEach(({ w }, i) => { w.xs = 14 + i * (SPUR + 2); });
+  for (const l of trassen.values()) for (const e of l) { const w = wege[e.key]; if (w.art === "schacht") Object.assign(e, schachtEintrag(w, e.key, trassen.get(w.tA)?.includes(e) && w.tA !== w.tB ? "A" : "B", true)); }
+  spurIn = new Map([...trassen].map(([k, l]) => [k, spurenNachBreite(l)]));
+  wege.forEach((w, n) => {
+    const { bl, ia, ib, aPts, bPts, ax, bx } = w;
+    const { c, A, st, portA, portB } = bl;
     let pts, lab;
-    if (innen(bl)) { // im selben Standort: Trasse unten im Standort-Rahmen
-      const b = blockVon.get(A.r.name), n = innenZaehl.get(b) || 0;
-      innenZaehl.set(b, n + 1);
-      const y = b.y + b.kopf + b.subH + 10 + n * SPUR;
+    if (w.art === "innen") { // im selben Standort: Trasse unten im Standort-Rahmen
+      const b = blockVon.get(A.r.name);
+      const y = b.y + b.kopf + b.subH + 10 + spurIn.get(w.tA).get(n) * SPUR;
       pts = [...aPts, [ax, y], [bx, y], ...[...bPts].reverse()];
       lab = { x: (ax + bx) / 2, y: y - 3 };
-    } else if (ia === ib) {
-      const yA = plan.reihen[ia].trasseY + spurZaehl[ia]++ * (SPUR + 4);
+    } else if (w.art === "reihe") {
+      const yA = plan.reihen[ia].trasseY + spurIn.get(w.tA).get(n) * (SPUR + 4);
       pts = [...aPts, [ax, yA], [bx, yA], ...[...bPts].reverse()];
       lab = { x: (ax + bx) / 2, y: yA - 3 };
     } else {
-      const yA = plan.reihen[ia].trasseY + spurZaehl[ia]++ * (SPUR + 4);
-      const yB = plan.reihen[ib].trasseY + spurZaehl[ib]++ * (SPUR + 4);
-      const xs = 14 + schachtZaehl++ * (SPUR + 2);
+      const yA = plan.reihen[ia].trasseY + spurIn.get(w.tA).get(n) * (SPUR + 4);
+      const yB = plan.reihen[ib].trasseY + spurIn.get(w.tB).get(n) * (SPUR + 4);
+      const xs = w.xs;
       pts = [...aPts, [ax, yA], [xs, yA], [xs, yB], [bx, yB], ...[...bPts].reverse()];
       lab = Math.abs(bx - xs) >= Math.abs(ax - xs) ? { x: (xs + bx) / 2, y: yB - 3 } : { x: (xs + ax) / 2, y: yA - 3 };
     }
@@ -458,7 +500,7 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     const umf = farbe === "dante" && !st.text;
     linien.push({ id: c.id, von: c.a.dev, bis: c.b.dev, pts, ...st, col: umf ? (istGlas(c) ? CC_FARBEN.glas : CC_FARBEN.trunk) : st.col, leg: umf ? (istGlas(c) ? "Glasfaser" : "Switch zu Switch") : st.leg,
       labels: [{ ...lab, t: kab, anchor: "middle" }, ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))] });
-  }
+  });
   const h = raeume.length ? plan.H : 0;
   const w = raeume.length ? plan.W : 0;
   // Legende: nur, was im Plan vorkommt
@@ -507,24 +549,42 @@ export const ccBlatt = (L) => {
 // Anzahl Ports eines Geräts (für Tests und Hinweise)
 export const ccPortZahl = (d) => physPorts(d).length;
 
-/* ── Automatisch anordnen: möglichst kurze Kabelwege ─────────────────────────
-   Tauscht benachbarte Standorte, Switch-Gruppen und Geräte, solange die Summe
-   aller Leitungslängen kleiner wird. Begrenzte Anzahl Versuche, damit es auch
-   bei großen Projekten flott bleibt; gleiche Eingabe gibt immer dasselbe Ergebnis. */
+/* ── Automatisch anordnen: möglichst kurze Kabelwege, wenig Kreuzungen ───────
+   Tauscht benachbarte Standorte, Switch-Gruppen und Geräte, solange die Kosten
+   (Leitungslänge plus ein Aufschlag je Kreuzung) kleiner werden. Begrenzte Anzahl
+   Versuche, damit es auch bei großen Projekten flott bleibt; gleiche Eingabe gibt
+   immer dasselbe Ergebnis. Eine von Hand gesetzte Standort-Reihenfolge bleibt. */
 export const ccLaenge = (L) => L.linien.reduce((s, l) => s + l.pts.reduce((a, p, i) => (i ? a + Math.abs(p[0] - l.pts[i - 1][0]) + Math.abs(p[1] - l.pts[i - 1][1]) : 0), 0), 0);
+// Kreuzungen zweier Leitungen (waagrechtes Stück der einen über senkrechtes der anderen)
+export const ccKreuzungen = (L) => {
+  const H = [], V = [];
+  L.linien.forEach((l, k) => {
+    for (let i = 1; i < l.pts.length; i++) {
+      const [a, b] = [l.pts[i - 1], l.pts[i]];
+      if (Math.abs(a[1] - b[1]) < 0.01 && Math.abs(a[0] - b[0]) > 0.01) H.push({ k, y: a[1], x0: Math.min(a[0], b[0]), x1: Math.max(a[0], b[0]) });
+      else if (Math.abs(a[0] - b[0]) < 0.01 && Math.abs(a[1] - b[1]) > 0.01) V.push({ k, x: a[0], y0: Math.min(a[1], b[1]), y1: Math.max(a[1], b[1]) });
+    }
+  });
+  let n = 0;
+  for (const h of H) for (const v of V) if (h.k !== v.k && v.x > h.x0 + 0.5 && v.x < h.x1 - 0.5 && h.y > v.y0 + 0.5 && h.y < v.y1 - 0.5) n++;
+  return n;
+};
+export const CC_KREUZUNG = 160; // Aufschlag je Kreuzung in Längeneinheiten
+const ccKosten = (L) => ccLaenge(L) + CC_KREUZUNG * ccKreuzungen(L);
 export const cleanCatOptimieren = (P, X, opts = {}) => {
-  const basis = cleanCatLayout(P, X, opts);
+  const hand = (P.layout?.cleancatStandorte || []).filter(Boolean);
+  const basis = cleanCatLayout(P, X, { ...opts, ordnung: hand.length ? { standorte: hand } : null });
   const ord = JSON.parse(JSON.stringify(basis.ordnung));
-  const start = ccLaenge(basis);
+  const start = ccKosten(basis);
   let best = start, n = 0;
   const maxEval = Math.max(20, Math.min(300, Math.floor(6000 / Math.max(1, P.geraete.length))));
-  const listen = [ord.standorte, ...Object.values(ord.gruppen), ...Object.values(ord.oben)].filter((l) => l.length > 1);
+  const listen = [...(hand.length ? [] : [ord.standorte]), ...Object.values(ord.gruppen), ...Object.values(ord.oben)].filter((l) => l.length > 1);
   for (let runde = 0; runde < 6 && n < maxEval; runde++) {
     let besser = false;
     for (const l of listen) for (let i = 0; i < l.length - 1 && n < maxEval; i++) {
       [l[i], l[i + 1]] = [l[i + 1], l[i]];
       n++;
-      const c = ccLaenge(cleanCatLayout(P, X, { ...opts, ordnung: ord }));
+      const c = ccKosten(cleanCatLayout(P, X, { ...opts, ordnung: ord }));
       if (c < best - 0.5) { best = c; besser = true; } else [l[i], l[i + 1]] = [l[i + 1], l[i]];
     }
     if (!besser) break;

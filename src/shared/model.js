@@ -155,6 +155,32 @@ export const connVlan = (c, X) => {
   return { kind: "none", vlans: [], A, B };
 };
 
+/* Unmanaged Switches trennen keine VLANs: alles, was an einem (oder mehreren
+   zusammenhängenden) unmanaged Switch ankommt, liegt auf allen seinen Ports.
+   Liefert die VLAN-IDs dieses Verbunds, sortiert nach VLAN-Nummer. */
+const umCache = new WeakMap();
+export const unmanagedVlans = (X, dev) => {
+  if (!dev?.isSwitch || dev.typ !== "switch_unmanaged") return [];
+  let m = umCache.get(X);
+  if (!m) { m = new Map(); umCache.set(X, m); }
+  if (m.has(dev.id)) return m.get(dev.id);
+  const verbund = new Set([dev.id]), offen = [dev], ids = new Set();
+  while (offen.length) {
+    const d = offen.pop();
+    for (const p of d.ports) for (const c of X.connsByPort.get(`${d.id}:${p.id}`) || []) {
+      const o = c.a.dev === d.id && c.a.port === p.id ? c.b : c.a;
+      const r = X.portRef.get(`${o.dev}:${o.port}`);
+      if (!r) continue;
+      if (r.dev.isSwitch && r.dev.typ === "switch_unmanaged") { if (!verbund.has(r.dev.id)) { verbund.add(r.dev.id); offen.push(r.dev); } continue; }
+      if (r.dev.isSwitch) { for (const v of r.port.modus === "trunk" ? r.port.vlans || [] : r.port.vlan ? [r.port.vlan] : []) ids.add(v); continue; }
+      if (r.port.vlan) ids.add(r.port.vlan);
+    }
+  }
+  const liste = [...ids].filter((id) => X.vlanById.has(id)).sort((a, b) => X.vlanById.get(a).vid - X.vlanById.get(b).vid);
+  for (const id of verbund) m.set(id, liste);
+  return liste;
+};
+
 export const isP2PConn = (c, X) => {
   if (c.kabel === "p2p") return true;
   const pa = X.portRef.get(`${c.a.dev}:${c.a.port}`)?.port;

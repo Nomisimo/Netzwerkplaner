@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText, cleanCatOptimieren, ccLaenge } from "../src/shared/cleancat.js";
+import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText, cleanCatOptimieren, ccLaenge, ccKreuzungen, CC_KREUZUNG } from "../src/shared/cleancat.js";
 import { emptyProject } from "../src/shared/model.js";
 import { demoProject } from "../src/shared/demo.js";
 import { buildIndex } from "../src/shared/model.js";
@@ -89,13 +89,14 @@ test("Clean Cat: Stacks als Unterräume im Standort", () => {
   assert.ok(L.legende.stapel);
 });
 
-test("Clean Cat: automatische Anordnung verkürzt die Kabelwege und ist stabil", () => {
+test("Clean Cat: automatische Anordnung verkürzt die Kabelwege, spart Kreuzungen und ist stabil", () => {
   const P = demoProject(), X = buildIndex(P);
   const a = cleanCatOptimieren(P, X), b = cleanCatOptimieren(P, X);
   assert.ok(a.laenge < a.start, `${a.laenge} < ${a.start}`);
   assert.deepEqual(a.ordnung, b.ordnung);
-  const L = cleanCatLayout(P, X, { ordnung: a.ordnung });
-  assert.ok(Math.abs(ccLaenge(L) - a.laenge) < 1);
+  const L0 = cleanCatLayout(P, X), L = cleanCatLayout(P, X, { ordnung: a.ordnung });
+  assert.ok(Math.abs(ccLaenge(L) + CC_KREUZUNG * ccKreuzungen(L) - a.laenge) < 1);
+  assert.ok(ccKreuzungen(L) <= ccKreuzungen(L0), `${ccKreuzungen(L)} <= ${ccKreuzungen(L0)}`);
   assert.equal(L.boxen.length, P.geraete.length);
 });
 
@@ -130,4 +131,17 @@ test("Clean Cat: Notiz am Gerät und Anmerkung am Standort", () => {
   assert.ok((foh.anmerkung || []).join(" ").includes("Galerie Mitte"), "Anmerkung am Standort");
   const ohne = cleanCatLayout(P, buildIndex(P), {});
   assert.deepStrictEqual(ohne.raeume.find((r) => r.name === "FOH").anmerkung, foh.anmerkung);
+});
+test("Clean Cat: Kreuzungen werden gezählt", () => {
+  const L = { linien: [{ pts: [[0, 10], [100, 10]] }, { pts: [[50, 0], [50, 50]] }, { pts: [[200, 0], [200, 50]] }] };
+  assert.equal(ccKreuzungen(L), 1);
+});
+
+test("Clean Cat: von Hand gesetzte Standort-Reihenfolge bleibt", () => {
+  const P = demoProject(), X = buildIndex(P);
+  const namen = [...new Set(cleanCatLayout(P, X).raeume.map((r) => r.name))].reverse();
+  P.layout.cleancatStandorte = namen;
+  const o = cleanCatOptimieren(P, X);
+  assert.deepEqual(o.ordnung.standorte, namen);
+  assert.deepEqual(cleanCatLayout(P, X, { ordnung: o.ordnung }).raeume.map((r) => r.name), namen);
 });

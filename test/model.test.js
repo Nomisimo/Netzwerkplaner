@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { emptyProject, buildIndex, validate, addConnection, vlansAbleiten, buildTree, suggestIp, standortUmbenennen } from "../src/shared/model.js";
+import { emptyProject, buildIndex, validate, addConnection, vlansAbleiten, buildTree, suggestIp, standortUmbenennen, unmanagedVlans } from "../src/shared/model.js";
 import { createDevice, findProtokoll, parsePorts, KATALOG_GERAETE, ipPorts, snapshotDevice } from "../src/shared/catalog.js";
 import { demoProject } from "../src/shared/demo.js";
 import { layoutMindmap } from "../src/shared/layout.js";
@@ -264,4 +264,20 @@ test("Standort global umbenennen: Liste, Geräte und Anmerkung ziehen mit", () =
   assert.deepStrictEqual(P.bereiche, ["Bühne"]);
   assert.strictEqual(P.geraete.filter((d) => d.bereich === "Regie").length, 0);
   assert.ok(!standortUmbenennen(P, "Bühne", "Bühne"));
+});
+
+test("Unmanaged Switch: alle VLANs, die ankommen, liegen auf jedem Port", () => {
+  const P = emptyProject();
+  const v10 = P.vlans.find((v) => v.vid === 10), v20 = P.vlans.find((v) => v.vid === 20);
+  const sw1 = createDevice({ typ: "switch_managed" }), sw2 = createDevice({ typ: "switch_managed" });
+  const um = createDevice({ typ: "switch_unmanaged" }), um2 = createDevice({ typ: "switch_unmanaged" });
+  P.geraete.push(sw1, sw2, um, um2);
+  sw1.ports[0].vlan = v10.id; sw2.ports[0].vlan = v20.id;
+  addConnection(P, sw1.id, um.id, { portIdA: sw1.ports[0].id });
+  addConnection(P, sw2.id, um2.id, { portIdA: sw2.ports[0].id });
+  addConnection(P, um.id, um2.id);
+  const X = buildIndex(P);
+  assert.deepEqual(unmanagedVlans(X, um), [v10.id, v20.id]);
+  assert.deepEqual(unmanagedVlans(X, um2), [v10.id, v20.id]);
+  assert.deepEqual(unmanagedVlans(X, sw1), []);
 });

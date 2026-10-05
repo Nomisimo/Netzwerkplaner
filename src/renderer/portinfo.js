@@ -1,5 +1,5 @@
 import { TYPEN } from "../shared/constants.js";
-import { connVlan, otherEnd } from "../shared/model.js";
+import { connVlan, otherEnd, unmanagedVlans } from "../shared/model.js";
 
 // Anzeigename eines Ports: reine Nummern als „P12“, sonst der Name
 export const portLabel = (port) => (!port ? "?" : /^\d+$/.test(port.name) ? `P${port.name}` : port.name || "?");
@@ -15,7 +15,10 @@ export const endInfo = (c, end, X) => {
     kind = port.modus === "trunk" ? "trunk" : "access";
     ids = kind === "trunk" ? port.vlans || [] : port.vlan ? [port.vlan] : [];
   } else if (dev.isSwitch) {
-    ids = connVlan(c, X).vlans; // unmanaged: VLAN ergibt sich aus der Gegenstelle
+    // unmanaged: alle VLANs, die an ihm ankommen, liegen auf jedem Port (er trennt nichts)
+    ids = unmanagedVlans(X, dev);
+    if (!ids.length) ids = connVlan(c, X).vlans;
+    if (ids.length > 1) kind = "mehrere";
   } else {
     ids = port.vlan ? [port.vlan] : [];
   }
@@ -26,11 +29,13 @@ export const endInfo = (c, end, X) => {
 export const vlanKurz = (info) => {
   if (!info) return "";
   if (info.kind === "trunk") return info.vlans.length > 4 ? `Trunk ${info.vlans.length} VLANs` : `Trunk ${info.vlans.map((v) => v.vid).join("·") || "–"}`;
+  if (info.kind === "mehrere") return `VLAN ${info.vlans.map((v) => v.vid).join("+")}`;
   return info.vlans[0] ? `VLAN ${info.vlans[0].vid}` : "kein VLAN";
 };
 export const vlanLang = (info) => {
   if (!info) return "";
   if (info.kind === "trunk") return `Trunk (tagged): ${info.vlans.map((v) => `${v.vid} ${v.name}`).join(", ") || "keine VLANs"}`;
+  if (info.kind === "mehrere") return `Unmanaged, mehrere VLANs gemischt: ${info.vlans.map((v) => `${v.vid} ${v.name}`).join(", ")}`;
   return info.vlans[0] ? `VLAN ${info.vlans[0].vid} ${info.vlans[0].name} (untagged)` : "kein VLAN";
 };
 
