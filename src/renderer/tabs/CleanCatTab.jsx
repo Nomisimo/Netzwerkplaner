@@ -4,14 +4,13 @@ import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText } from "../../sh
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
-import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText, RotateCcw } from "lucide-react";
+import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText } from "lucide-react";
 
 /* Clean Cat: Signalfluss-Plan als A3-Blatt (quer) wie eine Visio-Zeichnung.
    Räume = Standorte, Geräte als gleich große Blöcke, Leitungen rechtwinklig,
    unten Legende und Plankopf aus den Projektdaten. Mausrad zoomt, Ziehen
    verschiebt, Klick auf ein Gerät öffnet es im Geräte-Editor. */
 const MONO = "ui-monospace, Menlo, Consolas, monospace";
-const LEER = {};
 const datumDe = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? `${m[3]}.${m[2]}.${m[1]}` : iso || ""; };
 export const exportStand = (d = new Date()) => d.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
@@ -91,7 +90,7 @@ function Legende({ B, L }) {
   );
 }
 
-function Zeichnung({ L, B, P, stand, logo, svgRef, onBoxDown, gezogen }) {
+function Zeichnung({ L, B, P, stand, logo, svgRef, onBox }) {
   const mid = (c) => "cc-" + c.replace("#", "");
   const farben = [...new Set(L.linien.map((l) => l.col))];
   // Nach dem Zeichnen genau messen: was trotz Schätzung zu breit ist, wird gestaucht
@@ -118,6 +117,9 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBoxDown, gezogen }) {
             <rect x={r.x} y={r.y} width={r.w} height={24} fill="#dfeefb" stroke="none" />
             <line x1={r.x} y1={r.y + 24} x2={r.x + r.w} y2={r.y + 24} stroke="#b9cfe3" />
             <T x={r.x + r.w / 2} y={r.y + 17} max={r.w - 12} fit={passeText(r.name, 13.5, r.w - 12, 9)} anchor="middle" weight={600} fill="#222" />
+            {(r.anmerkung || []).map((z, i) => (
+              <T key={i} x={r.x + 8} y={r.y + 24 + 13 + i * 12.5} max={r.w - 16} fit={passeText(z, 10, r.w - 16, 10)} fill="#444" />
+            ))}
           </g>
         ))}
         {(L.stapel || []).map((r) => (
@@ -139,13 +141,21 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBoxDown, gezogen }) {
         ))}
         {L.boxen.map((b) => {
           const frei = b.w - 20, zeilen = [b.tName, b.tSub, b.tIp].filter(Boolean).length;
-          const yName = zeilen === 3 ? 17 : zeilen === 2 ? 20 : b.h / 2 + 4;
+          const kopfH = b.basisH || b.h;
+          const yName = zeilen === 3 ? 17 : zeilen === 2 ? 20 : kopfH / 2 + 4;
           return (
-            <g key={b.id} transform={`translate(${b.x},${b.y})`} style={{ cursor: onBoxDown ? "move" : "default" }} onMouseDown={onBoxDown ? (e) => onBoxDown(e, b.id) : undefined}>
-              <rect width={b.w} height={b.h} fill={b.fill} stroke={gezogen === b.id ? ACCENT : "#3b3f45"} strokeWidth={gezogen === b.id ? 2 : 1} />
+            <g key={b.id} transform={`translate(${b.x},${b.y})`} style={{ cursor: onBox ? "pointer" : "default" }} onClick={onBox ? () => onBox(b.id) : undefined}>
+              <rect width={b.w} height={b.h} fill={b.fill} stroke="#3b3f45" strokeWidth={1} />
               <T x={b.w / 2} y={yName} max={frei} fit={b.tName} anchor="middle" weight={600} />
               {b.tSub && <T x={b.w / 2} y={zeilen === 3 ? 30 : 34} max={frei} fit={b.tSub} anchor="middle" fill="#333" />}
               {b.tIp && <T x={b.w / 2} y={b.tSub ? 43 : 34} max={frei} fit={b.tIp} anchor="middle" fill="#333" mono />}
+              {b.notiz && (
+                <>
+                  <line x1={6} y1={kopfH - 2} x2={b.w - 6} y2={kopfH - 2} stroke="#3b3f45" strokeOpacity="0.3" />
+                  {b.notiz.map((z, i) => <T key={i} x={b.w / 2} y={kopfH + 10 + i * 10.5} max={frei} fit={passeText(z, 8.5, frei, 8.5)} anchor="middle" fill="#444" />)}
+                  <title>{b.notizVoll}</title>
+                </>
+              )}
             </g>
           );
         })}
@@ -156,15 +166,12 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBoxDown, gezogen }) {
   );
 }
 
-export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf, svgRef: fremdRef }) {
+export default function CleanCatTab({ P, X, onSelectDevice, notify, kopf, svgRef: fremdRef }) {
   const [farbe, setFarbe] = useState(() => localStorage.getItem("np_cc_farbe") || "dante");
   const [zeigeIp, setZeigeIp] = useState(() => localStorage.getItem("np_cc_ip") !== "0");
   // Automatische Anordnung mit kurzen Kabelwegen: nur neu rechnen, wenn sich Geräte, Kabel oder Stacks ändern
   const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp }), [P.geraete, P.verbindungen, P.layout.stapel, P.bereiche, zeigeIp]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [zieh, setZieh] = useState(null); // { id, sx, sy, p0, cur, bewegt }
-  const hand = P.layout.cleancatPos || LEER;
-  const positionen = zieh ? { ...hand, [zieh.id]: zieh.cur } : hand;
-  const L = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung, positionen }), [P, X, farbe, zeigeIp, ordnung, positionen]);
+  const L = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung }), [P, X, farbe, zeigeIp, ordnung]);
   const B = useMemo(() => ccBlatt(L), [L]);
   const [view, setView] = useState({ x: 20, y: 20, k: 0.6 });
   const wrap = useRef(null), eigenRef = useRef(null), drag = useRef(null);
@@ -212,40 +219,6 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     } catch (e) { console.error(e); notify?.("Export fehlgeschlagen: " + e.message, "err"); }
   };
 
-  // Gerät ziehen: Versatz in Plan-Einheiten, der Plan hält es in seinem Standort- bzw. Stack-Rahmen
-  const boxDown = (e, id) => {
-    if (e.button !== 0) return;
-    e.stopPropagation();
-    const p0 = L.handVersatz[id] || { dx: 0, dy: 0 };
-    setZieh({ id, sx: e.clientX, sy: e.clientY, p0, cur: p0, bewegt: false });
-  };
-  const ziehBewegen = (e) => {
-    if (!zieh) return false;
-    const f = view.k * B.k, dx = (e.clientX - zieh.sx) / f, dy = (e.clientY - zieh.sy) / f;
-    const bewegt = zieh.bewegt || Math.abs(e.clientX - zieh.sx) + Math.abs(e.clientY - zieh.sy) > 3;
-    setZieh({ ...zieh, bewegt, cur: { dx: zieh.p0.dx + dx, dy: zieh.p0.dy + dy } });
-    return true;
-  };
-  const ziehEnde = () => {
-    if (!zieh) return false;
-    const { id, bewegt } = zieh;
-    if (bewegt && mutate) {
-      const v = L.handVersatz[id];
-      mutate((d) => {
-        const pos = { ...(d.layout.cleancatPos || {}) };
-        if (v) pos[id] = { dx: Math.round(v.dx), dy: Math.round(v.dy) }; else delete pos[id];
-        d.layout.cleancatPos = pos;
-      });
-    } else if (!bewegt) onSelectDevice(id);
-    setZieh(null);
-    return true;
-  };
-  const vonHand = Object.keys(hand).length > 0;
-  const autoAnordnen = () => {
-    if (!confirm("Alle von Hand verschobenen Geräte in Clean Cat wieder automatisch anordnen?")) return;
-    mutate((d) => { delete d.layout.cleancatPos; });
-  };
-
   const knopf = { ...S.ghostBtn, whiteSpace: "nowrap" };
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -259,7 +232,6 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
         <button style={knopf} onClick={() => zoom(1 / 1.25)} title="Verkleinern"><ZoomOut size={14} /></button>
         <button style={knopf} onClick={() => zoom(1.25)} title="Vergrößern"><ZoomIn size={14} /></button>
         <button style={knopf} onClick={einpassen} title="Ganzes Blatt zeigen"><Maximize2 size={14} /> Einpassen</button>
-        {mutate && <button style={knopf} onClick={autoAnordnen} disabled={!vonHand} title="Von Hand verschobene Geräte zurücksetzen. Die automatische Anordnung hält die Kabelwege möglichst kurz."><RotateCcw size={14} /> Auto-Anordnen</button>}
         <span style={{ flex: 1 }} />
         <button style={knopf} onClick={() => exportieren("pdf")} title="Als PDF im Format A3 quer speichern"><FileText size={14} /> PDF A3</button>
         <button style={knopf} onClick={() => exportieren("svg")} title="Als SVG speichern (z. B. für Visio, Illustrator)"><FileCode size={14} /> SVG</button>
@@ -267,13 +239,13 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
       </div>
       <div ref={wrap} style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative", background: "#d9dde1", cursor: drag.current ? "grabbing" : "grab" }}
         onMouseDown={(e) => { if (e.button !== 0 && e.button !== 1) return; drag.current = { sx: e.clientX, sy: e.clientY, v: view, bewegt: false }; }}
-        onMouseMove={(e) => { if (ziehBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
-        onMouseUp={() => { if (ziehEnde()) return; setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { ziehEnde(); drag.current = null; }}>
+        onMouseMove={(e) => { const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
+        onMouseUp={() => { setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { drag.current = null; }}>
         {!P.geraete.length && <div style={{ ...S.empty, padding: 30, color: MUTED }}>Noch keine Geräte im Projekt.</div>}
         {P.geraete.length > 0 && <div style={{ position: "absolute", left: 0, top: 0, transform: `translate(${view.x}px,${view.y}px) scale(${view.k})`, transformOrigin: "0 0", boxShadow: "0 4px 24px rgba(0,0,0,.25)" }}>
-          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBoxDown={boxDown} gezogen={zieh?.bewegt ? zieh.id : null} />
+          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} />
         </div>}
-        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · A3 quer · Mausrad = Zoom · Ziehen = verschieben · Gerät ziehen = verschieben (bleibt in Standort und Stack) · Klick auf ein Gerät = bearbeiten</div>
+        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · A3 quer · Mausrad = Zoom · Ziehen = verschieben · Klick auf ein Gerät = bearbeiten</div>
       </div>
     </div>
   );

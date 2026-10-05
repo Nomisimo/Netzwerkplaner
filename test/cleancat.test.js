@@ -99,20 +99,35 @@ test("Clean Cat: automatische Anordnung verkürzt die Kabelwege und ist stabil",
   assert.equal(L.boxen.length, P.geraete.length);
 });
 
-test("Clean Cat: von Hand verschoben bleibt im Standort bzw. Stack, Leitungen hängen dran", () => {
+test("Clean Cat: Leitungen im Standort bleiben im Standort-Rahmen", () => {
   const P = demoProject();
   const by = (n) => P.geraete.find((d) => d.name === n).id;
   P.layout.stapel = [{ id: "s1", name: "Rack", ids: [by("SW FOH"), by("FOH CL5")] }];
   const X = buildIndex(P);
-  const L = cleanCatLayout(P, X, { positionen: { [by("PTZ 1")]: { dx: 5000, dy: 5000 }, [by("FOH CL5")]: { dx: -5000, dy: 0 } } });
-  const foh = L.raeume.find((r) => r.name === "FOH"), st = L.stapel[0];
-  const innen = (b, f) => b.x >= f.x && b.x + b.w <= f.x + f.w && b.y >= f.y && b.y + b.h <= f.y + f.h;
-  const ptz = L.boxen.find((b) => b.id === by("PTZ 1")), cl5 = L.boxen.find((b) => b.id === by("FOH CL5"));
-  assert.ok(innen(ptz, foh) && innen(cl5, st));
-  assert.ok(!(ptz.x < st.x + st.w && st.x < ptz.x + ptz.w && ptz.y < st.y + st.h && st.y < ptz.y + ptz.h), "PTZ nicht im Stack");
-  assert.ok(L.handVersatz[by("PTZ 1")]);
-  for (const l of L.linien.filter((x) => x.von === by("PTZ 1"))) {
-    const [x, y] = l.pts[0];
-    assert.ok(x >= ptz.x && x <= ptz.x + ptz.w && Math.abs(y - (ptz.y + ptz.h)) < 0.01, "Leitung startet am verschobenen Gerät");
+  const L = cleanCatLayout(P, X, {});
+  const inFoh = new Set(P.geraete.filter((d) => (d.bereich || "") === "FOH").map((d) => d.id));
+  const foh = L.raeume.find((r) => r.name === "FOH");
+  assert.ok(foh, "FOH-Rahmen vorhanden");
+  const drin = L.linien.filter((l) => inFoh.has(l.von) && inFoh.has(l.bis));
+  assert.ok(drin.length, "es gibt Leitungen innerhalb von FOH");
+  for (const l of drin) for (const [x, y] of l.pts) {
+    assert.ok(x >= foh.x - 1 && x <= foh.x + foh.w + 1, `x ${x} im Rahmen`);
+    assert.ok(y >= foh.y - 1 && y <= foh.y + foh.h + 1, `y ${y} im Rahmen`);
   }
+});
+
+test("Clean Cat: Notiz am Gerät und Anmerkung am Standort", () => {
+  const P = demoProject();
+  const g = P.geraete.find((d) => d.name === "FOH CL5");
+  g.notizen = "Pult steht auf der Galerie und braucht Strom";
+  P.standortInfo = { FOH: { anmerkung: "Front of House, Galerie Mitte" } };
+  const L = cleanCatLayout(P, buildIndex(P), {});
+  const b = L.boxen.find((x) => x.id === g.id);
+  assert.ok(Array.isArray(b.notiz) && b.notiz.length, "Notiz steht in der Box");
+  assert.ok(b.notiz.join(" ").includes("Galerie"));
+  for (const x of L.boxen) assert.strictEqual(x.h, b.h, "alle Boxen gleich hoch");
+  const foh = L.raeume.find((r) => r.name === "FOH");
+  assert.ok((foh.anmerkung || []).join(" ").includes("Galerie Mitte"), "Anmerkung am Standort");
+  const ohne = cleanCatLayout(P, buildIndex(P), {});
+  assert.deepStrictEqual(ohne.raeume.find((r) => r.name === "FOH").anmerkung, foh.anmerkung);
 });

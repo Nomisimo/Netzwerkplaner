@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { emptyProject, buildIndex, validate, addConnection, vlansAbleiten, buildTree, suggestIp } from "../src/shared/model.js";
+import { emptyProject, buildIndex, validate, addConnection, vlansAbleiten, buildTree, suggestIp, standortUmbenennen } from "../src/shared/model.js";
 import { createDevice, findProtokoll, parsePorts, KATALOG_GERAETE, ipPorts, snapshotDevice } from "../src/shared/catalog.js";
 import { demoProject } from "../src/shared/demo.js";
 import { layoutMindmap } from "../src/shared/layout.js";
@@ -247,4 +247,21 @@ test("Switch-Vorlage behält Port-VLANs (Access und Trunk), auch in einem andere
   assert.equal(vid(s2.ports[0].vlan), a.vid);
   assert.deepEqual(s2.ports[1].vlans.map(vid), [a.vid, b.vid]);
   assert.equal(Q.vlans.length, 2, "fehlende VLANs werden angelegt");
+});
+
+test("Standort global umbenennen: Liste, Geräte und Anmerkung ziehen mit", () => {
+  const P = demoProject();
+  P.bereiche = ["FOH", "Bühne"];
+  P.standortInfo = { FOH: { anmerkung: "Galerie" } };
+  assert.ok(standortUmbenennen(P, "FOH", "Regie"));
+  assert.ok(P.bereiche.includes("Regie") && !P.bereiche.includes("FOH"));
+  assert.strictEqual(P.geraete.filter((d) => d.bereich === "FOH").length, 0);
+  assert.ok(P.geraete.some((d) => d.bereich === "Regie"));
+  assert.deepStrictEqual(P.standortInfo.Regie, { anmerkung: "Galerie" });
+  assert.strictEqual(P.standortInfo.FOH, undefined);
+  // Zusammenführen, wenn der neue Name schon da ist
+  assert.ok(standortUmbenennen(P, "Regie", "Bühne"));
+  assert.deepStrictEqual(P.bereiche, ["Bühne"]);
+  assert.strictEqual(P.geraete.filter((d) => d.bereich === "Regie").length, 0);
+  assert.ok(!standortUmbenennen(P, "Bühne", "Bühne"));
 });

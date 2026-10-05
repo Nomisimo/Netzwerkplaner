@@ -19,6 +19,7 @@ export const emptyProject = () => ({
   version: 1,
   meta: { veranstaltung: "Veranstaltung 2026", ort: "", ersteller: "", datum: new Date().toISOString().slice(0, 10), version: "1", notiz: "" },
   bereiche: [...DEFAULT_BEREICHE],
+  standortInfo: {}, // Standortname → { anmerkung }: erscheint nur in der Clean-Cat-Ansicht
   vlans: standardVlans(),
   geraete: [],
   verbindungen: [],
@@ -40,6 +41,7 @@ export const migrateProject = (p) => {
   if (out.layout.titel === "inventar") out.layout.titel = "feld:inventar-nr"; // frühere Titel-Option „Inventar-Nr.“
   out.verbindungen = (p.verbindungen || []).filter((c) => c.a && c.b).map((c) => ({ kabel: "cat6", laenge: "", label: "", notiz: "", ...c }));
   out.bereiche = p.bereiche || e.bereiche;
+  out.standortInfo = p.standortInfo && typeof p.standortInfo === "object" ? p.standortInfo : {};
   out.icons = p.icons || [];
   out.vlanVomSwitch = !!p.vlanVomSwitch;
   return vlansAbleiten(out);
@@ -447,4 +449,19 @@ export const addConnection = (P, fromId, toId, opts = {}) => {
   if (managed(a) && managed(b)) for (const p of [pa, pb]) if (!p.vlan) { p.modus = "trunk"; p.vlans = P.vlans.map((v) => v.id); }
   P.verbindungen.push(c);
   return c.id;
+};
+
+/* Standort überall umbenennen: in der Liste, an allen Geräten und in der Anmerkung.
+   Gibt es den neuen Namen schon, werden die beiden Standorte zusammengeführt. */
+export const standortUmbenennen = (d, alt, neu) => {
+  const a = String(alt || "").trim(), n = String(neu || "").trim();
+  if (!a || !n || a === n) return false;
+  const i = d.bereiche.indexOf(a);
+  if (d.bereiche.includes(n)) { if (i >= 0) d.bereiche.splice(i, 1); }
+  else if (i >= 0) d.bereiche[i] = n;
+  else d.bereiche.push(n);
+  for (const g of d.geraete) if ((g.bereich || "").trim() === a) g.bereich = n;
+  const info = d.standortInfo || (d.standortInfo = {});
+  if (info[a]) { if (!info[n]) info[n] = info[a]; delete info[a]; }
+  return true;
 };

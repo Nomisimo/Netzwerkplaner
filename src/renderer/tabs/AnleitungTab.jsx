@@ -33,7 +33,7 @@ const KAPITEL = [
     <Liste items={[
       "„Beispielprojekt laden“ zeigt ein fertiges Open-Air-Netz mit Audio, Licht, Video und Intercom. Zum Ausprobieren ideal, „Neues leeres Projekt“ setzt wieder zurück.",
       "Veranstaltung, Ort, Datum, Version und Ersteller erscheinen im Kopf der App und in allen Exporten.",
-      "Unter „Standorte / Äste“ legst du Bereiche wie Bühne, FOH oder Monitor an. Geräte lassen sich danach nach Standort filtern und einfärben.",
+      "Unter „Standorte / Äste“ legst du Bereiche wie Bühne, FOH oder Monitor an. Den Namen kannst du dort jederzeit ändern: die Umbenennung gilt im ganzen Projekt und zieht an allen Geräten mit. Daneben steht eine Anmerkung je Standort, die nur in der Clean-Cat-Ansicht auftaucht. Geräte lassen sich nach Standort filtern und einfärben.",
       "Der Stand wird automatisch gespeichert („auto“ oben rechts). „Speichern“ legt zusätzlich eine .netplan-Datei an, die du weitergeben kannst. Die Pfeile Rückgängig/Wiederholen bzw. Strg+Z / Strg+Umschalt+Z machen Schritte rückgängig.",
     ]} />
   </> },
@@ -93,12 +93,13 @@ const KAPITEL = [
       "Der Plan ist immer ein A3-Blatt quer mit Rahmen, wie eine aufgeräumte Visio-Zeichnung: jeder Standort ist ein gestrichelter Raum, jedes Gerät ein farbiger Block (Farbe nach Bereich, Switches gelb). Die Räume werden so in Reihen gelegt, dass das Blatt möglichst gut gefüllt ist.",
       "Alle Endgeräte sind gleich groß, Switches richten sich nach ihrer Portzahl: gleiches Modell, gleiche Größe. Zu lange Namen werden kleiner geschrieben und notfalls mit „…“ gekürzt, der volle Name steht im Tooltip. Text läuft nie aus seinem Feld.",
       "Je Switch stehen seine Endgeräte in Reihen darüber, die Leitungen laufen rechtwinklig in eigenen Spuren. Dante Primary ist rot, Dante Secondary grün (erkannt am Portnamen Primary/Secondary), Glasfaser lila, Switch zu Switch dunkelgrau. Pfeile zeigen die Anschlüsse, am Switch steht die Portnummer.",
-      "Verbindungen zwischen Räumen laufen in einer Trasse unter ihrer Reihe, zwischen zwei Reihen links am Blatt entlang. Sie tragen Kabelbezeichnung, Kabeltyp und Länge.",
+      "Leitungen zwischen Geräten desselben Standorts bleiben in dessen Kasten: auch zwischen zwei Stacks laufen sie unten im Standort-Rahmen. Nur Verbindungen zwischen Standorten gehen nach draußen, in eine Trasse unter ihrer Reihe, zwischen zwei Reihen links am Blatt entlang. Sie tragen Kabelbezeichnung, Kabeltyp, Länge und Notiz.",
       "Unten links steht die Legende mit allen Leitungsfarben und Gerätefarben, die im Plan vorkommen. Unten rechts der Plankopf aus den Projektdaten (Veranstaltung, Ort, Ersteller, Planversion, Projektdatum), dazu das Exportdatum und dein Logo, wenn eins hinterlegt ist.",
       "„Farbe: VLAN“ färbt die Leitungen nach dem VLAN statt nach Dante. „IP-Adressen“ blendet die IPs in den Blöcken ein oder aus.",
       "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt das ganze Blatt. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „PDF A3“, „SVG“ und „PNG“ speichern das Blatt, z. B. für Visio oder die Doku.",
       "Die Anordnung entsteht automatisch aus Standort und Verbindungen. Ein Gerät landet im Raum seines Standorts; ohne Standort im Raum „Ohne Standort“. Die Reihenfolge von Standorten, Switches und Geräten wird so gewählt, dass die Kabelwege möglichst kurz sind.",
-      "Geräte lassen sich mit der Maus verschieben. Sie bleiben immer in ihrem Standort und, wenn sie in einem Stack sind, in dessen Rahmen; Geräte ohne Stack bleiben aus den Stacks heraus. Die Leitungen hängen sich mit einem kurzen Haken an. „Auto-Anordnen“ setzt alle Verschiebungen zurück. Ein Klick ohne Ziehen öffnet das Gerät im Editor.",
+      "Jedes Gerät zeigt unter Name, Modell und IP auch seine Notiz (zwei Zeilen, der Rest im Tooltip). Alle Blöcke bleiben dabei gleich groß. Eine Notiz an einer Verbindung steht an der Leitung.",
+      "Der Standort-Kasten zeigt unter seinem Namen die Anmerkung, die du auf der Projekt-Seite unter „Standorte / Äste“ einträgst. Sie erscheint nur hier in Clean Cat.",
       "Stacks (in der Mindmap mit „Stapeln“ gebaut) erscheinen im Standort als eigener Kasten mit ihrem Namen, z. B. ein Rack. Geräte ohne Stack stehen daneben. Leitungen zwischen Stack und Rest des Standorts laufen unter dem Standort entlang.",
     ]} />
   </> },
