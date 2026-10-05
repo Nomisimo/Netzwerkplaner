@@ -58,7 +58,18 @@ export const ccRolle = (port) => (/primary|\bpri\b/i.test(port?.name || "") ? "p
 
 export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) => {
   const BOX_H = zeigeIp ? 52 : 40;
-  const raumVon = (d) => (d.bereich || "").trim() || "Ohne Standort";
+  /* Räume: je Standort, darin je Stack ein eigener Unterraum. Schlüssel eines
+     Stack-Raums = Standort + \u0001 + Stack-ID; alles andere liegt im Standort selbst. */
+  const standortVon = (d) => (d.bereich || "").trim() || "Ohne Standort";
+  const stapelListe = (P.layout?.stapel || []).filter((st) => st.ids.length > 1);
+  const stapelVonId = new Map();
+  stapelListe.forEach((st, i) => st.ids.forEach((id) => stapelVonId.set(id, { st, nr: i + 1 })));
+  const raumVon = (d) => { const x = stapelVonId.get(d.id); return x ? `${standortVon(d)}\u0001${x.st.id}` : standortVon(d); };
+  const raumInfo = new Map(); // Schlüssel → { standort, stapel (Titel oder null), rang }
+  for (const d of P.geraete) {
+    const k = raumVon(d), x = stapelVonId.get(d.id);
+    if (!raumInfo.has(k)) raumInfo.set(k, { standort: standortVon(d), stapel: x ? x.st.name || `Stack ${x.nr}` : null, rang: x ? x.nr : 0 });
+  }
   const box = (d) => {
     const sub = [d.hersteller, d.modell].filter(Boolean).join(" ") || "";
     const ip = zeigeIp ? ipPorts(d).map((p) => p.ip).filter(Boolean).slice(0, 2).join(" · ") : "";
@@ -78,7 +89,8 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
   // Räume in Reihenfolge der Projekt-Standorte, dann alphabetisch, „Ohne Standort“ zuletzt
   const namen = [...new Set(P.geraete.map(raumVon))];
   const rang = (n) => (n === "Ohne Standort" ? 1e6 : P.bereiche.indexOf(n) >= 0 ? P.bereiche.indexOf(n) : 1e3);
-  namen.sort((a, b) => rang(a) - rang(b) || a.localeCompare(b, "de"));
+  const sInfo = (k) => raumInfo.get(k);
+  namen.sort((a, b) => rang(sInfo(a).standort) - rang(sInfo(b).standort) || sInfo(a).standort.localeCompare(sInfo(b).standort, "de") || sInfo(a).rang - sInfo(b).rang);
 
   // Gruppen: je Switch eine, Endgeräte zum Switch ihres Primary-/ersten Anschlusses im selben Raum
   const gruppeVon = new Map(); // devId → switchId (oder "lose:raum")
@@ -188,9 +200,10 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
       for (const u of g.unten) { boxen.set(u.d.id, { ...u.b, x: ux, y: unterY }); ux += u.b.w + 24; }
       gx += g.w + GRUPPE_ABSTAND;
     }
-    const raumW = Math.max(gx - GRUPPE_ABSTAND - x0 + RAUM_RAND, textB(rn, 14) + 60);
+    const info = sInfo(rn);
+    const raumW = Math.max(gx - GRUPPE_ABSTAND - x0 + RAUM_RAND, textB(info.stapel || info.standort, 14) + 60);
     // Räume ohne Gruppenbreite (nur Titel) zentrieren nichts; Boxen bleiben links
-    const raum = { name: rn, x: x0, y: kopfY, w: raumW, unterY, gruppen, trunkY: unterY + BOX_H + 18, spurTrunk: 0 };
+    const raum = { name: rn, standort: info.standort, stapel: info.stapel, x: x0, y: kopfY, w: raumW, unterY, gruppen, trunkY: unterY + BOX_H + 18, spurTrunk: 0 };
     raeume.push(raum);
     x0 += raumW + RAUM_ABSTAND;
   }
@@ -289,44 +302,67 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
   // Raumhöhen festlegen
   for (const r of raeume) { r.h = r.trunkY + Math.max(1, r.spurTrunk) * SPUR + 16; }
 
-  /* ── Räume in Reihen anordnen, damit das A3-Blatt gut gefüllt ist ──
-     Verbindungen zwischen Räumen laufen in einer Trasse unter ihrer Reihe;
-     zwischen zwei Reihen zusätzlich durch einen Schacht links neben allen Räumen. */
+  /* ── Standorte in Reihen anordnen, damit das A3-Blatt gut gefüllt ist ──
+     Ein Standort ist ein Block: ohne Stacks genau sein Raum, mit Stacks ein Rahmen
+     um seine Unterräume (erst die Geräte ohne Stack, dann die Stacks). Verbindungen
+     zwischen Räumen laufen in einer Trasse unter ihrer Reihe; zwischen zwei Reihen
+     zusätzlich durch einen Schacht links neben allen Räumen. */
+  const BLOCK_RAND = 14, BLOCK_KOPF = 32, STAPEL_ABSTAND = 26;
+  const bloecke = [];
+  for (const r of raeume) {
+    let b = bloecke[bloecke.length - 1];
+    if (!b || b.standort !== r.standort) { b = { standort: r.standort, subs: [] }; bloecke.push(b); }
+    b.subs.push(r);
+  }
+  for (const b of bloecke) {
+    b.rahmen = b.subs.length > 1 || b.subs.some((r) => r.stapel);
+    const innenW = b.subs.reduce((a, r) => a + r.w, 0) + (b.subs.length - 1) * STAPEL_ABSTAND;
+    b.w = b.rahmen ? Math.max(innenW + 2 * BLOCK_RAND, textB(b.standort, 14) + 60) : innenW;
+    b.h = b.rahmen ? BLOCK_KOPF + Math.max(...b.subs.map((r) => r.h)) + BLOCK_RAND : b.subs[0].h;
+  }
   const planen = (grenze) => {
     const reihen = [[]];
     let breite = 0;
-    for (const r of raeume) {
+    for (const b of bloecke) {
       const zeile = reihen[reihen.length - 1];
-      if (zeile.length && breite + RAUM_ABSTAND + r.w > grenze) { reihen.push([r]); breite = r.w; }
-      else { zeile.push(r); breite += (zeile.length > 1 ? RAUM_ABSTAND : 0) + r.w; }
+      if (zeile.length && breite + RAUM_ABSTAND + b.w > grenze) { reihen.push([b]); breite = b.w; }
+      else { zeile.push(b); breite += (zeile.length > 1 ? RAUM_ABSTAND : 0) + b.w; }
     }
-    const idx = new Map(); reihen.forEach((z, i) => z.forEach((r) => idx.set(r.name, i)));
+    const idx = new Map(); reihen.forEach((z, i) => z.forEach((b) => b.subs.forEach((r) => idx.set(r.name, i))));
     const spuren = reihen.map(() => 0);
     let schacht = 0;
-    for (const b of busLinien) {
-      const ia = idx.get(b.A.r.name), ib = idx.get(b.B.r.name);
+    for (const bl of busLinien) {
+      const ia = idx.get(bl.A.r.name), ib = idx.get(bl.B.r.name);
       spuren[ia]++; if (ib !== ia) { spuren[ib]++; schacht++; }
     }
     const schachtW = schacht ? 28 + schacht * (SPUR + 2) : 0;
-    const zeilenW = reihen.map((z) => z.reduce((a, r) => a + r.w, 0) + (z.length - 1) * RAUM_ABSTAND);
-    const zeilenH = reihen.map((z, i) => Math.max(...z.map((r) => r.h)) + (spuren[i] ? 30 + spuren[i] * (SPUR + 4) + 10 : 0));
+    const zeilenW = reihen.map((z) => z.reduce((a, b) => a + b.w, 0) + (z.length - 1) * RAUM_ABSTAND);
+    const zeilenH = reihen.map((z, i) => Math.max(...z.map((b) => b.h)) + (spuren[i] ? 30 + spuren[i] * (SPUR + 4) + 10 : 0));
     const W = schachtW + Math.max(...zeilenW), H = zeilenH.reduce((a, b) => a + b, 0) + (reihen.length - 1) * RAUM_ABSTAND;
     return { reihen, idx, spuren, schachtW, zeilenH, W, H, k: Math.min(CC_FLAECHE.w / W, CC_FLAECHE.h / H) };
   };
-  const gesamt = raeume.reduce((a, r) => a + r.w, 0) + Math.max(0, raeume.length - 1) * RAUM_ABSTAND;
-  const breitester = Math.max(0, ...raeume.map((r) => r.w));
+  const gesamt = bloecke.reduce((a, b) => a + b.w, 0) + Math.max(0, bloecke.length - 1) * RAUM_ABSTAND;
+  const breitester = Math.max(0, ...bloecke.map((b) => b.w));
   let plan = null;
-  for (let n = 1; n <= Math.max(1, raeume.length); n++) {
+  for (let n = 1; n <= Math.max(1, bloecke.length); n++) {
     const p = planen(Math.max(breitester, gesamt / n + 1));
     if (!plan || p.k > plan.k + 1e-9) plan = p;
   }
-  // Räume, Boxen und Leitungen im Raum verschieben
+  // Blöcke platzieren, Räume, Boxen und Leitungen im Raum mitverschieben
   const versatz = new Map();
   let yZeile = 0;
   plan.reihen.forEach((z, i) => {
     let x = plan.schachtW;
-    for (const r of z) { versatz.set(r.name, { dx: x - r.x, dy: yZeile - r.y }); x += r.w + RAUM_ABSTAND; }
-    z.trasseY = yZeile + Math.max(...z.map((r) => r.h)) + 30;
+    for (const b of z) {
+      b.x = x; b.y = yZeile;
+      let sx = x + (b.rahmen ? BLOCK_RAND : 0);
+      for (const r of b.subs) {
+        versatz.set(r.name, { dx: sx - r.x, dy: yZeile + (b.rahmen ? BLOCK_KOPF : 0) - r.y });
+        sx += r.w + STAPEL_ABSTAND;
+      }
+      x += b.w + RAUM_ABSTAND;
+    }
+    z.trasseY = yZeile + Math.max(...z.map((b) => b.h)) + 30;
     yZeile += plan.zeilenH[i] + RAUM_ABSTAND;
   });
   const schiebePt = (pt, v) => [pt[0] + v.dx, pt[1] + v.dy];
@@ -371,14 +407,17 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
   if (conns.some((c) => c.kabel === "p2p")) legLinien.push({ col: CC_FARBEN.sonst, t: "Punkt-zu-Punkt", dash: "8 3 2 3" });
   const legBoxen = [];
   if (P.geraete.some((d) => d.isSwitch)) legBoxen.push({ fill: CC_SWITCH_FILL, t: "Switch" });
+  const mitStapel = raeume.some((r) => r.stapel);
   for (const k of [...new Set(P.geraete.filter((d) => !d.isSwitch).map((d) => d.kategorie || "Sonstiges"))].sort((a, b) => a.localeCompare(b, "de")))
     legBoxen.push({ fill: ccKatFill(k), t: k });
   return {
     w, h,
-    raeume: raeume.map(({ name, x, y, w: rw, h: rh }) => ({ name, x, y, w: rw, h: rh })),
+    // Standort-Rahmen (mit Stacks: um alle Unterräume) und Stack-Rahmen darin
+    raeume: bloecke.map((b) => (b.rahmen ? { name: b.standort, x: b.x, y: b.y, w: b.w, h: b.h } : { name: b.standort, x: b.subs[0].x, y: b.subs[0].y, w: b.subs[0].w, h: b.subs[0].h })),
+    stapel: raeume.filter((r) => r.stapel).map(({ stapel: name, standort, x, y, w: rw, h: rh }) => ({ name, standort, x, y, w: rw, h: rh })),
     boxen: [...boxen.entries()].map(([id, b]) => ({ ...b, id })),
     linien,
-    legende: { linien: legLinien, boxen: legBoxen },
+    legende: { linien: legLinien, boxen: legBoxen, stapel: mitStapel },
   };
 };
 

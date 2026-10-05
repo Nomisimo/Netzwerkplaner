@@ -98,6 +98,7 @@ const KAPITEL = [
       "„Farbe: VLAN“ färbt die Leitungen nach dem VLAN statt nach Dante. „IP-Adressen“ blendet die IPs in den Blöcken ein oder aus.",
       "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt das ganze Blatt. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „PDF A3“, „SVG“ und „PNG“ speichern das Blatt, z. B. für Visio oder die Doku.",
       "Die Anordnung entsteht automatisch aus Standort und Verbindungen. Ein Gerät landet im Raum seines Standorts; ohne Standort im Raum „Ohne Standort“.",
+      "Stacks (in der Mindmap mit „Stapeln“ gebaut) erscheinen im Standort als eigener Kasten mit ihrem Namen, z. B. ein Rack. Geräte ohne Stack stehen daneben. Leitungen zwischen Stack und Rest des Standorts laufen unter dem Standort entlang.",
     ]} />
   </> },
   { id: "geraete", titel: "Geräte & Editor", tab: ["geraete", "Geräte"], inhalt: () => <>
