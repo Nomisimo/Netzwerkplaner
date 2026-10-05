@@ -63,6 +63,7 @@ function Legende({ B, L }) {
     ...L.legende.linien.map((l) => ({ art: "linie", ...l })),
     ...L.legende.boxen.map((b) => ({ art: "box", ...b })),
     { art: "raum", t: "Raum = Standort" },
+    ...(L.legende.stapel ? [{ art: "stapel", t: "Stack (Rack, Case)" }] : []),
   ];
   const spW = 220, zeileH = 17, top = y + 32;
   const spalten = Math.max(1, Math.floor((w - 16) / spW)), zeilen = Math.max(1, Math.floor((y + h - 4 - top) / zeileH) + 1);
@@ -80,6 +81,7 @@ function Legende({ B, L }) {
             {e.art === "linie" && <line x1={ex} y1={ey} x2={ex + 30} y2={ey} stroke={e.col} strokeWidth="2.2" strokeDasharray={e.dash || undefined} />}
             {e.art === "box" && <rect x={ex + 3} y={ey - 6} width={24} height={12} fill={e.fill} stroke="#3b3f45" />}
             {e.art === "raum" && <rect x={ex + 1} y={ey - 7} width={28} height={14} fill="#f6f7f8" stroke="#8a8f96" strokeDasharray="4 3" />}
+            {e.art === "stapel" && <rect x={ex + 1} y={ey - 7} width={28} height={14} fill="#ffffff" stroke="#6f7680" strokeWidth="1.2" rx="2" />}
             <T x={ex + 38} y={ey + 3.5} max={spW - 46} fit={fit} fill="#222" />
           </g>
         );
@@ -115,6 +117,14 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onSelect }) {
             <rect x={r.x} y={r.y} width={r.w} height={24} fill="#dfeefb" stroke="none" />
             <line x1={r.x} y1={r.y + 24} x2={r.x + r.w} y2={r.y + 24} stroke="#b9cfe3" />
             <T x={r.x + r.w / 2} y={r.y + 17} max={r.w - 12} fit={passeText(r.name, 13.5, r.w - 12, 9)} anchor="middle" weight={600} fill="#222" />
+          </g>
+        ))}
+        {(L.stapel || []).map((r) => (
+          <g key={"st" + r.standort + r.name + r.x}>
+            <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#ffffff" stroke="#6f7680" strokeWidth="1.2" rx="3" />
+            <rect x={r.x + 0.6} y={r.y + 0.6} width={r.w - 1.2} height={20} fill="#eceef1" stroke="none" rx="2.5" />
+            <line x1={r.x} y1={r.y + 21} x2={r.x + r.w} y2={r.y + 21} stroke="#c3c8ce" />
+            <T x={r.x + 8} y={r.y + 14.5} max={r.w - 16} fit={passeText(r.name, 11, r.w - 16, 8)} weight={600} fill="#333" />
           </g>
         ))}
         {L.linien.map((l, i) => (

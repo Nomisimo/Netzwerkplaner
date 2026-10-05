@@ -68,3 +68,23 @@ test("Clean Cat: leeres Projekt", () => {
   assert.equal(L.boxen.length, 0);
   assert.ok(Number.isFinite(ccBlatt(L).k));
 });
+
+test("Clean Cat: Stacks als Unterräume im Standort", () => {
+  const P = demoProject();
+  const by = (n) => P.geraete.find((d) => d.name === n).id;
+  P.layout.stapel = [{ id: "s1", name: "Rack FOH 1", ids: [by("SW FOH"), by("FOH CL5")] }];
+  const X = buildIndex(P);
+  const L = cleanCatLayout(P, X);
+  assert.equal(L.stapel.length, 1);
+  const st = L.stapel[0], foh = L.raeume.find((r) => r.name === "FOH");
+  assert.equal(st.name, "Rack FOH 1");
+  assert.ok(st.x >= foh.x && st.x + st.w <= foh.x + foh.w && st.y >= foh.y && st.y + st.h <= foh.y + foh.h, "Stack liegt im Standort");
+  for (const n of ["SW FOH", "FOH CL5"]) {
+    const b = L.boxen.find((bb) => bb.id === by(n));
+    assert.ok(b.x >= st.x && b.x + b.w <= st.x + st.w && b.y >= st.y && b.y + b.h <= st.y + st.h, n);
+  }
+  const b = L.boxen.find((bb) => bb.id === by("PTZ 1"));
+  assert.ok(b.x + b.w <= st.x || b.x >= st.x + st.w, "Gerät ohne Stack liegt außerhalb");
+  assert.equal(L.linien.length, P.verbindungen.length);
+  assert.ok(L.legende.stapel);
+});
