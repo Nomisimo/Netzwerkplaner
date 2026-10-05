@@ -582,7 +582,7 @@ export default function TopologieTab(props) {
   );
   // Clean Cat: eigenes Blatt statt Zeichenfläche; Klick auf ein Gerät öffnet den Geräte-Editor
   if (aktAnsicht === "cleancat") {
-    return <CleanCatTab P={P} X={X} svgRef={svgRef} notify={props.notify} kopf={ansichtWahl}
+    return <CleanCatTab P={P} X={X} mutate={mutate} svgRef={svgRef} notify={props.notify} kopf={ansichtWahl}
       onSelectDevice={(id) => { setSelection({ type: "dev", id }); goTab("geraete"); }} />;
   }
 

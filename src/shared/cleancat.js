@@ -56,7 +56,16 @@ const textAufLinie = (pts, t) => {
 
 export const ccRolle = (port) => (/primary|\bpri\b/i.test(port?.name || "") ? "primary" : /secondary|\bsec\b/i.test(port?.name || "") ? "secondary" : null);
 
-export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) => {
+/* ordnung: Reihenfolge von Standorten, Switch-Gruppen je Raum und Geräten je Gruppe
+   (von cleanCatOptimieren). positionen: { devId: { dx, dy } } von Hand verschoben,
+   relativ zur automatischen Position; bleibt im Standort- bzw. Stack-Rahmen. */
+const nachListe = (arr, liste, key = (x) => x.id) => {
+  if (!liste) return arr;
+  const i = new Map(liste.map((id, k) => [id, k]));
+  return arr.map((x, k) => [x, k]).sort((a, b) => (i.get(key(a[0])) ?? 1e6 + a[1]) - (i.get(key(b[0])) ?? 1e6 + b[1])).map((x) => x[0]);
+};
+export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung = null, positionen = null } = {}) => {
+  const genutzt = { standorte: [], gruppen: {}, oben: {} };
   const BOX_H = zeigeIp ? 52 : 40;
   /* Räume: je Standort, darin je Stack ein eigener Unterraum. Schlüssel eines
      Stack-Raums = Standort + \u0001 + Stack-ID; alles andere liegt im Standort selbst. */
@@ -90,7 +99,9 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
   const namen = [...new Set(P.geraete.map(raumVon))];
   const rang = (n) => (n === "Ohne Standort" ? 1e6 : P.bereiche.indexOf(n) >= 0 ? P.bereiche.indexOf(n) : 1e3);
   const sInfo = (k) => raumInfo.get(k);
-  namen.sort((a, b) => rang(sInfo(a).standort) - rang(sInfo(b).standort) || sInfo(a).standort.localeCompare(sInfo(b).standort, "de") || sInfo(a).rang - sInfo(b).rang);
+  const oRang = (st) => { const i = ordnung?.standorte?.indexOf(st) ?? -1; return i >= 0 ? i - 1e6 : rang(st); };
+  namen.sort((a, b) => oRang(sInfo(a).standort) - oRang(sInfo(b).standort) || sInfo(a).standort.localeCompare(sInfo(b).standort, "de") || sInfo(a).rang - sInfo(b).rang);
+  for (const n of namen) if (!genutzt.standorte.includes(sInfo(n).standort)) genutzt.standorte.push(sInfo(n).standort);
 
   // Gruppen: je Switch eine, Endgeräte zum Switch ihres Primary-/ersten Anschlusses im selben Raum
   const gruppeVon = new Map(); // devId → switchId (oder "lose:raum")
@@ -133,7 +144,8 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
   const trunkEnden = []; // { c, devId, x, yAus (Raumunterkante des Ausgangs), raum }
   for (const rn of namen) {
     const devs = P.geraete.filter((d) => raumVon(d) === rn);
-    const switches = devs.filter((d) => d.isSwitch).sort((a, b) => (vonDev.get(b.id)?.length || 0) - (vonDev.get(a.id)?.length || 0) || a.name.localeCompare(b.name, "de"));
+    const switches = nachListe(devs.filter((d) => d.isSwitch).sort((a, b) => (vonDev.get(b.id)?.length || 0) - (vonDev.get(a.id)?.length || 0) || a.name.localeCompare(b.name, "de")), ordnung?.gruppen?.[rn]);
+    genutzt.gruppen[rn] = switches.map((d) => d.id);
     const lose = devs.filter((d) => !d.isSwitch && gruppeVon.get(d.id) === "lose:" + rn);
     const gruppen = switches.map((s) => ({ sw: s, oben: devs.filter((d) => !d.isSwitch && gruppeVon.get(d.id) === s.id) }));
     if (lose.length) gruppen.push({ sw: null, lose });
@@ -141,7 +153,9 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
 
     // Gruppen vorbereiten: Reihen, Spalten, Spuren zählen
     for (const g of gruppen) {
-      g.oben = (g.oben || []).sort(sortK);
+      const gk = g.sw ? g.sw.id : "lose:" + rn;
+      g.oben = nachListe((g.oben || []).sort(sortK), ordnung?.oben?.[gk]);
+      genutzt.oben[gk] = g.oben.map((d) => d.id);
       const n = g.oben.length;
       g.spalten = Math.min(Math.max(n, 1), MAX_SPALTEN);
       g.reihen = n ? Math.ceil(n / g.spalten) : 0;
@@ -249,9 +263,9 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
       p.pts.push([last[0], yS], [xs, yS], [xs, sb.y]);
       const st = stil(p.w.c);
       const swPort = portVon(eigenes(p.w.c, g.sw.id));
-      linien.push({ id: p.w.c.id, raum: r.name, pts: p.pts, ...st, labels: [
+      linien.push({ id: p.w.c.id, raum: r.name, von: p.w.z.d.id, bis: g.sw.id, pts: p.pts, ...st, labels: [
         st.text && textAufLinie(p.pts, st.text),
-        swPort && { x: xs - 2, y: sb.y - 3, t: swPort.name, rot: true },
+        swPort && { x: xs - 2, y: sb.y - 3, t: swPort.name, rot: true, an: g.sw.id },
       ].filter(Boolean) });
     });
   }
@@ -291,13 +305,13 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
       const kab = c.label || (istGlas(c) ? KABEL[c.kabel]?.label : "");
       if (kab) labels.push({ x: (ax + bx) / 2, y: y - 3, t: kab, anchor: "middle" });
       else if (st.text) { const t = textAufLinie(pts, st.text); if (t) labels.push(t); }
-      linien.push({ id: c.id, raum: A.r.name, pts, ...st, labels: [...labels, ...endLabels(A, portA, dev(c.a.dev)), ...endLabels(B, portB, dev(c.b.dev))] });
+      linien.push({ id: c.id, raum: A.r.name, von: c.a.dev, bis: c.b.dev, pts, ...st, labels: [...labels, ...endLabels(A, portA, dev(c.a.dev)), ...endLabels(B, portB, dev(c.b.dev))] });
     } else busLinien.push({ c, A, B, st, portA, portB });
   }
   function endLabels(E, port, d) {
     if (!port || !d || !d.isSwitch) return []; // nur Switch-Ports beschriften, Endgeräte tragen Dante Primary/Secondary an der Linie
     const [x, y] = E.pts[0];
-    return [{ x: x + 3, y: y + 10, t: d.isSwitch ? port.name : port.name, anchor: "start" }];
+    return [{ x: x + 3, y: y + 10, t: port.name, anchor: "start", an: d.id }];
   }
   // Raumhöhen festlegen
   for (const r of raeume) { r.h = r.trunkY + Math.max(1, r.spurTrunk) * SPUR + 16; }
@@ -393,11 +407,53 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
     }
     const kab = [c.label, KABEL[c.kabel]?.label, c.laenge ? `${c.laenge} m` : ""].filter(Boolean).join(" · ");
     const umf = farbe === "dante" && !st.text;
-    linien.push({ id: c.id, pts, ...st, col: umf ? (istGlas(c) ? CC_FARBEN.glas : CC_FARBEN.trunk) : st.col, leg: umf ? (istGlas(c) ? "Glasfaser" : "Switch zu Switch") : st.leg,
+    linien.push({ id: c.id, von: c.a.dev, bis: c.b.dev, pts, ...st, col: umf ? (istGlas(c) ? CC_FARBEN.glas : CC_FARBEN.trunk) : st.col, leg: umf ? (istGlas(c) ? "Glasfaser" : "Switch zu Switch") : st.leg,
       labels: [{ ...lab, t: kab, anchor: "middle" }, ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))] });
   }
   const h = raeume.length ? plan.H : 0;
   const w = raeume.length ? plan.W : 0;
+  /* ── Von Hand verschobene Geräte: im eigenen Rahmen festhalten, Leitungsenden mitziehen ── */
+  const verschoben = new Map();
+  if (positionen) {
+    const rahmenVon = new Map();
+    for (const b of bloecke) for (const r of b.subs)
+      rahmenVon.set(r.name, r.stapel ? { x: r.x, y: r.y, w: r.w, h: r.h, kopf: 28 } : b.rahmen ? { x: b.x, y: b.y, w: b.w, h: b.h, kopf: 30 } : { x: r.x, y: r.y, w: r.w, h: r.h, kopf: 30 });
+    for (const [id, bx] of boxen) {
+      const p = positionen[id];
+      if (!p) continue;
+      const f = rahmenVon.get(raumVon(dev(id)));
+      const klemmX = (x) => Math.min(Math.max(x, f.x + 6), f.x + f.w - bx.w - 6), klemmY = (y) => Math.min(Math.max(y, f.y + f.kopf), f.y + f.h - bx.h - 6);
+      let nx = klemmX(bx.x + (+p.dx || 0)), ny = klemmY(bx.y + (+p.dy || 0));
+      // Geräte ohne Stack bleiben aus den Stack-Rahmen ihres Standorts heraus
+      if (!stapelVonId.has(id)) {
+        for (const st of raeume.filter((r) => r.stapel && r.standort === standortVon(dev(id)))) {
+          if (!(nx < st.x + st.w + 4 && st.x - 4 < nx + bx.w && ny < st.y + st.h + 4 && st.y - 4 < ny + bx.h)) continue;
+          const wahl = [[st.x - bx.w - 6, ny], [st.x + st.w + 6, ny], [nx, st.y + st.h + 6], [nx, st.y - bx.h - 6]]
+            .filter(([x, y]) => x === klemmX(x) && y === klemmY(y))
+            .sort((u, v) => Math.abs(u[0] - nx) + Math.abs(u[1] - ny) - Math.abs(v[0] - nx) - Math.abs(v[1] - ny))[0];
+          if (wahl) [nx, ny] = wahl;
+          else { nx = bx.x; ny = bx.y; }
+        }
+      }
+      if (Math.abs(nx - bx.x) < 0.01 && Math.abs(ny - bx.y) < 0.01) continue;
+      verschoben.set(id, { dx: nx - bx.x, dy: ny - bx.y });
+      bx.x = nx; bx.y = ny;
+    }
+    // Ende E verschoben: kurzer Haken direkt am Gerät zurück auf die alte Spur
+    const haken = (E, N, d) => {
+      const E2 = [E[0] + d.dx, E[1] + d.dy], yJ = E2[1] + (N[1] >= E[1] ? 8 : -8);
+      return [E2, [E2[0], yJ], [E[0], yJ]];
+    };
+    for (const l of linien) {
+      const dA = verschoben.get(l.von), dB = verschoben.get(l.bis);
+      if (!dA && !dB) continue;
+      let pts = l.pts;
+      if (dA) pts = [...haken(pts[0], pts[1], dA), ...pts.slice(1)];
+      if (dB) { const n = pts.length; pts = [...pts.slice(0, n - 1), ...haken(pts[n - 1], pts[n - 2], dB).reverse()]; }
+      l.pts = pts;
+      l.labels = l.labels.map((t) => { const d = t.an && verschoben.get(t.an); return d ? { ...t, x: t.x + d.dx, y: t.y + d.dy } : t; });
+    }
+  }
   // Legende: nur, was im Plan vorkommt
   const legL = new Map();
   for (const l of linien) if (!legL.has(l.col + l.leg)) legL.set(l.col + l.leg, { col: l.col, t: l.leg });
@@ -418,6 +474,8 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true } = {}) =
     boxen: [...boxen.entries()].map(([id, b]) => ({ ...b, id })),
     linien,
     legende: { linien: legLinien, boxen: legBoxen, stapel: mitStapel },
+    ordnung: genutzt,
+    handVersatz: Object.fromEntries(verschoben),
   };
 };
 
@@ -442,3 +500,28 @@ export const ccBlatt = (L) => {
 
 // Anzahl Ports eines Geräts (für Tests und Hinweise)
 export const ccPortZahl = (d) => physPorts(d).length;
+
+/* ── Automatisch anordnen: möglichst kurze Kabelwege ─────────────────────────
+   Tauscht benachbarte Standorte, Switch-Gruppen und Geräte, solange die Summe
+   aller Leitungslängen kleiner wird. Begrenzte Anzahl Versuche, damit es auch
+   bei großen Projekten flott bleibt; gleiche Eingabe gibt immer dasselbe Ergebnis. */
+export const ccLaenge = (L) => L.linien.reduce((s, l) => s + l.pts.reduce((a, p, i) => (i ? a + Math.abs(p[0] - l.pts[i - 1][0]) + Math.abs(p[1] - l.pts[i - 1][1]) : 0), 0), 0);
+export const cleanCatOptimieren = (P, X, opts = {}) => {
+  const basis = cleanCatLayout(P, X, { ...opts, positionen: null });
+  const ord = JSON.parse(JSON.stringify(basis.ordnung));
+  const start = ccLaenge(basis);
+  let best = start, n = 0;
+  const maxEval = Math.max(20, Math.min(300, Math.floor(6000 / Math.max(1, P.geraete.length))));
+  const listen = [ord.standorte, ...Object.values(ord.gruppen), ...Object.values(ord.oben)].filter((l) => l.length > 1);
+  for (let runde = 0; runde < 6 && n < maxEval; runde++) {
+    let besser = false;
+    for (const l of listen) for (let i = 0; i < l.length - 1 && n < maxEval; i++) {
+      [l[i], l[i + 1]] = [l[i + 1], l[i]];
+      n++;
+      const c = ccLaenge(cleanCatLayout(P, X, { ...opts, ordnung: ord, positionen: null }));
+      if (c < best - 0.5) { best = c; besser = true; } else [l[i], l[i + 1]] = [l[i + 1], l[i]];
+    }
+    if (!besser) break;
+  }
+  return { ordnung: ord, laenge: best, start };
+};

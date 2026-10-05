@@ -97,7 +97,8 @@ const KAPITEL = [
       "Unten links steht die Legende mit allen Leitungsfarben und Gerätefarben, die im Plan vorkommen. Unten rechts der Plankopf aus den Projektdaten (Veranstaltung, Ort, Ersteller, Planversion, Projektdatum), dazu das Exportdatum und dein Logo, wenn eins hinterlegt ist.",
       "„Farbe: VLAN“ färbt die Leitungen nach dem VLAN statt nach Dante. „IP-Adressen“ blendet die IPs in den Blöcken ein oder aus.",
       "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt das ganze Blatt. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „PDF A3“, „SVG“ und „PNG“ speichern das Blatt, z. B. für Visio oder die Doku.",
-      "Die Anordnung entsteht automatisch aus Standort und Verbindungen. Ein Gerät landet im Raum seines Standorts; ohne Standort im Raum „Ohne Standort“.",
+      "Die Anordnung entsteht automatisch aus Standort und Verbindungen. Ein Gerät landet im Raum seines Standorts; ohne Standort im Raum „Ohne Standort“. Die Reihenfolge von Standorten, Switches und Geräten wird so gewählt, dass die Kabelwege möglichst kurz sind.",
+      "Geräte lassen sich mit der Maus verschieben. Sie bleiben immer in ihrem Standort und, wenn sie in einem Stack sind, in dessen Rahmen; Geräte ohne Stack bleiben aus den Stacks heraus. Die Leitungen hängen sich mit einem kurzen Haken an. „Auto-Anordnen“ setzt alle Verschiebungen zurück. Ein Klick ohne Ziehen öffnet das Gerät im Editor.",
       "Stacks (in der Mindmap mit „Stapeln“ gebaut) erscheinen im Standort als eigener Kasten mit ihrem Namen, z. B. ein Rack. Geräte ohne Stack stehen daneben. Leitungen zwischen Stack und Rest des Standorts laufen unter dem Standort entlang.",
     ]} />
   </> },
