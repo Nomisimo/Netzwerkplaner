@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { emptyProject, buildIndex, validate, addConnection, vlansAbleiten, buildTree, suggestIp } from "../src/shared/model.js";
-import { createDevice, findProtokoll, parsePorts, KATALOG_GERAETE, ipPorts } from "../src/shared/catalog.js";
+import { createDevice, findProtokoll, parsePorts, KATALOG_GERAETE, ipPorts, snapshotDevice } from "../src/shared/catalog.js";
 import { demoProject } from "../src/shared/demo.js";
 import { layoutMindmap } from "../src/shared/layout.js";
 
@@ -46,9 +46,27 @@ test("Neues Gerät bekommt kein VLAN, bis der Nutzer eins zuweist", () => {
   assert.ok(sw.ports.every((p) => !p.vlan));
 });
 
-test("Beispielprojekt: Dante-Gerät mit Primary/Secondary in VLAN 10/11", () => {
+test("Neue Geräte und Vorlagen bringen kein VLAN mit, Switches schon", () => {
   const P = emptyProject();
-  const d = createDevice({ katalogId: kat("Rio3224"), vlans: P.vlans, standardVlans: true });
+  const d = createDevice({ katalogId: kat("Rio3224"), vlans: P.vlans });
+  assert.ok(d.ports.every((p) => !p.vlan));
+  ipPorts(d)[0].vlan = P.vlans[0].id;
+  const n = P.vlans.length;
+  const snap = snapshotDevice(d, P.vlans);
+  assert.ok(snap.ports.every((p) => !p.vlan && p.vid == null) && !snap.vlanDefs.length);
+  const Q = emptyProject(); Q.vlans = [];
+  const e = createDevice({ eigeneVorlage: { geraet: { ...snap, ports: snap.ports.map((p, i) => (i ? p : { ...p, vid: 10 })) } }, vlans: Q.vlans });
+  assert.ok(e.ports.every((p) => !p.vlan) && !Q.vlans.length, "alte Vorlage mit VLAN-ID legt nichts an");
+  const sw = createDevice({ typ: "switch_managed", vlans: P.vlans });
+  sw.ports[0].vlan = P.vlans[0].id;
+  const s2 = createDevice({ eigeneVorlage: { geraet: snapshotDevice(sw, P.vlans) }, vlans: P.vlans });
+  assert.equal(s2.ports[0].vlan, P.vlans[0].id);
+  assert.equal(P.vlans.length, n);
+});
+
+test("Beispielprojekt: Dante-Gerät mit Primary/Secondary in VLAN 10/11 (vom Switch)", () => {
+  const P = demoProject();
+  const d = P.geraete.find((g) => g.name === "Rio A");
   const vid = (i) => P.vlans.find((v) => v.id === i.vlan)?.vid;
   assert.deepEqual(ipPorts(d).map(vid).slice(0, 2), [10, 11]);
 });
@@ -56,14 +74,17 @@ test("Beispielprojekt: Dante-Gerät mit Primary/Secondary in VLAN 10/11", () => 
 test("Prüfung: IP-Konflikt, Subnetz, P2P am Switch, IGMP", () => {
   const P = emptyProject();
   const sw = createDevice({ typ: "switch_managed", vlans: P.vlans });
-  const a = createDevice({ katalogId: kat("grandMA3 light"), vlans: P.vlans, standardVlans: true });
-  const b = createDevice({ katalogId: kat("LumiNode 12"), vlans: P.vlans, standardVlans: true });
+  const a = createDevice({ katalogId: kat("grandMA3 light"), vlans: P.vlans });
+  const b = createDevice({ katalogId: kat("LumiNode 12"), vlans: P.vlans });
   const x32 = createDevice({ katalogId: KATALOG_GERAETE.find((g) => /AES50/.test(g.raw["Netzwerkports (Details)"])).id, vlans: P.vlans });
   P.geraete.push(sw, a, b, x32);
   ipPorts(a)[0].ip = "10.10.20.10"; ipPorts(b)[0].ip = "10.10.20.10";
   ipPorts(x32)[0].ip = "10.10.10.300";
   P.vlans.find((v) => v.vid === 20).igmp = false;
   addConnection(P, sw.id, a.id); addConnection(P, sw.id, b.id);
+  const v20 = P.vlans.find((v) => v.vid === 20).id;
+  for (const c of P.verbindungen) sw.ports.find((p) => p.id === c.a.port || p.id === c.b.port).vlan = v20;
+  vlansAbleiten(P);
   const p2pPort = x32.ports.find((p) => p.p2p);
   addConnection(P, sw.id, x32.id, { portB: p2pPort.name });
   const msgs = validate(P, buildIndex(P)).map((i) => i.sev + ": " + i.msg).join("\n");
@@ -118,7 +139,7 @@ test("Beispielprojekt: fehlerfrei, Mindmap mit Secondary-Insel", () => {
   assert.equal(L.pos.size, P.geraete.length);
 });
 
-test("Bestand: Gerät mit IPs sichern und in anderes Projekt einfügen (VLAN über VID)", async () => {
+test("Bestand: Gerät mit IPs sichern und in anderes Projekt einfügen (ohne VLAN)", async () => {
   const { snapshotDevice } = await import("../src/shared/catalog.js");
   const P = demoProject();
   const cl5 = P.geraete.find((d) => d.name === "FOH CL5");
@@ -129,7 +150,7 @@ test("Bestand: Gerät mit IPs sichern und in anderes Projekt einfügen (VLAN üb
   const d = createDevice({ eigeneVorlage: { geraet: snap }, vlans: Q.vlans, mitAdressen: true });
   const pri = ipPorts(d).find((i) => i.name === "Primary");
   assert.equal(pri.ip, ipPorts(cl5).find((i) => i.name === "Primary").ip);
-  assert.equal(Q.vlans.find((v) => v.id === pri.vlan).vid, 10);
+  assert.ok(!pri.vlan);
   assert.equal(d.netzname, "FOH-CL5");
   assert.equal(d.inventar.nr, "T-0042");
   assert.ok(ipPorts(d).every((i) => !("vid" in i)));
@@ -178,7 +199,6 @@ test("Modell zuweisen aus dem Bestand übernimmt feste IPs und Namen", async () 
   assert.equal(d2.netzname, "3LT1");
   assert.equal(d2.bestandId, "b1");
   assert.equal(ipPorts(d2)[0].ip, "10.10.20.201");
-  assert.equal(P.vlans.find((v) => v.id === ipPorts(d2)[0].vlan).vid, 20);
   assert.equal(P.verbindungen.filter((c) => c.a.dev === dev.id || c.b.dev === dev.id).length, nConn);
 });
 

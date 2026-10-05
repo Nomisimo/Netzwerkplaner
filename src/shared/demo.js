@@ -1,6 +1,22 @@
 import { emptyProject, addConnection, suggestIp, vlansAbleiten } from "./model.js";
 import { createDevice, KATALOG_GERAETE, ipPorts } from "./catalog.js";
 import { newStream } from "./analyse.js";
+import { KAT_VLAN } from "./constants.js";
+
+/* Nur für den Aufbau des Beispiels: VLAN je Bereich vormerken. vlansAbleiten überträgt
+   es einmal auf den Switch-Port (vlanVomSwitch = false) und leitet danach alles vom Switch ab. */
+const vorgemerkt = (P, d) => {
+  const V = (vid) => P.vlans.find((v) => v.vid === vid)?.id || null;
+  if (d.isSwitch) { const m = d.ports.find((p) => p.virtuell); if (m) m.vlan = V(99); return; }
+  const def = V(KAT_VLAN[d.kategorie]);
+  const pri = d.ports.find((p) => p.name === "Primary"), sec = d.ports.find((p) => p.name === "Secondary");
+  const eth = d.ports.filter((p) => !p.p2p);
+  if (pri && sec) {
+    pri.vlan = def;
+    sec.vlan = d.kategorie === "Ton" ? V(11) || def : def;
+    eth.filter((p) => p !== pri && p !== sec).forEach((p) => (p.vlan = V(KAT_VLAN.Steuerung) || def));
+  } else eth.forEach((p) => (p.vlan = def));
+};
 
 // Beispielprojekt: kleines Open Air mit Ton, Licht, Video und Intercom
 export const demoProject = () => {
@@ -9,7 +25,8 @@ export const demoProject = () => {
   const V = (vid) => P.vlans.find((v) => v.vid === vid);
   const kat = (s) => KATALOG_GERAETE.find((g) => `${g.hersteller} ${g.modell}`.toLowerCase().includes(s.toLowerCase()))?.id || null;
   const add = (name, bereich, { katalog, typ } = {}) => {
-    const d = createDevice({ katalogId: katalog ? kat(katalog) : null, typ, vlans: P.vlans, name, standardVlans: true });
+    const d = createDevice({ katalogId: katalog ? kat(katalog) : null, typ, vlans: P.vlans, name });
+    vorgemerkt(P, d);
     d.bereich = bereich;
     P.geraete.push(d);
     return d;

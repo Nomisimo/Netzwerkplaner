@@ -4,7 +4,6 @@
    Plan stehen, werden als generische Einträge eingefügt und lassen sich danach
    per „Modell zuweisen“ oder „Leeres Gerät anlegen“ genauer bestimmen. */
 import { createDevice, newPort, ipPorts } from "./catalog.js";
-import { inSubnet } from "./net.js";
 import { findPlanned } from "./live.js";
 
 // Dienste und TCP-Ports, die auf ein Protokoll oder einen Gerätetyp hinweisen
@@ -100,8 +99,6 @@ export const fundZuGeraet = (f, vlans) => {
   let ifc = ipPorts(dev)[0];
   if (!ifc) { ifc = newPort({ name: "LAN" }); dev.ports.push(ifc); }
   ifc.ip = f.ip; ifc.mac = f.mac || "";
-  const v = vlans.find((v) => v.subnetz && inSubnet(f.ip, v.subnetz));
-  if (v) ifc.vlan = v.id;
   if (f.name) dev.netzname = f.name;
   dev.protokolle = f.protokolle;
   dev.generisch = true;

@@ -39,7 +39,8 @@ export const konfigAus = (dev, vlans, teile) => {
   const portIndex = (id) => dev.ports.findIndex((p) => p.id === id);
   if (teile.includes("ports")) d.ports = dev.ports.map((p) => ({
     name: p.name, typ: p.typ, modus: p.modus, poe: !!p.poe, p2p: !!p.p2p, virtuell: !!p.virtuell,
-    vlan: vlanRef(p.vlan, vlans), vlans: (p.vlans || []).map((id) => vlanRef(id, vlans)).filter(Boolean),
+    // VLANs nur von Switch-Ports; Endgeräte bekommen ihr VLAN vom Switch
+    vlan: dev.isSwitch ? vlanRef(p.vlan, vlans) : null, vlans: dev.isSwitch ? (p.vlans || []).map((id) => vlanRef(id, vlans)).filter(Boolean) : [],
     prefix: p.prefix, gateway: p.gateway, dhcp: !!p.dhcp,
   }));
   if (teile.includes("protokolle")) d.protokolle = [...(dev.protokolle || [])];
@@ -89,7 +90,7 @@ export const konfigAnwenden = (ziel, clip, teile, vlans) => {
       zielFuer[n] = p;
       if (!p) { res.fehlendePorts++; return; }
       const werte = { typ: s.virtuell || fest ? undefined : s.typ, modus: s.modus, poe: s.poe, p2p: fest ? undefined : s.p2p, prefix: s.prefix, gateway: s.gateway, dhcp: s.dhcp,
-        vlan: vlanAuf(s.vlan, vlans), vlans: s.vlans && s.vlans.map((r) => vlanAuf(r, vlans)).filter(Boolean) };
+        ...(ziel.isSwitch ? { vlan: vlanAuf(s.vlan, vlans), vlans: s.vlans && s.vlans.map((r) => vlanAuf(r, vlans)).filter(Boolean) } : {}) };
       for (const [k, v] of Object.entries(werte)) if (v !== undefined) p[k] = v;
     });
     res.teile.push("ports");

@@ -7,6 +7,7 @@ import { fmtMbit } from "../../shared/analyse.js";
 import { Section, Dot } from "../ui.jsx";
 import { api } from "../api.js";
 import ProtokollPoster from "../ProtokollPoster.jsx";
+import Netzrechner from "../Netzrechner.jsx";
 import { ExternalLink } from "lucide-react";
 
 // Wikipedia-Artikel, soweit vorhanden
@@ -22,6 +23,7 @@ const WIKI = {
   eee: "https://en.wikipedia.org/wiki/Energy-Efficient_Ethernet",
   stp: "https://de.wikipedia.org/wiki/Spanning_Tree_Protocol",
   vlan: "https://de.wikipedia.org/wiki/Virtual_Local_Area_Network",
+  ip: "https://de.wikipedia.org/wiki/IP-Adresse",
   jumbo: "https://de.wikipedia.org/wiki/Jumbo_Frame",
   osi: "https://de.wikipedia.org/wiki/OSI-Modell",
   mdns: "https://de.wikipedia.org/wiki/Zeroconf",
@@ -60,6 +62,7 @@ function Block({ b }) {
   if (b.t === "table" && b.zeilen === "refs") return <Tabelle kopf={b.kopf} zeilen={(KATALOG.kernprotokolle || []).map((r) => [r.Protokoll, r.Ports, r.Multicast, r.Discovery || "–"])} />;
   if (b.t === "table") return <Tabelle kopf={b.kopf} zeilen={b.zeilen} />;
   if (b.t === "poster") return <ProtokollPoster />;
+  if (b.t === "rechner") return <Netzrechner />;
   if (b.t === "mdns") return <Tabelle kopf={["Service-Typ", "Protokoll", "Zweck"]} zeilen={(KATALOG.mdns || []).map((m) => [<span style={{ fontFamily: "monospace" }}>{m["Service-Typ"]}</span>, m.Protokoll, m.Zweck])} />;
   if (b.t === "infra") return <Tabelle kopf={["Protokoll", "Port / Schicht", "Rolle im Veranstaltungsnetz"]} zeilen={(KATALOG.infrastruktur || []).map((m) => [m.Protokoll, m["Port / Schicht"], m["Rolle im Veranstaltungsnetz"]])} />;
   if (b.t === "qos") return <Tabelle kopf={["System", "DSCP", "Hinweis"]} zeilen={(KATALOG.qos || []).map((q) => [q.System, q["DSCP-Werte"], q.Hinweis])} />;

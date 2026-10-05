@@ -80,10 +80,10 @@ test("Migration: Vorlagen und Bestand der Bibliothek", () => {
   const lib = migrateBibliothek({ vorlagen: [{ id: "t", name: "Rio", geraet: JSON.parse(JSON.stringify(alt)) }], bestand: [{ id: "b", name: "Rio 1", geraet: alt }] });
   assert.deepEqual(lib.vorlagen[0].geraet.ports.map((p) => p.vid), [10, 11]);
   assert.ok(!("interfaces" in lib.bestand[0].geraet));
-  // Aus der alten Vorlage ein Gerät in ein Projekt mit anderen VLAN-ids einfügen
+  // Aus der alten Vorlage ein Gerät einfügen: IPs bleiben, VLANs am Endgerät nicht (die kommen vom Switch)
   const vlans = [{ id: "x10", vid: 10 }, { id: "x11", vid: 11 }];
   const d = createDevice({ eigeneVorlage: lib.bestand[0], vlans, mitAdressen: true });
-  assert.deepEqual(d.ports.map((p) => [p.vlan, p.ip]), [["x10", "10.0.10.5"], ["x11", "10.0.11.5"]]);
+  assert.deepEqual(d.ports.map((p) => [p.vlan, p.ip]), [[null, "10.0.10.5"], [null, "10.0.11.5"]]);
   assert.equal(d.webUi.iface, d.ports[1].id);
 });
 
@@ -97,7 +97,7 @@ test("Migration: kopierte Konfiguration aus älterer Version", () => {
   const ziel = createDevice({ typ: "stagebox" });
   ziel.ports[0].name = "Primary";
   konfigAnwenden(ziel, clip, ["ports"], [{ id: "v10", vid: 10 }]);
-  assert.equal(ziel.ports[0].vlan, "v10");
+  assert.equal(ziel.ports[0].vlan, null, "Endgerät: kein VLAN aus der Konfig");
   assert.equal(ziel.ports[0].gateway, "10.0.10.1");
 });
 

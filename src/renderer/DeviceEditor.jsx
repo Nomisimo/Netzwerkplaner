@@ -293,7 +293,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
       {fest && (
         <div style={{ marginTop: 12, padding: "7px 10px", border: `1px solid ${LINE}`, borderRadius: 7, background: "#1f242b", fontSize: 11.5, color: SUB, lineHeight: 1.45 }}>
           <Lock size={12} style={{ verticalAlign: "-2px" }} /> {dev.bestandId ? "Aus dem Gerätebestand" : "Herstellermodell aus dem Katalog"}: Gerätetyp, Hersteller, Modell, Ports, Buchsen und PoE-Werte sind fest.
-          Einstellbar bleiben Name, VLAN, IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen.{onUmbauen ? " Anderes Modell: „Modell zuweisen“." : ""}
+          Einstellbar bleiben Name, {dev.isSwitch ? "VLAN, " : ""}IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen.{onUmbauen ? " Anderes Modell: „Modell zuweisen“." : ""}
         </div>
       )}
 
