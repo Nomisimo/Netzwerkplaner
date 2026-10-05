@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, OK, WARN, ERR } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, OK, WARN, ERR, TEXT, TEXT2 } from "../shared/constants.js";
 import { netzRechnen, v4Aufteilen, macZuLinkLocal } from "../shared/netzrechner.js";
 import { Field } from "./ui.jsx";
 
@@ -30,7 +30,7 @@ function Binaer({ r }) {
   const zeile = (s) => s.split("").map((c, k) => {
     if (c === ".") return <span key={k} style={{ color: MUTED }}>.</span>;
     const netz = i++ < r.prefix;
-    return <span key={k} style={{ color: netz ? ACCENT : "#c8d0d8" }}>{c}</span>;
+    return <span key={k} style={{ color: netz ? ACCENT : TEXT2 }}>{c}</span>;
   });
   const reihe = (l, s) => { i = 0; return <tr><td style={{ ...S.td, color: SUB, width: 70 }}>{l}</td><td style={{ ...S.td, fontFamily: "ui-monospace, Menlo, Consolas, monospace", letterSpacing: 0.5 }}>{zeile(s)}</td></tr>; };
   return (
@@ -124,7 +124,7 @@ function MacRechner() {
   return (
     <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", marginTop: 14 }}>
       <Field label="MAC → Link-Local (EUI-64)"><input style={{ ...S.inputSm, width: 190, fontFamily: "ui-monospace, Menlo, Consolas, monospace" }} value={mac} onChange={(e) => setMac(e.target.value)} /></Field>
-      <div style={{ fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 13.5, paddingBottom: 6, color: ll ? "#dfe3e8" : ERR }}>{ll || "MAC ungültig"}</div>
+      <div style={{ fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 13.5, paddingBottom: 6, color: ll ? TEXT : ERR }}>{ll || "MAC ungültig"}</div>
     </div>
   );
 }

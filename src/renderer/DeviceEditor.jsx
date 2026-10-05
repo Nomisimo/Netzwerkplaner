@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, PANEL, katColor, TYPEN, KATEGORIEN, PORT_TYPEN } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, PANEL, katColor, TYPEN, KATEGORIEN, PORT_TYPEN, CARD, INPUT, LINK, TEXT2 } from "../shared/constants.js";
 import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid, hardwareFest } from "../shared/catalog.js";
 import { portSeiten } from "../shared/anschluesse.js";
 import { otherEnd, suggestIp, webUrl, clone, vlanQuelle } from "../shared/model.js";
@@ -72,7 +72,7 @@ function TrunkVlans({ vlans, value, onChange }) {
     <div style={{ position: "relative" }}>
       <button style={{ ...S.smallBtn, width: "100%", textAlign: "left" }} onClick={() => setOpen((o) => !o)} title="Erlaubte VLANs (tagged)">{label} <ChevronDown size={12} /></button>
       {open && (
-        <div style={{ position: "absolute", zIndex: 40, top: "100%", right: 0, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,.5)" }} onMouseLeave={() => setOpen(false)}>
+        <div style={{ position: "absolute", zIndex: 40, top: "100%", right: 0, background: INPUT, border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,.5)" }} onMouseLeave={() => setOpen(false)}>
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
             <button style={S.smallBtn} onClick={() => onChange(vlans.map((v) => v.id))}>alle</button>
             <button style={S.smallBtn} onClick={() => onChange([])}>keine</button>
@@ -92,7 +92,7 @@ function TrunkVlans({ vlans, value, onChange }) {
 const Gegenstellen = ({ cons, onSelectDevice }) => <>
   {cons.length === 0 && <span style={{ color: MUTED }}>frei</span>}
   {cons.map(({ r, c }) => (
-    <div key={c.id}><a style={{ color: "#c8d0d8", cursor: "pointer", textDecoration: "underline dotted" }} onClick={() => onSelectDevice && onSelectDevice(r.dev.id)}>{r.dev.name}</a> <span style={{ color: MUTED }}>[{r.port.name}]</span></div>
+    <div key={c.id}><a style={{ color: TEXT2, cursor: "pointer", textDecoration: "underline dotted" }} onClick={() => onSelectDevice && onSelectDevice(r.dev.id)}>{r.dev.name}</a> <span style={{ color: MUTED }}>[{r.port.name}]</span></div>
   ))}
 </>;
 
@@ -112,7 +112,7 @@ const PortLoeschen = ({ dev, p, mutate }) => (
 /* VLAN eines Endgeräte-Ports: nur Anzeige, es kommt vom Switch-Port (oder aus dem Subnetz der IP) */
 function VlanVomSwitch({ P, X, dev, p, v, onSelectDevice }) {
   const q = X ? vlanQuelle(P, X, dev, p) : null;
-  const sw = q?.sw ? <a href="#" style={{ color: "#8ec5ff" }} onClick={(e) => { e.preventDefault(); onSelectDevice?.(q.sw.id); }}>{q.sw.name} · {q.swPort.name}</a> : null;
+  const sw = q?.sw ? <a href="#" style={{ color: LINK }} onClick={(e) => { e.preventDefault(); onSelectDevice?.(q.sw.id); }}>{q.sw.name} · {q.swPort.name}</a> : null;
   const text = q?.art === "switch" ? <>von {sw}</>
     : q?.art === "switch-ohne" ? <>{sw} hat kein VLAN</>
     : q?.art === "ip" ? <>aus der IP{sw ? <> (Trunk {sw})</> : ""}</>
@@ -135,7 +135,7 @@ function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest
   const setP = (fn) => upd((g) => fn(g.ports.find((x) => x.id === p.id)));
   const ip = !p.p2p; // Punkt-zu-Punkt-Ports (AES50, SLink …) haben keine IP
   return (
-    <div style={{ border: `1px solid ${cons.length > 1 ? ERR : LINE}`, borderLeft: `3px solid ${ip && v?.farbe || LINE}`, borderRadius: 7, padding: 10, marginBottom: 8, background: "#1f242b" }}>
+    <div style={{ border: `1px solid ${cons.length > 1 ? ERR : LINE}`, borderLeft: `3px solid ${ip && v?.farbe || LINE}`, borderRadius: 7, padding: 10, marginBottom: 8, background: CARD }}>
       <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : ip ? "1.3fr 1.3fr 1.7fr .6fr 1.3fr 1.4fr" : "1.3fr 1.3fr 3fr", gap: 8, alignItems: "end" }}>
         <Field label={p.virtuell ? "Name" : "Port"} hint={p.virtuell ? "ohne Buchse" : undefined}><input style={{ ...S.inputSm, ...festStil(hw) }} value={p.name} readOnly={hw} title={hw ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.name = e.target.value))} /></Field>
         {ip ? <>
@@ -291,7 +291,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
       )}
 
       {fest && (
-        <div style={{ marginTop: 12, padding: "7px 10px", border: `1px solid ${LINE}`, borderRadius: 7, background: "#1f242b", fontSize: 11.5, color: SUB, lineHeight: 1.45 }}>
+        <div style={{ marginTop: 12, padding: "7px 10px", border: `1px solid ${LINE}`, borderRadius: 7, background: CARD, fontSize: 11.5, color: SUB, lineHeight: 1.45 }}>
           <Lock size={12} style={{ verticalAlign: "-2px" }} /> {dev.bestandId ? "Aus dem Gerätebestand" : "Herstellermodell aus dem Katalog"}: Gerätetyp, Hersteller, Modell, Ports, Buchsen und PoE-Werte sind fest.
           Einstellbar bleiben Name, {dev.isSwitch ? "VLAN, " : ""}IP, Modus, Trunk, PoE je Port, Web-UI, Protokolle und Verbindungen.{onUmbauen ? " Anderes Modell: „Modell zuweisen“." : ""}
         </div>

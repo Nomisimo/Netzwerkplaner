@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO, VLAN_FARBEN } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO, VLAN_FARBEN, STRONG } from "../../shared/constants.js";
 import { newVlan } from "../../shared/model.js";
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
@@ -17,7 +17,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
       <div style={S.cardHead} onClick={() => setOpen((o) => !o)}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
           {tiefe > 0 && <span style={{ color: MUTED, marginLeft: -6, display: "inline-flex" }} title="Inneres VLAN (C-VLAN) im äußeren VLAN darüber"><CornerDownRight size={14} /></span>}
-          <span style={{ fontWeight: 800, fontSize: 15, minWidth: 44, textAlign: "center", color: "#fff", background: v.farbe + "33", border: `1px solid ${v.farbe}`, borderRadius: 6, padding: "1px 6px" }} title={aussen ? `VLAN-ID ${v.vid} · Tags: ${vlanPfad(v, P.vlans)} (außen › innen)` : `VLAN-ID ${v.vid}`}>{v.vid}</span>
+          <span style={{ fontWeight: 800, fontSize: 15, minWidth: 44, textAlign: "center", color: STRONG, background: v.farbe + "33", border: `1px solid ${v.farbe}`, borderRadius: 6, padding: "1px 6px" }} title={aussen ? `VLAN-ID ${v.vid} · Tags: ${vlanPfad(v, P.vlans)} (außen › innen)` : `VLAN-ID ${v.vid}`}>{v.vid}</span>
           <div style={{ minWidth: 0 }}>
             <div style={S.cardTitle}>{v.name || "(ohne Name)"}</div>
             {v.zweck && <div style={S.cardSub}>{v.zweck}</div>}

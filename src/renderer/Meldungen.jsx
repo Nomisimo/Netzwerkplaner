@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { S, LINE, MUTED, PANEL } from "../shared/constants.js";
+import { S, LINE, MUTED, PANEL, LINE2, TEXT2 } from "../shared/constants.js";
 import { SEV } from "./ui.jsx";
 import { ArrowRight } from "lucide-react";
 
@@ -45,7 +45,7 @@ export default function Meldungen({ issues, onShowIssue, goPruefung, breite = 17
           <div style={{ overflowY: "auto", flex: 1 }}>
             {!liste.length && <div style={{ ...S.empty, padding: 12 }}>Keine.</div>}
             {liste.map((i, k) => (
-              <div key={k} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 10px", borderBottom: "1px solid #232a33", fontSize: 12, color: "#c8d0d8" }}>
+              <div key={k} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 10px", borderBottom: `1px solid ${LINE2}`, fontSize: 12, color: TEXT2 }}>
                 <span style={{ flex: 1 }}>{i.msg}</span>
                 {(i.dev || i.conn || i.vlan) && <button style={{ ...S.smallBtn, flexShrink: 0 }} onClick={() => { setOffen(null); onShowIssue(i); }}>Zeigen</button>}
               </div>

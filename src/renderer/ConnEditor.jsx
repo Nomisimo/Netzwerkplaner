@@ -1,5 +1,5 @@
 import React from "react";
-import { S, KABEL, MUTED, ERR } from "../shared/constants.js";
+import { S, KABEL, MUTED, ERR, CARD, LINE } from "../shared/constants.js";
 import { connVlan, isP2PConn } from "../shared/model.js";
 import { physPorts } from "../shared/catalog.js";
 import { Field, VlanChip, SevBadge } from "./ui.jsx";
@@ -13,7 +13,7 @@ export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevic
     if (!dev) return <div style={{ color: ERR }}>Gerät fehlt</div>;
     const usedHere = (pid) => (X.connsByPort.get(`${dev.id}:${pid}`) || []).some((c) => c.id !== conn.id);
     return (
-      <div style={{ border: "1px solid #3a424c", borderRadius: 7, padding: 10, background: "#1f242b" }}>
+      <div style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: 10, background: CARD }}>
         <a style={{ fontWeight: 700, cursor: "pointer" }} onClick={() => onSelectDevice && onSelectDevice(dev.id)}>{dev.name}</a>
         <div style={{ fontSize: 11, color: MUTED, marginBottom: 6 }}>{dev.hersteller} {dev.modell}</div>
         <Field label="Port">

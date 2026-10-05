@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { S, SUB, MUTED, ACCENT, ERR, WARN } from "../shared/constants.js";
+import { S, SUB, MUTED, ACCENT, ERR, WARN, LINE2, OK } from "../shared/constants.js";
 import { Modal, Field } from "./ui.jsx";
 import { serverApi, ladeEinstellungen, speichereEinstellungen, beitrittMoeglich } from "./sync.js";
 import { Lock, Save, RefreshCw } from "lucide-react";
@@ -83,7 +83,7 @@ function Verbinden({ sitzung, version, projektName, onClose }) {
           const b = beitrittMoeglich(s, version);
           const andereVersion = s.appVersion && s.appVersion !== (version || "dev");
           return (
-            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #232a33", fontSize: 13 }}>
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${LINE2}`, fontSize: 13 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600 }}>{s.name}{s.codeNoetig && <span title="Sitzungscode nötig" style={{ marginLeft: 6, display: "inline-flex", verticalAlign: "-2px" }}><Lock size={13} /></span>}</div>
                 <div style={{ fontSize: 11, color: MUTED }}>
@@ -124,7 +124,7 @@ function InSitzung({ sitzung, onKopieSpeichern }) {
   const ladeVerlauf = async () => { try { setVerlauf(await sitzung.verlauf({ limit: 200 })); } catch { setVerlauf([]); } };
   useEffect(() => { if (!z.veraltet) ladeVerlauf(); }, []);
   const statusText = { online: "verbunden", verbinden: "verbindet …", "neu-verbinden": "verbindet neu …", offline: "offline", beendet: "beendet", fehler: "Fehler" }[z.status] || z.status;
-  const farbe = z.status === "online" ? "#2ecc71" : z.veraltet || z.status === "fehler" ? ERR : WARN;
+  const farbe = z.status === "online" ? OK : z.veraltet || z.status === "fehler" ? ERR : WARN;
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -166,7 +166,7 @@ function InSitzung({ sitzung, onKopieSpeichern }) {
       <div style={{ maxHeight: 320, overflow: "auto", marginTop: 6, fontSize: 12 }}>
         {verlauf === null ? <div style={{ color: MUTED }}>Lädt …</div> : !verlauf.length ? <div style={{ color: MUTED, fontStyle: "italic" }}>Noch keine Änderungen.</div>
           : verlauf.map((v) => (
-            <div key={v.seq} style={{ padding: "5px 0", borderBottom: "1px solid #232a33" }}>
+            <div key={v.seq} style={{ padding: "5px 0", borderBottom: `1px solid ${LINE2}` }}>
               <div><span style={{ color: MUTED }}>{zeit(v.zeit)}</span> · <b style={{ color: (z.users || []).find((u) => u.id === v.user)?.farbe || ACCENT }}>{v.name}</b>{v.absicht ? <span style={{ color: MUTED }}> · {v.absicht}</span> : null}</div>
               {v.texte.map((t, i) => <div key={i} style={{ color: SUB, paddingLeft: 10 }}>{t}</div>)}
               {v.anzahl > v.texte.length && <div style={{ color: MUTED, paddingLeft: 10 }}>… und {v.anzahl - v.texte.length} weitere</div>}

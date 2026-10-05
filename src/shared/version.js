@@ -5,6 +5,12 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.12": [
+    "Neuer Tab „Clean Cat“: der Plan als aufgeräumte Zeichnung auf weißem Grund. Standorte sind Räume, Geräte farbige Blöcke, die Leitungen laufen rechtwinklig. Dante Primary ist rot, Secondary grün, Glasfaser lila, Switch zu Switch grau. Wahlweise nach VLAN färben, IPs ein- oder ausblenden, Export als SVG und PNG",
+    "Helles Design: Über das Zahnrad oben rechts stellst du das Erscheinungsbild auf „Wie das System“ (Standard), „Hell“ oder „Dunkel“",
+    "Wissen: Schaubilder zu VLAN-Trunks, IGMP-Snooping, QoS-Warteschlangen, PTP, Spanning Tree, Dante-Redundanz, IPv4-Aufbau und Teilnetzen",
+    "Gerätebestand: Hinweistext passt jetzt zu „VLAN kommt vom Switch-Port“",
+  ],
   "0.7.0-beta.11": [
     "Wissen: neuer Eintrag „IP-Adressen & Netzrechner“. Der Netzrechner nimmt IPv4 oder IPv6 mit Präfix oder Maske und zeigt Netz, Maske, Wildcard, Broadcast, erste und letzte Host-Adresse, Anzahl Hosts, Klasse, Art der Adresse (privat, öffentlich, link-local, Multicast …) und die Binärdarstellung. „Aufteilen in“ zerlegt ein Netz in Teilnetze. Bei IPv6 kommen Kurz- und Langform, Interface-ID, MAC aus EUI-64 und ein MAC→Link-Local-Rechner dazu. Klick auf einen Wert kopiert ihn",
     "Wissen: IPv4 und IPv6 erklärt, mit Adressklassen A–E, privaten Bereichen (RFC 1918), Link-Local/APIPA, Loopback, Multicast, CGNAT, Masken-Tabelle /8 bis /32 und den IPv6-Adressarten (Link-Local, ULA, Global, Multicast)",

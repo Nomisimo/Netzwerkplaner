@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { S, ACCENT, SUB, LINE } from "../../shared/constants.js";
+import { S, ACCENT, SUB, LINE, LINK, TEXT2, STRONG } from "../../shared/constants.js";
 import { WERKZEUGE, WIRESHARK, CISCO } from "../../shared/wissen.js";
 import { Section } from "../ui.jsx";
 import BILDER from "virtual:anleitung-bilder";
@@ -15,7 +15,7 @@ const Bild = ({ id, text }) => BILDER[id] ? (
 ) : null;
 
 const Liste = ({ items }) => (
-  <ul style={{ margin: "0 0 14px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13, color: "#d4dae0" }}>
+  <ul style={{ margin: "0 0 14px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13, color: TEXT2 }}>
     {items.map((t, i) => <li key={i}>{t}</li>)}
   </ul>
 );
@@ -23,7 +23,7 @@ const H = ({ children }) => <h3 style={{ ...S.h3, margin: "18px 0 6px" }}>{child
 const Tab = ({ id, goTab, children }) => goTab ? <button style={{ ...S.secondaryBtn, padding: "5px 12px" }} onClick={() => goTab(id)}>{children} öffnen →</button> : null;
 const Code = ({ rows }) => (
   <table style={S.table}><tbody>
-    {rows.map(([n, f]) => <tr key={n}><td style={{ ...S.td, width: 170 }}>{n}</td><td style={{ ...S.td, fontFamily: "Consolas,monospace", color: "#8ec5ff" }}>{f}</td></tr>)}
+    {rows.map(([n, f]) => <tr key={n}><td style={{ ...S.td, width: 170 }}>{n}</td><td style={{ ...S.td, fontFamily: "Consolas,monospace", color: LINK }}>{f}</td></tr>)}
   </tbody></table>
 );
 
@@ -85,6 +85,16 @@ const KAPITEL = [
       "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports untereinander am Gerät, auch bei gebündelten Kabeln. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
       "„Status“ prüft jede IP aller Geräte (am Web-UI-Anschluss per Web-UI-Port, sonst Ping) über die Netzwerkkarte, die im Live-Tab gewählt ist. Antwortet eine IP, gilt das Gerät als erreichbar. Welche IPs antworten, steht im Geräte-Editor an jedem Anschluss („antwortet“ / „keine Antwort“). Mit „alle 15 s“ läuft das zyklisch.",
       "Meldungszentrum links in der Werkzeugleiste: Fehler, Warnungen und Hinweise der Prüfung als Zähler. Klick auf einen Zähler listet die Meldungen, „Zeigen“ springt zum Gerät, „Alle in Prüfung“ öffnet den Prüfungs-Tab.",
+    ]} />
+  </> },
+  { id: "cleancat", titel: "Clean Cat", tab: ["cleancat", "Clean Cat"], inhalt: () => <>
+    <Liste items={[
+      "Clean Cat zeichnet den Plan wie eine aufgeräumte Visio-Zeichnung auf weißem Grund: jeder Standort / Ast ist ein gestrichelter Raum, jedes Gerät ein farbiger Block (Farbe nach Bereich, Switches gelb).",
+      "Je Switch stehen seine Endgeräte in Reihen darüber, die Leitungen laufen rechtwinklig in eigenen Spuren. Dante Primary ist rot, Dante Secondary grün (erkannt am Portnamen Primary/Secondary), Glasfaser lila, Switch zu Switch dunkelgrau. Pfeile zeigen die Anschlüsse, am Switch steht die Portnummer.",
+      "Verbindungen zwischen Räumen laufen unter allen Räumen entlang und tragen Kabelbezeichnung, Kabeltyp und Länge.",
+      "„Farbe: VLAN“ färbt die Leitungen nach dem VLAN statt nach Dante. „IP-Adressen“ blendet die IPs in den Blöcken ein oder aus.",
+      "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt alles. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „SVG“ und „PNG“ speichern die Zeichnung, z. B. für Visio oder die Doku.",
+      "Die Anordnung entsteht automatisch aus Standort und Verbindungen. Ein Gerät landet im Raum seines Standorts; ohne Standort im Raum „Ohne Standort“.",
     ]} />
   </> },
   { id: "geraete", titel: "Geräte & Editor", tab: ["geraete", "Geräte"], inhalt: () => <>
@@ -184,10 +194,19 @@ const KAPITEL = [
     <Bild id="wissen-poster" text="OSI-Modell & Ports: Protokoll-Poster im App-Design" />
     <Liste items={[
       "Grundlagen zu IGMP, QoS, Bandbreite, Latenz, PTP, EEE, Spanning Tree, IP-Adressen, VLANs, Redundanz und Switch-Einstellungen je Hersteller.",
+      "Schaubilder erklären die Grundlagen auf einen Blick: Access-Ports und Trunk (VLANs), Multicast mit und ohne IGMP-Snooping, QoS-Warteschlangen, PTP Leader und Follower, Schleife mit Spanning Tree, Dante Primary/Secondary (Redundanz), Aufbau einer IPv4-Adresse und Teilnetze.",
       "„IP-Adressen & Netzrechner“: Adresse mit Präfix oder Maske eingeben (IPv4 oder IPv6, z. B. 10.10.20.5/24 oder fd00::1/64). Der Rechner zeigt Netz, Maske, Wildcard, Broadcast, erste und letzte Host-Adresse, Anzahl Hosts, Klasse und ob die Adresse privat, öffentlich, link-local oder Multicast ist, dazu die Binärdarstellung. „Aufteilen in“ zerlegt das Netz in kleinere Teilnetze. Bei IPv6 kommen Kurz- und Langform, Interface-ID und die MAC aus EUI-64 dazu, darunter rechnet eine MAC in ihre Link-Local-Adresse um. Ein Klick auf einen Wert kopiert ihn. Darunter steht alles zu IPv4 und IPv6: Klassen, private und besondere Bereiche, Masken-Tabelle und IPv6-Adressarten.",
       "„OSI-Modell & Ports“ zeigt die Protokoll-Poster: je Protokoll Port, TCP/UDP und Unicast/Broadcast/Multicast. Mauszeiger auf eine Spalte zeigt Details.",
       "„mDNS-Dienste“ und „Infrastruktur-Protokolle“ (früher im Katalog) erklären Discovery sowie DHCP, LLDP, SNMP und NTP.",
       "Kernprotokolle mit Bandbreiten-Rechner. Wo vorhanden, führt ein Wikipedia-Link oben rechts weiter.",
+    ]} />
+  </> },
+  { id: "einstellungen", titel: "Einstellungen & helles Design", inhalt: () => <>
+    <Liste items={[
+      "Das Zahnrad oben rechts öffnet die Einstellungen. Unter „Erscheinungsbild“ wählst du „Wie das System“ (Standard), „Hell“ oder „Dunkel“.",
+      "„Wie das System“ übernimmt beim Start der App Hell oder Dunkel vom Betriebssystem. Wechselt das System später, gilt das beim nächsten Start.",
+      "Beim Umschalten lädt die Oberfläche kurz neu. Das Projekt, der offene Tab und die Datei bleiben erhalten. In einer laufenden Sitzung fragt die App vorher, weil das Neuladen die Sitzung verlässt.",
+      "Die Ansicht „Anschlüsse“ in der Topologie bleibt in beiden Modi im dunkelblauen Blaupausen-Stil, Clean Cat immer auf weißem Papier.",
     ]} />
   </> },
   { id: "export", titel: "Export, Logo & Updates", inhalt: () => <>
@@ -218,7 +237,7 @@ export default function AnleitungTab({ goTab }) {
       <div style={{ ...S.section, padding: "10px 0", position: "sticky", top: 12 }}>
         <div className="sp-section-label" style={{ padding: "0 12px" }}>Anleitung</div>
         {KAPITEL.map((x, i) => (
-          <button key={x.id} onClick={() => setSel(x.id)} style={{ display: "block", width: "100%", textAlign: "left", background: sel === x.id ? ACCENT + "26" : "none", border: "none", borderLeft: `3px solid ${sel === x.id ? ACCENT : "transparent"}`, color: sel === x.id ? "#fff" : "#c8d0d8", padding: "6px 10px", cursor: "pointer", fontSize: 13 }}>
+          <button key={x.id} onClick={() => setSel(x.id)} style={{ display: "block", width: "100%", textAlign: "left", background: sel === x.id ? ACCENT + "26" : "none", border: "none", borderLeft: `3px solid ${sel === x.id ? ACCENT : "transparent"}`, color: sel === x.id ? STRONG : TEXT2, padding: "6px 10px", cursor: "pointer", fontSize: 13 }}>
             {i + 1} · {x.titel}
           </button>
         ))}

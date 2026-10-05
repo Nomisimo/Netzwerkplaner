@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, OK, WARN, TYPEN } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, OK, WARN, TYPEN, STRONG } from "../shared/constants.js";
 import { KONFIG_TEILE, konfigTeileVon, konfigAus, konfigAnwenden } from "../shared/konfig.js";
 import { Modal } from "./ui.jsx";
 import { ablegen } from "./zwischenablage.js";
@@ -69,7 +69,7 @@ export function KonfigEinfuegen({ P, clip, ziele: start, mutate, onClose }) {
         <button style={S.secondaryBtn} onClick={onClose}>Abbrechen</button>
         <button style={S.primaryBtn} disabled={!teile.length || !ziele.length} onClick={einfuegen}><ClipboardPaste size={14} /> In {ziele.length} {ziele.length === 1 ? "Gerät" : "Geräte"} einfügen</button>
       </>}>
-      <div style={{ fontSize: 12, color: SUB, marginBottom: 10 }}>Kopiert von <b style={{ color: "#fff" }}>{q.name}</b>{q.modell ? ` (${q.modell})` : ""}. Namen, IP- und MAC-Adressen und Verbindungen der Zielgeräte bleiben.</div>
+      <div style={{ fontSize: 12, color: SUB, marginBottom: 10 }}>Kopiert von <b style={{ color: STRONG }}>{q.name}</b>{q.modell ? ` (${q.modell})` : ""}. Namen, IP- und MAC-Adressen und Verbindungen der Zielgeräte bleiben.</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 16 }}>
         <div>
           <div className="sp-section-label">Was einfügen</div>

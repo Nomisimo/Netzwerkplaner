@@ -1,6 +1,30 @@
-/* ── Farben (identisch zum Stromplaner) ─────────────────────────────────── */
-export const ACCENT = "#b3483f", DARK = "#1c2127", PANEL = "#252b33", LINE = "#3a424c", BG = "#15191e";
-export const OK = "#2ecc71", WARN = "#f39c12", ERR = "#ff5d5d", INFO = "#4ea1ff", MUTED = "#7c8794", SUB = "#9aa4af";
+/* ── Erscheinungsbild: Hell, Dunkel oder wie das System ─────────────────────
+   Die Wahl steht im localStorage und gilt beim Laden der Oberfläche. Beim Umschalten
+   lädt die App neu (Projekt ist automatisch gespeichert), damit alle Farben passen. */
+export const THEME_KEY = "netzwerkplaner_theme";
+export const themeWahl = () => { try { return localStorage.getItem(THEME_KEY) || "system"; } catch { return "system"; } };
+export const systemHell = () => { try { return !window.matchMedia("(prefers-color-scheme: dark)").matches; } catch { return false; } };
+const wahl = typeof window === "undefined" ? "dunkel" : themeWahl();
+export const HELL = wahl === "hell" || (wahl === "system" && typeof window !== "undefined" && systemHell());
+
+/* ── Farben (dunkel identisch zum Stromplaner) ──────────────────────────── */
+const F = HELL ? {
+  DARK: "#ffffff", PANEL: "#ffffff", LINE: "#d3d9df", BG: "#eef1f4",
+  OK: "#1f9d55", WARN: "#c77700", ERR: "#d63c3c", INFO: "#2a78d1", MUTED: "#6f7a86", SUB: "#56616d",
+  TEXT: "#1d232a", STRONG: "#10151b", TEXT2: "#38414b", INPUT: "#ffffff", CARD: "#f6f8fa", BTN: "#e9edf1",
+  LINE2: "#e5e9ed", MID: "#a5aeb8", LINK: "#1f6fc5", HINTBG: "#fff4dc", DANGERLINE: "#e8b4b4", OPTBG: "#ffffff",
+  TRUNK: "#3c4650", CANVAS: "#f4f6f8", GRID: "#d9dee4",
+} : {
+  DARK: "#1c2127", PANEL: "#252b33", LINE: "#3a424c", BG: "#15191e",
+  OK: "#2ecc71", WARN: "#f39c12", ERR: "#ff5d5d", INFO: "#4ea1ff", MUTED: "#7c8794", SUB: "#9aa4af",
+  TEXT: "#e8eaed", STRONG: "#ffffff", TEXT2: "#c8d0d8", INPUT: "#1b2026", CARD: "#1f242b", BTN: "#323a44",
+  LINE2: "#232a33", MID: "#56606c", LINK: "#8ec5ff", HINTBG: "#2a2418", DANGERLINE: "#5a2a2a", OPTBG: "#1b2026",
+  TRUNK: "#d8dde3", CANVAS: "#12161a", GRID: "#252b33",
+};
+export const ACCENT = "#b3483f", { DARK, PANEL, LINE, BG, OK, WARN, ERR, INFO, MUTED, SUB } = F;
+// Text- und Flächenfarben, die in beiden Modi lesbar bleiben
+export const { TEXT, STRONG, TEXT2, INPUT, CARD, BTN, LINE2, MID, LINK, HINTBG, TRUNK, CANVAS, GRID } = F;
+export const THEME_VARS = F;
 
 export const LS_KEY = "netzwerkplaner_autosave";
 
@@ -76,40 +100,40 @@ export const DEFAULT_BEREICHE = ["FOH", "Bühne", "Monitor", "Delay", "Backstage
 
 /* ── Style-Objekt (Stromplaner-Designsprache) ───────────────────────────── */
 export const S = {
-  app:          { fontFamily: "'Segoe UI',system-ui,sans-serif", background: BG, height: "100vh", color: "#e8eaed", display: "flex", flexDirection: "column", overflow: "hidden" },
+  app:          { fontFamily: "'Segoe UI',system-ui,sans-serif", background: BG, height: "100vh", color: TEXT, display: "flex", flexDirection: "column", overflow: "hidden" },
   header:       { display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", background: DARK, borderBottom: `2px solid ${ACCENT}`, position: "relative", zIndex: 10, flexWrap: "wrap", flexShrink: 0 },
   logo:         { fontWeight: 800, fontSize: 18, letterSpacing: 1, color: ACCENT, whiteSpace: "nowrap" },
   headerMeta:   { fontSize: 12, color: SUB, flex: 1, minWidth: 120 },
   exportBtn:    { background: ACCENT, color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 },
-  ghostBtn:     { background: "transparent", color: "#e8eaed", border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 11px", fontWeight: 600, cursor: "pointer", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 },
+  ghostBtn:     { background: "transparent", color: TEXT, border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 11px", fontWeight: 600, cursor: "pointer", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 },
   nav:          { display: "flex", gap: 4, padding: "0 18px", background: DARK, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap", position: "relative", zIndex: 9, flexShrink: 0 },
   navBtn:       { background: "transparent", border: "none", color: SUB, padding: "11px 13px", cursor: "pointer", fontSize: 13, borderBottom: "3px solid transparent", transition: "color 0.14s,border-color 0.14s" },
-  navBtnActive: { color: "#fff", borderBottom: `3px solid ${ACCENT}`, fontWeight: 600 },
+  navBtnActive: { color: STRONG, borderBottom: `3px solid ${ACCENT}`, fontWeight: 600 },
   main:         { padding: 20, maxWidth: 1280, margin: "0 auto" },
   mainWide:     { padding: 0 },
   section:      { background: PANEL, borderRadius: 10, padding: 20, marginBottom: 20, border: `1px solid ${LINE}` },
-  h2:           { margin: "0 0 4px", fontSize: 17, color: "#fff" },
-  h3:           { margin: "0 0 8px", fontSize: 14, color: "#fff" },
+  h2:           { margin: "0 0 4px", fontSize: 17, color: STRONG },
+  h3:           { margin: "0 0 8px", fontSize: 14, color: STRONG },
   subtitle:     { margin: "0 0 14px", fontSize: 12, color: SUB, lineHeight: 1.5 },
   metaGrid:     { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginBottom: 8 },
   field:        { display: "flex", flexDirection: "column", gap: 4 },
   fieldLabel:   { fontSize: 11, color: SUB, fontWeight: 600 },
-  input:        { background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 10px", color: "#fff", fontSize: 14 },
-  inputSm:      { background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 5, padding: "5px 8px", color: "#fff", fontSize: 13, width: "100%", boxSizing: "border-box" },
-  select:       { background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 10px", color: "#fff", fontSize: 14, minWidth: 160 },
-  selectSm:     { background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 5, padding: "5px 8px", color: "#fff", fontSize: 13, width: "100%", boxSizing: "border-box" },
+  input:        { background: INPUT, border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 10px", color: STRONG, fontSize: 14 },
+  inputSm:      { background: INPUT, border: `1px solid ${LINE}`, borderRadius: 5, padding: "5px 8px", color: STRONG, fontSize: 13, width: "100%", boxSizing: "border-box" },
+  select:       { background: INPUT, border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 10px", color: STRONG, fontSize: 14, minWidth: 160 },
+  selectSm:     { background: INPUT, border: `1px solid ${LINE}`, borderRadius: 5, padding: "5px 8px", color: STRONG, fontSize: 13, width: "100%", boxSizing: "border-box" },
   row:          { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 16 },
   primaryBtn:   { background: ACCENT, color: "#fff", border: "none", borderRadius: 6, padding: "9px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 },
-  secondaryBtn: { background: "#323a44", color: "#fff", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer", fontSize: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 },
-  smallBtn:     { background: "#323a44", color: "#fff", border: `1px solid ${LINE}`, borderRadius: 5, padding: "4px 8px", cursor: "pointer", fontSize: 11, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 },
-  dangerBtn:    { background: "transparent", color: ERR, border: "1px solid #5a2a2a", borderRadius: 5, padding: "4px 9px", cursor: "pointer", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 },
-  dangerBtnWide:{ background: "transparent", color: ERR, border: "1px solid #5a2a2a", borderRadius: 6, padding: "8px 12px", cursor: "pointer", fontWeight: 600 },
+  secondaryBtn: { background: BTN, color: STRONG, border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer", fontSize: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 },
+  smallBtn:     { background: BTN, color: STRONG, border: `1px solid ${LINE}`, borderRadius: 5, padding: "4px 8px", cursor: "pointer", fontSize: 11, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 },
+  dangerBtn:    { background: "transparent", color: ERR, border: `1px solid ${F.DANGERLINE}`, borderRadius: 5, padding: "4px 9px", cursor: "pointer", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 },
+  dangerBtnWide:{ background: "transparent", color: ERR, border: `1px solid ${F.DANGERLINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer", fontWeight: 600 },
   table:        { width: "100%", borderCollapse: "collapse", marginTop: 12, fontSize: 13 },
   th:           { textAlign: "left", padding: "7px 8px", borderBottom: `2px solid ${LINE}`, color: SUB, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" },
   td:           { padding: "5px 8px", borderBottom: `1px solid ${LINE}`, verticalAlign: "middle" },
   empty:        { color: MUTED, fontStyle: "italic", padding: "16px 0" },
   hint:         { fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 },
-  card:         { border: `1px solid ${LINE}`, borderRadius: 8, marginBottom: 8, background: "#1f242b" },
+  card:         { border: `1px solid ${LINE}`, borderRadius: 8, marginBottom: 8, background: CARD },
   cardHead:     { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", cursor: "pointer", gap: 10 },
   cardTitle:    { fontWeight: 600, fontSize: 14 },
   cardSub:      { fontSize: 11, color: SUB },
@@ -117,10 +141,10 @@ export const S = {
   boxTabs:      { display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 14 },
   boxTab:       { background: PANEL, border: `1px solid ${LINE}`, color: SUB, borderRadius: 6, padding: "7px 12px", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 },
   boxTabActive: { background: ACCENT, color: "#fff", fontWeight: 700, border: `1px solid ${ACCENT}` },
-  chip:         { display: "inline-flex", alignItems: "center", gap: 4, background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: "#c8d0d8", whiteSpace: "nowrap" },
+  chip:         { display: "inline-flex", alignItems: "center", gap: 4, background: INPUT, border: `1px solid ${LINE}`, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: TEXT2, whiteSpace: "nowrap" },
   badge:        { display: "inline-block", borderRadius: 4, padding: "1px 6px", fontSize: 10, fontWeight: 700 },
-  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" },
-  modalBox:     { background: "#1e2530", border: "1px solid #2e3a4a", borderRadius: 10, padding: "22px 24px", color: "#e8eaf0", maxHeight: "86vh", overflow: "auto", boxShadow: "0 16px 48px rgba(0,0,0,.6)" },
+  modalOverlay: { position: "fixed", inset: 0, background: HELL ? "rgba(20,28,38,0.35)" : "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" },
+  modalBox:     { background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "22px 24px", color: TEXT, maxHeight: "86vh", overflow: "auto", boxShadow: HELL ? "0 16px 48px rgba(20,28,38,.25)" : "0 16px 48px rgba(0,0,0,.6)" },
 };
 
 // Helle Farben für neue VLANs, damit ID und Linien auf dunklem Grund lesbar bleiben

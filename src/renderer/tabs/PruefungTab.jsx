@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, STRONG } from "../../shared/constants.js";
 import { KATALOG, findProtokoll, ipPorts } from "../../shared/catalog.js";
 import { Section, SevBadge, SEV, VlanChip } from "../ui.jsx";
 import { GOLD_STANDARDS, maNetGen } from "../../shared/manet.js";
@@ -21,7 +21,7 @@ export default function PruefungTab({ P, X, issues, onShowIssue }) {
         <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
           {["error", "warn", "info"].map((s) => (
             <button key={s} onClick={() => setFilter((f) => ({ ...f, [s]: !f[s] }))}
-              style={{ ...S.boxTab, ...(filter[s] ? { borderColor: SEV[s].color, color: "#fff", background: SEV[s].color + "22" } : {}) }}>
+              style={{ ...S.boxTab, ...(filter[s] ? { borderColor: SEV[s].color, color: STRONG, background: SEV[s].color + "22" } : {}) }}>
               {SEV[s].icon} {SEV[s].label}: <b>{count(s)}</b>
             </button>
           ))}

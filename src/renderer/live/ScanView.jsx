@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { S, OK, ERR, WARN, INFO, MUTED, SUB } from "../../shared/constants.js";
+import { S, OK, ERR, WARN, INFO, MUTED, SUB, BTN, STRONG } from "../../shared/constants.js";
 import { compareScan, scanTargets } from "../../shared/live.js";
 import { inSubnet } from "../../shared/net.js";
 import { fundZuGeraet } from "../../shared/discovery.js";
@@ -74,13 +74,13 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
       {snap?.running && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: SUB, marginBottom: 4 }}>Scanne {snap.cidr} … {snap.progress.done} / {snap.progress.total} Adressen, {snap.hosts.length} Geräte gefunden</div>
-          <div style={{ height: 6, background: "#2a313a", borderRadius: 3 }}><div style={{ width: `${pct}%`, height: "100%", background: OK, borderRadius: 3 }} /></div>
+          <div style={{ height: 6, background: BTN, borderRadius: 3 }}><div style={{ width: `${pct}%`, height: "100%", background: OK, borderRadius: 3 }} /></div>
         </div>
       )}
       {cmp && !snap.running && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6, alignItems: "center" }}>
           <span style={{ fontSize: 12, color: SUB }}>{snap.cidr}: {snap.hosts.length} Geräte, {Math.round((snap.finished - snap.started) / 100) / 10} s.</span>
-          <button style={{ ...S.smallBtn, ...(filter === "" ? { borderColor: "#fff" } : {}) }} onClick={() => setFilter("")}>Alle</button>
+          <button style={{ ...S.smallBtn, ...(filter === "" ? { borderColor: STRONG } : {}) }} onClick={() => setFilter("")}>Alle</button>
           {Object.entries(STATUS).map(([k, s]) => cmp.count[k] > 0 && (
             <button key={k} style={{ ...S.smallBtn, color: s.color, ...(filter === k ? { borderColor: s.color } : {}) }} onClick={() => setFilter(filter === k ? "" : k)}>{s.label}: {cmp.count[k]}</button>
           ))}
@@ -94,7 +94,7 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
               <tr key={r.status + r.ip + (h?.ip || "")}>
                 <td style={td()}><Pill color={STATUS[r.status].color}>{STATUS[r.status].label}</Pill></td>
                 <td style={td(mono)}>{h?.ip || r.ip}{r.status === "verschoben" && <span style={{ color: MUTED }}> (Plan: {r.ip})</span>}</td>
-                <td style={td()}>{r.dev ? <a href="#" style={{ color: "#fff" }} onClick={(e) => { e.preventDefault(); onSelectDevice(r.dev.id); }}>{r.dev.name}</a> : <span style={{ color: MUTED }}>–</span>}</td>
+                <td style={td()}>{r.dev ? <a href="#" style={{ color: STRONG }} onClick={(e) => { e.preventDefault(); onSelectDevice(r.dev.id); }}>{r.dev.name}</a> : <span style={{ color: MUTED }}>–</span>}</td>
                 <td style={td({ fontSize: 12 })}>{h?.name || (h?.self ? "dieser Rechner" : "")}</td>
                 <td style={td(mono)}>{h?.mac || ""}{r.status === "mac" && <div style={{ color: WARN, fontSize: 11 }}>Plan: {r.iface.mac}</div>}</td>
                 <td style={td({ fontSize: 12 })}>{!h ? "" : h.ping ? `${h.ms} ms` : h.arpOnly ? <span style={{ color: MUTED }}>nur ARP</span> : <span style={{ color: MUTED }}>blockt</span>}</td>

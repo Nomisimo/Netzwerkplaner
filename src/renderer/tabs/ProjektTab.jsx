@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, KATEGORIEN } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, KATEGORIEN, INPUT, STRONG } from "../../shared/constants.js";
 import { KATALOG, ipPorts } from "../../shared/catalog.js";
 import { Section, Field } from "../ui.jsx";
 import { X as XIcon, RotateCcw } from "lucide-react";
 
 const Stat = ({ label, value, color, onClick }) => (
-  <div onClick={onClick} style={{ background: "#1b2026", border: `1px solid ${LINE}`, borderRadius: 8, padding: "12px 14px", cursor: onClick ? "pointer" : "default" }}>
+  <div onClick={onClick} style={{ background: INPUT, border: `1px solid ${LINE}`, borderRadius: 8, padding: "12px 14px", cursor: onClick ? "pointer" : "default" }}>
     <div style={{ fontSize: 11, color: SUB, fontWeight: 700 }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 800, color: color || "#fff", marginTop: 2 }}>{value}</div>
+    <div style={{ fontSize: 24, fontWeight: 800, color: color || STRONG, marginTop: 2 }}>{value}</div>
   </div>
 );
 
