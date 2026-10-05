@@ -3,7 +3,7 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [0.7.0-beta.15] – unveröffentlicht
+## [0.7.0-beta.15] – 2026-10-05
 
 - Clean Cat ordnet automatisch so an, dass die Kabelwege möglichst kurz sind (Reihenfolge von Standorten, Switches und Geräten)
 - Clean Cat: Geräte lassen sich mit der Maus verschieben. Sie bleiben dabei immer in ihrem Standort und, wenn sie in einem Stack sind, in dessen Rahmen; Geräte ohne Stack bleiben aus den Stacks heraus. „Auto-Anordnen“ setzt die Verschiebungen zurück
