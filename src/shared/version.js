@@ -5,6 +5,9 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.13": [
+    "Netzrechner: „Aufteilen in“ bietet jetzt jede Zielgröße bis /32 an, auch große Netze wie /8 oder /16 in /24-Netze. Vorher ging die Auswahl nur 10 Stufen unter das Ausgangsnetz. Die Liste zeigt die ersten 256 Teilnetze, „Weitere anzeigen“ lädt mehr nach",
+  ],
   "0.7.0-beta.12": [
     "Neuer Tab „Clean Cat“: der Plan als aufgeräumte Zeichnung auf weißem Grund. Standorte sind Räume, Geräte farbige Blöcke, die Leitungen laufen rechtwinklig. Dante Primary ist rot, Secondary grün, Glasfaser lila, Switch zu Switch grau. Wahlweise nach VLAN färben, IPs ein- oder ausblenden, Export als SVG und PNG",
     "Helles Design: Über das Zahnrad oben rechts stellst du das Erscheinungsbild auf „Wie das System“ (Standard), „Hell“ oder „Dunkel“",

@@ -3,6 +3,10 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.13] – 2026-10-05
+
+- Netzrechner: „Aufteilen in“ bietet jetzt jede Zielgröße bis /32 an, auch große Netze wie /8 oder /16 in /24-Netze. Vorher ging die Auswahl nur 10 Stufen unter das Ausgangsnetz. Die Liste zeigt die ersten 256 Teilnetze, „Weitere anzeigen“ lädt mehr nach
+
 ## [0.7.0-beta.12] – 2026-10-05
 
 - Neuer Tab „Clean Cat“: der Plan als aufgeräumte Zeichnung auf weißem Grund. Standorte sind Räume, Geräte farbige Blöcke, die Leitungen laufen rechtwinklig. Dante Primary ist rot, Secondary grün, Glasfaser lila, Switch zu Switch grau. Wahlweise nach VLAN färben, IPs ein- oder ausblenden, Export als SVG und PNG
