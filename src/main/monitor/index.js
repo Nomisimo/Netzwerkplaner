@@ -20,6 +20,7 @@ const TOOLS = new Set(['scan', 'snmp']);
 
 function createManager(send) {
   const running = new Map(); // kind → { mon, opts, dirty, started }
+  const letzte = new Map(); // kind → letzter Stand eines gestoppten Monitors; die Einträge bleiben stehen
   let lastTick = Date.now();
 
   const emit = (kind) => {
@@ -56,12 +57,17 @@ function createManager(send) {
     const r = running.get(kind);
     if (!r) return true;
     running.delete(kind);
+    let snap = null; try { snap = r.mon.snapshot(); } catch {}
     try { r.mon.stop(); } catch {}
-    send({ kind, running: false });
+    const msg = { kind, running: false, opts: r.opts, started: r.started, stopped: Date.now(), snapshot: snap };
+    letzte.set(kind, msg);
+    send(msg);
     return true;
   };
 
   const action = async (kind, name, args) => {
+    // Stand eines gestoppten Monitors verwerfen
+    if (name === 'verwerfen' && !running.has(kind)) { letzte.delete(kind); send({ kind, running: false }); return { ok: true }; }
     if (!running.has(kind) && TOOLS.has(kind)) await start(kind, {});
     const r = running.get(kind);
     if (!r) return { ok: false, error: 'Monitor läuft nicht.' };
@@ -69,10 +75,13 @@ function createManager(send) {
     catch (e) { return { ok: false, error: e.message }; }
   };
 
-  const state = () => Object.fromEntries([...running.entries()].map(([k, r]) => {
-    let snap = null; try { snap = r.mon.snapshot(); } catch {}
-    return [k, { kind: k, running: true, opts: r.opts, started: r.started, snapshot: snap }];
-  }));
+  const state = () => ({
+    ...Object.fromEntries(letzte),
+    ...Object.fromEntries([...running.entries()].map(([k, r]) => {
+      let snap = null; try { snap = r.mon.snapshot(); } catch {}
+      return [k, { kind: k, running: true, opts: r.opts, started: r.started, snapshot: snap }];
+    })),
+  });
 
   const stopAll = () => { clearInterval(flush); clearInterval(tick); for (const k of [...running.keys()]) stop(k); };
 

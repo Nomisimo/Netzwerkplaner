@@ -54,7 +54,7 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
         {mon.running && <span style={{ fontSize: 11, color: MUTED }}>fragt alle 15 s per mDNS</span>}
       </MonBar>
       {s?.notes?.map((n, i) => <div key={i} style={{ fontSize: 12, color: WARN, marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 5 }}><TriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {n}</div>)}
-      {mon.running && (
+      {s && (
         <Card title={`Dante-Geräte (${devices.length})`}>
           {!devices.length ? <Empty>Noch keine Antwort. Dante-Geräte melden sich per mDNS, wenn der Rechner im selben Netz hängt.</Empty> : (
             <Table head={["Gerätename", "Modell", "Dante-Version", "Primäre Adresse", "Sekundäre Adresse", "Abtastrate", "Kanäle (mDNS)", "Plan", "zuletzt"]}>
@@ -103,7 +103,7 @@ export function NdiView({ P, iface, onSelectDevice }) {
         {mon.running && <button style={S.smallBtn} onClick={() => mon.action("query")}>Erneut fragen</button>}
       </MonBar>
       {s?.notes?.map((n, i) => <div key={i} style={{ fontSize: 12, color: WARN, marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 5 }}><TriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {n}</div>)}
-      {mon.running && (
+      {s && (
         <Card title={`NDI-Quellen (${list.length})`}>
           {!list.length ? <Empty>Keine NDI-Quelle gefunden. Mit NDI Discovery Server (TCP 5959) melden sich Quellen nicht per mDNS.</Empty> : (
             <Table head={["Quelle", "Host", "IP / Plan", "Port", "zuletzt"]}>
@@ -136,7 +136,7 @@ export function ManetView({ P, iface, onSelectDevice }) {
         {mon.running && <button style={S.smallBtn} onClick={() => mon.action("clear")}>Leeren</button>}
         {mon.running && <span style={{ fontSize: 12, color: SUB }}>gesamt {fmtBps(sum)}</span>}
       </MonBar>
-      {mon.running && s && (
+      {s && (
         <>
           <Card title="Sender">
             {!s.flows.length ? <Empty>Kein MA-Net-Verkehr empfangen.</Empty> : (
@@ -191,7 +191,7 @@ export function OscView({ iface }) {
           </>
         )}
       </MonBar>
-      {mon.running && s && (
+      {s && (
         <>
           <div style={{ ...S.row, marginBottom: 8 }}>
             <div style={S.boxTabs}>
@@ -240,7 +240,7 @@ export function CitpView({ P, iface, onSelectDevice }) {
   return (
     <div>
       <MonBar mon={mon} onStart={() => mon.start({ iface })} />
-      {mon.running && s && (
+      {s && (
         <>
           <Card title={`Teilnehmer (${s.peers.length})`}>
             {!s.peers.length ? <Empty>Noch kein CITP-Teilnehmer. Medienserver und Pulte melden sich etwa jede Sekunde per PINF/PLoc.</Empty> : (
@@ -279,7 +279,7 @@ export function PtpView({ P, iface, onSelectDevice }) {
         {mon.running && <button style={S.smallBtn} onClick={() => mon.action("clear")}>Leeren</button>}
       </MonBar>
       {s?.conflicts?.length > 0 && <div style={{ color: ERR, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={14} style={{ flexShrink: 0, marginTop: 2 }} /> Mehrere Master senden in derselben Domain: {s.conflicts.map((c) => `${c.domain}: ${c.ips.join(", ")}`).join("; ")}. Das deutet auf getrennte Clock-Inseln oder eine Fehlkonfiguration hin.</div>}
-      {mon.running && s && (
+      {s && (
         <Card title={`Clocks (${clocks.length})`}>
           {!clocks.length ? <Empty>Noch kein PTP-Paket. Sichtbar sind Master (Sync/Announce) und Slaves, die Delay_Req per Multicast senden.</Empty> : (
             <Table head={["Rolle", "IP / Plan", "Version / Domain", "Clock-ID", "Grandmaster", "Sync/s", "Announce/s", "Details", "zuletzt"]}>

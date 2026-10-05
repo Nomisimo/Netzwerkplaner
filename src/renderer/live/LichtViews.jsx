@@ -43,7 +43,7 @@ export function SacnView({ P, iface, onSelectDevice }) {
         )}
       </MonBar>
 
-      {mon.running && s && (
+      {s && (
         <>
           <Card title="Universen">
             {!s.universes.length ? <Empty>Noch keine Daten.</Empty> : (
@@ -125,9 +125,9 @@ export function ArtnetView({ P, iface, onSelectDevice }) {
           </>
         )}
       </MonBar>
-      {mon.running && s && (
+      {s && (
         <>
-          <Card title={`Nodes (${s.nodes.length})`} right={s.nodes.length > 0 && <button style={S.smallBtn} onClick={() => mon.action("clearNodes")}>Liste leeren</button>}>
+          <Card title={`Nodes (${s.nodes.length})`} right={mon.running && s.nodes.length > 0 && <button style={S.smallBtn} onClick={() => mon.action("clearNodes")}>Liste leeren</button>}>
             {!s.nodes.length ? <Empty>Noch keine Antwort auf ArtPoll.</Empty> : (
               <Table head={["IP / Gerät", "Name", "Ports (Net:Sub:Uni)", "MAC", "Meldung", "zuletzt"]}>
                 {s.nodes.map((n) => (

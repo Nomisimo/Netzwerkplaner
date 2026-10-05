@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, WARN, INPUT, MID, STRONG } from "../../shared/constants.js";
 import { findPlanned, fmtAge } from "../../shared/live.js";
 import { Dot, th, td } from "../ui.jsx";
-import { Square, Play, OctagonX, TriangleAlert } from "lucide-react";
+import { Square, Play, OctagonX, TriangleAlert, X as XIcon } from "lucide-react";
 
 export { th, td };
 
@@ -15,8 +15,9 @@ export function MonBar({ mon, label = "Mitlesen", onStart, children, stopLabel =
           ? <button style={S.secondaryBtn} onClick={mon.stop}><Square size={12} fill="currentColor" /> {stopLabel}</button>
           : <button style={S.primaryBtn} disabled={mon.busy} onClick={onStart}><Play size={12} fill="currentColor" /> {label}</button>}
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: mon.running ? OK : MUTED }}>
-          <Dot color={mon.running ? OK : MID} /> {mon.running ? "läuft" : "gestoppt"}
+          <Dot color={mon.running ? OK : MID} /> {mon.running ? "läuft" : mon.stopped ? `gestoppt um ${new Date(mon.stopped).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}, letzter Stand` : "gestoppt"}
         </span>
+        {!mon.running && mon.snapshot && <button style={S.smallBtn} onClick={mon.verwerfen} title="Die stehen gebliebenen Einträge des letzten Laufs entfernen"><XIcon size={12} /> Einträge verwerfen</button>}
         {children}
       </div>
       {mon.error && <div style={{ color: ERR, fontSize: 12, marginTop: 8, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {mon.error}</div>}
