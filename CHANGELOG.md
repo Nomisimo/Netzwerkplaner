@@ -3,7 +3,7 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [0.7.0-beta.16] – unveröffentlicht
+## [0.7.0-beta.16] – 2026-10-05
 
 - Plott (bisher „Clean Cat“): neuer Name für die aufgeräumte A3-Planansicht
 - Plott: Leitungen mit weniger Ecken. Unnötige Umwege werden abgekürzt, wo kein Gerät und keine andere Leitung im Weg ist; keine Leitung knickt öfter als viermal ab
