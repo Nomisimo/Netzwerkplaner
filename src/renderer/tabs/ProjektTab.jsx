@@ -71,7 +71,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
                   title="Name ändern: gilt im ganzen Projekt, auch an allen Geräten"
                   onBlur={(e) => { const v = e.target.value.trim(); if (!v || v === b) { e.target.value = b; return; } mutate((d) => standortUmbenennen(d, b, v)); }}
                   onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") { e.target.value = b; e.target.blur(); } }} />
-                <input style={{ ...S.input, flex: 1, minWidth: 240 }} placeholder="Anmerkung (nur in Clean Cat)" value={P.standortInfo?.[b]?.anmerkung || ""}
+                <input style={{ ...S.input, flex: 1, minWidth: 240 }} placeholder="Anmerkung (nur in Plott)" value={P.standortInfo?.[b]?.anmerkung || ""}
                   onChange={(e) => mutate((d) => { const i = d.standortInfo || (d.standortInfo = {}); i[b] = { ...(i[b] || {}), anmerkung: e.target.value }; })} />
                 <span style={{ fontSize: 12, color: SUB, alignSelf: "center" }}>{anzahl} {anzahl === 1 ? "Gerät" : "Geräte"}</span>
                 <button style={S.smallBtn} title={anzahl ? "Erst die Geräte umtragen" : "Aus der Liste entfernen"} disabled={!!anzahl}

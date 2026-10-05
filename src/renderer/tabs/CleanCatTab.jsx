@@ -6,7 +6,7 @@ import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
 import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText, RotateCcw } from "lucide-react";
 
-/* Clean Cat: Signalfluss-Plan als A3-Blatt (quer) wie eine Visio-Zeichnung.
+/* Plott: Signalfluss-Plan als A3-Blatt (quer) wie eine Visio-Zeichnung.
    Räume = Standorte, Geräte als gleich große Blöcke, Leitungen rechtwinklig,
    unten Legende und Plankopf aus den Projektdaten. Mausrad zoomt, Ziehen
    verschiebt, Klick auf ein Gerät öffnet es im Geräte-Editor. */
@@ -48,7 +48,7 @@ function Plankopf({ B, P, stand, logo }) {
         : <T x={x + w - logoW / 2} y={y + r1 / 2 + 5} max={logoW - 20} fit={passeText("Netzwerkplaner", 15, logoW - 20, 9)} anchor="middle" weight={800} fill={ACCENT} />}
       <Zelle x={x} y={y + r1} w={w / 2} h={r2} label="Ort / Venue" wert={m.ort} />
       <Zelle x={x + w / 2} y={y + r1} w={w / 2} h={r2} label="Ersteller" wert={m.ersteller} />
-      <Zelle x={x} y={y + r1 + r2} w={w * 0.5} h={r3} label="Planinhalt" wert="Clean Cat · Netzwerk-Signalfluss" />
+      <Zelle x={x} y={y + r1 + r2} w={w * 0.5} h={r3} label="Planinhalt" wert="Plott · Netzwerk-Signalfluss" />
       <Zelle x={x + w * 0.5} y={y + r1 + r2} w={w * 0.25} h={r3} label="Planversion" wert={m.version ? `v${m.version}` : ""} />
       <Zelle x={x + w * 0.75} y={y + r1 + r2} w={w * 0.25} h={r3} label="Format" wert="A3 quer" />
       <Zelle x={x} y={y + r1 + r2 + r3} w={w * 0.5} h={r4} label="Projektdatum" wert={datumDe(m.datum)} />
@@ -247,7 +247,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   };
   const exportieren = async (art) => {
     try {
-      const name = `${fileBase(P)} – Clean Cat`;
+      const name = `${fileBase(P)} – Plott`;
       if (art === "svg") await api.saveFile(svgText(), `${name}.svg`, [{ name: "SVG", extensions: ["svg"] }]);
       else if (art === "png") await api.saveFile(await svgToPngBase64(svgText(), B.w, B.h), `${name}.png`, [{ name: "PNG", extensions: ["png"] }], "base64");
       else await api.exportPdf(`<!doctype html><html><head><meta charset="utf-8"><title>${name}</title><style>@page{size:A3 landscape;margin:0}html,body{margin:0;padding:0}svg{display:block;width:420mm;height:297mm}</style></head><body>${svgText()}</body></html>`, name, { pageSize: "A3" });

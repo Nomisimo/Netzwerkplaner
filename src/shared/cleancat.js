@@ -1,4 +1,4 @@
-/* ── Clean Cat: aufgeräumter Signalfluss-Plan ──────────────────────────────
+/* ── Plott: aufgeräumter Signalfluss-Plan ──────────────────────────────
    Räume (Standort/Ast) als gestrichelte Bereiche, Geräte als farbige Blöcke,
    Leitungen rechtwinklig mit Dante Primary rot und Secondary grün. Je Raum
    bildet jeder Switch eine Gruppe: seine Endgeräte stehen in Reihen darüber, die
@@ -77,6 +77,81 @@ export const ccRolle = (port) => (/primary|\bpri\b/i.test(port?.name || "") ? "p
 
 /* ordnung: Reihenfolge von Standorten, Switch-Gruppen je Raum und Geräten je Gruppe
    (von cleanCatOptimieren). */
+const glaetten = (pts) => {
+  const out = [];
+  for (const p of pts) {
+    const a = out[out.length - 1];
+    if (a && Math.abs(a[0] - p[0]) < 0.01 && Math.abs(a[1] - p[1]) < 0.01) continue;
+    const b = out[out.length - 2];
+    if (a && b && ((Math.abs(b[0] - a[0]) < 0.01 && Math.abs(a[0] - p[0]) < 0.01) || (Math.abs(b[1] - a[1]) < 0.01 && Math.abs(a[1] - p[1]) < 0.01))) out[out.length - 1] = p;
+    else out.push(p);
+  }
+  return out;
+};
+/* Abkürzungen: ein Stück einer Leitung durch einen Winkel (eine Ecke) ersetzen, wenn
+   der neue Weg keine Box und keinen Titel schneidet, keine andere Leitung überdeckt,
+   nicht öfter kreuzt und nicht öfter über einen Rahmen läuft. Anfang und Ende bleiben
+   senkrecht an ihren Boxen. */
+const segs = (pts) => pts.slice(1).map((b, i) => [pts[i], b]);
+const schneidetRechteck = ([a, b], r) => {
+  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+  return x1 > r.x + 1 && x0 < r.x + r.w - 1 && y1 > r.y + 1 && y0 < r.y + r.h - 1;
+};
+const ueberRand = ([a, b], r) => { // wie oft ein Stück über den Rand eines Rechtecks läuft
+  const drin = (p) => p[0] > r.x && p[0] < r.x + r.w && p[1] > r.y && p[1] < r.y + r.h;
+  return drin(a) !== drin(b) ? 1 : 0;
+};
+const kreuzt = ([a, b], [c, d]) => {
+  const h1 = Math.abs(a[1] - b[1]) < 0.01, h2 = Math.abs(c[1] - d[1]) < 0.01;
+  if (h1 === h2) return 0;
+  const [h, v] = h1 ? [[a, b], [c, d]] : [[c, d], [a, b]];
+  const x = v[0][0], y = h[0][1];
+  return x > Math.min(h[0][0], h[1][0]) + 0.5 && x < Math.max(h[0][0], h[1][0]) - 0.5 && y > Math.min(v[0][1], v[1][1]) + 0.5 && y < Math.max(v[0][1], v[1][1]) - 0.5 ? 1 : 0;
+};
+const deckt = ([a, b], [c, d]) => { // liegen zwei Stücke aufeinander?
+  if (Math.abs(a[1] - b[1]) < 0.01 && Math.abs(c[1] - d[1]) < 0.01 && Math.abs(a[1] - c[1]) < 3)
+    return Math.min(Math.max(a[0], b[0]), Math.max(c[0], d[0])) - Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0])) > 1;
+  if (Math.abs(a[0] - b[0]) < 0.01 && Math.abs(c[0] - d[0]) < 0.01 && Math.abs(a[0] - c[0]) < 3)
+    return Math.min(Math.max(a[1], b[1]), Math.max(c[1], d[1])) - Math.max(Math.min(a[1], b[1]), Math.min(c[1], d[1])) > 1;
+  return false;
+};
+const aufWeg = (pts, t) => segs(pts).some(([a, b]) => Math.abs(a[1] - b[1]) < 0.01 && Math.abs(t.y + 2.5 - a[1]) < 1.5 && t.x > Math.min(a[0], b[0]) && t.x < Math.max(a[0], b[0]));
+const abkuerzen = (linien, hindernisse, rahmen) => {
+  for (const l of linien) {
+    const andere = linien.filter((o) => o !== l).flatMap((o) => segs(o.pts));
+    const mitte = l.labels.filter((t) => t.anchor === "middle");
+    const wert = (pts) => {
+      const s = segs(pts);
+      return { k: s.reduce((n, g) => n + andere.reduce((m, o) => m + kreuzt(g, o), 0), 0), r: s.reduce((n, g) => n + rahmen.reduce((m, r) => m + ueberRand(g, r), 0), 0) };
+    };
+    let besser = true;
+    while (besser) {
+      besser = false;
+      const pts = l.pts, n = pts.length, alt = wert(pts);
+      for (let i = 0; i < n - 2 && !besser; i++) for (let j = n - 1; j >= i + 2 && !besser; j--) {
+        const a = pts[i], b = pts[j];
+        const ecken = [];
+        if (Math.abs(a[0] - b[0]) < 0.01 || Math.abs(a[1] - b[1]) < 0.01) ecken.push(null);
+        else {
+          if (j !== n - 1) ecken.push([a[0], b[1]]); // zuerst senkrecht
+          if (i !== 0) ecken.push([b[0], a[1]]); // zuerst waagrecht
+        }
+        for (const e of ecken) {
+          if (j - i <= 1 + (e ? 1 : 0)) continue;
+          if (!e && ((i === 0 && Math.abs(a[0] - b[0]) > 0.01) || (j === n - 1 && Math.abs(a[0] - b[0]) > 0.01))) continue;
+          const neu = e ? [a, e, b] : [a, b];
+          const ns = segs(neu);
+          if (ns.some((g) => hindernisse.some((r) => schneidetRechteck(g, r)) || andere.some((o) => deckt(g, o)))) continue;
+          const kand = glaetten([...pts.slice(0, i), ...neu, ...pts.slice(j + 1)]);
+          if (kand.length >= n) continue;
+          const w = wert(kand);
+          if (w.k > alt.k || w.r > alt.r || !mitte.every((t) => aufWeg(kand, t))) continue;
+          l.pts = kand; besser = true; break;
+        }
+      }
+    }
+  }
+};
 /* Spuren in einer Trasse vergeben, damit sich Leitungen nicht kreuzen: schmale
    Leitungen (deren Enden innerhalb einer breiteren liegen) bekommen die oberen Spuren. */
 const spurenNachBreite = (eintraege) => {
@@ -88,7 +163,7 @@ const nachListe = (arr, liste, key = (x) => x.id) => {
   const i = new Map(liste.map((id, k) => [id, k]));
   return arr.map((x, k) => [x, k]).sort((a, b) => (i.get(key(a[0])) ?? 1e6 + a[1]) - (i.get(key(b[0])) ?? 1e6 + b[1])).map((x) => x[0]);
 };
-// Anmerkung zu einem Standort (Projektseite); erscheint nur in Clean Cat
+// Anmerkung zu einem Standort (Projektseite); erscheint nur in Plott
 export const ccAnmerkung = (P, name) => String(P.standortInfo?.[name]?.anmerkung || "").trim();
 const NOTIZ_PX = 8.5, NOTIZ_ZEILE = 10.5, ANM_PX = 10, ANM_ZEILE = 12.5;
 export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung = null } = {}) => {
@@ -292,7 +367,10 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
       // Spur in der Lücke zum Switch: weiter außen liegende Leitungen tiefer, damit sie sich nicht kreuzen
       const yS = g.gapY[letzte] + 12 + (p.xNah < xs ? pfade.length - 1 - i : i) * SPUR;
       const last = p.pts[p.pts.length - 1];
-      p.pts.push([last[0], yS], [xs, yS], [xs, sb.y]);
+      const b = boxen.get(p.w.z.d.id);
+      // Gerät direkt über dem Switch-Port: gerade Linie ohne Ecken
+      if (p.pts.length === 1 && xs >= b.x + 6 && xs <= b.x + b.w - 6) p.pts = [[xs, b.y + b.h], [xs, sb.y]];
+      else p.pts.push([last[0], yS], [xs, yS], [xs, sb.y]);
       const st = stil(p.w.c);
       const swPort = portVon(eigenes(p.w.c, g.sw.id));
       const nz = String(p.w.c.notiz || "").trim();
@@ -501,6 +579,12 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     linien.push({ id: c.id, von: c.a.dev, bis: c.b.dev, pts, ...st, col: umf ? (istGlas(c) ? CC_FARBEN.glas : CC_FARBEN.trunk) : st.col, leg: umf ? (istGlas(c) ? "Glasfaser" : "Switch zu Switch") : st.leg,
       labels: [{ ...lab, t: kab, anchor: "middle" }, ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))] });
   });
+  // Leitungen glätten: doppelte Punkte und Punkte mitten auf einer Geraden entfernen (keine Schein-Ecken)
+  for (const l of linien) l.pts = glaetten(l.pts);
+  // Dann Umwege mit unnötigen Ecken abkürzen
+  abkuerzen(linien, [...boxen.values(), ...bloecke.filter((b) => b.kopf > 0).map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.kopf })),
+    ...raeume.map((r) => ({ x: r.x, y: r.y, w: r.w, h: RAUM_KOPF }))],
+  [...bloecke, ...raeume.filter((r) => r.stapel)]);
   const h = raeume.length ? plan.H : 0;
   const w = raeume.length ? plan.W : 0;
   // Legende: nur, was im Plan vorkommt
@@ -569,8 +653,11 @@ export const ccKreuzungen = (L) => {
   for (const h of H) for (const v of V) if (h.k !== v.k && v.x > h.x0 + 0.5 && v.x < h.x1 - 0.5 && h.y > v.y0 + 0.5 && h.y < v.y1 - 0.5) n++;
   return n;
 };
-export const CC_KREUZUNG = 160; // Aufschlag je Kreuzung in Längeneinheiten
-const ccKosten = (L) => ccLaenge(L) + CC_KREUZUNG * ccKreuzungen(L);
+// Ecken (Abbiegungen) aller Leitungen
+export const ccEcken = (L) => L.linien.reduce((n, l) => n + Math.max(0, l.pts.length - 2), 0);
+export const CC_KREUZUNG = 250; // Aufschlag je Kreuzung in Längeneinheiten
+export const CC_ECKE = 30; // Aufschlag je Ecke
+const ccKosten = (L) => ccLaenge(L) + CC_KREUZUNG * ccKreuzungen(L) + CC_ECKE * ccEcken(L);
 export const cleanCatOptimieren = (P, X, opts = {}) => {
   const hand = (P.layout?.cleancatStandorte || []).filter(Boolean);
   const basis = cleanCatLayout(P, X, { ...opts, ordnung: hand.length ? { standorte: hand } : null });

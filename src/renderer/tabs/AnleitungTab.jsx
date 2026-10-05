@@ -90,13 +90,13 @@ const KAPITEL = [
       "Meldungszentrum links in der Werkzeugleiste: Fehler, Warnungen und Hinweise der Prüfung als Zähler. Klick auf einen Zähler listet die Meldungen, „Zeigen“ springt zum Gerät, „Alle in Prüfung“ öffnet den Prüfungs-Tab.",
     ]} />
   </> },
-  { id: "cleancat", titel: "Clean Cat", tab: ["topologie", "Topologie"], inhalt: () => <>
+  { id: "cleancat", titel: "Plott", tab: ["topologie", "Topologie"], inhalt: () => <>
     <Liste items={[
-      "Clean Cat ist eine Ansicht im Topologie-Tab: oben links zwischen „Mindmap“, „Anschlüsse“ und „Clean Cat“ umschalten.",
+      "Plott (früher „Clean Cat“) ist eine Ansicht im Topologie-Tab: oben links zwischen „Mindmap“, „Anschlüsse“ und „Plott“ umschalten.",
       "Der Plan ist immer ein A3-Blatt quer mit Rahmen, wie eine aufgeräumte Visio-Zeichnung: jeder Standort ist ein gestrichelter Raum, jedes Gerät ein farbiger Block (Farbe nach Bereich, Switches gelb). Die Räume werden so in Reihen gelegt, dass das Blatt möglichst gut gefüllt ist.",
       "Alle Endgeräte sind gleich groß, Switches richten sich nach ihrer Portzahl: gleiches Modell, gleiche Größe. Zu lange Namen werden kleiner geschrieben und notfalls mit „…“ gekürzt, der volle Name steht im Tooltip. Text läuft nie aus seinem Feld.",
       "Je Switch stehen seine Endgeräte in Reihen darüber, die Leitungen laufen rechtwinklig in eigenen Spuren. Dante Primary ist rot, Dante Secondary grün (erkannt am Portnamen Primary/Secondary), Glasfaser lila, Switch zu Switch dunkelgrau. Pfeile zeigen die Anschlüsse, am Switch steht die Portnummer.",
-      "Die Anordnung hält die Kabelwege kurz und vermeidet Kreuzungen: die Spuren werden so vergeben, dass sich Leitungen möglichst nicht schneiden.",
+      "Die Anordnung hält die Kabelwege kurz und vermeidet Kreuzungen: die Spuren werden so vergeben, dass sich Leitungen möglichst nicht schneiden. Umwege mit unnötigen Ecken werden abgekürzt, wo kein Gerät und keine andere Leitung im Weg ist.",
       "Ganze Standorte lassen sich verschieben: den Standort-Kasten an seiner Fläche greifen und neben einen anderen Standort ziehen. Ein blauer Strich zeigt, wo er landet; der Plan ordnet danach neu und bleibt aufgeräumt. „Standorte automatisch“ verwirft die eigene Reihenfolge.",
       "Leitungen zwischen Geräten desselben Standorts bleiben in dessen Kasten: auch zwischen zwei Stacks laufen sie unten im Standort-Rahmen. Nur Verbindungen zwischen Standorten gehen nach draußen, in eine Trasse unter ihrer Reihe, zwischen zwei Reihen links am Blatt entlang. Sie tragen Kabelbezeichnung, Kabeltyp, Länge und Notiz.",
       "Unten links steht die Legende mit allen Leitungsfarben und Gerätefarben, die im Plan vorkommen. Unten rechts der Plankopf aus den Projektdaten (Veranstaltung, Ort, Ersteller, Planversion, Projektdatum), dazu das Exportdatum und dein Logo, wenn eins hinterlegt ist.",
@@ -104,7 +104,7 @@ const KAPITEL = [
       "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt das ganze Blatt. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „PDF A3“, „SVG“ und „PNG“ speichern das Blatt, z. B. für Visio oder die Doku.",
       "Die Anordnung entsteht automatisch aus Standort und Verbindungen. Ein Gerät landet im Raum seines Standorts; ohne Standort im Raum „Ohne Standort“. Die Reihenfolge von Standorten, Switches und Geräten wird so gewählt, dass die Kabelwege möglichst kurz sind.",
       "Jedes Gerät zeigt unter Name, Modell und IP auch seine Notiz (zwei Zeilen, der Rest im Tooltip). Alle Blöcke bleiben dabei gleich groß. Eine Notiz an einer Verbindung steht an der Leitung.",
-      "Der Standort-Kasten zeigt unter seinem Namen die Anmerkung, die du auf der Projekt-Seite unter „Standorte / Äste“ einträgst. Sie erscheint nur hier in Clean Cat.",
+      "Der Standort-Kasten zeigt unter seinem Namen die Anmerkung, die du auf der Projekt-Seite unter „Standorte / Äste“ einträgst. Sie erscheint nur hier in Plott.",
       "Stacks (in der Mindmap mit „Stapeln“ gebaut) erscheinen im Standort als eigener Kasten mit ihrem Namen, z. B. ein Rack. Geräte ohne Stack stehen daneben. Leitungen zwischen Stack und Rest des Standorts laufen unter dem Standort entlang.",
     ]} />
   </> },
@@ -217,7 +217,7 @@ const KAPITEL = [
       "Das Zahnrad oben rechts öffnet die Einstellungen. Unter „Erscheinungsbild“ wählst du „Wie das System“ (Standard), „Hell“ oder „Dunkel“.",
       "„Wie das System“ übernimmt beim Start der App Hell oder Dunkel vom Betriebssystem. Wechselt das System später, gilt das beim nächsten Start.",
       "Beim Umschalten lädt die Oberfläche kurz neu. Das Projekt, der offene Tab und die Datei bleiben erhalten. In einer laufenden Sitzung fragt die App vorher, weil das Neuladen die Sitzung verlässt.",
-      "Die Ansicht „Anschlüsse“ in der Topologie bleibt in beiden Modi im dunkelblauen Blaupausen-Stil, Clean Cat immer auf weißem Papier.",
+      "Die Ansicht „Anschlüsse“ in der Topologie bleibt in beiden Modi im dunkelblauen Blaupausen-Stil, Plott immer auf weißem Papier.",
     ]} />
   </> },
   { id: "export", titel: "Export, Logo & Updates", inhalt: () => <>

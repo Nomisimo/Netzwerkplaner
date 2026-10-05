@@ -616,12 +616,12 @@ export default function TopologieTab(props) {
   const ANSICHT_TITEL = { mindmap: "Baum vom Hauptswitch aus", front: "Geräte mit ihren Anschlüssen, Kabel von Buchse zu Buchse", cleancat: "Aufgeräumter Signalfluss-Plan als A3-Blatt mit Legende und Plankopf" };
   const ansichtWahl = (
     <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
-      {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"], ["cleancat", <FileText {...ico} />, "Clean Cat"]].map(([k, i, l]) => (
+      {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"], ["cleancat", <FileText {...ico} />, "Plott"]].map(([k, i, l]) => (
         <button key={k} onClick={() => setAnsicht(k)} title={ANSICHT_TITEL[k]} style={{ ...knopf, border: "none", borderRadius: 0, ...(aktAnsicht === k ? { background: "#2c3b93", color: "#fff" } : {}) }}>{i}{l}</button>
       ))}
     </div>
   );
-  // Clean Cat: eigenes Blatt statt Zeichenfläche; Klick auf ein Gerät öffnet den Geräte-Editor
+  // Plott: eigenes Blatt statt Zeichenfläche; Klick auf ein Gerät öffnet den Geräte-Editor
   if (aktAnsicht === "cleancat") {
     return <CleanCatTab P={P} X={X} mutate={mutate} svgRef={svgRef} notify={props.notify} kopf={ansichtWahl}
       onSelectDevice={(id) => { setSelection({ type: "dev", id }); goTab("geraete"); }} />;

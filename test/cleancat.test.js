@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText, cleanCatOptimieren, ccLaenge, ccKreuzungen, CC_KREUZUNG } from "../src/shared/cleancat.js";
+import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText, cleanCatOptimieren, ccLaenge, ccKreuzungen, CC_KREUZUNG, ccEcken, CC_ECKE } from "../src/shared/cleancat.js";
 import { emptyProject } from "../src/shared/model.js";
 import { demoProject } from "../src/shared/demo.js";
 import { buildIndex } from "../src/shared/model.js";
 
 const ueberlapp = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
-test("Clean Cat: Räume, Blöcke ohne Überlappung, eine Leitung je Verbindung", () => {
+test("Plott: Räume, Blöcke ohne Überlappung, eine Leitung je Verbindung", () => {
   const P = demoProject(), X = buildIndex(P);
   const L = cleanCatLayout(P, X);
   assert.equal(L.boxen.length, P.geraete.length);
@@ -32,7 +32,7 @@ test("Clean Cat: Räume, Blöcke ohne Überlappung, eine Leitung je Verbindung",
   assert.ok(L.w > 0 && L.h > 0);
 });
 
-test("Clean Cat: gleiche Geräte gleich groß, Text passt in die Box", () => {
+test("Plott: gleiche Geräte gleich groß, Text passt in die Box", () => {
   const P = demoProject(), X = buildIndex(P);
   const L = cleanCatLayout(P, X);
   const proModell = new Map();
@@ -48,7 +48,7 @@ test("Clean Cat: gleiche Geräte gleich groß, Text passt in die Box", () => {
   assert.ok(f.t.endsWith("…") && f.voll && f.t.length * f.fs * 0.56 <= 130);
 });
 
-test("Clean Cat: Räume in Reihen, Zeichnung liegt auf dem A3-Blatt", () => {
+test("Plott: Räume in Reihen, Zeichnung liegt auf dem A3-Blatt", () => {
   const P = demoProject(), X = buildIndex(P);
   const L = cleanCatLayout(P, X);
   assert.ok(new Set(L.raeume.map((r) => r.y)).size > 1, "mehrere Reihen");
@@ -62,14 +62,14 @@ test("Clean Cat: Räume in Reihen, Zeichnung liegt auf dem A3-Blatt", () => {
   for (const l of L.linien) for (const p of l.pts) assert.ok(p.every(Number.isFinite), l.id);
 });
 
-test("Clean Cat: leeres Projekt", () => {
+test("Plott: leeres Projekt", () => {
   const P = emptyProject(), X = buildIndex(P);
   const L = cleanCatLayout(P, X);
   assert.equal(L.boxen.length, 0);
   assert.ok(Number.isFinite(ccBlatt(L).k));
 });
 
-test("Clean Cat: Stacks als Unterräume im Standort", () => {
+test("Plott: Stacks als Unterräume im Standort", () => {
   const P = demoProject();
   const by = (n) => P.geraete.find((d) => d.name === n).id;
   P.layout.stapel = [{ id: "s1", name: "Rack FOH 1", ids: [by("SW FOH"), by("FOH CL5")] }];
@@ -89,18 +89,18 @@ test("Clean Cat: Stacks als Unterräume im Standort", () => {
   assert.ok(L.legende.stapel);
 });
 
-test("Clean Cat: automatische Anordnung verkürzt die Kabelwege, spart Kreuzungen und ist stabil", () => {
+test("Plott: automatische Anordnung verkürzt die Kabelwege, spart Kreuzungen und ist stabil", () => {
   const P = demoProject(), X = buildIndex(P);
   const a = cleanCatOptimieren(P, X), b = cleanCatOptimieren(P, X);
   assert.ok(a.laenge < a.start, `${a.laenge} < ${a.start}`);
   assert.deepEqual(a.ordnung, b.ordnung);
   const L0 = cleanCatLayout(P, X), L = cleanCatLayout(P, X, { ordnung: a.ordnung });
-  assert.ok(Math.abs(ccLaenge(L) + CC_KREUZUNG * ccKreuzungen(L) - a.laenge) < 1);
+  assert.ok(Math.abs(ccLaenge(L) + CC_KREUZUNG * ccKreuzungen(L) + CC_ECKE * ccEcken(L) - a.laenge) < 1);
   assert.ok(ccKreuzungen(L) <= ccKreuzungen(L0), `${ccKreuzungen(L)} <= ${ccKreuzungen(L0)}`);
   assert.equal(L.boxen.length, P.geraete.length);
 });
 
-test("Clean Cat: Leitungen im Standort bleiben im Standort-Rahmen", () => {
+test("Plott: Leitungen im Standort bleiben im Standort-Rahmen", () => {
   const P = demoProject();
   const by = (n) => P.geraete.find((d) => d.name === n).id;
   P.layout.stapel = [{ id: "s1", name: "Rack", ids: [by("SW FOH"), by("FOH CL5")] }];
@@ -117,7 +117,7 @@ test("Clean Cat: Leitungen im Standort bleiben im Standort-Rahmen", () => {
   }
 });
 
-test("Clean Cat: Notiz am Gerät und Anmerkung am Standort", () => {
+test("Plott: Notiz am Gerät und Anmerkung am Standort", () => {
   const P = demoProject();
   const g = P.geraete.find((d) => d.name === "FOH CL5");
   g.notizen = "Pult steht auf der Galerie und braucht Strom";
@@ -132,16 +132,41 @@ test("Clean Cat: Notiz am Gerät und Anmerkung am Standort", () => {
   const ohne = cleanCatLayout(P, buildIndex(P), {});
   assert.deepStrictEqual(ohne.raeume.find((r) => r.name === "FOH").anmerkung, foh.anmerkung);
 });
-test("Clean Cat: Kreuzungen werden gezählt", () => {
+test("Plott: Kreuzungen werden gezählt", () => {
   const L = { linien: [{ pts: [[0, 10], [100, 10]] }, { pts: [[50, 0], [50, 50]] }, { pts: [[200, 0], [200, 50]] }] };
   assert.equal(ccKreuzungen(L), 1);
 });
 
-test("Clean Cat: von Hand gesetzte Standort-Reihenfolge bleibt", () => {
+test("Plott: von Hand gesetzte Standort-Reihenfolge bleibt", () => {
   const P = demoProject(), X = buildIndex(P);
   const namen = [...new Set(cleanCatLayout(P, X).raeume.map((r) => r.name))].reverse();
   P.layout.cleancatStandorte = namen;
   const o = cleanCatOptimieren(P, X);
   assert.deepEqual(o.ordnung.standorte, namen);
   assert.deepEqual(cleanCatLayout(P, X, { ordnung: o.ordnung }).raeume.map((r) => r.name), namen);
+});
+
+test("Plott: Leitungen ohne unnötige Ecken, höchstens vier Abbiegungen, Enden senkrecht", () => {
+  const P = demoProject(), X = buildIndex(P);
+  const o = cleanCatOptimieren(P, X, {});
+  const L = cleanCatLayout(P, X, { ordnung: o.ordnung });
+  for (const l of L.linien) {
+    const p = l.pts;
+    assert.ok(p.length - 2 <= 4, `${l.id}: ${p.length - 2} Ecken`);
+    // keine Punkte mitten auf einer Geraden, keine schrägen Stücke
+    for (let i = 1; i < p.length; i++) assert.ok(p[i][0] === p[i - 1][0] || p[i][1] === p[i - 1][1]);
+    for (let i = 2; i < p.length; i++) assert.ok(!(p[i][0] === p[i - 1][0] && p[i - 1][0] === p[i - 2][0]) && !(p[i][1] === p[i - 1][1] && p[i - 1][1] === p[i - 2][1]));
+    assert.equal(p[0][0], p[1][0]);
+    assert.equal(p[p.length - 1][0], p[p.length - 2][0]);
+  }
+  assert.ok(ccEcken(L) <= 54);
+  assert.ok(ccKreuzungen(L) <= 8);
+  // keine Leitung schneidet eine fremde Box
+  for (const l of L.linien) for (let i = 1; i < l.pts.length; i++) {
+    const [a, b] = [l.pts[i - 1], l.pts[i]];
+    for (const bx of L.boxen) {
+      const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+      assert.ok(!(x1 > bx.x + 1 && x0 < bx.x + bx.w - 1 && y1 > bx.y + 1 && y0 < bx.y + bx.h - 1), `${l.id} schneidet ${bx.name}`);
+    }
+  }
 });
