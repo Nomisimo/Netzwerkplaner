@@ -302,6 +302,10 @@ ipcMain.handle('check-reachability', async (_e, targets, src) => {
 const monitors = require('./monitor').register(ipcMain, () => mainWin);
 app.on('before-quit', () => monitors.stopAll());
 
+/* ── Spiele: Ausgabe an die LED-Matrix (sACN, NDI) ─────────────────────── */
+const spiele = require('./spiele/ausgabe').register(ipcMain, () => mainWin);
+app.on('before-quit', () => spiele.stopAll());
+
 /* ── Start, Dateiverknüpfung, Einzelinstanz ────────────────────────────── */
 const fileArg = (argv) => argv.slice(1).find((a) => /\.netplan$|\.json$/i.test(a) && fs.existsSync(a));
 

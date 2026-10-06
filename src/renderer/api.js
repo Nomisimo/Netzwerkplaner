@@ -65,5 +65,9 @@ export const api = {
   monAction: (kind, name, args) => (E?.monAction ? E.monAction(kind, name, args) : Promise.resolve({ ok: false, error: "Nur in der Desktop-App." })),
   monState: () => (E?.monState ? E.monState() : Promise.resolve({})),
   onMonEvent: (cb) => (E?.onMonEvent ? E.onMonEvent(cb) : () => {}),
+  // Spiele: Ausgabe an die LED-Matrix (sACN/NDI, nur Desktop-App)
+  spieleAusgabe: (cfg) => (E?.spieleAusgabe ? E.spieleAusgabe(cfg) : Promise.resolve(null)),
+  spieleFrame: (px) => E?.spieleFrame?.(px),
+  onSpieleStatus: (cb) => (E?.onSpieleStatus ? E.onSpieleStatus(cb) : () => {}),
   onOpenFile: (cb) => E && E.onOpenFile && E.onOpenFile(cb),
 };

@@ -8,6 +8,6 @@ const ROOT = path.join(__dirname, "..");
 const OUT = path.join(ROOT, "node_modules", ".cache", "np-tests");
 fs.rmSync(OUT, { recursive: true, force: true });
 const files = fs.readdirSync(path.join(ROOT, "test")).filter((f) => f.endsWith(".test.js"));
-esbuild.buildSync({ entryPoints: files.map((f) => path.join(ROOT, "test", f)), bundle: true, platform: "node", format: "cjs", outdir: OUT, logLevel: "warning" });
+esbuild.buildSync({ entryPoints: files.map((f) => path.join(ROOT, "test", f)), bundle: true, platform: "node", format: "cjs", external: ["koffi"], outdir: OUT, logLevel: "warning" });
 const r = spawnSync(process.execPath, ["--test", ...files.map((f) => path.join(OUT, f))], { stdio: "inherit" });
 process.exit(r.status);

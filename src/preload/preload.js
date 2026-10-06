@@ -25,5 +25,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   monAction:         (kind, name, args) => ipcRenderer.invoke('mon-action', { kind, name, args }),
   monState:          () => ipcRenderer.invoke('mon-state'),
   onMonEvent:        (cb) => { const h = (_, msg) => cb(msg); ipcRenderer.on('mon-event', h); return () => ipcRenderer.removeListener('mon-event', h); },
+  spieleAusgabe:     (cfg) => ipcRenderer.invoke('spiele-ausgabe', cfg),
+  spieleFrame:       (px) => ipcRenderer.send('spiele-frame', px),
+  onSpieleStatus:    (cb) => { const h = (_, msg) => cb(msg); ipcRenderer.on('spiele-status', h); return () => ipcRenderer.removeListener('spiele-status', h); },
   onOpenFile:        (cb) => ipcRenderer.on('open-file', (_, msg) => cb(msg)),
 });

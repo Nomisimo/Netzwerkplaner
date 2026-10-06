@@ -15,6 +15,7 @@ Electron-Desktop-App für **macOS und Windows**, läuft komplett ohne Server und
 | **Geräte** | Liste mit Filter, Editor für Interfaces (IP/Maske/VLAN/Gateway/MAC/DHCP), physische Ports (Access/Trunk, PoE, Punkt-zu-Punkt), Web-UI, Protokolle, Notizen, eigene Icons, „Modell zuweisen“ für generische Geräte |
 | **VLANs** | ID, Name, Farbe, Zweck, Notiz; Schalter IGMP-Snooping, EEE aus, QoS, DHCP |
 | **Live** | Werkzeuge fürs laufende Netz, je Protokoll ein Untertab: Online-Status aller Geräte, Discovery (findet Geräte im Netz und fügt sie als generische Einträge ein, danach „Modell zuweisen“ oder „Leeres Gerät anlegen“), Netzwerkscan mit Soll/Ist-Abgleich gegen den Plan, Switches per SNMP (Link, VLAN je Port, PoE, LLDP-Nachbarn, Abweichungen zum Plan), sACN-Monitor (Quellen, Priorität, fps, Kanalwerte, Universe Discovery), Art-Net (ArtPoll-Nodes, Universen, Kanalwerte), Dante und NDI (Geräte per mDNS), MA-Net (Verkehr je Sender), OSC-Protokoll, CITP-Teilnehmer, PTP-Clock (Master, Domain, Konflikte) |
+| **Spiele** | Snake, Pong und Mario Jump für zwei LED-Matrizen à 24×24 (48×24 px, 60 fps), portiert aus [Matrix-Games](https://github.com/Nomisimo/Matrix-Games). Ausgabe per sACN (Universe je Matrix einstellbar, Kachel-Mapping 4×4) und als NDI-Stream (480×240, braucht die NDI Runtime), Live-Ansicht der Matrizen, 8-Bit-Töne |
 | **Wissen** | IGMP, QoS/DSCP, Bandbreite, Latenz, PTP, EEE, STP, VLANs, Adressen, Redundanz, Switch-Einstellungen je Hersteller, Protokoll-Poster (OSI-Modell & Ports), mDNS-Dienste, Infrastruktur-Protokolle, Wikipedia-Links; Seiten zu Dante, MA-Net 1–3, Art-Net, sACN, NDI, OSC, CITP |
 | **Prüfung** | IP-Konflikte, VLAN-Mismatch an Switch-Ports, Trunks, Punkt-zu-Punkt-Protokolle (AES50, SLink, HDBaseT …) am Switch, Multicast ohne IGMP, EEE bei Audio over IP, PoE-Budget, doppelte Ports, Leitungslast und Dante-Hops aus den Datenströmen, MA-Net Gold-Standards |
 | **Katalog** | Gerätebestand (eigene Geräte mit IPs, direkt einfügbar, neu anlegen, CSV-Import/-Export), eigene Vorlagen, Herstellergeräte, Protokollreferenz (Ports, Multicast, Anforderungen, Datenstand), Icons |
@@ -50,9 +51,11 @@ Die Oberfläche (React 18) wird mit esbuild zu einer einzelnen Datei `dist-app/i
 ```
 src/main/        Electron-Hauptprozess (Fenster, Dateien, PDF, Ping/TCP), Splash
 src/main/monitor/  Live-Monitore (sACN, Art-Net, CITP, OSC, MA-Net, PTP, mDNS, Scan, SNMP), reines Node
+src/main/spiele/   Ausgabe der Spiele an die LED-Matrix: sACN-Sender, NDI-Sender (NDI Runtime über koffi)
 src/preload/     IPC-Brücke (contextBridge)
 src/renderer/    React-Oberfläche: App, Tabs, Geräte-/Verbindungs-Editor, Exporte
 src/shared/      Logik ohne UI: IP-Rechnung, Datenmodell, Prüfregeln, Mindmap-Layout, Katalog
+src/shared/spiele/ Spiele (Snake, Pong, Mario Jump) als reine Logik auf einer 48×24-Leinwand
 src/shared/data/katalog.json   Hardwarekatalog + Protokollrecherche (generiert)
 assets/icons/devices/          Geräte-Icons (SVG, 24×24, currentColor)
 assets/app-icon/               App-Icon
