@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY, DARK, INPUT, LINE2, MID, OK, TEXT, TEXT2 } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY, DARK, INPUT, LINE2, MID, OK, TEXT, TEXT2, SPIELE_GRUEN } from "../shared/constants.js";
 import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl, vlansAbleiten } from "../shared/model.js";
 import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ipPorts } from "../shared/catalog.js";
 import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
@@ -488,7 +488,7 @@ export default function App() {
       </header>
       <nav style={S.nav}>
         {TABS.map(([k, label]) => (
-          <button key={k} style={{ ...S.navBtn, ...(tab === k ? S.navBtnActive : {}) }} onClick={() => setTab(k)}>
+          <button key={k} style={{ ...S.navBtn, ...(tab === k ? S.navBtnActive : {}), ...(tab === k && k === "spiele" ? { borderBottomColor: SPIELE_GRUEN } : {}) }} onClick={() => setTab(k)}>
             <span style={{ display: "block", height: 0, fontWeight: 600, overflow: "hidden", visibility: "hidden" }} aria-hidden="true">{label}</span>
             {label}
             {k === "pruefung" && (nErr + nWarn > 0) && <span style={{ ...S.badge, marginLeft: 6, background: nErr ? ERR : WARN, color: DARK }}>{nErr || nWarn}</span>}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { S, OK, ERR, WARN, SUB, MUTED, TEXT2, INPUT, LINE } from "../../shared/constants.js";
+import { S, OK, ERR, WARN, SUB, MUTED, TEXT2, INPUT, LINE, SPIELE_GRUEN as GRUEN } from "../../shared/constants.js";
 import { SPIELE, Bild, W, H } from "../../shared/spiele/index.js";
 import { api, isElectron } from "../api.js";
 import { createTon } from "../spiele/ton.js";
@@ -11,6 +11,14 @@ const LS = "netzwerkplaner_spiele";
 // Vorgaben wie im Snake-Original auf der echten Matrix (Universe 29 und 33, 144 Fixtures je Universe)
 const STANDARD = { spiel: "snake", ton: true, sacn: { on: false, iface: "", u1: 29, u2: 33, fpu: 144 }, ndi: { on: false, name: "Matrix Games" } };
 const laden = () => { try { const v = JSON.parse(localStorage.getItem(LS) || "null"); return v ? { ...STANDARD, ...v, sacn: { ...STANDARD.sacn, ...v.sacn }, ndi: { ...STANDARD.ndi, ...v.ndi } } : STANDARD; } catch { return STANDARD; } };
+
+// Der Spiele-Tab hat Grün als Akzentfarbe (statt Rot wie der Rest der App)
+const GRUEN_CSS = `
+.np-spiele input[type=checkbox] { accent-color: ${GRUEN}; }
+.np-spiele input:focus, .np-spiele select:focus { outline-color: ${GRUEN}; }
+.np-spiele .sp-section-label { color: ${GRUEN}; }
+`;
+const tabAktiv = { background: GRUEN, color: "#fff", fontWeight: 700, border: `1px solid ${GRUEN}` };
 
 const STEP = 1000 / 60;
 const ZUSTAND = { title: "Titelbild", playing: "läuft", paused: "Pause", point_scored: "Punkt", game_over: "Game Over" };
@@ -122,11 +130,12 @@ export default function SpieleTab() {
   const uni = (start) => { const n = Math.ceil(24 * 24 / Math.max(1, Math.min(170, +cfg.sacn.fpu || 144))); return `${start}–${+start + n - 1}`; };
 
   return (
-    <div>
+    <div className="np-spiele">
+      <style>{GRUEN_CSS}</style>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
         <div style={{ ...S.boxTabs, marginBottom: 0, flex: 1 }}>
           {SPIELE.map((s) => (
-            <button key={s.id} style={{ ...S.boxTab, ...(cfg.spiel === s.id ? S.boxTabActive : {}) }} onClick={() => set("spiel", s.id)}>{s.name}</button>
+            <button key={s.id} style={{ ...S.boxTab, ...(cfg.spiel === s.id ? tabAktiv : {}) }} onClick={() => set("spiel", s.id)}>{s.name}</button>
           ))}
         </div>
         <button style={S.ghostBtn} onClick={() => set("ton", !cfg.ton)} title={cfg.ton ? "Ton aus" : "Ton an"}>{cfg.ton ? <Volume2 size={14} /> : <VolumeX size={14} />} Ton</button>
@@ -136,11 +145,11 @@ export default function SpieleTab() {
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 20, alignItems: "start" }}>
         <div>
           <div style={{ ...S.section, padding: 14 }}>
-            <div ref={boxRef} tabIndex={0} onMouseDown={() => boxRef.current?.focus()} style={{ outline: "none", background: "#000", borderRadius: 6, overflow: "hidden", border: `1px solid ${LINE}` }}>
+            <div ref={boxRef} tabIndex={0} onMouseDown={() => boxRef.current?.focus()} style={{ outline: "none", background: "#000", borderRadius: 6, overflow: "hidden", border: `2px solid ${GRUEN}` }}>
               <canvas ref={canvasRef} width={W} height={H} style={{ display: "block", width: "100%", aspectRatio: `${W} / ${H}`, imageRendering: "pixelated" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, fontSize: 12, color: SUB, flexWrap: "wrap" }}>
-              <Gamepad2 size={14} /> {def.name} · {W}×{H} px · 60 fps
+              <Gamepad2 size={14} color={GRUEN} /> {def.name} · {W}×{H} px · 60 fps
               <span style={{ flex: 1 }} />
               <span>Zustand: <b style={{ color: TEXT2 }}>{ZUSTAND[zustand] || zustand}</b></span>
             </div>
@@ -193,7 +202,7 @@ export default function SpieleTab() {
 
           <div style={{ ...S.section, padding: 16 }}>
             <div className="sp-section-label">Live-Ansicht</div>
-            <canvas ref={matrixRef} width={24 * 7 * 2 + 18} height={24 * 7} style={{ width: "100%", display: "block", borderRadius: 6, background: INPUT }} />
+            <canvas ref={matrixRef} width={24 * 7 * 2 + 18} height={24 * 7} style={{ width: "100%", display: "block", borderRadius: 6, background: INPUT, border: `1px solid ${GRUEN}` }} />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: MUTED, marginTop: 6 }}>
               <span>Matrix 1{cfg.sacn.on ? ` · U ${uni(cfg.sacn.u1)}` : ""}</span>
               <span>Matrix 2{cfg.sacn.on ? ` · U ${uni(cfg.sacn.u2)}` : ""}</span>

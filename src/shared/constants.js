@@ -25,6 +25,8 @@ export const ACCENT = "#b3483f", { DARK, PANEL, LINE, BG, OK, WARN, ERR, INFO, M
 // Text- und Flächenfarben, die in beiden Modi lesbar bleiben
 export const { TEXT, STRONG, TEXT2, INPUT, CARD, BTN, LINE2, MID, LINK, HINTBG, TRUNK, CANVAS, GRID } = F;
 export const THEME_VARS = F;
+// Akzentfarbe des Spiele-Tabs
+export const SPIELE_GRUEN = HELL ? "#1f9d55" : "#27ae60";
 
 export const LS_KEY = "netzwerkplaner_autosave";
 
