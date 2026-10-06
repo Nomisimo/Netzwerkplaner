@@ -74,3 +74,7 @@ Gegen Datenblätter geprüfte Werte stehen in `src/shared/data/katalog-korrektur
 Die Prüfregeln (Multicast → IGMP, Punkt-zu-Punkt, nur L2 …) werden aus den Spalten der Protokolltabelle abgeleitet und wachsen damit automatisch mit.
 
 > Hinweis: Viele Katalog- und Protokollwerte stammen aus Fachwissen und sind nicht datenblattgeprüft (Spalte „Datenstand“ bzw. „Hinweis“). Vor dem Einsatz gegen die Herstellerdoku prüfen.
+
+## Lizenz
+
+Copyright 2026 Nomisimo (Momo). Lizenziert unter der [Apache License 2.0](LICENSE). Siehe auch [NOTICE](NOTICE).

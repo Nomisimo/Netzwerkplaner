@@ -4,7 +4,7 @@
   "private": true,
   "description": "Offline-Netzwerkplaner für die Veranstaltungstechnik: Topologie als Mindmap, VLANs, IP-Plan, Patchliste",
   "author": "Momo",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "main": "src/main/main.js",
   "scripts": {
     "build": "node scripts/build.js --minify",
@@ -28,7 +28,9 @@
       "src/preload/**",
       "dist-app/index.html",
       "assets/app-icon/**",
-      "package.json"
+      "package.json",
+      "LICENSE",
+      "NOTICE"
     ],
     "fileAssociations": [
       {
