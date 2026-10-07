@@ -175,6 +175,9 @@ async function create(opts = {}, ctx) {
       return false;
     },
     stop() { clearInterval(timer); closeUdp(passive); try { q.close(); } catch {} },
+    // Für Tests: ein Paket so verarbeiten, als wäre es auf 5353 angekommen (ohne Netz; auf macOS/Windows
+    // belegt der System-Responder 5353, dort landen lokal gesendete Testpakete nicht zuverlässig hier)
+    empfange(buf, rinfo = { address: '127.0.0.1', port: PORT }) { onMessage(buf, rinfo); },
   };
 }
 

@@ -65,19 +65,16 @@ function ptrAntwort(svc, inst, ttl = 120) {
   return Buffer.concat([h, enc(svc), f, rd]);
 }
 
-test("mDNS: NDI zeigt nur _ndi._tcp, keine fremden Bonjour-Dienste; Goodbye heißt „beendet“", async (t) => {
+test("mDNS: NDI zeigt nur _ndi._tcp, keine fremden Bonjour-Dienste; Goodbye heißt „beendet“", async () => {
   const m = await mdns.create({ services: mdns.SERVICES.ndi }, { dirty() {} });
   try {
-    if (!m.snapshot().passive) return t.skip("Port 5353 lässt sich hier nicht teilen");
-    await sende(ptrAntwort("_ndi._tcp.local", "CAM1 (Studio)._ndi._tcp.local"), 5353);
-    await sende(ptrAntwort("_airplay._tcp.local", "Wohnzimmer._airplay._tcp.local"), 5353);
-    await sende(ptrAntwort("_netaudio-arc._udp.local", "Stagebox._netaudio-arc._udp.local"), 5353);
-    await warte(150);
+    m.empfange(ptrAntwort("_ndi._tcp.local", "CAM1 (Studio)._ndi._tcp.local"));
+    m.empfange(ptrAntwort("_airplay._tcp.local", "Wohnzimmer._airplay._tcp.local"));
+    m.empfange(ptrAntwort("_netaudio-arc._udp.local", "Stagebox._netaudio-arc._udp.local"));
     let list = m.snapshot().instances;
     assert.deepEqual(list.map((i) => i.label), ["CAM1 (Studio)"]);
     assert.equal(list[0].zustand, "aktiv");
-    await sende(ptrAntwort("_ndi._tcp.local", "CAM1 (Studio)._ndi._tcp.local", 0), 5353);
-    await warte(150);
+    m.empfange(ptrAntwort("_ndi._tcp.local", "CAM1 (Studio)._ndi._tcp.local", 0));
     list = m.snapshot().instances;
     assert.equal(list.length, 1);
     assert.equal(list[0].zustand, "beendet");
