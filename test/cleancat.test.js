@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText, cleanCatOptimieren, ccLaenge, ccKreuzungen, CC_KREUZUNG, ccEcken, CC_ECKE } from "../src/shared/cleancat.js";
+import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText, cleanCatOptimieren, ccLaenge, ccKreuzungen, CC_KREUZUNG, ccEcken, CC_ECKE, plottGroesse } from "../src/shared/cleancat.js";
 import { emptyProject } from "../src/shared/model.js";
 import { demoProject } from "../src/shared/demo.js";
 import { buildIndex } from "../src/shared/model.js";
@@ -192,4 +192,19 @@ test("Anschlussnamen höchstens 10 Zeichen", async () => {
   assert.equal(kurzerPortName("Management 12"), "Mgmt 12");
   assert.equal(kurzerPortName("LAN 1"), "LAN 1");
   assert.ok(kurzerPortName("Irgendein langer Name").length <= 10);
+});
+
+test("Plott: Kastengröße skaliert die Geräte-Kästen, Abstände bleiben", () => {
+  const P = demoProject(), X = buildIndex(P);
+  const L1 = cleanCatLayout(P, X), Lk = cleanCatLayout(P, X, { groesse: 0.6 }), Lg = cleanCatLayout(P, X, { groesse: 1.3 });
+  const b1 = L1.boxen[0], bk = Lk.boxen.find((b) => b.id === b1.id), bg = Lg.boxen.find((b) => b.id === b1.id);
+  assert.ok(Math.abs(bk.w - b1.w * 0.6) < 0.01 && Math.abs(bk.h - b1.h * 0.6) < 0.01);
+  assert.ok(Math.abs(bg.w - b1.w * 1.3) < 0.01 && bg.s === 1.3);
+  assert.ok(Lk.w < L1.w && Lg.w > L1.w, "Zeichnung wird mit den Kästen kleiner bzw. größer");
+  // Kästen überlappen sich nicht
+  for (const L of [Lk, Lg]) for (const a of L.boxen) for (const b of L.boxen) if (a !== b)
+    assert.ok(a.x + a.w <= b.x + 0.5 || b.x + b.w <= a.x + 0.5 || a.y + a.h <= b.y + 0.5 || b.y + b.h <= a.y + 0.5, `${a.name} / ${b.name}`);
+  assert.equal(plottGroesse({ layout: { plottGroesse: 0.8 } }), 0.8);
+  assert.equal(plottGroesse({ layout: { plottGroesse: 7 } }), 1);
+  assert.equal(plottGroesse({ layout: {} }), 1);
 });

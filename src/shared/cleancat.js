@@ -165,13 +165,18 @@ const nachListe = (arr, liste, key = (x) => x.id) => {
 // Anmerkung zu einem Standort (Projektseite); erscheint nur in Plott
 export const ccAnmerkung = (P, name) => String(P.standortInfo?.[name]?.anmerkung || "").trim();
 const NOTIZ_PX = 8.5, NOTIZ_ZEILE = 10.5, ANM_PX = 10, ANM_ZEILE = 12.5;
-export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung = null, format = "A3-quer" } = {}) => {
+/* Größe der Geräte-Kästen im Verhältnis zu Abständen und Leitungen: kleinere Kästen lassen mehr
+   Platz zwischen den Einträgen, größere füllen das Blatt. Das Blatt wird danach wie immer eingepasst. */
+export const PLOTT_GROESSEN = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5];
+export const plottGroesse = (P) => { const g = +P?.layout?.plottGroesse; return PLOTT_GROESSEN.includes(g) ? g : 1; };
+export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung = null, format = "A3-quer", groesse = 1 } = {}) => {
+  const s = groesse > 0 ? groesse : 1;
   const flaeche = ccMasse(format).flaeche;
   const genutzt = { standorte: [], gruppen: {}, oben: {} };
   // Alle Boxen gleich hoch: gibt es irgendwo eine Notiz, bekommen alle Platz für zwei Notizzeilen
   const BASIS_H = zeigeIp ? 52 : 40;
   const mitNotiz = P.geraete.some((d) => String(d.notizen || "").trim());
-  const BOX_H = BASIS_H + (mitNotiz ? 2 * NOTIZ_ZEILE + 5 : 0);
+  const BOX_H = (BASIS_H + (mitNotiz ? 2 * NOTIZ_ZEILE + 5 : 0)) * s;
   /* Räume: je Standort, darin je Stack ein eigener Unterraum. Schlüssel eines
      Stack-Raums = Standort + \u0001 + Stack-ID; alles andere liegt im Standort selbst. */
   const standortVon = (d) => (d.bereich || "").trim() || "Ohne Standort";
@@ -187,10 +192,10 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
   const box = (d) => {
     const sub = [d.hersteller, d.modell].filter(Boolean).join(" ") || "";
     const ip = zeigeIp ? ipPorts(d).map((p) => p.ip).filter(Boolean).slice(0, 2).join(" · ") : "";
-    const w = ccBoxBreite(d), frei = w - INNEN * 2;
+    const w0 = ccBoxBreite(d), w = w0 * s, frei = w0 - INNEN * 2; // Text in ungezoomten Maßen, gezeichnet mit scale(s)
     const fill = d.isSwitch ? CC_SWITCH_FILL : ccKatFill(d.kategorie);
     const notiz = String(d.notizen || "").trim();
-    return { id: d.id, name: d.name, sub, ip, w, h: BOX_H, basisH: BASIS_H, fill, isSwitch: !!d.isSwitch, kategorie: d.kategorie,
+    return { id: d.id, name: d.name, sub, ip, w, h: BOX_H, basisH: BASIS_H * s, s, fill, isSwitch: !!d.isSwitch, kategorie: d.kategorie,
       notiz: notiz ? umbrechen(notiz, NOTIZ_PX, frei, 2) : null, notizVoll: notiz || null,
       tName: passeText(d.name, 12.5, frei, 9.5), tSub: sub ? passeText(sub, 9.5, frei, 8) : null, tIp: ip ? passeText(ip, 9.5, frei, 7.5, true) : null };
   };

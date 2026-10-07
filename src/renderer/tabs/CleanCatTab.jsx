@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, PANEL } from "../../shared/constants.js";
-import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat } from "../../shared/cleancat.js";
+import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat, PLOTT_GROESSEN, plottGroesse } from "../../shared/cleancat.js";
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
@@ -141,19 +141,21 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh }) {
           </g>
         ))}
         {L.boxen.map((b) => {
-          const frei = b.w - 20, zeilen = [b.tName, b.tSub, b.tIp].filter(Boolean).length;
-          const kopfH = b.basisH || b.h;
+          // Kasten in eigenen Maßen zeichnen und mit b.s auf die Plott-Größe bringen
+          const s = b.s || 1, bw = b.w / s, bh = b.h / s;
+          const frei = bw - 20, zeilen = [b.tName, b.tSub, b.tIp].filter(Boolean).length;
+          const kopfH = (b.basisH || b.h) / s;
           const yName = zeilen === 3 ? 17 : zeilen === 2 ? 20 : kopfH / 2 + 4;
           return (
-            <g key={b.id} transform={`translate(${b.x},${b.y})`} style={{ cursor: onBox ? "pointer" : "default" }} onClick={onBox ? () => onBox(b.id) : undefined}>
-              <rect width={b.w} height={b.h} fill={b.fill} stroke="#3b3f45" strokeWidth={1} />
-              <T x={b.w / 2} y={yName} max={frei} fit={b.tName} anchor="middle" weight={600} />
-              {b.tSub && <T x={b.w / 2} y={zeilen === 3 ? 30 : 34} max={frei} fit={b.tSub} anchor="middle" fill="#333" />}
-              {b.tIp && <T x={b.w / 2} y={b.tSub ? 43 : 34} max={frei} fit={b.tIp} anchor="middle" fill="#333" mono />}
+            <g key={b.id} transform={`translate(${b.x},${b.y})${s !== 1 ? ` scale(${s})` : ""}`} style={{ cursor: onBox ? "pointer" : "default" }} onClick={onBox ? () => onBox(b.id) : undefined}>
+              <rect width={bw} height={bh} fill={b.fill} stroke="#3b3f45" strokeWidth={1} />
+              <T x={bw / 2} y={yName} max={frei} fit={b.tName} anchor="middle" weight={600} />
+              {b.tSub && <T x={bw / 2} y={zeilen === 3 ? 30 : 34} max={frei} fit={b.tSub} anchor="middle" fill="#333" />}
+              {b.tIp && <T x={bw / 2} y={b.tSub ? 43 : 34} max={frei} fit={b.tIp} anchor="middle" fill="#333" mono />}
               {b.notiz && (
                 <>
-                  <line x1={6} y1={kopfH - 2} x2={b.w - 6} y2={kopfH - 2} stroke="#3b3f45" strokeOpacity="0.3" />
-                  {b.notiz.map((z, i) => <T key={i} x={b.w / 2} y={kopfH + 10 + i * 10.5} max={frei} fit={passeText(z, 8.5, frei, 8.5)} anchor="middle" fill="#444" />)}
+                  <line x1={6} y1={kopfH - 2} x2={bw - 6} y2={kopfH - 2} stroke="#3b3f45" strokeOpacity="0.3" />
+                  {b.notiz.map((z, i) => <T key={i} x={bw / 2} y={kopfH + 10 + i * 10.5} max={frei} fit={passeText(z, 8.5, frei, 8.5)} anchor="middle" fill="#444" />)}
                   <title>{b.notizVoll}</title>
                 </>
               )}
@@ -204,9 +206,9 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   const [farbe, setFarbe] = useState(() => localStorage.getItem("np_cc_farbe") || "dante");
   const [zeigeIp, setZeigeIp] = useState(() => localStorage.getItem("np_cc_ip") !== "0");
   // Automatische Anordnung mit kurzen Kabelwegen: nur neu rechnen, wenn sich Geräte, Kabel oder Stacks ändern
-  const format = plottFormat(P);
-  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp, format }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.bereiche, P.standortInfo, zeigeIp, format]); // eslint-disable-line react-hooks/exhaustive-deps
-  const L = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung, format }), [P, X, farbe, zeigeIp, ordnung, format]);
+  const format = plottFormat(P), groesse = plottGroesse(P);
+  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp, format, groesse }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.bereiche, P.standortInfo, zeigeIp, format, groesse]); // eslint-disable-line react-hooks/exhaustive-deps
+  const L = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung, format, groesse }), [P, X, farbe, zeigeIp, ordnung, format, groesse]);
   const [zieh, setZieh] = useState(null); // Standort ziehen: { name, sx, sy, dx, dy, bewegt, ziel }
   const B = useMemo(() => ccBlatt(L, format), [L, format]);
   const [view, setView] = useState({ x: 20, y: 20, k: 0.6 });
@@ -297,6 +299,10 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
         <select style={{ ...S.selectSm, width: "auto" }} value={format} title="Blattformat des Plans (gilt auch für den Export)"
           onChange={(e) => { const v = e.target.value; mutate?.((d) => { if (v === "A3-quer") delete d.layout.plottFormat; else d.layout.plottFormat = v; }); }} disabled={!mutate}>
           {Object.entries(BLATT_FORMATE).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
+        </select>
+        <select style={{ ...S.selectSm, width: "auto" }} value={groesse} title="Größe der Geräte-Kästen. Kleiner lässt mehr Platz zwischen den Einträgen, größer füllt das Blatt. Gilt auch für den Export."
+          onChange={(e) => { const v = +e.target.value; mutate?.((d) => { if (v === 1) delete d.layout.plottGroesse; else d.layout.plottGroesse = v; }); }} disabled={!mutate}>
+          {PLOTT_GROESSEN.map((g) => <option key={g} value={g}>Kästen {Math.round(g * 100)} %</option>)}
         </select>
         <span style={{ flex: 1 }} />
         <button style={knopf} onClick={() => exportieren("pdf")} title={`Als PDF im Format ${B.label} speichern`}><FileText size={14} /> PDF {B.seite}</button>

@@ -7,7 +7,7 @@ export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 export const CHANGELOG = {
   "0.7.0-beta.18": [
     "Mac: eigene Menüleiste oben am Bildschirmrand (Ablage, Bearbeiten, Darstellung, Topologie, Hilfe) mit Tastenkürzeln im System, z. B. ⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘E, ⌘1–⌘7 für die Tabs, ⌥⌘1–3 für die Topologie-Ansichten. Hilfen wie KeyClu zeigen sie an. Die Knöpfe in der App bleiben",
-    "Plott: Blattformat wählbar (A3 oder A4, quer oder hoch). Der Export nimmt das im Export-Dialog gewählte Format, statt immer A3 quer",
+    "Plott: Blattformat wählbar (A3 oder A4, quer oder hoch). Der Export nimmt das im Export-Dialog gewählte Format, statt immer A3 quer. Neu: „Kästen 60–150 %“ macht die Geräte-Kästen kleiner oder größer, die Abstände bleiben, so ist mehr Platz zum Anordnen (gilt auch für den Export)",
     "Patchliste: „Gesteckt auf“ steht auf Höhe des Ports, über den das Gerät am Switch hängt; dieser Port ist markiert. Alle IP-Felder stehen untereinander, egal wie der Port heißt",
     "Standort-Auswahl (Patchliste und Geräte-Editor): Öffnen zeigt alle Standorte, Tippen filtert danach",
     "VLAN zuweisen: die VLANs stehen als farbige Kacheln mit ID und Namen im Switch-Editor. Kachel anklicken, dann in der Topologie auf die Ports klicken; die aktive Kachel noch mal anklicken beendet",
