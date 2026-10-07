@@ -41,13 +41,14 @@ export const api = {
   getRecents: () => (E ? E.getRecents() : Promise.resolve([])),
   loadLibrary: () => (E ? E.loadLibrary() : Promise.resolve(JSON.parse(localStorage.getItem("netzwerkplaner_bibliothek") || "null"))),
   saveLibrary: (data) => (E ? E.saveLibrary(data) : Promise.resolve(localStorage.setItem("netzwerkplaner_bibliothek", JSON.stringify(data)))),
-  saveFile: async (data, name, filters, encoding) => {
-    if (E) return E.saveFile({ data, name, filters, encoding });
+  // planPfad: geöffnete Plan-Datei; der Speichern-Dialog startet dann in deren Ordner
+  saveFile: async (data, name, filters, encoding, planPfad) => {
+    if (E) return E.saveFile({ data, name, filters, encoding, planPfad });
     downloadBlob(encoding === "base64" ? Uint8Array.from(atob(data), (c) => c.charCodeAt(0)) : data, name);
     return name;
   },
-  exportPdf: async (html, name, { pageSize } = {}) => {
-    if (E) return E.exportPdf({ html, name, pageSize });
+  exportPdf: async (html, name, { pageSize, hoch, planPfad } = {}) => {
+    if (E) return E.exportPdf({ html, name, pageSize, hoch, planPfad });
     const w = window.open("", "_blank");
     if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400); }
     return null;

@@ -1,17 +1,26 @@
 import React, { useMemo, useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, katColor, STRONG } from "../../shared/constants.js";
-import { patchZeilen } from "../../shared/patchliste.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, katColor, STRONG } from "../../shared/constants.js";
+import { patchZeilen, steckZiele, steckeUm, setzeFeld } from "../../shared/patchliste.js";
+import { feldSpalten, feldWert } from "../../shared/felder.js";
+import { ip2int } from "../../shared/net.js";
 import { Section } from "../ui.jsx";
 import { GripVertical, ChevronUp, ChevronDown, RotateCcw, Printer, FileSpreadsheet } from "lucide-react";
 
 /* Patchliste: alle Geräte in Aufbau-Reihenfolge, per Ziehen oder Pfeilen umsortierbar.
-   Notizen lassen sich direkt bearbeiten; im Druck gibt es zusätzlich leere Zeilen
-   für Notizen vor Ort und ein Kästchen zum Abhaken. */
-export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport }) {
+   Kompakt und direkt bearbeitbar: IP-Adressen, Switch und Port („gesteckt auf“), Standort,
+   eigene Felder und Notizen. Im Druck gibt es zusätzlich leere Zeilen für Notizen vor Ort
+   und ein Kästchen zum Abhaken. Weitere Kabel (z. B. Dante Secondary) stehen hier nicht. */
+const ein = { ...S.inputSm, padding: "2px 5px", fontSize: 11.5, height: 22, minHeight: 0 };
+const mono = { fontFamily: "ui-monospace,monospace" };
+
+export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport, notify }) {
   const zeilen = useMemo(() => patchZeilen(P, X), [P, X]);
+  const felder = useMemo(() => feldSpalten(P.geraete, P.feldKatalog), [P.geraete, P.feldKatalog]);
+  const standorte = useMemo(() => [...new Set([...(P.bereiche || []), ...P.geraete.map((d) => (d.bereich || "").trim()).filter(Boolean)])], [P.bereiche, P.geraete]);
   const manuell = (P.patchliste?.reihenfolge || []).length > 0;
   const [zieht, setZieht] = useState(null); // id der gezogenen Zeile
   const [ueber, setUeber] = useState(null);
+  const [alleIps, setAlleIps] = useState(() => new Set()); // Geräte, bei denen auch leere IP-Ports offen sind
 
   const setzeReihenfolge = (ids) => mutate((d) => { d.patchliste = { ...(d.patchliste || {}), reihenfolge: ids }; });
   const verschiebe = (id, ziel) => {
@@ -27,52 +36,99 @@ export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport }
     [ids[i], ids[j]] = [ids[j], ids[i]];
     setzeReihenfolge(ids);
   };
-  const liste = (l) => l.length ? l.map((t, i) => <div key={i} style={{ whiteSpace: "nowrap" }}>{t}</div>) : <span style={{ color: MUTED }}>–</span>;
+  const geraet = (fn, id) => mutate((d) => { const g = d.geraete.find((x) => x.id === id); if (g) fn(g, d); });
+  const umstecken = (z, switchId, portId) => {
+    let ok = true;
+    mutate((d) => { ok = steckeUm(d, z.id, { upConn: z.upConn, switchId, portId, eigenerPort: z.eigenerPort }); });
+    if (!ok) notify?.("Kein freier Anschluss: Am Gerät oder am Switch ist kein passender Port frei.", "warn");
+  };
 
   return (
     <Section title={`Patchliste (${zeilen.length})`}
-      subtitle="Alle Geräte in Aufbau-Reihenfolge: vom Haupt-Switch aus, Geräte eines Switches nach Portnummer, Stapel zusammen. Zeilen per Ziehen am Griff oder mit den Pfeilen umsortieren."
+      subtitle="Aufbau-Reihenfolge vom Haupt-Switch aus, Geräte eines Switches nach Portnummer, Stapel zusammen. IP, Switch und Port, Standort, Felder und Notizen lassen sich direkt ändern."
       right={<div style={{ display: "flex", gap: 6 }}>
         <button style={S.ghostBtn} disabled={!manuell} onClick={() => mutate((d) => { delete d.patchliste; })} title="Von Hand gesetzte Reihenfolge verwerfen und wieder nach Aufbau-Logik sortieren"><RotateCcw size={14} />Automatisch sortieren</button>
         <button style={S.ghostBtn} onClick={() => onExport("patch-pdf")} title="Patchliste als PDF zum Ausdrucken, mit Platz für Notizen vor Ort"><Printer size={14} />PDF</button>
         <button style={S.ghostBtn} onClick={() => onExport("patch-csv")} title="Patchliste als CSV (Excel, Numbers)"><FileSpreadsheet size={14} />CSV</button>
       </div>}>
       {manuell && <div style={{ ...S.hint, marginTop: 0, marginBottom: 6 }}>Reihenfolge von Hand angepasst. Neue Geräte erscheinen an ihrer automatischen Stelle.</div>}
+      <datalist id="np-patch-standorte">{standorte.map((s) => <option key={s} value={s} />)}</datalist>
       <div style={{ overflowX: "auto" }}>
-        <table style={{ ...S.table, fontSize: 12, minWidth: 1100 }}>
+        <table style={{ ...S.table, fontSize: 11.5 }}>
           <thead><tr>
-            <th style={S.th}></th><th style={S.th}>#</th><th style={S.th}>Gerät</th><th style={S.th}>IPs / Interfaces</th><th style={S.th}>Gesteckt auf</th>
-            <th style={S.th}>Weitere Kabel</th><th style={S.th}>Abteilung</th><th style={S.th}>Standort</th><th style={S.th}>Felder</th><th style={{ ...S.th, minWidth: 200 }}>Notizen</th>
+            {["", "#", "Gerät", "IP", "Gesteckt auf", "Standort", ...(felder.length ? ["Felder"] : []), "Notiz"].map((h, i) => <th key={i} style={{ ...S.th, padding: "4px 6px", fontSize: 10 }}>{h}</th>)}
           </tr></thead>
           <tbody>
             {zeilen.map((z, i) => {
               const neueGruppe = i > 0 && (z.isSwitch || (z.aufSwitch !== zeilen[i - 1].aufSwitch && !zeilen[i - 1].isSwitch));
+              const dev = X.devById.get(z.id);
+              const ziele = steckZiele(P, z.id, z);
+              const ziel = ziele.find((s) => s.id === z.aufSwitch);
+              const td = (extra) => ({ ...S.td, padding: "3px 6px", ...extra });
               return (
-                <tr key={z.id} draggable onDragStart={(e) => { setZieht(z.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", z.id); }}
+                <tr key={z.id} draggable onDragStart={(e) => { if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return; setZieht(z.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", z.id); }}
                   onDragOver={(e) => { if (zieht) { e.preventDefault(); setUeber(z.id); } }} onDragLeave={() => setUeber((u) => (u === z.id ? null : u))}
                   onDrop={(e) => { e.preventDefault(); if (zieht && zieht !== z.id) verschiebe(zieht, z.id); setZieht(null); setUeber(null); }}
                   onDragEnd={() => { setZieht(null); setUeber(null); }}
                   style={{ background: z.isSwitch ? "#ffffff0a" : undefined, opacity: zieht === z.id ? 0.4 : 1, boxShadow: ueber === z.id && zieht !== z.id ? `inset 0 2px 0 ${ACCENT}` : undefined, borderTop: neueGruppe ? `2px solid ${LINE}` : undefined }}>
-                  <td style={{ ...S.td, width: 54, whiteSpace: "nowrap", color: MUTED }}>
-                    <span style={{ cursor: "grab", display: "inline-flex", verticalAlign: "middle" }} title="Ziehen zum Umsortieren"><GripVertical size={14} /></span>
-                    <button style={{ ...S.smallBtn, padding: "1px 2px", background: "none", border: "none" }} disabled={i === 0} onClick={() => schritt(i, -1)} title="Nach oben"><ChevronUp size={12} /></button>
-                    <button style={{ ...S.smallBtn, padding: "1px 2px", background: "none", border: "none" }} disabled={i === zeilen.length - 1} onClick={() => schritt(i, 1)} title="Nach unten"><ChevronDown size={12} /></button>
+                  <td style={td({ width: 46, whiteSpace: "nowrap", color: MUTED })}>
+                    <span style={{ cursor: "grab", display: "inline-flex", verticalAlign: "middle" }} title="Ziehen zum Umsortieren"><GripVertical size={13} /></span>
+                    <button style={{ ...S.smallBtn, padding: "0 1px", background: "none", border: "none" }} disabled={i === 0} onClick={() => schritt(i, -1)} title="Nach oben"><ChevronUp size={11} /></button>
+                    <button style={{ ...S.smallBtn, padding: "0 1px", background: "none", border: "none" }} disabled={i === zeilen.length - 1} onClick={() => schritt(i, 1)} title="Nach unten"><ChevronDown size={11} /></button>
                   </td>
-                  <td style={{ ...S.td, color: SUB, width: 28 }}>{z.nr}</td>
-                  <td style={{ ...S.td, minWidth: 170 }}>
-                    <button onClick={() => onSelectDevice(z.id)} style={{ background: "none", border: "none", padding: 0, color: STRONG, fontWeight: z.isSwitch ? 800 : 700, cursor: "pointer", textAlign: "left", fontSize: 12.5 }}>{z.name}</button>
-                    {z.netzname && <div style={{ fontFamily: "ui-monospace,monospace", fontSize: 11, color: "#c8d0ff" }}>{z.netzname}</div>}
-                    <div style={{ fontSize: 11, color: MUTED }}>{z.modell}{z.stapel ? ` · Stapel ${z.stapel}` : ""}</div>
+                  <td style={td({ color: SUB, width: 22 })}>{z.nr}</td>
+                  <td style={td({ minWidth: 150, borderLeft: `3px solid ${katColor(z.abteilung)}` })} title={z.abteilung}>
+                    <button onClick={() => onSelectDevice(z.id)} style={{ background: "none", border: "none", padding: 0, color: STRONG, fontWeight: z.isSwitch ? 800 : 700, cursor: "pointer", textAlign: "left", fontSize: 12 }}>{z.name}</button>
+                    <div style={{ fontSize: 10, color: MUTED, whiteSpace: "nowrap" }}>{[z.netzname, z.modell, z.stapel && `Stapel ${z.stapel}`].filter(Boolean).join(" · ")}</div>
                   </td>
-                  <td style={{ ...S.td, fontFamily: "ui-monospace,monospace", fontSize: 11 }}>{liste(z.ips)}</td>
-                  <td style={{ ...S.td, whiteSpace: "nowrap" }}>{z.gesteckt || <span style={{ color: MUTED }}>–</span>}</td>
-                  <td style={{ ...S.td, fontSize: 11 }}>{liste(z.weitereKabel)}</td>
-                  <td style={{ ...S.td, color: katColor(z.abteilung) }}>{z.abteilung}</td>
-                  <td style={S.td}>{z.standort}</td>
-                  <td style={{ ...S.td, fontSize: 11 }}>{z.felder.join(" · ") || <span style={{ color: MUTED }}>–</span>}</td>
-                  <td style={S.td}>
-                    <textarea rows={1} value={z.notizen} placeholder="Notiz …" onChange={(e) => { const v = e.target.value; mutate((d) => { const g = d.geraete.find((x) => x.id === z.id); if (g) g.notizen = v; }); }}
-                      style={{ ...S.inputSm, fontSize: 12, resize: "vertical", minHeight: 26, fontFamily: "inherit" }} />
+                  <td style={td({ whiteSpace: "nowrap" })}>
+                    {z.ipPorts.length === 0 && <span style={{ color: MUTED }}>–</span>}
+                    {(() => {
+                      // Kompakt: nur belegte Ports zeigen, leere erst auf Klick (mindestens ein Feld bleibt sichtbar)
+                      const belegt = z.ipPorts.filter((p) => p.ip || p.dhcp);
+                      const sicht = alleIps.has(z.id) ? z.ipPorts : belegt.length ? belegt : z.ipPorts.slice(0, 1);
+                      const rest = z.ipPorts.length - sicht.length;
+                      return <>{sicht.map((p) => {
+                      const falsch = p.ip && ip2int(p.ip) === null;
+                      return (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1 }}>
+                          {z.ipPorts.length > 1 && <span style={{ fontSize: 10, color: MUTED, minWidth: 34 }}>{p.name}</span>}
+                          {p.dhcp ? <span style={{ fontSize: 11, color: SUB }}>DHCP</span>
+                            : <input style={{ ...ein, ...mono, width: 112, ...(falsch ? { borderColor: ERR } : {}) }} value={p.ip} placeholder="IP" title={falsch ? "Keine gültige IPv4-Adresse" : undefined}
+                                onChange={(e) => { const v = e.target.value.trim(); geraet((g) => { const port = g.ports.find((x) => x.id === p.id); if (port) port.ip = v; }, z.id); }} />}
+                          {p.vlan != null && <span style={{ fontSize: 10, color: MUTED }}>V{p.vlan}</span>}
+                        </div>
+                      );
+                    })}
+                    {rest > 0 && <button style={{ background: "none", border: "none", padding: 0, fontSize: 10, color: MUTED, cursor: "pointer" }} title="Weitere Ports ohne IP zeigen"
+                      onClick={() => setAlleIps((s) => new Set(s).add(z.id))}>+ {rest} weitere</button>}</>;
+                    })()}
+                  </td>
+                  <td style={td({ whiteSpace: "nowrap" })}>
+                    <select style={{ ...ein, width: 120 }} value={z.aufSwitch || ""} title="Switch"
+                      onChange={(e) => { const sw = ziele.find((s) => s.id === e.target.value); umstecken(z, e.target.value, sw?.ports[0]?.id); }}>
+                      <option value="">– nicht gesteckt –</option>
+                      {ziele.map((s) => <option key={s.id} value={s.id} disabled={!s.ports.length && s.id !== z.aufSwitch}>{s.name}{!s.ports.length ? " (voll)" : ""}</option>)}
+                    </select>
+                    {z.aufSwitch && <select style={{ ...ein, width: 62, marginLeft: 3 }} value={z.aufPort || ""} title="Port am Switch"
+                      onChange={(e) => umstecken(z, z.aufSwitch, e.target.value)}>
+                      {(ziel?.ports || []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>}
+                    {z.aufSwitch && (dev?.ports || []).length > 1 && <div style={{ fontSize: 10, color: MUTED }}>am Gerät: {dev.ports.find((p) => p.id === z.eigenerPort)?.name || "?"}</div>}
+                  </td>
+                  <td style={td()}>
+                    <input style={{ ...ein, width: 96 }} list="np-patch-standorte" value={dev?.bereich || ""} placeholder="Standort"
+                      onChange={(e) => { const v = e.target.value; geraet((g) => { g.bereich = v; }, z.id); }} />
+                  </td>
+                  {felder.length > 0 && <td style={td()}>
+                    <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(felder.length, 3)}, 92px)`, gap: 2 }}>
+                      {felder.map((f) => <input key={f.id} style={ein} value={feldWert(dev, f.id)} placeholder={f.name} title={f.name}
+                        onChange={(e) => { const v = e.target.value; geraet((g) => setzeFeld(g, f, v), z.id); }} />)}
+                    </div>
+                  </td>}
+                  <td style={td({ minWidth: 160 })}>
+                    <input style={{ ...ein, width: "100%" }} value={z.notizen} placeholder="Notiz …"
+                      onChange={(e) => { const v = e.target.value; geraet((g) => { g.notizen = v; }, z.id); }} />
                   </td>
                 </tr>
               );
@@ -81,7 +137,7 @@ export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport }
         </table>
       </div>
       {!zeilen.length && <div style={S.empty}>Noch keine Geräte.</div>}
-      <div style={S.hint}>Im PDF bekommt jede Zeile zusätzlich Platz für Notizen vor Ort und ein Kästchen zum Abhaken. Excel- und PDF-Export (oben rechts) enthalten die Patchliste ebenfalls.</div>
+      <div style={S.hint}>Umstecken nimmt Kabelart, Länge und Label mit. Weitere Kabel eines Geräts (z. B. Dante Secondary) zeigt die Liste nicht. Im PDF bekommt jede Zeile Platz für Notizen vor Ort und ein Kästchen zum Abhaken.</div>
     </Section>
   );
 }

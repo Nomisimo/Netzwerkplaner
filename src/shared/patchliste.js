@@ -1,13 +1,14 @@
 /* ── Patchliste: alle Geräte in Aufbau-Reihenfolge ─────────────────────────
    Je Gerät eine Zeile mit Netzwerkname, IPs, „gesteckt auf“ (Switch und Port),
-   eigenen Feldern, Abteilung, Standort, allen Kabeln und Notizen.
+   eigenen Feldern, Abteilung, Standort und Notizen. Weitere Kabel eines Geräts
+   (z. B. Dante Secondary) stehen nicht in der Liste; die zeigt Dante Controller ohnehin.
    Reihenfolge wie beim Aufbau: vom Haupt-Switch aus durch den Baum, Endgeräte
    eines Switches nach dessen Portnummer, Geräte eines Stapels direkt
    hintereinander, Unter-Switches mit ihren Geräten an der Stelle ihres Ports.
    Eine von Hand gesetzte Reihenfolge (P.patchliste.reihenfolge) hat Vorrang;
    neue Geräte rücken an ihre automatische Stelle. */
-import { buildTree, otherEnd, thisEnd, kabelLabel } from "./model.js";
-import { ipPorts } from "./catalog.js";
+import { buildTree, otherEnd, thisEnd, addConnection, freiePorts } from "./model.js";
+import { ipPorts, physPorts } from "./catalog.js";
 import { TYPEN } from "./constants.js";
 
 const portIndex = (dev, portId) => {
@@ -73,23 +74,13 @@ export const patchZeilen = (P, X) => {
   return patchReihenfolge(P, X, T).map((id, n) => {
     const d = X.devById.get(id);
     const up = T.treeConn.get(id);
-    let gesteckt = "", aufSwitch = null;
+    let gesteckt = "", aufSwitch = null, upConn = null, aufPort = null, eigenerPort = null;
     if (up) {
       const o = otherEnd(up, id), self = thisEnd(up, id);
       const od = X.devById.get(o.dev);
-      aufSwitch = od?.id || null;
+      aufSwitch = od?.id || null; upConn = up.id; aufPort = o.port; eigenerPort = self.port;
       gesteckt = `${od?.name || "?"} · Port ${portName(X, o)}${(d.ports || []).length > 1 ? ` ← ${portName(X, self)}` : ""}`;
     }
-    // Kabel nach eigenem Port sortiert (Port 1, 2, 3 …)
-    const conns = [...(X.connsByDev.get(id) || [])].sort((a, b) => portIndex(d, thisEnd(a, id).port) - portIndex(d, thisEnd(b, id).port));
-    const kabel = conns.filter((c) => c !== up).map((c) => {
-      const o = otherEnd(c, id), self = thisEnd(c, id);
-      return `${portName(X, self)} → ${X.devById.get(o.dev)?.name || "?"} · ${portName(X, o)}`;
-    });
-    const alleKabel = conns.map((c) => {
-      const o = otherEnd(c, id), self = thisEnd(c, id);
-      return `${portName(X, self)} → ${X.devById.get(o.dev)?.name || "?"} · ${portName(X, o)} (${kabelLabel(c.kabel)}${c.label ? ", " + c.label : ""})`;
-    });
     const ips = ipPorts(d).filter((i) => i.ip || i.dhcp).map((i) => {
       const v = X.vlanById.get(i.vlan);
       return `${ipPorts(d).length > 1 ? i.name + ": " : ""}${i.ip ? `${i.ip}/${i.prefix}` : "DHCP"}${v ? ` (VLAN ${v.vid})` : ""}`;
@@ -97,7 +88,8 @@ export const patchZeilen = (P, X) => {
     const s = stapelVon.get(id);
     return {
       nr: n + 1, id, name: d.name, netzname: d.netzname || "", modell: [d.hersteller, d.modell].filter(Boolean).join(" ") || TYPEN[d.typ]?.label || "",
-      ips, gesteckt, aufSwitch, weitereKabel: kabel, kabel: alleKabel,
+      ips, gesteckt, aufSwitch, upConn, aufPort, eigenerPort,
+      ipPorts: ipPorts(d).map((i) => ({ id: i.id, name: i.name, ip: i.ip || "", prefix: i.prefix, dhcp: !!i.dhcp, vlan: X.vlanById.get(i.vlan)?.vid ?? null })),
       felder: (d.felder || []).filter((f) => f.wert).map((f) => `${f.name}: ${f.wert}`),
       abteilung: d.kategorie || "", standort: d.bereich || "", stapel: s ? s.name || "Stapel" : "",
       notizen: d.notizen || "", isSwitch: !!d.isSwitch,
@@ -108,6 +100,37 @@ export const patchZeilen = (P, X) => {
 /* Flache Tabellenzeilen für Excel/CSV/PDF */
 export const patchExportZeilen = (P, X) => patchZeilen(P, X).map((z) => ({
   "#": z.nr, Gerät: z.name, Netzwerkname: z.netzname, Modell: z.modell, "IPs / Interfaces": z.ips.join(", "),
-  "Gesteckt auf": z.gesteckt, Kabel: z.kabel.join("; "), Stapel: z.stapel, Abteilung: z.abteilung, Standort: z.standort,
+  "Gesteckt auf": z.gesteckt, Stapel: z.stapel, Abteilung: z.abteilung, Standort: z.standort,
   Felder: z.felder.join("; "), Notizen: z.notizen, "Notizen vor Ort": "", Erledigt: "",
 }));
+
+/* ── Bearbeiten aus der Patchliste (arbeitet auf einem Projekt-Entwurf) ──── */
+
+// Switches, auf die ein Gerät gesteckt werden kann, mit ihren freien Ports (plus dem aktuell belegten)
+export const steckZiele = (P, devId, aktuell = {}) => P.geraete.filter((g) => g.isSwitch && g.id !== devId).map((sw) => {
+  const frei = new Set(freiePorts(P, sw).map((p) => p.id));
+  return { id: sw.id, name: sw.name, ports: physPorts(sw).filter((p) => frei.has(p.id) || (sw.id === aktuell.aufSwitch && p.id === aktuell.aufPort)).map((p) => ({ id: p.id, name: p.name })) };
+});
+
+/* Gerät umstecken: alte Verbindung zum Switch lösen und auf den gewählten Port stecken.
+   switchId leer = nur abstecken. Kabelart, Länge, Label und Notiz wandern mit.
+   Gibt false zurück, wenn kein passender Anschluss frei ist (dann bleibt alles, wie es war). */
+export const steckeUm = (P, devId, { upConn, switchId, portId, eigenerPort }) => {
+  const alt = upConn ? P.verbindungen.find((c) => c.id === upConn) : null;
+  const vorher = P.verbindungen;
+  if (alt) P.verbindungen = P.verbindungen.filter((c) => c !== alt);
+  if (!switchId) return true;
+  const id = addConnection(P, switchId, devId, { portIdA: portId || undefined, portIdB: eigenerPort || undefined, kabel: alt?.kabel, laenge: alt?.laenge, label: alt?.label })
+    || (eigenerPort && addConnection(P, switchId, devId, { portIdA: portId || undefined, kabel: alt?.kabel, laenge: alt?.laenge, label: alt?.label }));
+  if (!id) { P.verbindungen = vorher; return false; }
+  if (alt?.notiz) { const c = P.verbindungen.find((x) => x.id === id); if (c) c.notiz = alt.notiz; }
+  return true;
+};
+
+// Wert eines eigenen Feldes setzen (legt das Feld am Gerät an, wenn es dort noch fehlt)
+export const setzeFeld = (dev, feld, wert) => {
+  dev.felder = dev.felder || [];
+  const f = dev.felder.find((x) => x.id === feld.id);
+  if (f) f.wert = wert;
+  else if (wert) dev.felder.push({ id: feld.id, name: feld.name, wert });
+};

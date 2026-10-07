@@ -6,6 +6,11 @@ export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
   "0.7.0-beta.17": [
+    "Neuer Tab „Setup“ (bisher „Projekt“): VLANs und Prüfung stehen jetzt dort, die Tabs „VLANs“ und „Prüfen“ entfallen. „Katalog“ und „Wissen“ haben die Plätze getauscht",
+    "Prüfung kompakt in der Übersicht: nur Fehler und Warnungen, ohne Hinweise. „Switch-Konfiguration je VLAN“ und die MA-Net-Tabellen sind raus",
+    "Patchliste kompakter und direkt bearbeitbar: IPs, Switch und Port (umstecken), Standort, eigene Felder und Notiz. Die Spalte „Weitere Kabel“ entfällt (auch im Export)",
+    "Export-Dialog: Format (PDF, Excel, CSV, SVG, PNG), Inhalt bzw. Blätter, Topologie-Ansicht, Papier A4/A3 sowie Quer- oder Hochformat wählen. Die Auswahl bleibt gespeichert",
+    "Exporte landen neben der geöffneten Plandatei; ist der Plan nicht gespeichert, im zuletzt benutzten Export-Ordner",
     "Live: Einträge verschwinden nicht mehr von selbst. Was eine Weile nicht mehr gesehen wurde, steht grau mit „alt, vor …“ am Ende der Liste; Geräte, die sich abmelden (sACN-Stream-Ende, mDNS-Abmeldung), stehen als „beendet“ da",
     "Live: „Alte ausblenden“ (gilt für alle Monitore) und „Alte entfernen“ in jeder Monitorleiste",
     "Live: Kanalwerte, Merge und PTP-Master-Konflikte rechnen weiter nur mit aktiven Einträgen; ein verstummter PTP-Master heißt „war Master“",

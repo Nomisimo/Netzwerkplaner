@@ -33,7 +33,7 @@ const KAPITEL = [
     <Liste items={[
       "„Beispielprojekt laden“ zeigt ein fertiges Open-Air-Netz mit Audio, Licht, Video und Intercom. Zum Ausprobieren ideal, „Neues leeres Projekt“ setzt wieder zurück.",
       "Veranstaltung, Ort, Datum, Version und Ersteller erscheinen im Kopf der App und in allen Exporten.",
-      "Unter „Standorte / Äste“ legst du Bereiche wie Bühne, FOH oder Monitor an. Den Namen kannst du dort jederzeit ändern: die Umbenennung gilt im ganzen Projekt und zieht an allen Geräten mit. Daneben steht eine Anmerkung je Standort, die nur in der Clean-Cat-Ansicht auftaucht. Geräte lassen sich nach Standort filtern und einfärben.",
+      "Unter „Standorte / Äste“ legst du Bereiche wie Bühne, FOH oder Monitor an. Den Namen kannst du dort jederzeit ändern: die Umbenennung gilt im ganzen Projekt und zieht an allen Geräten mit. Daneben steht eine Anmerkung je Standort, die nur in der Plott-Ansicht auftaucht. Geräte lassen sich nach Standort filtern und einfärben.",
       "Der Stand wird automatisch gespeichert („auto“ oben rechts). „Speichern“ legt zusätzlich eine .netplan-Datei an, die du weitergeben kannst. Die Pfeile Rückgängig/Wiederholen bzw. Strg+Z / Strg+Umschalt+Z machen Schritte rückgängig.",
     ]} />
   </> },
@@ -138,23 +138,23 @@ const KAPITEL = [
       "„PDF“ druckt nur die Patchliste, mit linierter Spalte „Notizen vor Ort“ und einem Kästchen zum Abhaken je Gerät. „CSV“ gibt sie als Tabelle aus. Im Gesamt-PDF und im Excel-Export ist sie ebenfalls enthalten.",
     ]} />
   </> },
-  { id: "vlans", titel: "VLANs", tab: ["vlans", "VLANs"], inhalt: () => <>
+  { id: "vlans", titel: "VLANs", tab: ["vlans", "Setup"], inhalt: () => <>
     <Bild id="vlans" text="VLAN mit Zweck und Switch-Schaltern" />
     <Liste items={[
-      "Die Standard-VLANs 10, 11, 20, 30, 40, 50 und 99 sind schon angelegt. „+ VLAN“ legt ein neues an.",
+      "Die VLANs stehen unten im Tab „Setup“. Die Standard-VLANs 10, 11, 20, 30, 40, 50 und 99 sind schon angelegt. „+ VLAN“ legt ein neues an.",
       "Je VLAN: ID, Name, Farbe, Zweck und Notiz sowie die Schalter IGMP-Snooping, EEE aus, QoS/DSCP und DHCP.",
       "Die Schalter fließen in die Prüfung ein: Multicast-Protokolle verlangen IGMP, Audio over IP und MA-Net3 verlangen EEE aus.",
       "VLAN in VLAN (QinQ, IEEE 802.1ad): Unter „Äußeres VLAN“ ein S-VLAN wählen, dann läuft das VLAN als inneres C-VLAN darin und steht eingerückt darunter. Innere VLANs verschiedener S-VLANs dürfen dieselbe ID haben. Die Prüfung warnt dann und nennt die trennenden S-VLANs; gleiche IDs in derselben Ebene bleiben ein Fehler, ebenso ein Trunk-Port, der dieselbe ID zweimal führt, bekommt eine Warnung.",
     ]} />
   </> },
-  { id: "pruefung", titel: "Prüfung & MA-Net", tab: ["pruefung", "Prüfung"], inhalt: () => <>
+  { id: "pruefung", titel: "Prüfung & MA-Net", tab: ["pruefung", "Setup"], inhalt: () => <>
     <Bild id="pruefung" text="Prüfung mit Fehlern, Warnungen und Hinweisen" />
     <Liste items={[
-      "Die Prüfung läuft ständig mit. „Zeigen →“ springt zum betroffenen Gerät, VLAN oder zur Verbindung.",
+      "Die Prüfung läuft ständig mit und steht im Tab „Setup“ im Block „Übersicht“ (nur Fehler und Warnungen). „Zeigen →“ springt zum betroffenen Gerät, VLAN oder zur Verbindung.",
       "Geprüft werden unter anderem IP-Konflikte, doppelt belegte Ports, VLAN-Fehler an Switch-Ports, Punkt-zu-Punkt-Protokolle am Switch, IGMP bei Multicast, EEE bei Audio over IP, PoE-Budgets, Leitungslast und Dante-Hops.",
     ]} />
     <H>MA-Net Gold-Standards</H>
-    <Bild id="pruefung-manet" text="Gold-Standards für MA-Geräte im Tab Prüfung" />
+    <Bild id="pruefung-manet" text="Gold-Standards für MA-Geräte" />
     <Liste items={[
       "Sobald ein Gerät MA-Net1, MA-Net2 oder MA-Net3 spricht, prüft der Netzwerkplaner zusätzlich die MA-Vorgaben. Die Treffer beginnen mit „MA-Net:“.",
       "MA-Net3: 1 GbE durchgehend, eigenes VLAN ohne Dante/NDI, keine 100-Mbit-Geräte, IGMP-Snooping mit Querier, EEE aus, kurze Switch-Ketten (max. 2 ms), kein 192.168.33.x.",
