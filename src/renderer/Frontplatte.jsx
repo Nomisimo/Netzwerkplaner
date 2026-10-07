@@ -159,7 +159,7 @@ export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status
   const ip = mainIp(d);
   const name = geraeteTitel(d, titel);
   const zeile2 = [ip || (ipPorts(d).some((i) => i.dhcp) ? "DHCP" : ""), d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ");
-  const tabW = tab ? Math.max(46, tab.length * 6 + 14) : 0;
+  const tabW = tab ? Math.max(46, tab.length * 5.6 + 14) : 0;
   const max2 = Math.floor((CARD_W - 46 - 8) / 6);
   return (
     <g opacity={dim ? 0.2 : 1} onMouseDown={onDown} onContextMenu={onContextMenu} style={{ cursor: tool === "connect" ? "crosshair" : "pointer" }}>
@@ -271,11 +271,23 @@ export const laschenText = (id, T, X) => {
   const up = c.a.dev === id ? c.b : c.a;
   const r = X.portRef.get(`${up.dev}:${up.port}`);
   if (!r) return null;
-  // Hat das Gerät mehrere Anschlüsse, steht dazu, mit welchem es dort steckt (z. B. „Port 5 → LAN 1“)
+  const name = (r) => r.dev.isSwitch ? (/^\d+$/.test(r.port.name) ? `Port ${r.port.name}` : r.port.name) : `via ${r.dev.name.slice(0, 14)}`;
+  const dev = X.devById.get(id);
+  const phys = (dev?.ports || []).filter((p) => !p.virtuell);
+  if (phys.length < 2) return name(r);
+  // Mehrere Anschlüsse: dazu, mit welchem eigenen Port es steckt (z. B. „Port 5 → LAN 1“);
+  // sind mehrere eigene Ports belegt, stehen alle in der Lasche, der Baum-Anschluss zuerst
   const self = c.a.dev === id ? c.a : c.b;
-  const eigen = X.devById.get(id)?.ports.filter((p) => !p.virtuell).length > 1 ? X.portRef.get(`${id}:${self.port}`)?.port.name : null;
-  const oben = r.dev.isSwitch ? (/^\d+$/.test(r.port.name) ? `Port ${r.port.name}` : r.port.name) : `via ${r.dev.name.slice(0, 14)}`;
-  return eigen ? `${oben} → ${kurzerPortName(eigen)}` : oben;
+  const teile = [];
+  const pos = (pid) => (pid === self.port ? -1 : phys.findIndex((p) => p.id === pid));
+  for (const p of [...phys].sort((a, b) => pos(a.id) - pos(b.id))) {
+    const cc = (X.connsByPort.get(`${id}:${p.id}`) || [])[0];
+    if (!cc) continue;
+    const o = cc.a.dev === id && cc.a.port === p.id ? cc.b : cc.a;
+    const ro = X.portRef.get(`${o.dev}:${o.port}`);
+    if (ro) teile.push(`${name(ro)} → ${kurzerPortName(p.name)}`);
+  }
+  return teile.length ? teile.join(" · ") : name(r);
 };
 export const laschenZustand = (id, T, X) => {
   const c = T.treeConn.get(id);

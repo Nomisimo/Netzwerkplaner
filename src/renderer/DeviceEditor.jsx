@@ -484,7 +484,7 @@ function VlanZuweisenLeiste({ P, dev, mutate }) {
   };
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8, padding: "6px 8px", borderRadius: 6, border: `1px solid ${an ? ACCENT : LINE}`, background: an ? ACCENT + "14" : undefined, fontSize: 11, color: SUB }}>
-      <Toggle checked={an} onChange={einschalten} label="VLAN per Klick zuweisen" title="An: in der Topologie (Ansicht „Anschlüsse“) setzt ein Klick auf einen Switch-Port dieses VLAN als Access-VLAN. Esc oder Aus beendet den Modus." />
+      <Toggle checked={an} onChange={einschalten} label="VLAN zuweisen" title="An: in der Topologie (Ansicht „Anschlüsse“) setzt ein Klick auf einen Switch-Port dieses VLAN als Access-VLAN. Esc oder Aus beendet den Modus." />
       {an && <span>Jetzt in der Topologie auf die Ports klicken · Esc beendet</span>}
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap", width: "100%" }}>
         {[...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => {
