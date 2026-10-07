@@ -3,7 +3,7 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [0.7.0-beta.17] – unveröffentlicht
+## [0.7.0-beta.17] – 2026-10-07
 
 - Neuer Tab „Setup“ (bisher „Projekt“): VLANs und Prüfung stehen jetzt dort, die Tabs „VLANs“ und „Prüfen“ entfallen. „Katalog“ und „Wissen“ haben die Plätze getauscht
 - Prüfung kompakt in der Übersicht: nur Fehler und Warnungen, ohne Hinweise. „Switch-Konfiguration je VLAN“ und die MA-Net-Tabellen sind raus
