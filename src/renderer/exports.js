@@ -96,7 +96,10 @@ export const switchPortRows = (P, X) => {
   return r;
 };
 
-export const buildXlsxBase64 = (P, X, issues) => {
+// Blätter des Excel-Exports; der Export-Dialog wählt daraus aus
+export const XLSX_BLAETTER = ["Patchliste", "IP-Liste", "VLANs", "Verbindungen", "Switch-Ports", "Geräte", "Prüfung"];
+export const buildXlsxBase64 = (P, X, issues, blaetter = XLSX_BLAETTER) => {
+  const mit = new Set(blaetter);
   const wb = XLSX.utils.book_new();
   const add = (name, rows) => {
     const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ "": "keine Einträge" }]);
@@ -104,13 +107,14 @@ export const buildXlsxBase64 = (P, X, issues) => {
     ws["!cols"] = keys.map((k) => ({ wch: Math.min(48, Math.max(k.length + 2, ...rows.map((r) => String(r[k] ?? "").length + 1))) }));
     XLSX.utils.book_append_sheet(wb, ws, name);
   };
-  add("Patchliste", patchExportZeilen(P, X));
-  add("IP-Liste", ipRows(P, X));
-  add("VLANs", vlanRows(P));
-  add("Verbindungen", patchRows(P, X));
-  add("Switch-Ports", switchPortRows(P, X));
-  add("Geräte", deviceRows(P, X));
-  add("Prüfung", issues.map((i) => ({ Schwere: { error: "Fehler", warn: "Warnung", info: "Hinweis" }[i.sev], Meldung: i.msg })));
+  if (mit.has("Patchliste")) add("Patchliste", patchExportZeilen(P, X));
+  if (mit.has("IP-Liste")) add("IP-Liste", ipRows(P, X));
+  if (mit.has("VLANs")) add("VLANs", vlanRows(P));
+  if (mit.has("Verbindungen")) add("Verbindungen", patchRows(P, X));
+  if (mit.has("Switch-Ports")) add("Switch-Ports", switchPortRows(P, X));
+  if (mit.has("Geräte")) add("Geräte", deviceRows(P, X));
+  if (mit.has("Prüfung")) add("Prüfung", issues.map((i) => ({ Schwere: { error: "Fehler", warn: "Warnung", info: "Hinweis" }[i.sev], Meldung: i.msg })));
+  if (!wb.SheetNames.length) add("Leer", []);
   return XLSX.write(wb, { type: "base64", bookType: "xlsx" });
 };
 
@@ -126,10 +130,10 @@ const patchTabelle = (P, X) => {
   const z = patchZeilen(P, X);
   if (!z.length) return `<p class="empty">Keine Geräte.</p>`;
   const zl = (l) => l.map(esc).join("<br>");
-  return `<table class="patch"><thead><tr><th>#</th><th>Gerät</th><th>IPs / Interfaces</th><th>Gesteckt auf</th><th>Weitere Kabel</th><th>Abteilung · Standort</th><th>Felder</th><th>Notizen</th><th>Notizen vor Ort</th><th>OK</th></tr></thead><tbody>${z.map((r, i) => {
+  return `<table class="patch"><thead><tr><th>#</th><th>Gerät</th><th>IPs / Interfaces</th><th>Gesteckt auf</th><th>Abteilung · Standort</th><th>Felder</th><th>Notizen</th><th>Notizen vor Ort</th><th>OK</th></tr></thead><tbody>${z.map((r, i) => {
     const grp = i > 0 && (r.isSwitch || (r.aufSwitch !== z[i - 1].aufSwitch && !z[i - 1].isSwitch));
     return `<tr class="${r.isSwitch ? "sw" : ""}${grp ? " grp" : ""}"><td>${r.nr}</td><td><div class="nm">${esc(r.name)}</div>${r.netzname ? `<div class="mono">${esc(r.netzname)}</div>` : ""}<div class="sub">${esc(r.modell)}${r.stapel ? " · Stapel " + esc(r.stapel) : ""}</div></td>
-<td class="mono">${zl(r.ips)}</td><td>${esc(r.gesteckt)}</td><td>${zl(r.weitereKabel)}</td><td>${esc(r.abteilung)}${r.standort ? "<br>" + esc(r.standort) : ""}</td><td>${zl(r.felder)}</td><td>${esc(r.notizen).replace(/\n/g, "<br>")}</td><td class="vorort"></td><td class="box"><span></span></td></tr>`;
+<td class="mono">${zl(r.ips)}</td><td>${esc(r.gesteckt)}</td><td>${esc(r.abteilung)}${r.standort ? "<br>" + esc(r.standort) : ""}</td><td>${zl(r.felder)}</td><td>${esc(r.notizen).replace(/\n/g, "<br>")}</td><td class="vorort"></td><td class="box"><span></span></td></tr>`;
   }).join("")}</tbody></table>`;
 };
 export const buildPatchCsv = (P, X) => {
@@ -146,7 +150,13 @@ const table = (rows, cols) => {
   return `<table><thead><tr>${keys.map((k) => `<th>${esc(k)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${keys.map((k) => `<td>${esc(r[k])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 };
 
-export const buildPdfHtml = (P, X, issues, topo, { nurPatch = false } = {}) => {
+// Teile des PDF-Exports; der Export-Dialog wählt daraus aus
+export const PDF_TEILE = [["deckblatt", "Deckblatt mit VLANs"], ["topologie", "Topologie"], ["patch", "Patchliste"], ["ip", "IP-Liste"], ["ports", "Switch-Ports"], ["geraete", "Geräte"], ["pruefung", "Prüfung"]];
+export const buildPdfHtml = (P, X, issues, topo, { nurPatch = false, teile = PDF_TEILE.map(([k]) => k), seite = "A4", hoch = false } = {}) => {
+  const mit = new Set(nurPatch ? ["patch"] : teile);
+  // Seitenmaße in mm: A4/A3, quer oder hoch
+  const [kurz, lang] = seite === "A3" ? [297, 420] : [210, 297];
+  const [pw, ph] = hoch ? [kurz, lang] : [lang, kurz];
   const m = P.meta;
   const sev = { error: "Fehler", warn: "Warnung", info: "Hinweis" };
   const logo = ladeLogo();
@@ -154,10 +164,10 @@ export const buildPdfHtml = (P, X, issues, topo, { nurPatch = false } = {}) => {
   const head = (t) => `<div class="head">${logo ? `<span class="corp">${logoImg(22)}</span>` : ""}<span class="logo">NETZWERKPLANER</span><span>${esc(m.veranstaltung)}${m.ort ? " · " + esc(m.ort) : ""} · v${esc(m.version)} · ${esc(m.datum)}</span><span class="t">${esc(t)}</span></div>`;
   const vlanTable = vlanRows(P).map((v) => ({ ...v, VLAN: v.VLAN }));
   return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${esc(m.veranstaltung)} – Netzwerkplan</title><style>
-@page { size: A4 landscape; margin: 0; }
+@page { size: ${seite} ${hoch ? "portrait" : "landscape"}; margin: 0; }
 * { box-sizing: border-box; }
 body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; color: #1c2127; font-size: 9.5px; }
-.page { width: 297mm; min-height: 210mm; padding: 10mm 12mm; page-break-after: always; position: relative; }
+.page { width: ${pw}mm; min-height: ${ph}mm; padding: 10mm 12mm; page-break-after: always; position: relative; }
 .page:last-child { page-break-after: auto; }
 .head { display: flex; gap: 14px; align-items: baseline; border-bottom: 2px solid #b3483f; padding-bottom: 5px; margin-bottom: 10px; color: #555; }
 .head .logo { font-weight: 800; letter-spacing: 1px; color: #b3483f; font-size: 12px; }
@@ -169,7 +179,7 @@ h1 { font-size: 26px; margin: 30mm 0 4px; } h2 { font-size: 13px; margin: 14px 0
 .stats b { display: block; font-size: 18px; }
 table { width: 100%; border-collapse: collapse; margin-bottom: 8px; } th { text-align: left; background: #1c2127; color: #fff; padding: 4px 5px; font-size: 8.5px; text-transform: uppercase; letter-spacing: .3px; }
 td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } tr:nth-child(even) td { background: #f7f7f7; }
-.topo { width: 100%; height: 172mm; background: #15191e; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.topo { width: 100%; height: ${ph - 38}mm; background: #15191e; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .topo svg { width: 100%; height: 100%; }
 .sev-error { color: #c0392b; font-weight: 700; } .sev-warn { color: #d68910; font-weight: 700; } .sev-info { color: #2e86de; }
 .empty { color: #888; font-style: italic; }
@@ -180,22 +190,20 @@ td { padding: 3px 5px; border-bottom: 1px solid #e3e3e3; vertical-align: top; } 
 .patch tr { page-break-inside: avoid; }
 .foot { position: absolute; bottom: 6mm; left: 12mm; right: 12mm; font-size: 8px; color: #999; display: flex; justify-content: space-between; }
 </style></head><body>
-${nurPatch ? `<div class="page">${head("Patchliste")}${patchTabelle(P, X)}</div>` : `
-<div class="page">
+${mit.has("deckblatt") ? `<div class="page">
   ${head("Deckblatt")}
   ${logo ? `<div style="margin-top:22mm">${logoImg(70)}</div>` : ""}
   <h1${logo ? ' style="margin-top:10mm"' : ""}>${esc(m.veranstaltung)}</h1>
   <div class="meta">Netzwerkplan · Version ${esc(m.version)} · ${esc(m.datum)}${m.ort ? `<br>Ort: ${esc(m.ort)}` : ""}${m.ersteller ? `<br>Ersteller: ${esc(m.ersteller)}` : ""}${m.notiz ? `<br><br>${esc(m.notiz).replace(/\n/g, "<br>")}` : ""}</div>
   <div class="stats"><div><b>${P.geraete.length}</b>Geräte</div><div><b>${P.geraete.filter((d) => d.isSwitch).length}</b>Switches</div><div><b>${P.verbindungen.length}</b>Verbindungen</div><div><b>${P.vlans.length}</b>VLANs</div><div><b>${issues.filter((i) => i.sev === "error").length}</b>Fehler</div><div><b>${issues.filter((i) => i.sev === "warn").length}</b>Warnungen</div></div>
   <h2>VLANs</h2>${table(vlanTable, ["VLAN", "S-VLAN (QinQ)", "Name", "Zweck", "IGMP", "EEE aus", "QoS", "DHCP"])}
-</div>
-${topo ? `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>` : ""}
-<div class="page">${head("Patchliste")}${patchTabelle(P, X)}</div>
-<div class="page">${head("IP-Liste")}${table(ipRows(P, X), ["IP", "CIDR", "VLAN", "Gerät", "Port", "Gateway", "MAC", "Standort", "Modell", "Web-UI"])}</div>
-<div class="page">${head("Switch-Ports")}${table(switchPortRows(P, X))}</div>
-<div class="page">${head("Geräte")}${table(deviceRows(P, X), ["Name", "Typ", "Bereich", "Standort", "Hersteller", "Modell", "IPs", "Web-UI", "Protokolle"])}</div>
-<div class="page">${head("Prüfung")}${issues.length ? `<table><thead><tr><th style="width:70px">Schwere</th><th>Meldung</th></tr></thead><tbody>${issues.map((i) => `<tr><td class="sev-${i.sev}">${sev[i.sev]}</td><td>${esc(i.msg)}</td></tr>`).join("")}</tbody></table>` : `<p>Keine Auffälligkeiten.</p>`}
-<p class="empty">Protokoll- und Gerätedaten aus der Projektrecherche; teils nicht datenblattgeprüft.</p></div>
-`}
+</div>` : ""}
+${topo && mit.has("topologie") ? `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>` : ""}
+${mit.has("patch") ? `<div class="page">${head("Patchliste")}${patchTabelle(P, X)}</div>` : ""}
+${mit.has("ip") ? `<div class="page">${head("IP-Liste")}${table(ipRows(P, X), ["IP", "CIDR", "VLAN", "Gerät", "Port", "Gateway", "MAC", "Standort", "Modell", "Web-UI"])}</div>` : ""}
+${mit.has("ports") ? `<div class="page">${head("Switch-Ports")}${table(switchPortRows(P, X))}</div>` : ""}
+${mit.has("geraete") ? `<div class="page">${head("Geräte")}${table(deviceRows(P, X), ["Name", "Typ", "Bereich", "Standort", "Hersteller", "Modell", "IPs", "Web-UI", "Protokolle"])}</div>` : ""}
+${mit.has("pruefung") ? `<div class="page">${head("Prüfung")}${issues.length ? `<table><thead><tr><th style="width:70px">Schwere</th><th>Meldung</th></tr></thead><tbody>${issues.map((i) => `<tr><td class="sev-${i.sev}">${sev[i.sev]}</td><td>${esc(i.msg)}</td></tr>`).join("")}</tbody></table>` : `<p>Keine Auffälligkeiten.</p>`}
+<p class="empty">Protokoll- und Gerätedaten aus der Projektrecherche; teils nicht datenblattgeprüft.</p></div>` : ""}
 </body></html>`;
 };

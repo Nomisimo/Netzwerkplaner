@@ -1,5 +1,5 @@
 /* ── Live-Daten mit dem Plan abgleichen (reine Logik, ohne UI) ───────────── */
-import { inSubnet, ip2int } from "./net.js";
+import { inSubnet, ip2int, int2ip, parsePrefix } from "./net.js";
 import { TYPEN } from "./constants.js";
 import { ipPorts, physPorts } from "./catalog.js";
 import { normMac as macNorm } from "./mac.js";
@@ -48,8 +48,36 @@ export const compareScan = (P, hosts, cidr) => {
   return { rows, count };
 };
 
-// Subnetze aus dem VLAN-Plan als Vorschläge für den Scan
-export const scanTargets = (P) => P.vlans.filter((v) => v.subnetz).map((v) => ({ cidr: v.subnetz.trim(), label: `VLAN ${v.vid} ${v.name}`.trim(), farbe: v.farbe }));
+/* Scan-Vorschläge aus den Adressen, die im Plan wirklich vergeben sind (nicht aus VLAN-Vorgaben).
+   Netz = IP mit der Maske ihres Ports. Größer als /22 lässt sich nicht auf einmal scannen;
+   dann wird das /24 um die Adressen vorgeschlagen. Das Label nennt Anzahl und Showprotokolle. */
+const SCAN_PROTOKOLLE = [["Dante", /dante/i], ["AES67", /aes67/i], ["MA-Net", /ma-?net/i], ["Art-Net", /art-?net/i], ["sACN", /sacn|e1\.31/i], ["NDI", /\bndi\b/i], ["Green-GO", /green-?go/i]];
+export const scanTargets = (P) => {
+  const netze = new Map();
+  for (const { ip, dev, iface } of planAddresses(P)) {
+    const n = ip2int(ip);
+    if (n === null) continue;
+    const pr = parsePrefix(iface.prefix);
+    const prefix = pr != null && pr >= 22 && pr <= 30 ? pr : 24;
+    const mask = (0xffffffff << (32 - prefix)) >>> 0;
+    const cidr = `${int2ip((n & mask) >>> 0)}/${prefix}`;
+    const e = netze.get(cidr) || { cidr, ips: 0, geraete: new Set(), protokolle: new Set(), vlans: new Set() };
+    e.ips++; e.geraete.add(dev.id);
+    // Switches führen Showprotokolle nur als „unterstützt“, das sagt nichts über das Netz
+    const text = dev.isSwitch ? "" : (dev.protokolle || []).join(",");
+    for (const [name, re] of SCAN_PROTOKOLLE) if (re.test(text)) e.protokolle.add(name);
+    const v = P.vlans.find((x) => x.id === iface.vlan);
+    if (v) e.vlans.add(`${v.vid} ${v.name}`.trim());
+    netze.set(cidr, e);
+  }
+  return [...netze.values()].sort((a, b) => b.ips - a.ips).map((e) => ({
+    cidr: e.cidr, ips: e.ips,
+    label: [`${e.ips} geplante IP${e.ips === 1 ? "" : "s"}`, [...e.protokolle].join(", "), e.vlans.size === 1 ? `VLAN ${[...e.vlans][0]}` : ""].filter(Boolean).join(" · "),
+  }));
+};
+
+// Dante-Geräte ohne feste IP (DHCP oder leer): die findet ein Subnetz-Scan nicht, nur der Dante-Monitor
+export const danteOhneIp = (P) => P.geraete.filter((d) => !d.isSwitch && /dante/i.test((d.protokolle || []).join(",")) && !ipPorts(d).some((i) => i.ip)).length;
 
 // Managed Switches mit Management-IP (Kandidaten für SNMP)
 export const snmpSwitches = (P) =>

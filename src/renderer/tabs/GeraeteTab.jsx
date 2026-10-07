@@ -8,9 +8,16 @@ import DeviceEditor from "../DeviceEditor.jsx";
 import { api } from "../api.js";
 import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { ipPorts } from "../../shared/catalog.js";
-import { RefreshCw, TriangleAlert, Globe } from "lucide-react";
+import PatchTabelle, { PatchKnoepfe } from "./PatchlisteTab.jsx";
+import { RefreshCw, TriangleAlert, Globe, List, Cable } from "lucide-react";
 
-export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand }) {
+// Ansicht der Geräteliste: „liste“ (Überblick, sortierbar) oder „patch“ (Aufbau-Reihenfolge, direkt bearbeitbar)
+export const ANSICHT_KEY = "netzwerkplaner_geraete_ansicht";
+const leseAnsicht = () => { try { return localStorage.getItem(ANSICHT_KEY) === "patch" ? "patch" : "liste"; } catch { return "liste"; } };
+
+export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand, onExport, notify }) {
+  const [ansicht, setAnsichtState] = useState(leseAnsicht);
+  const setAnsicht = (a) => { setAnsichtState(a); try { localStorage.setItem(ANSICHT_KEY, a); } catch {} };
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [vlan, setVlan] = useState(null);
@@ -41,11 +48,23 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
     });
   };
 
+  const sichtbar = useMemo(() => new Set(list.map((d) => d.id)), [list]);
+  const filterAktiv = !!(q || kat || vlan);
+  const umschalter = (
+    <div style={{ display: "inline-flex", border: `1px solid ${LINE}`, borderRadius: 7, overflow: "hidden" }}>
+      {[["liste", "Liste", List, "Überblick, sortierbar"], ["patch", "Patchliste", Cable, "Aufbau-Reihenfolge, IPs, Ports, Standort, Felder und Notizen direkt bearbeiten"]].map(([k, l, I, t]) => (
+        <button key={k} title={t} onClick={() => setAnsicht(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, background: ansicht === k ? ACCENT : "transparent", color: ansicht === k ? "#fff" : undefined }}><I size={14} />{l}</button>
+      ))}
+    </div>
+  );
+
   const TH = ({ k, children, style }) => <th style={{ ...S.th, cursor: k ? "pointer" : "default", color: sort === k ? ACCENT : S.th.color, ...style }} onClick={() => k && setSort(k)}>{children}</th>;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: sel ? "minmax(420px,1fr) minmax(520px,1.25fr)" : "1fr", gap: 20, alignItems: "start" }}>
-      <Section title={`Geräte (${P.geraete.length})`} right={<div style={{ display: "flex", gap: 6 }}>
+    <div style={{ display: "grid", gridTemplateColumns: !sel ? "1fr" : ansicht === "patch" ? "minmax(640px,1.7fr) minmax(460px,1fr)" : "minmax(420px,1fr) minmax(520px,1.25fr)", gap: 20, alignItems: "start" }}>
+      <Section title={`Geräte (${P.geraete.length})`} right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        {umschalter}
+        {ansicht === "patch" && <PatchKnoepfe P={P} mutate={mutate} onExport={onExport} />}
         <button style={S.secondaryBtn} onClick={autoIps} title="Freie IPs automatisch vergeben"><RefreshCw size={14} /> IPs vergeben</button>
         <button style={S.primaryBtn} onClick={() => onAddDevice(null, { picker: true })}>+ Gerät</button>
       </div>}>
@@ -56,7 +75,13 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
           </select>
           <VlanSelect vlans={P.vlans} value={vlan} onChange={setVlan} style={{ width: "auto" }} noneLabel="Alle VLANs" />
         </div>
-        {list.length === 0 ? <p style={S.empty}>{P.geraete.length ? "Kein Gerät passt zum Filter." : "Noch keine Geräte. Mit „+ Gerät“ aus dem Katalog hinzufügen."}</p> : (
+        {ansicht === "patch" ? (
+          <div style={{ marginTop: 8 }}>
+            {filterAktiv && <div style={{ ...S.hint, marginTop: 0, marginBottom: 6 }}>Filter aktiv: Es sind nicht alle Geräte zu sehen. Umsortieren verschiebt nur zwischen den sichtbaren Nachbarn.</div>}
+            <PatchTabelle P={P} X={X} mutate={mutate} notify={notify} status={status} issues={issues} aktivId={sel?.id} sichtbar={filterAktiv ? sichtbar : null}
+              onSelectDevice={(id) => setSelection({ type: "dev", id })} />
+          </div>
+        ) : list.length === 0 ? <p style={S.empty}>{P.geraete.length ? "Kein Gerät passt zum Filter." : "Noch keine Geräte. Mit „+ Gerät“ aus dem Katalog hinzufügen."}</p> : (
           <div style={{ overflowX: "auto" }}>
             <table style={S.table}>
               <thead><tr>

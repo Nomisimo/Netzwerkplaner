@@ -64,6 +64,19 @@ const parentWin = () => BrowserWindow.getAllWindows().find((w) => !w.isDestroyed
 const dataDir     = () => path.join(app.getPath('userData'), 'Projekte');
 const libraryFile = () => path.join(app.getPath('userData'), 'Bibliothek.json');
 const recentsFile = () => path.join(app.getPath('userData'), 'recents.json');
+const exportFile  = () => path.join(app.getPath('userData'), 'export.json');
+
+/* Wohin ein Export standardmäßig geht: neben die geöffnete Plan-Datei, sonst in den Ordner
+   des letzten Exports, sonst in „Dokumente“. Der zuletzt benutzte Ordner wird gemerkt. */
+const letzterExportOrdner = () => {
+  try { const d = JSON.parse(fs.readFileSync(exportFile(), 'utf8')).ordner; if (d && fs.existsSync(d)) return d; } catch {}
+  return null;
+};
+const merkeExportOrdner = (datei) => { try { fs.writeFileSync(exportFile(), JSON.stringify({ ordner: path.dirname(datei) }), 'utf8'); } catch {} };
+const exportOrdner = (planPfad) => {
+  const neben = planPfad && fs.existsSync(path.dirname(planPfad)) ? path.dirname(planPfad) : null;
+  return neben || letzterExportOrdner() || app.getPath('documents');
+};
 const ensureDir = (d) => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); };
 const baseName = (p) => path.basename(p).replace(/\.netplan(\.json)?$|\.json$/i, '');
 
@@ -238,27 +251,29 @@ ipcMain.handle('save-library', (_e, data) => {
 });
 
 // Allgemeiner Export (CSV, XLSX, SVG, PNG)
-ipcMain.handle('save-file', async (_e, { data, name, filters, encoding }) => {
-  const r = await dialog.showSaveDialog(parentWin(), { title: 'Exportieren', defaultPath: path.join(app.getPath('documents'), name), filters });
+ipcMain.handle('save-file', async (_e, { data, name, filters, encoding, planPfad }) => {
+  const r = await dialog.showSaveDialog(parentWin(), { title: 'Exportieren', defaultPath: path.join(exportOrdner(planPfad), name), filters });
   if (r.canceled || !r.filePath) return null;
+  merkeExportOrdner(r.filePath);
   fs.writeFileSync(r.filePath, encoding === 'base64' ? Buffer.from(data, 'base64') : data, encoding === 'base64' ? undefined : 'utf8');
   shell.showItemInFolder(r.filePath);
   return r.filePath;
 });
 
-ipcMain.handle('export-pdf', async (_e, { html, name, pageSize }) => {
+ipcMain.handle('export-pdf', async (_e, { html, name, pageSize, hoch, planPfad }) => {
   const tmpPath = path.join(os.tmpdir(), `netzplan-${Date.now()}.html`);
   let win;
   try {
     const r = await dialog.showSaveDialog(parentWin(), {
-      title: 'PDF speichern', defaultPath: path.join(app.getPath('documents'), `${name}.pdf`),
+      title: 'PDF speichern', defaultPath: path.join(exportOrdner(planPfad), `${name}.pdf`),
       filters: [{ name: 'PDF-Datei', extensions: ['pdf'] }],
     });
     if (r.canceled || !r.filePath) return null;
+    merkeExportOrdner(r.filePath);
     fs.writeFileSync(tmpPath, html, 'utf8');
     win = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false } });
     await win.loadFile(tmpPath);
-    const pdf = await win.webContents.printToPDF({ pageSize: pageSize === 'A3' ? 'A3' : 'A4', landscape: true, printBackground: true, margins: { marginType: 'none' } });
+    const pdf = await win.webContents.printToPDF({ pageSize: pageSize === 'A3' ? 'A3' : 'A4', landscape: !hoch, printBackground: true, margins: { marginType: 'none' } });
     fs.writeFileSync(r.filePath, pdf);
     shell.showItemInFolder(r.filePath);
     return r.filePath;

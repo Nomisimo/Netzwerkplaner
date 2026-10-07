@@ -4,15 +4,18 @@ import { KATALOG, ipPorts } from "../../shared/catalog.js";
 import { Section, Field } from "../ui.jsx";
 import { standortUmbenennen } from "../../shared/model.js";
 import { X as XIcon, RotateCcw } from "lucide-react";
+import PruefungKompakt from "./PruefungTab.jsx";
+import VlanTab from "./VlanTab.jsx";
 
 const Stat = ({ label, value, color, onClick }) => (
-  <div onClick={onClick} style={{ background: INPUT, border: `1px solid ${LINE}`, borderRadius: 8, padding: "12px 14px", cursor: onClick ? "pointer" : "default" }}>
-    <div style={{ fontSize: 11, color: SUB, fontWeight: 700 }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 800, color: color || STRONG, marginTop: 2 }}>{value}</div>
+  <div onClick={onClick} style={{ background: INPUT, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 10px", cursor: onClick ? "pointer" : "default" }}>
+    <div style={{ fontSize: 10, color: SUB, fontWeight: 700 }}>{label}</div>
+    <div style={{ fontSize: 17, fontWeight: 800, color: color || STRONG }}>{value}</div>
   </div>
 );
 
-export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newProject }) {
+// Setup: Projektangaben, Übersicht mit Prüfung, Standorte und VLANs auf einer Seite
+export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newProject, onShowIssue, onSelectDevice }) {
   const [neuBereich, setNeuBereich] = useState("");
   const m = P.meta;
   const setMeta = (k, v) => mutate((d) => (d.meta[k] = v));
@@ -33,7 +36,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
           <p style={S.hint}>Standard-VLANs aus der Protokollrecherche sind bereits angelegt (10 Audio Primary, 11 Audio Secondary, 20 Licht, 30 Video, 40 Intercom, 50 Steuerung, 99 Management). Gerätekatalog: {KATALOG.geraete.length} Modelle, Protokollreferenz: {KATALOG.protokolle.length} Protokolle (Stand {KATALOG.stand}).</p>
         </Section>
       )}
-      <Section title="Projekt" subtitle="Diese Angaben erscheinen im Kopf der App und in den Exporten.">
+      <Section title="Setup" subtitle="Projektangaben, Übersicht mit Prüfung, Standorte und VLANs. Die Angaben erscheinen im Kopf der App und in den Exporten.">
         <div style={S.metaGrid}>
           <Field label="Veranstaltung"><input style={S.input} value={m.veranstaltung} onChange={(e) => setMeta("veranstaltung", e.target.value)} /></Field>
           <Field label="Ort / Venue"><input style={S.input} value={m.ort} onChange={(e) => setMeta("ort", e.target.value)} /></Field>
@@ -45,7 +48,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
       </Section>
 
       <Section title="Übersicht">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(105px,1fr))", gap: 6 }}>
           <Stat label="Geräte" value={P.geraete.length} onClick={() => goTab("geraete")} />
           <Stat label="Switches" value={P.geraete.filter((d) => d.isSwitch).length} />
           <Stat label="Verbindungen" value={P.verbindungen.length} onClick={() => goTab("topologie")} />
@@ -55,13 +58,14 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
           <Stat label="Warnungen" value={n("warn")} color={n("warn") ? WARN : OK} onClick={() => goTab("pruefung")} />
         </div>
         {perKat.length > 0 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
             {perKat.map(([k, c]) => <span key={k} style={{ ...S.chip, borderColor: katColor(k) + "88" }}><span style={{ width: 8, height: 8, borderRadius: 4, background: katColor(k) }} />{k}: {c}</span>)}
           </div>
         )}
+        <PruefungKompakt issues={issues} onShowIssue={onShowIssue} />
       </Section>
 
-      <Section title="Standorte / Äste" subtitle="Standorte der Geräte (Feld „Standort / Ast“, z. B. FOH, Bühne, Delay-Tower). Umbenennen gilt für das ganze Projekt. Die Anmerkung erscheint nur in der Clean-Cat-Ansicht.">
+      <Section title="Standorte / Äste" subtitle="Standorte der Geräte (Feld „Standort / Ast“, z. B. FOH, Bühne, Delay-Tower). Umbenennen gilt für das ganze Projekt. Die Anmerkung erscheint nur in der Plott-Ansicht.">
         <div style={{ display: "grid", gap: 8 }}>
           {standorte.map((b) => {
             const anzahl = P.geraete.filter((g) => (g.bereich || "").trim() === b).length;
@@ -85,6 +89,8 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
           <button style={S.secondaryBtn}>+ Hinzufügen</button>
         </form>
       </Section>
+
+      <div id="setup-vlans"><VlanTab P={P} X={X} mutate={mutate} issues={issues} onSelectDevice={onSelectDevice} /></div>
 
       <Section title="Projekt zurücksetzen">
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

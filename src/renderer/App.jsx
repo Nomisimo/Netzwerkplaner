@@ -7,14 +7,12 @@ import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
 import { DevicePicker, Modal, EingabeHost, frageText } from "./ui.jsx";
 import { topologySvg, svgToPngBase64, buildXlsxBase64, buildIpCsv, buildPdfHtml, buildPatchCsv, fileBase } from "./exports.js";
-import PatchlisteTab from "./tabs/PatchlisteTab.jsx";
+import ExportDialog from "./ExportDialog.jsx";
 import { ProtokollDetail } from "./tabs/BibliothekTab.jsx";
 import { PROTOKOLLE } from "../shared/catalog.js";
 import ProjektTab from "./tabs/ProjektTab.jsx";
 import TopologieTab from "./tabs/TopologieTab.jsx";
-import GeraeteTab from "./tabs/GeraeteTab.jsx";
-import VlanTab from "./tabs/VlanTab.jsx";
-import PruefungTab from "./tabs/PruefungTab.jsx";
+import GeraeteTab, { ANSICHT_KEY } from "./tabs/GeraeteTab.jsx";
 import BibliothekTab from "./tabs/BibliothekTab.jsx";
 import WissenTab from "./tabs/WissenTab.jsx";
 import { analyseIssues } from "../shared/analyse.js";
@@ -31,10 +29,12 @@ import { useSitzung } from "./sync.js";
 import { diff, apply, invert, valueAt, pathKey } from "../shared/ops.js";
 import { removeDevice } from "../shared/invarianten.js";
 import { bestandSchluessel } from "../shared/bestandschluessel.js";
-import { Pencil, Plus, X as XIcon, ArrowUpCircle, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, ScrollText, Download, ChevronDown, Printer, Sheet, Power, Settings } from "lucide-react";
+import { Pencil, Plus, X as XIcon, ArrowUpCircle, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, ScrollText, Download, Power, Settings } from "lucide-react";
 
 
-const TABS = [["projekt", "Projekt"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["patch", "Patchliste"], ["vlans", "VLANs"], ["pruefung", "Prüfung"], ["live", "Live"], ["wissen", "Wissen"], ["bibliothek", "Katalog"], ["hilfe", "Anleitung"]];
+// VLANs und Prüfung stecken im Setup; alte Sprungziele („vlans“, „pruefung“) führen dorthin
+const TABS = [["projekt", "Setup"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["live", "Live"], ["bibliothek", "Katalog"], ["wissen", "Wissen"], ["hilfe", "Anleitung"]];
+const SETUP_ZIELE = { vlans: "setup-vlans", pruefung: "setup-pruefung" };
 
 const loadAutosave = () => {
   try { const s = localStorage.getItem(LS_KEY); if (s) return migrateProject(JSON.parse(s)); } catch (e) { console.error(e); }
@@ -45,7 +45,7 @@ export default function App() {
   const [P, setP] = useState(loadAutosave);
   const Pref = useRef(P);
   const hist = useRef({ undo: [], redo: [] }); // Transaktionen als Operationen (nur eigene Änderungen)
-  const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || t === "analyse" ? "projekt" : t === "cleancat" ? "topologie" : t; });
+  const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || ["analyse", "vlans", "pruefung"].includes(t) ? "projekt" : t === "cleancat" ? "topologie" : t === "patch" ? "geraete" : t; });
   const [selection, setSelection] = useState(null);
   const [picker, setPicker] = useState(null); // { connectTo }
   const [status, setStatus] = useState({});
@@ -386,10 +386,18 @@ export default function App() {
     notify(`${neu.length} Geräte in den Bestand übernommen.`);
   };
 
+  // Tab wechseln; VLANs und Prüfung liegen im Setup und werden dort angesprungen
+  const geheZu = (k) => {
+    if (k === "patch") { try { localStorage.setItem(ANSICHT_KEY, "patch"); } catch {} setTab("geraete"); return; }
+    const ziel = SETUP_ZIELE[k];
+    if (!ziel) { setTab(k); return; }
+    setTab("projekt");
+    setTimeout(() => document.getElementById(ziel)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  };
   const selectDevice = (id) => { setSelection({ type: "dev", id }); if (!["topologie", "geraete"].includes(tab)) setTab("geraete"); };
   const showProto = (id) => setProtoModal(id);
   const showIssue = (i) => {
-    if (i.vlan && !i.dev && !i.conn) { setTab("vlans"); return; }
+    if (i.vlan && !i.dev && !i.conn) { geheZu("vlans"); return; }
     setTab("topologie");
     setSelection(i.conn ? { type: "conn", id: i.conn } : { type: "dev", id: i.dev });
   };
@@ -421,22 +429,49 @@ export default function App() {
     if (!svgRef.current) { setTab("topologie"); await new Promise((r) => setTimeout(r, 300)); }
     return topologySvg(svgRef.current, P);
   };
+  // Topologie in einer bestimmten Ansicht holen und danach alles zurückstellen (Tab, Ansicht, Undo-Liste)
+  const topoIn = async (ansicht) => {
+    const vorher = Pref.current.layout?.ansicht || "mindmap", tabVorher = tab;
+    const wechseln = ansicht && ansicht !== "aktuell" && ansicht !== vorher;
+    if (!wechseln) return needTopo();
+    const undoLen = hist.current.undo.length;
+    mutate((d) => { d.layout.ansicht = ansicht; });
+    setTab("topologie");
+    await new Promise((r) => setTimeout(r, 600));
+    try { return topologySvg(svgRef.current, Pref.current); }
+    finally {
+      mutate((d) => { d.layout.ansicht = vorher; });
+      hist.current.undo.length = undoLen;
+      setTab(tabVorher);
+    }
+  };
+  // kind: Kurzbefehl aus der Patchliste ("patch-pdf", "patch-csv") oder die Auswahl aus dem Export-Dialog
   const doExport = async (kind) => {
     setShowExport(false);
     const base = fileBase(P);
+    const o = typeof kind === "string" ? { format: kind } : kind;
+    const pp = filePath || null;
+    const datei = (data, name, filters, enc) => api.saveFile(data, name, filters, enc, pp);
     try {
-      if (kind === "pdf") { const t = await needTopo(); await api.exportPdf(buildPdfHtml(Pv, X, issues, t), `${base} – Netzwerkplan`); }
-      if (kind === "xlsx") await api.saveFile(buildXlsxBase64(Pv, X, issues), `${base} – Netzwerkplan.xlsx`, [{ name: "Excel", extensions: ["xlsx"] }], "base64");
-      if (kind === "patch-pdf") await api.exportPdf(buildPdfHtml(Pv, X, issues, null, { nurPatch: true }), `${base} – Patchliste`);
-      if (kind === "patch-csv") await api.saveFile(buildPatchCsv(Pv, X), `${base} – Patchliste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
-      if (kind === "csv") await api.saveFile(buildIpCsv(P, X), `${base} – IP-Liste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
-      if (kind === "svg") { const t = await needTopo(); await api.saveFile(t.svg, `${base} – Topologie.svg`, [{ name: "SVG", extensions: ["svg"] }]); }
-      if (kind === "png") { const t = await needTopo(); await api.saveFile(await svgToPngBase64(t.svg, t.w, t.h), `${base} – Topologie.png`, [{ name: "PNG", extensions: ["png"] }], "base64"); }
+      if (o.format === "patch-pdf") await api.exportPdf(buildPdfHtml(Pv, X, issues, null, { nurPatch: true }), `${base} – Patchliste`, { planPfad: pp });
+      if (o.format === "patch-csv") await datei(buildPatchCsv(Pv, X), `${base} – Patchliste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
+      if (o.format === "pdf") {
+        const teile = o.teile || undefined;
+        const t = !teile || teile.includes("topologie") ? await topoIn(o.ansicht) : null;
+        await api.exportPdf(buildPdfHtml(Pv, X, issues, t, { teile, seite: o.seite, hoch: o.hoch }), `${base} – Netzwerkplan`, { pageSize: o.seite, hoch: o.hoch, planPfad: pp });
+      }
+      if (o.format === "xlsx") await datei(buildXlsxBase64(Pv, X, issues, o.blaetter), `${base} – Netzwerkplan.xlsx`, [{ name: "Excel", extensions: ["xlsx"] }], "base64");
+      if (o.format === "csv") {
+        if (o.csv === "ip") await datei(buildIpCsv(P, X), `${base} – IP-Liste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
+        else await datei(buildPatchCsv(Pv, X), `${base} – Patchliste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
+      }
+      if (o.format === "svg") { const t = await topoIn(o.ansicht); await datei(t.svg, `${base} – Topologie.svg`, [{ name: "SVG", extensions: ["svg"] }]); }
+      if (o.format === "png") { const t = await topoIn(o.ansicht); await datei(await svgToPngBase64(t.svg, t.w, t.h), `${base} – Topologie.png`, [{ name: "PNG", extensions: ["png"] }], "base64"); }
     } catch (e) { console.error(e); notify("Export fehlgeschlagen: " + e.message, "err"); }
   };
 
   const nErr = issues.filter((i) => i.sev === "error").length, nWarn = issues.filter((i) => i.sev === "warn").length;
-  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }), onTypWaehlen: (id, key) => umbauen(id, { kind: "typ", key }), onShowIssue: (i) => showIssue(i), goTab: setTab };
+  const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }), onTypWaehlen: (id, key) => umbauen(id, { kind: "typ", key }), onShowIssue: (i) => showIssue(i), goTab: geheZu };
 
   return (
     <div style={S.app}>
@@ -476,13 +511,7 @@ export default function App() {
         <button style={S.ghostBtn} onClick={() => setChangelog(true)} title="Was ist neu?"><ScrollText size={14} /></button>
         <button style={S.ghostBtn} onClick={() => setShowEinst(true)} title="Einstellungen (Erscheinungsbild hell, dunkel oder wie das System)"><Settings size={14} /></button>
         <div style={{ position: "relative" }}>
-          <button style={S.exportBtn} onClick={() => setShowExport((v) => !v)}><Download size={14} /> Export <ChevronDown size={14} /></button>
-          {showExport && <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: INPUT, border: `1px solid ${LINE2}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 230, marginTop: 4, overflow: "hidden" }} onMouseLeave={() => setShowExport(false)}>
-            {[["pdf", "PDF-Dokumentation", Printer], ["xlsx", "Excel (Patchliste, IP-Liste, VLANs, Ports …)", Sheet], ["patch-pdf", "Patchliste (PDF zum Ausdrucken)", Printer], ["patch-csv", "Patchliste als CSV"], ["csv", "IP-Liste als CSV"], ["svg", "Topologie als SVG"], ["png", "Topologie als PNG"]].map(([k, l, Ic]) => (
-              <button key={k} onClick={() => doExport(k)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: `1px solid ${LINE2}`, padding: "9px 12px", cursor: "pointer", color: TEXT, fontSize: 12 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = LINE2)} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>{Ic && <Ic size={14} />}{l}</button>
-            ))}
-          </div>}
+          <button style={S.exportBtn} onClick={() => setShowExport(true)}><Download size={14} /> Export</button>
         </div>
       </header>
       <nav style={S.nav}>
@@ -490,7 +519,7 @@ export default function App() {
           <button key={k} style={{ ...S.navBtn, ...(tab === k ? S.navBtnActive : {}) }} onClick={() => setTab(k)}>
             <span style={{ display: "block", height: 0, fontWeight: 600, overflow: "hidden", visibility: "hidden" }} aria-hidden="true">{label}</span>
             {label}
-            {k === "pruefung" && (nErr + nWarn > 0) && <span style={{ ...S.badge, marginLeft: 6, background: nErr ? ERR : WARN, color: DARK }}>{nErr || nWarn}</span>}
+            {k === "projekt" && (nErr + nWarn > 0) && <span style={{ ...S.badge, marginLeft: 6, background: nErr ? ERR : WARN, color: DARK }}>{nErr || nWarn}</span>}
           </button>
         ))}
       </nav>
@@ -500,15 +529,12 @@ export default function App() {
       ) : (
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} key={tab}><main style={S.main}>
           <div style={{ animation: "npFade .18s ease" }}>
-            {tab === "projekt" && <ProjektTab P={Pv} X={X} mutate={mutate} issues={issues} goTab={setTab} loadDemo={loadDemo} newProject={newProject} />}
-            {tab === "geraete" && <GeraeteTab {...shared} />}
-            {tab === "patch" && <PatchlisteTab P={Pv} X={X} mutate={mutate} onSelectDevice={selectDevice} onExport={doExport} />}
-            {tab === "vlans" && <VlanTab P={Pv} X={X} mutate={mutate} issues={issues} onSelectDevice={selectDevice} />}
-            {tab === "pruefung" && <PruefungTab P={Pv} X={X} issues={issues} onShowIssue={showIssue} />}
+            {tab === "projekt" && <ProjektTab P={Pv} X={X} mutate={mutate} issues={issues} goTab={geheZu} loadDemo={loadDemo} newProject={newProject} onShowIssue={showIssue} onSelectDevice={selectDevice} />}
+            {tab === "geraete" && <GeraeteTab {...shared} onExport={doExport} notify={notify} />}
             {tab === "bibliothek" && <BibliothekTab P={Pv} mutate={mutate} onSaveAlleBestand={saveAlleBestand} notify={notify} library={library} setLibrary={setLibrary} protoId={protoId} setProtoId={setProtoId} onAddDevice={addDevice} onSelectDevice={selectDevice} sub={bibSub} setSub={setBibSub} allIcons={allIcons} />}
             {tab === "live" && <LiveTab P={Pv} X={X} mutate={mutate} status={status} checkReach={checkReach} autoStatus={autoStatus} setAutoStatus={setAutoStatus} onSelectDevice={selectDevice} notify={notify} />}
             {tab === "wissen" && <WissenTab />}
-            {tab === "hilfe" && <AnleitungTab goTab={setTab} />}
+            {tab === "hilfe" && <AnleitungTab goTab={geheZu} />}
           </div>
         </main></div>
       )}
@@ -516,6 +542,7 @@ export default function App() {
       {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={library.bestand || []} customIcons={allIcons} title={picker.umbauFor ? `Modell für „${X.devById.get(picker.umbauFor)?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
         onClose={() => setPicker(null)} onPick={(item) => { if (picker.umbauFor) { umbauen(picker.umbauFor, item); setPicker(null); return; } const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
       <EingabeHost />
+      {showExport && <ExportDialog onClose={() => setShowExport(false)} onExport={doExport} planPfad={filePath} />}
       {protoModal && <Modal title="Protokoll" width={860} onClose={() => setProtoModal(null)}
         footer={<button style={S.secondaryBtn} onClick={() => { setProtoId(protoModal); setBibSub("protokolle"); setTab("bibliothek"); setProtoModal(null); }}>Im Katalog öffnen</button>}>
         <ProtokollDetail p={PROTOKOLLE.find((p) => p.id === protoModal)} P={Pv} onSelectDevice={(id) => { setProtoModal(null); selectDevice(id); }} />
