@@ -2,6 +2,7 @@ import { doppelteBestandsgeraete } from "./bestandschluessel.js";
 import { STANDARD_VLANS, DEFAULT_BEREICHE, KABEL } from "./constants.js";
 import { uid, findProtokoll, migrateGeraet, physPorts, ipPorts } from "./catalog.js";
 import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAULT_RANGES, isValidMac } from "./net.js";
+import { normMac, macHersteller, herstellerPasst } from "./mac.js";
 import { qinqIssues } from "./qinq.js";
 import { migrateFelder } from "./felder.js";
 
@@ -344,10 +345,17 @@ export const validate = (P, X) => {
 
   // Adressen
   const ipOwners = new Map();
+  const macOwners = new Map();
   for (const d of P.geraete) {
     for (const i of ipPorts(d)) {
       const where = `${d.name} › ${i.name}`;
       if (i.mac && !isValidMac(i.mac)) add("warn", `${where}: MAC „${i.mac}“ hat kein gültiges Format.`, { dev: d.id });
+      const mac = normMac(i.mac);
+      if (mac) {
+        if (!macOwners.has(mac)) macOwners.set(mac, []);
+        macOwners.get(mac).push({ d, where });
+        if (herstellerPasst(d.hersteller, mac) === false) add("info", `${where}: MAC ${mac} gehört laut IEEE-Liste zu „${macHersteller(mac).name}“, im Plan steht „${d.hersteller}“. Kabel oder MAC vertauscht?`, { dev: d.id });
+      }
       if (i.dhcp) {
         const v = X.vlanById.get(i.vlan);
         if (v && !v.dhcp?.aktiv) add("info", `${where} bezieht die Adresse per DHCP, im VLAN ${v.vid} ist DHCP aber nicht aktiviert.`, { dev: d.id });
@@ -364,6 +372,9 @@ export const validate = (P, X) => {
   }
   for (const [n, owners] of ipOwners) if (owners.length > 1)
     add("error", `IP-Konflikt ${int2ip(n)}: ${owners.map((o) => `${o.d.name} › ${o.i.name}`).join(", ")}.`, { dev: owners[0].d.id, devs: owners.map((o) => o.d.id) });
+  // Dieselbe MAC an zwei Geräten: fast immer ein Tippfehler oder ein kopiertes Gerät
+  for (const [mac, owners] of macOwners) if (new Set(owners.map((o) => o.d.id)).size > 1)
+    add("warn", `MAC ${mac} steht mehrfach im Plan: ${owners.map((o) => o.where).join(", ")}.`, { dev: owners[0].d.id, devs: [...new Set(owners.map((o) => o.d.id))] });
 
   // Verbindungen
   for (const [k, list] of X.connsByPort) if (list.length > 1) {

@@ -43,6 +43,25 @@ export function useMonitor(kind) {
   return { running: !!m?.running, snapshot: m?.snapshot || null, opts: m?.opts || {}, started: m?.started, stopped: m?.stopped, start, stop, action, verwerfen, error, busy };
 }
 
+// „Alte ausblenden“: gilt für alle Monitore, merkt sich die Wahl auf diesem Rechner
+let alteAus = false;
+try { alteAus = localStorage.getItem("np-live-alte-aus") === "1"; } catch {}
+const alteListeners = new Set();
+export function useAlteAusblenden() {
+  const aus = useSyncExternalStore((l) => { alteListeners.add(l); return () => alteListeners.delete(l); }, () => alteAus);
+  const setAus = useCallback((v) => {
+    alteAus = !!v;
+    try { localStorage.setItem("np-live-alte-aus", alteAus ? "1" : "0"); } catch {}
+    alteListeners.forEach((l) => l());
+  }, []);
+  return [aus, setAus];
+}
+// Filter für Listen mit Zustand: blendet alte und beendete Einträge aus, wenn gewünscht
+export function useSichtbar() {
+  const [aus] = useAlteAusblenden();
+  return useCallback((list) => (aus ? (list || []).filter((x) => !x?.zustand || x.zustand === "aktiv") : list || []), [aus]);
+}
+
 // Wie viele Monitore laufen gerade (für den Punkt am Tab)
 export function useRunningCount() {
   return useSyncExternalStore(subscribe, () => Object.values(state).filter((m) => m?.running).length);

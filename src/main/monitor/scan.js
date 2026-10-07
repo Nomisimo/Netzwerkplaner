@@ -3,8 +3,9 @@ const dns = require('dns');
 const { execFile } = require('child_process');
 const { ip2int, int2ip, listInterfaces, ping, tcpProbe } = require('./util');
 
-const DEFAULT_PORTS = [80, 443, 8080, 22, 23, 4440, 5959, 30021, 49280, 161];
-const PORT_NAMES = { 22: 'SSH', 23: 'Telnet', 80: 'HTTP', 443: 'HTTPS', 8080: 'HTTP-Alt (MA Web Remote)', 4440: 'Dante ARC', 5959: 'NDI Discovery', 30021: 'MA-Net3 Worldserver', 49280: 'Yamaha RCP', 161: 'SNMP' };
+// Nur TCP-Ports: SNMP (161) läuft über UDP und lässt sich per Verbindungsversuch nicht erkennen
+const DEFAULT_PORTS = [80, 443, 8080, 22, 23, 4440, 5959, 30021, 49280];
+const PORT_NAMES = { 22: 'SSH', 23: 'Telnet', 80: 'HTTP', 443: 'HTTPS', 8080: 'HTTP-Alt (MA Web Remote)', 4440: 'Dante ARC', 5959: 'NDI Discovery Server', 30021: 'MA-Net3 Worldserver', 49280: 'Yamaha RCP' };
 const MAX_HOSTS = 1024;
 
 // ARP-Tabelle des Betriebssystems lesen (macOS, Windows, Linux)

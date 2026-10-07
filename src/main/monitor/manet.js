@@ -1,5 +1,10 @@
 // MA-Net 2/3: Verkehr erkennen und zählen. Der Inhalt ist nicht dokumentiert und wird nicht entschlüsselt.
-const { openUdp, closeUdp, Rate, explainError } = require('./util');
+const { openUdp, closeUdp, Rate, explainError, zustand, aktivZuerst, kappen, alteEntfernen } = require('./util');
+
+// MA-Net-Verkehr kann pausieren: erst nach 30 s Stille „alt“
+const FRIST = 30000;
+// Die Ports sind nicht exklusiv MA: Ein Absender zählt erst ab ein paar Paketen als MA-Net (einzelne Streupakete fallen raus)
+const MIN_PAKETE = 5;
 
 // MA-Net3: UDP 30020, Multicast 236.4.1.0–.4 (MA-Doku). MA-Net2: UDP 29998/29999 (Anwenderangaben MA-Forum).
 const PROFILE = [
@@ -34,19 +39,24 @@ async function create(opts = {}, ctx) {
   }
   if (!socks.length) throw new Error(errors.join(' '));
   return {
-    tick(dt) { for (const [k, f] of flows) { f.rate.tick(dt); if (Date.now() - f.seen > 30000) flows.delete(k); } },
+    tick(dt) { for (const f of flows.values()) f.rate.tick(dt); kappen(flows); },
     snapshot() {
       const now = Date.now();
       return {
         iface, errors,
         sockets: socks.map((s) => ({ netz: s.netz, port: s.port, joined: s.joined, failed: s.failed })),
-        flows: [...flows.values()].sort((a, b) => b.rate.bps - a.rate.bps).map((f) => ({
+        flows: aktivZuerst([...flows.values()].filter((f) => f.rate.total >= MIN_PAKETE).sort((a, b) => b.rate.bps - a.rate.bps).map((f) => ({
           ip: f.ip, port: f.port, netz: f.netz, pps: f.rate.rate, bps: f.rate.bps, total: f.rate.total, age: now - f.seen, since: now - f.first,
           sizes: [...f.sizes.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([s]) => s),
-        })),
+          zustand: zustand(f.seen, FRIST, now),
+        }))),
       };
     },
-    action(name) { if (name === 'clear') { flows.clear(); return true; } return false; },
+    action(name) {
+      if (name === 'clear') { flows.clear(); return true; }
+      if (name === 'alteEntfernen') return alteEntfernen(flows, FRIST);
+      return false;
+    },
     stop() { socks.forEach(closeUdp); },
   };
 }

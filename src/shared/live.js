@@ -2,8 +2,10 @@
 import { inSubnet, ip2int } from "./net.js";
 import { TYPEN } from "./constants.js";
 import { ipPorts, physPorts } from "./catalog.js";
+import { normMac as macNorm } from "./mac.js";
 
-const normMac = (m) => (m || "").trim().toLowerCase().replace(/-/g, ":");
+// Einheitliche Schreibweise; was kein gültiges Format hat, wird nur kleingeschrieben verglichen
+const normMac = (m) => macNorm(m) || (m || "").trim().toLowerCase().replace(/-/g, ":");
 
 // Alle geplanten Adressen: [{ ip, mac, dev, iface }] (iface = Port mit der Adresse)
 export const planAddresses = (P) =>

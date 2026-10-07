@@ -2,3 +2,7 @@ Netzwerkplaner
 Copyright 2026 Nomisimo (Momo)
 
 Lizenziert unter der Apache License, Version 2.0 (siehe LICENSE).
+
+Die Herstellerliste für MAC-Adressen (src/shared/data/oui.json) stammt aus dem
+IEEE-Register (standards-oui.ieee.org), aufbereitet mit dem npm-Paket „oui-data“
+(BSD-2-Clause, github.com/silverwind/oui-data).

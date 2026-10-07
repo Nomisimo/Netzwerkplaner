@@ -1,5 +1,8 @@
 // sACN (ANSI E1.31) mitlesen: Quellen, Universen, Priorität, Framerate, Kanalwerte
-const { openUdp, join, leave, closeUdp, cstr, Rate, explainError } = require('./util');
+const { openUdp, join, leave, closeUdp, cstr, Rate, explainError, zustand, aktivZuerst, kappen, alteEntfernen } = require('./util');
+
+// Ab wann ein Eintrag als „alt“ gilt: DMX kommt mindestens jede Sekunde, Discovery alle 10 s
+const FRIST = { quelle: 3000, discovery: 35000 };
 
 const PORT = 5568;
 const ACN_ID = Buffer.from('ASC-E1.17\0\0\0', 'latin1');
@@ -65,7 +68,9 @@ async function create(opts = {}, ctx) {
     const U = uni(p.universe);
     let s = U.sources.get(p.cid);
     if (!s) { s = { cid: p.cid, source: p.source, ip: rinfo.address, rate: new Rate(), seqErr: 0, lastSeq: null, levels: new Uint8Array(512), prioPerAddr: null, slots: 0 }; U.sources.set(p.cid, s); }
-    if (p.terminated) { U.sources.delete(p.cid); ctx.dirty(); return; }
+    // Stream-Ende: Quelle bleibt als „beendet“ stehen
+    if (p.terminated) { s.beendet = true; s.seen = now; ctx.dirty(); return; }
+    s.beendet = false;
     if (s.lastSeq !== null) {
       const diff = (p.sequence - s.lastSeq + 256) % 256;
       if (diff === 0 || diff > 20) s.seqErr++;
@@ -94,7 +99,7 @@ async function create(opts = {}, ctx) {
   // Zusammengeführte Kanalwerte: höchste Priorität gewinnt, bei Gleichstand HTP (wie in E1.31 üblich)
   const merged = (U) => {
     const out = new Uint8Array(512);
-    const live = [...U.sources.values()].filter((s) => !s.preview && Date.now() - s.seen < 2500);
+    const live = [...U.sources.values()].filter((s) => !s.preview && !s.beendet && Date.now() - s.seen < 2500);
     if (!live.length) return { levels: out, winner: [] };
     const top = Math.max(...live.map((s) => s.priority));
     const win = live.filter((s) => s.priority === top);
@@ -105,17 +110,17 @@ async function create(opts = {}, ctx) {
   return {
     tick(dt) {
       const now = Date.now();
-      for (const U of universes.values()) for (const [cid, s] of U.sources) { s.rate.tick(dt); if (now - s.seen > 10000) U.sources.delete(cid); }
-      for (const [cid, d] of discovered) if (now - d.seen > 35000) discovered.delete(cid);
+      for (const U of universes.values()) { for (const s of U.sources.values()) s.rate.tick(dt); kappen(U.sources); }
+      kappen(discovered);
     },
     snapshot() {
       const now = Date.now();
       const list = [...universes.entries()].sort((a, b) => a[0] - b[0]).map(([u, U]) => ({
         universe: u, watched: wanted.has(u),
-        sources: [...U.sources.values()].map((s) => ({
+        sources: aktivZuerst([...U.sources.values()].map((s) => ({
           cid: s.cid, source: s.source, ip: s.ip, priority: s.priority, fps: s.rate.rate, seqErr: s.seqErr, preview: s.preview,
-          slots: s.slots, perAddrPrio: !!s.prioPerAddr, sync: s.sync, age: now - s.seen,
-        })),
+          slots: s.slots, perAddrPrio: !!s.prioPerAddr, sync: s.sync, age: now - s.seen, zustand: zustand(s.seen, FRIST.quelle, now, s.beendet),
+        }))),
       }));
       let detail = null;
       if (selected && universes.has(selected)) {
@@ -124,7 +129,7 @@ async function create(opts = {}, ctx) {
       }
       return {
         iface, joined: res.joined, failed: res.failed, err, universes: list, detail,
-        discovery: [...discovered.entries()].map(([cid, d]) => ({ cid, source: d.source, ip: d.ip, universes: [...d.universes].sort((a, b) => a - b), age: now - d.seen })),
+        discovery: aktivZuerst([...discovered.entries()].map(([cid, d]) => ({ cid, source: d.source, ip: d.ip, universes: [...d.universes].sort((a, b) => a - b), age: now - d.seen, zustand: zustand(d.seen, FRIST.discovery, now) }))),
       };
     },
     action(name, args = {}) {
@@ -132,6 +137,7 @@ async function create(opts = {}, ctx) {
       if (name === 'unwatch') { const u = +args.universe; wanted.delete(u); leave(res, groupFor(u), iface); universes.delete(u); if (selected === u) selected = null; return true; }
       if (name === 'watchDiscovered') { for (const d of discovered.values()) d.universes.forEach(watch); return true; }
       if (name === 'select') { selected = args.universe ? +args.universe : null; return true; }
+      if (name === 'alteEntfernen') { let n = alteEntfernen(discovered, FRIST.discovery); for (const U of universes.values()) n += alteEntfernen(U.sources, FRIST.quelle); return n; }
       return false;
     },
     stop() { closeUdp(res); },

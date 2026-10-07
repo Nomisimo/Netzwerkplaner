@@ -4,6 +4,7 @@ import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts
 import { portSeiten } from "../shared/anschluesse.js";
 import { otherEnd, suggestIp, webUrl, clone, vlanQuelle } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
+import { normMac, macHersteller, herstellerPasst } from "../shared/mac.js";
 import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot, frageText } from "./ui.jsx";
 import { api } from "./api.js";
 import StroemeEditor from "./StroemeEditor.jsx";
@@ -130,6 +131,20 @@ function VlanVomSwitch({ P, X, dev, p, v, onSelectDevice }) {
 }
 
 /* Port eines Endgeräts oder Management-Interface eines Switches: Anschluss und IP-Daten in einem */
+// Hersteller zur MAC unter dem Eingabefeld; warnt, wenn die MAC nicht zum Hersteller im Plan passt
+function MacInfo({ mac, hersteller }) {
+  if (!mac) return null;
+  const h = macHersteller(mac);
+  if (h.art === "ungueltig") return <div style={{ fontSize: 10, color: ERR, marginTop: 2 }}>Kein gültiges MAC-Format</div>;
+  const passt = herstellerPasst(hersteller, mac);
+  const text = h.art === "hersteller" ? h.name : h.art === "lokal" ? "privat/zufällig vergeben, kein Hersteller" : h.art === "multicast" ? "Multicast-Adresse, kein Gerät" : "Hersteller unbekannt";
+  return (
+    <div style={{ fontSize: 10, color: passt === false ? ERR : MUTED, marginTop: 2 }} title={passt === false ? `Im Plan steht „${hersteller}“` : undefined}>
+      {text}{passt === false ? ` (Plan: ${hersteller})` : ""}
+    </div>
+  );
+}
+
 function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest, pst }) {
   const hw = fest && !p.virtuell; // Buchse aus dem Modell: Name, Typ und P2P fest
   const v = X?.vlanById.get(p.vlan);
@@ -158,7 +173,11 @@ function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest
               onChange={(e) => { const pr = parsePrefix(e.target.value); if (pr !== null) setP((x) => (x.prefix = pr)); }} />
           </Field>
           <Field label="Gateway"><input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.gateway} placeholder={v?.gateway || ""} onChange={(e) => setP((x) => (x.gateway = e.target.value.trim()))} /></Field>
-          <Field label="MAC (optional)"><input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.mac} placeholder="00:1d:c1:…" onChange={(e) => setP((x) => (x.mac = e.target.value.trim()))} /></Field>
+          <Field label="MAC (optional)">
+            <input style={{ ...S.inputSm, fontFamily: "monospace" }} value={p.mac} placeholder="00:1d:c1:…" onChange={(e) => setP((x) => (x.mac = e.target.value.trim()))}
+              onBlur={() => { const m = normMac(p.mac); if (m && m !== p.mac) setP((x) => (x.mac = m)); }} />
+            <MacInfo mac={p.mac} hersteller={dev.hersteller} />
+          </Field>
         </> : <>
           <Field label="Typ"><select style={S.selectSm} value={p.typ} disabled={hw} title={hw ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></Field>
           <Field label="Verbunden mit"><div style={{ fontSize: 11, padding: "4px 0" }}><Gegenstellen cons={cons} onSelectDevice={onSelectDevice} /></div></Field>

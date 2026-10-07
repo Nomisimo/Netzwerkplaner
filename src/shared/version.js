@@ -5,6 +5,17 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.17": [
+    "Live: Einträge verschwinden nicht mehr von selbst. Was eine Weile nicht mehr gesehen wurde, steht grau mit „alt, vor …“ am Ende der Liste; Geräte, die sich abmelden (sACN-Stream-Ende, mDNS-Abmeldung), stehen als „beendet“ da",
+    "Live: „Alte ausblenden“ (gilt für alle Monitore) und „Alte entfernen“ in jeder Monitorleiste",
+    "Live: Kanalwerte, Merge und PTP-Master-Konflikte rechnen weiter nur mit aktiven Einträgen; ein verstummter PTP-Master heißt „war Master“",
+    "NDI und Dante zeigen nur noch ihre eigenen Dienste. Bisher landeten alle Bonjour-Dienste im Netz (AirPlay, Drucker, Macs, bei NDI auch Dante-Geräte) in der Liste und in der Discovery",
+    "Dante: umbenannte oder abgemeldete Kanäle und alte IP-Adressen eines Geräts laufen nach ihrer mDNS-Gültigkeit ab",
+    "MAC-Adressen: Hersteller laut IEEE-Liste (offline in der App) im Netzwerkscan, bei Art-Net-Nodes, in der Discovery und im Geräte-Editor. Zufällige/private Adressen (z. B. iPhone) werden als solche erkannt",
+    "MAC-Eingabe: Schreibweisen mit Bindestrich, Punkt (Cisco) oder ohne Trenner werden vereinheitlicht. Die Prüfung meldet doppelte MACs und MACs, deren Hersteller nicht zum Plan passt (Dante-Chips von Audinate ausgenommen)",
+    "Netzwerkscan prüft SNMP nicht mehr per TCP (SNMP läuft über UDP, die Treffer waren falsch). Port 5959 heißt „NDI Discovery Server“ statt „NDI“",
+    "MA-Net: ein Absender zählt erst ab fünf Paketen, einzelne Streupakete auf den MA-Ports fallen raus",
+  ],
   "0.7.0-beta.16": [
     "Plott (bisher „Clean Cat“): neuer Name für die aufgeräumte A3-Planansicht",
     "Plott: Leitungen mit weniger Ecken. Unnötige Umwege werden abgekürzt, wo kein Gerät und keine andere Leitung im Weg ist; keine Leitung knickt öfter als viermal ab",

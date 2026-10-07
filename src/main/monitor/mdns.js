@@ -1,6 +1,6 @@
 // mDNS/DNS-SD: Dante- und NDI-Geräte (und weitere Dienste) im Netz finden
 const dgram = require('dgram');
-const { openUdp, closeUdp, explainError, joinAddrs } = require('./util');
+const { openUdp, closeUdp, explainError, joinAddrs, aktivZuerst, kappen, MAX_EINTRAEGE } = require('./util');
 
 const GROUP = '224.0.0.251';
 const PORT = 5353;
@@ -76,8 +76,12 @@ function parse(buf) {
 async function create(opts = {}, ctx) {
   const iface = opts.iface || '';
   const services = opts.services || [...SERVICES.dante, ...SERVICES.ndi];
-  const ptr = new Map(); // Dienst → Set(Instanz)
-  const srv = new Map(), txt = new Map(), addr = new Map(), from = new Map(), seen = new Map();
+  // Nur die angefragten Dienste übernehmen. Passiv auf 5353 kommt jeder Bonjour-Dienst des Netzes an
+  // (AirPlay, Drucker, Dante bei NDI und umgekehrt); ohne diesen Filter landeten sie alle in der Liste.
+  const wanted = new Set(services.map((s) => s.toLowerCase()));
+  const ptr = new Map(); // Dienst → Map(Instanz → { seen, expires, beendet })
+  const srv = new Map(), txt = new Map(), from = new Map();
+  const addr = new Map(); // Host → Map(IP → { seen, expires })
   const notes = [];
 
   const onMessage = (buf, rinfo) => {
@@ -85,18 +89,29 @@ async function create(opts = {}, ctx) {
     try { p = parse(buf); } catch { return; }
     if (!p || !p.response) return;
     const now = Date.now();
+    let changed = false;
     for (const r of p.records) {
       const n = r.name.toLowerCase();
       if (r.type === T.PTR) {
-        if (!ptr.has(n)) ptr.set(n, new Set());
-        if (r.ttl === 0) ptr.get(n).delete(r.data); else ptr.get(n).add(r.data);
-        seen.set(r.data.toLowerCase(), now); from.set(r.data.toLowerCase(), rinfo.address);
+        if (!wanted.has(n)) continue;
+        if (!ptr.has(n)) ptr.set(n, new Map());
+        const set = ptr.get(n);
+        // TTL 0 = Abmeldung („Goodbye“): bleibt als „beendet“ stehen
+        if (r.ttl === 0) { const e = set.get(r.data); if (e) Object.assign(e, { beendet: true, seen: now }); }
+        else set.set(r.data, { seen: now, expires: now + r.ttl * 1000, beendet: false });
+        from.set(r.data.toLowerCase(), rinfo.address);
+        changed = true;
       }
       if (r.type === T.SRV) srv.set(n, r.data);
       if (r.type === T.TXT) txt.set(n, r.data);
-      if (r.type === T.A) { if (!addr.has(n)) addr.set(n, new Set()); addr.get(n).add(r.data); } // Dante mit Redundanz: Primary und Secondary
+      // Dante mit Redundanz: Primary und Secondary. Jede Adresse läuft nach ihrer TTL ab.
+      if (r.type === T.A) {
+        if (!addr.has(n)) addr.set(n, new Map());
+        if (r.ttl === 0) addr.get(n).delete(r.data);
+        else addr.get(n).set(r.data, { seen: now, expires: now + r.ttl * 1000 });
+      }
     }
-    ctx.dirty();
+    if (changed || p.records.length) ctx.dirty();
   };
 
   // Passiv auf 5353 mithören (klappt, wenn das Betriebssystem den Port teilt) …
@@ -116,29 +131,47 @@ async function create(opts = {}, ctx) {
   query();
   const timer = setInterval(query, opts.interval || 15000);
 
+  // Gültige Adressen eines Hosts; abgelaufene nur, wenn es keine gültige mehr gibt (dann als letzter bekannter Stand)
+  const ipsOf = (host, now) => {
+    const m = (host && addr.get(host)) || new Map();
+    const all = [...m.entries()].sort((a, b) => b[1].seen - a[1].seen);
+    const fresh = all.filter(([, a]) => a.expires > now);
+    return (fresh.length ? fresh : all).map(([ip]) => ip);
+  };
   const instances = () => {
     const out = [];
+    const now = Date.now();
     for (const [svc, set] of ptr) {
-      for (const inst of set) {
+      for (const [inst, e] of set) {
         const k = inst.toLowerCase();
         const s = srv.get(k);
-        const host = s?.target?.toLowerCase();
-        const ips = [...((host && addr.get(host)) || [])];
+        const ips = ipsOf(s?.target?.toLowerCase(), now);
         out.push({
           service: svc, instance: inst, label: inst.slice(0, inst.length - svc.length - 1) || inst,
-          host: s?.target || '', port: s?.port || null, ip: ips[0] || from.get(k) || '', ips, txt: txt.get(k) || {}, age: Date.now() - (seen.get(k) || 0),
+          host: s?.target || '', port: s?.port || null, ip: ips[0] || from.get(k) || '', ips, txt: txt.get(k) || {}, age: now - e.seen,
+          zustand: e.beendet ? 'beendet' : istAlt(e, now) ? 'alt' : 'aktiv',
         });
       }
     }
-    return out;
+    return aktivZuerst(out);
   };
+  // Alt: TTL abgelaufen, oder auf drei Abfragen hintereinander keine Antwort (PTR-TTLs sind oft 75 min lang)
+  const frist = 3 * (opts.interval || 15000) + 5000;
+  const istAlt = (e, now) => now > e.expires || now - e.seen > frist;
+  const reset = () => { ptr.clear(); srv.clear(); txt.clear(); addr.clear(); from.clear(); };
 
   return {
-    tick() {},
+    tick() { for (const set of ptr.values()) kappen(set, MAX_EINTRAEGE); },
     snapshot() { return { iface, services, notes, passive: !!passive, instances: instances() }; },
     action(name) {
       if (name === 'query') { query(); return true; }
-      if (name === 'clear') { ptr.clear(); srv.clear(); txt.clear(); addr.clear(); query(); return true; }
+      if (name === 'clear') { reset(); query(); return true; }
+      if (name === 'alteEntfernen') {
+        const now = Date.now();
+        let n = 0;
+        for (const set of ptr.values()) for (const [inst, e] of set) if (e.beendet || istAlt(e, now)) { set.delete(inst); n++; }
+        return n;
+      }
       return false;
     },
     stop() { clearInterval(timer); closeUdp(passive); try { q.close(); } catch {} },

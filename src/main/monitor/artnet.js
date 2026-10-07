@@ -1,5 +1,8 @@
 // Art-Net 4 mitlesen: Nodes per ArtPoll finden, ArtDmx-Universen und Kanalwerte anzeigen
-const { openUdp, closeUdp, cstr, mac, Rate, explainError, listInterfaces } = require('./util');
+const { openUdp, closeUdp, cstr, mac, Rate, explainError, listInterfaces, zustand, aktivZuerst, kappen, alteEntfernen } = require('./util');
+
+// Ab wann ein Eintrag als „alt“ gilt. Nodes: wenn sie auf einen ArtPoll nicht mehr geantwortet haben.
+const FRIST = { sender: 3000, pult: 10000, node: 5000 };
 
 const PORT = 6454;
 const ID = Buffer.from('Art-Net\0', 'latin1');
@@ -49,6 +52,8 @@ async function create(opts = {}, ctx) {
   const ops = new Map(); // op → Rate
   const controllers = new Map(); // ip → Zeitpunkt des letzten ArtPoll
   let selected = null, lastPoll = 0, autoTimer = null;
+  // Node ist alt, wenn seit seiner letzten Antwort ein ArtPoll rausging und er nicht geantwortet hat
+  const nodeAlt = (n, now) => lastPoll > n.seen && now - lastPoll > FRIST.node;
   const own = new Set(listInterfaces().map((i) => i.address)); // eigene ArtPolls nicht als Pult zählen
 
   const onMessage = (buf, rinfo) => {
@@ -93,29 +98,31 @@ async function create(opts = {}, ctx) {
     tick(dt) {
       const now = Date.now();
       for (const r of ops.values()) r.tick(dt);
-      for (const U of universes.values()) for (const [ip, s] of U.senders) { s.rate.tick(dt); if (now - s.seen > 10000) U.senders.delete(ip); }
-      for (const [pa, U] of universes) if (!U.senders.size) universes.delete(pa);
-      for (const [ip, t] of controllers) if (now - t > 30000) controllers.delete(ip);
+      for (const U of universes.values()) { for (const s of U.senders.values()) s.rate.tick(dt); kappen(U.senders); }
+      kappen(controllers, undefined, (t) => t);
+      kappen(nodes);
     },
     snapshot() {
       const now = Date.now();
       let detail = null;
       if (selected !== null && universes.has(selected)) {
         const out = new Uint8Array(512);
-        for (const s of universes.get(selected).senders.values()) for (let i = 0; i < 512; i++) if (s.levels[i] > out[i]) out[i] = s.levels[i];
+        // Nur Sender, die gerade senden; verstummte Sender mischen nicht mehr mit
+        for (const s of universes.get(selected).senders.values()) if (now - s.seen <= FRIST.sender) for (let i = 0; i < 512; i++) if (s.levels[i] > out[i]) out[i] = s.levels[i];
         detail = { portAddress: selected, label: fmtPortAddr(selected), levels: Array.from(out) };
       }
       return {
         iface, lastPoll, autoPoll: !!autoTimer, targets: targets(),
-        nodes: [...nodes.values()].sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true })).map((n) => ({
+        nodes: aktivZuerst([...nodes.values()].sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true })).map((n) => ({
           ip: n.ip, bindIndex: n.bindIndex, shortName: n.shortName, longName: n.longName, report: n.report, mac: n.mac, esta: n.esta,
           oem: n.oem, version: n.version, dhcp: n.dhcp, ports: n.ports.map((p) => ({ ...p, label: fmtPortAddr(p.portAddress) })), age: now - n.seen,
-        })),
+          zustand: nodeAlt(n, now) ? 'alt' : 'aktiv',
+        }))),
         universes: [...universes.entries()].sort((a, b) => a[0] - b[0]).map(([pa, U]) => ({
           portAddress: pa, label: fmtPortAddr(pa),
-          senders: [...U.senders.entries()].map(([ip, s]) => ({ ip, fps: s.rate.rate, slots: s.slots, age: now - s.seen })),
+          senders: aktivZuerst([...U.senders.entries()].map(([ip, s]) => ({ ip, fps: s.rate.rate, slots: s.slots, age: now - s.seen, zustand: zustand(s.seen, FRIST.sender, now) }))),
         })),
-        controllers: [...controllers.entries()].map(([ip, t]) => ({ ip, age: now - t })),
+        controllers: aktivZuerst([...controllers.entries()].map(([ip, t]) => ({ ip, age: now - t, zustand: zustand(t, FRIST.pult, now) }))),
         ops: [...ops.entries()].map(([op, r]) => ({ op, name: OP_NAMES[op] || `0x${op.toString(16)}`, rate: r.rate, total: r.total })),
         detail,
       };
@@ -128,6 +135,12 @@ async function create(opts = {}, ctx) {
         return !!autoTimer;
       }
       if (name === 'clearNodes') { nodes.clear(); return true; }
+      if (name === 'alteEntfernen') {
+        let n = alteEntfernen(controllers, FRIST.pult, (t) => t);
+        for (const [pa, U] of universes) { n += alteEntfernen(U.senders, FRIST.sender); if (!U.senders.size) universes.delete(pa); }
+        for (const [k, node] of nodes) if (nodeAlt(node, Date.now())) { nodes.delete(k); n++; }
+        return n;
+      }
       if (name === 'select') { selected = args.portAddress === null || args.portAddress === undefined ? null : +args.portAddress; return true; }
       return false;
     },

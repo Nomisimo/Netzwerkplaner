@@ -78,6 +78,26 @@ class Rate {
   tick(dtMs) { const f = 1000 / Math.max(dtMs, 1); this.rate = Math.round(this.n * f * 10) / 10; this.bps = Math.round(this.bytes * 8 * f); this.n = 0; this.bytes = 0; }
 }
 
+/* Einträge bleiben stehen: Statt nach einer Frist zu löschen, bekommt jeder Eintrag einen Zustand.
+   aktiv = innerhalb der Frist gesehen, alt = Frist überschritten, beendet = hat sich ausdrücklich abgemeldet. */
+const MAX_EINTRAEGE = 2000; // Obergrenze je Liste, damit ein tagelang laufender Monitor nicht unbegrenzt wächst
+const zustand = (seen, frist, now = Date.now(), beendet = false) => (beendet ? 'beendet' : now - (seen || 0) > frist ? 'alt' : 'aktiv');
+const ZUSTAND_ORD = { aktiv: 0, alt: 1, beendet: 2 };
+// Aktive zuerst, die Reihenfolge innerhalb einer Gruppe bleibt (sort ist stabil)
+const aktivZuerst = (list) => list.sort((a, b) => ZUSTAND_ORD[a.zustand] - ZUSTAND_ORD[b.zustand]);
+// Älteste Einträge entfernen, sobald eine Liste die Obergrenze überschreitet
+function kappen(map, max = MAX_EINTRAEGE, seenOf = (v) => v.seen) {
+  if (map.size <= max) return;
+  const alt = [...map.entries()].sort((a, b) => (seenOf(a[1]) || 0) - (seenOf(b[1]) || 0));
+  for (const [k] of alt.slice(0, map.size - max)) map.delete(k);
+}
+// „Alte entfernen“: alles, was nicht mehr aktiv ist
+function alteEntfernen(map, frist, seenOf = (v) => v.seen, now = Date.now()) {
+  let n = 0;
+  for (const [k, v] of map) if (v?.beendet || now - (seenOf(v) || 0) > frist) { map.delete(k); n++; }
+  return n;
+}
+
 // Fehlermeldungen beim Öffnen von Ports verständlich machen
 const explainError = (e, port) => {
   if (!e) return '';
@@ -122,4 +142,4 @@ function tcpProbe(ip, port, { src, timeout = 700 } = {}) {
   });
 }
 
-module.exports = { ping, tcpProbe, pingArgs, listInterfaces, openUdp, join, leave, closeUdp, cstr, mac, Rate, explainError, ip2int, int2ip, joinAddrs };
+module.exports = { zustand, aktivZuerst, kappen, alteEntfernen, MAX_EINTRAEGE, ping, tcpProbe, pingArgs, listInterfaces, openUdp, join, leave, closeUdp, cstr, mac, Rate, explainError, ip2int, int2ip, joinAddrs };
