@@ -8,12 +8,11 @@ import { api, isElectron } from "./api.js";
 import { DevicePicker, Modal, EingabeHost, frageText } from "./ui.jsx";
 import { topologySvg, svgToPngBase64, buildXlsxBase64, buildIpCsv, buildPdfHtml, buildPatchCsv, fileBase } from "./exports.js";
 import ExportDialog from "./ExportDialog.jsx";
-import PatchlisteTab from "./tabs/PatchlisteTab.jsx";
 import { ProtokollDetail } from "./tabs/BibliothekTab.jsx";
 import { PROTOKOLLE } from "../shared/catalog.js";
 import ProjektTab from "./tabs/ProjektTab.jsx";
 import TopologieTab from "./tabs/TopologieTab.jsx";
-import GeraeteTab from "./tabs/GeraeteTab.jsx";
+import GeraeteTab, { ANSICHT_KEY } from "./tabs/GeraeteTab.jsx";
 import BibliothekTab from "./tabs/BibliothekTab.jsx";
 import WissenTab from "./tabs/WissenTab.jsx";
 import { analyseIssues } from "../shared/analyse.js";
@@ -34,7 +33,7 @@ import { Pencil, Plus, X as XIcon, ArrowUpCircle, Save, Undo2, Redo2, Users, Fol
 
 
 // VLANs und Prüfung stecken im Setup; alte Sprungziele („vlans“, „pruefung“) führen dorthin
-const TABS = [["projekt", "Setup"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["patch", "Patchliste"], ["live", "Live"], ["bibliothek", "Katalog"], ["wissen", "Wissen"], ["hilfe", "Anleitung"]];
+const TABS = [["projekt", "Setup"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["live", "Live"], ["bibliothek", "Katalog"], ["wissen", "Wissen"], ["hilfe", "Anleitung"]];
 const SETUP_ZIELE = { vlans: "setup-vlans", pruefung: "setup-pruefung" };
 
 const loadAutosave = () => {
@@ -46,7 +45,7 @@ export default function App() {
   const [P, setP] = useState(loadAutosave);
   const Pref = useRef(P);
   const hist = useRef({ undo: [], redo: [] }); // Transaktionen als Operationen (nur eigene Änderungen)
-  const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || ["analyse", "vlans", "pruefung"].includes(t) ? "projekt" : t === "cleancat" ? "topologie" : t; });
+  const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || ["analyse", "vlans", "pruefung"].includes(t) ? "projekt" : t === "cleancat" ? "topologie" : t === "patch" ? "geraete" : t; });
   const [selection, setSelection] = useState(null);
   const [picker, setPicker] = useState(null); // { connectTo }
   const [status, setStatus] = useState({});
@@ -389,6 +388,7 @@ export default function App() {
 
   // Tab wechseln; VLANs und Prüfung liegen im Setup und werden dort angesprungen
   const geheZu = (k) => {
+    if (k === "patch") { try { localStorage.setItem(ANSICHT_KEY, "patch"); } catch {} setTab("geraete"); return; }
     const ziel = SETUP_ZIELE[k];
     if (!ziel) { setTab(k); return; }
     setTab("projekt");
@@ -530,8 +530,7 @@ export default function App() {
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} key={tab}><main style={S.main}>
           <div style={{ animation: "npFade .18s ease" }}>
             {tab === "projekt" && <ProjektTab P={Pv} X={X} mutate={mutate} issues={issues} goTab={geheZu} loadDemo={loadDemo} newProject={newProject} onShowIssue={showIssue} onSelectDevice={selectDevice} />}
-            {tab === "geraete" && <GeraeteTab {...shared} />}
-            {tab === "patch" && <PatchlisteTab P={Pv} X={X} mutate={mutate} onSelectDevice={selectDevice} onExport={doExport} notify={notify} />}
+            {tab === "geraete" && <GeraeteTab {...shared} onExport={doExport} notify={notify} />}
             {tab === "bibliothek" && <BibliothekTab P={Pv} mutate={mutate} onSaveAlleBestand={saveAlleBestand} notify={notify} library={library} setLibrary={setLibrary} protoId={protoId} setProtoId={setProtoId} onAddDevice={addDevice} onSelectDevice={selectDevice} sub={bibSub} setSub={setBibSub} allIcons={allIcons} />}
             {tab === "live" && <LiveTab P={Pv} X={X} mutate={mutate} status={status} checkReach={checkReach} autoStatus={autoStatus} setAutoStatus={setAutoStatus} onSelectDevice={selectDevice} notify={notify} />}
             {tab === "wissen" && <WissenTab />}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { S, OK, ERR, WARN, INFO, MUTED, SUB, BTN, STRONG } from "../../shared/constants.js";
-import { compareScan, scanTargets } from "../../shared/live.js";
+import { S, OK, ERR, WARN, INFO, MUTED, SUB, BTN, STRONG, ACCENT } from "../../shared/constants.js";
+import { compareScan, scanTargets, danteOhneIp } from "../../shared/live.js";
 import { inSubnet } from "../../shared/net.js";
 import { fundZuGeraet } from "../../shared/discovery.js";
 import { useMonitor } from "./store.js";
@@ -67,9 +67,10 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
       </div>
       {targets.length > 0 && (
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: -6, marginBottom: 12 }}>
-          {targets.map((t) => <button key={t.cidr} style={{ ...S.smallBtn, borderColor: t.farbe || undefined }} onClick={() => setCidr(t.cidr)}>{t.label} · {t.cidr}</button>)}
+          {targets.map((t) => <button key={t.cidr} style={{ ...S.smallBtn, ...(t.cidr === cidr ? { borderColor: ACCENT } : {}) }} onClick={() => setCidr(t.cidr)}><span style={mono}>{t.cidr}</span> · {t.label}</button>)}
         </div>
       )}
+      {danteOhneIp(P) > 0 && <div style={{ fontSize: 11, color: MUTED, marginTop: -6, marginBottom: 12 }}>{danteOhneIp(P)} Dante-Gerät{danteOhneIp(P) === 1 ? "" : "e"} ohne feste IP im Plan (DHCP oder Link-Local 169.254.x.x). Die findet der Dante-Monitor, ein Subnetz-Scan nicht.</div>}
       {(mon.error || snap?.err) && <div style={{ color: ERR, fontSize: 12, marginBottom: 10, display: "flex", alignItems: "flex-start", gap: 5 }}><OctagonX size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {mon.error || snap.err}</div>}
       {snap?.running && (
         <div style={{ marginBottom: 12 }}>

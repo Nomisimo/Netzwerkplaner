@@ -1,20 +1,22 @@
 import React, { useMemo, useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, katColor, STRONG } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, katColor, STRONG } from "../../shared/constants.js";
 import { patchZeilen, steckZiele, steckeUm, setzeFeld } from "../../shared/patchliste.js";
 import { feldSpalten, feldWert } from "../../shared/felder.js";
 import { ip2int } from "../../shared/net.js";
-import { Section } from "../ui.jsx";
-import { GripVertical, ChevronUp, ChevronDown, RotateCcw, Printer, FileSpreadsheet } from "lucide-react";
+import { StatusDot } from "../ui.jsx";
+import { IconView } from "../icons.jsx";
+import { GripVertical, ChevronUp, ChevronDown, RotateCcw, Printer, FileSpreadsheet, TriangleAlert } from "lucide-react";
 
-/* Patchliste: alle Geräte in Aufbau-Reihenfolge, per Ziehen oder Pfeilen umsortierbar.
+/* Patch-Ansicht der Geräteliste: alle Geräte in Aufbau-Reihenfolge, per Ziehen oder Pfeilen umsortierbar.
    Kompakt und direkt bearbeitbar: IP-Adressen, Switch und Port („gesteckt auf“), Standort,
    eigene Felder und Notizen. Im Druck gibt es zusätzlich leere Zeilen für Notizen vor Ort
    und ein Kästchen zum Abhaken. Weitere Kabel (z. B. Dante Secondary) stehen hier nicht. */
 const ein = { ...S.inputSm, padding: "2px 5px", fontSize: 11.5, height: 22, minHeight: 0 };
 const mono = { fontFamily: "ui-monospace,monospace" };
 
-export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport, notify }) {
-  const zeilen = useMemo(() => patchZeilen(P, X), [P, X]);
+export default function PatchTabelle({ P, X, mutate, onSelectDevice, notify, sichtbar = null, status = {}, issues = [], aktivId = null }) {
+  const alle = useMemo(() => patchZeilen(P, X), [P, X]);
+  const zeilen = useMemo(() => (sichtbar ? alle.filter((z) => sichtbar.has(z.id)) : alle), [alle, sichtbar]);
   const felder = useMemo(() => feldSpalten(P.geraete, P.feldKatalog), [P.geraete, P.feldKatalog]);
   const standorte = useMemo(() => [...new Set([...(P.bereiche || []), ...P.geraete.map((d) => (d.bereich || "").trim()).filter(Boolean)])], [P.bereiche, P.geraete]);
   const manuell = (P.patchliste?.reihenfolge || []).length > 0;
@@ -24,18 +26,21 @@ export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport, 
 
   const setzeReihenfolge = (ids) => mutate((d) => { d.patchliste = { ...(d.patchliste || {}), reihenfolge: ids }; });
   const verschiebe = (id, ziel) => {
-    const ids = zeilen.map((z) => z.id).filter((x) => x !== id);
+    const ids = alle.map((z) => z.id).filter((x) => x !== id);
     const i = ziel == null ? ids.length : ids.indexOf(ziel);
     ids.splice(i < 0 ? ids.length : i, 0, id);
     setzeReihenfolge(ids);
   };
+  // Mit dem sichtbaren Nachbarn tauschen (bei aktivem Filter liegen dazwischen evtl. ausgeblendete Geräte)
   const schritt = (i, d) => {
-    const ids = zeilen.map((z) => z.id);
-    const j = i + d;
-    if (j < 0 || j >= ids.length) return;
-    [ids[i], ids[j]] = [ids[j], ids[i]];
+    const nb = zeilen[i + d];
+    if (!nb) return;
+    const ids = alle.map((z) => z.id);
+    const a = ids.indexOf(zeilen[i].id), b = ids.indexOf(nb.id);
+    [ids[a], ids[b]] = [ids[b], ids[a]];
     setzeReihenfolge(ids);
   };
+  const devIssues = (id) => issues.filter((x) => x.dev === id || (x.devs || []).includes(id));
   const geraet = (fn, id) => mutate((d) => { const g = d.geraete.find((x) => x.id === id); if (g) fn(g, d); });
   const umstecken = (z, switchId, portId) => {
     let ok = true;
@@ -44,19 +49,13 @@ export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport, 
   };
 
   return (
-    <Section title={`Patchliste (${zeilen.length})`}
-      subtitle="Aufbau-Reihenfolge vom Haupt-Switch aus, Geräte eines Switches nach Portnummer, Stapel zusammen. IP, Switch und Port, Standort, Felder und Notizen lassen sich direkt ändern."
-      right={<div style={{ display: "flex", gap: 6 }}>
-        <button style={S.ghostBtn} disabled={!manuell} onClick={() => mutate((d) => { delete d.patchliste; })} title="Von Hand gesetzte Reihenfolge verwerfen und wieder nach Aufbau-Logik sortieren"><RotateCcw size={14} />Automatisch sortieren</button>
-        <button style={S.ghostBtn} onClick={() => onExport("patch-pdf")} title="Patchliste als PDF zum Ausdrucken, mit Platz für Notizen vor Ort"><Printer size={14} />PDF</button>
-        <button style={S.ghostBtn} onClick={() => onExport("patch-csv")} title="Patchliste als CSV (Excel, Numbers)"><FileSpreadsheet size={14} />CSV</button>
-      </div>}>
+    <>
       {manuell && <div style={{ ...S.hint, marginTop: 0, marginBottom: 6 }}>Reihenfolge von Hand angepasst. Neue Geräte erscheinen an ihrer automatischen Stelle.</div>}
       <datalist id="np-patch-standorte">{standorte.map((s) => <option key={s} value={s} />)}</datalist>
       <div style={{ overflowX: "auto" }}>
-        <table style={{ ...S.table, fontSize: 11.5 }}>
+        <table style={S.table}>
           <thead><tr>
-            {["", "#", "Gerät", "IP", "Gesteckt auf", "Standort", ...(felder.length ? ["Felder"] : []), "Notiz"].map((h, i) => <th key={i} style={{ ...S.th, padding: "4px 6px", fontSize: 10 }}>{h}</th>)}
+            {["", "#", "", "Name", "IP", "Gesteckt auf", "Standort", ...(felder.length ? ["Felder"] : []), "Notiz"].map((h, i) => <th key={i} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
             {zeilen.map((z, i) => {
@@ -70,16 +69,22 @@ export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport, 
                   onDragOver={(e) => { if (zieht) { e.preventDefault(); setUeber(z.id); } }} onDragLeave={() => setUeber((u) => (u === z.id ? null : u))}
                   onDrop={(e) => { e.preventDefault(); if (zieht && zieht !== z.id) verschiebe(zieht, z.id); setZieht(null); setUeber(null); }}
                   onDragEnd={() => { setZieht(null); setUeber(null); }}
-                  style={{ background: z.isSwitch ? "#ffffff0a" : undefined, opacity: zieht === z.id ? 0.4 : 1, boxShadow: ueber === z.id && zieht !== z.id ? `inset 0 2px 0 ${ACCENT}` : undefined, borderTop: neueGruppe ? `2px solid ${LINE}` : undefined }}>
+                  style={{ background: aktivId === z.id ? ACCENT + "1c" : undefined, opacity: zieht === z.id ? 0.4 : 1, boxShadow: ueber === z.id && zieht !== z.id ? `inset 0 2px 0 ${ACCENT}` : undefined, borderTop: neueGruppe ? `2px solid ${LINE}` : undefined }}>
                   <td style={td({ width: 46, whiteSpace: "nowrap", color: MUTED })}>
                     <span style={{ cursor: "grab", display: "inline-flex", verticalAlign: "middle" }} title="Ziehen zum Umsortieren"><GripVertical size={13} /></span>
                     <button style={{ ...S.smallBtn, padding: "0 1px", background: "none", border: "none" }} disabled={i === 0} onClick={() => schritt(i, -1)} title="Nach oben"><ChevronUp size={11} /></button>
                     <button style={{ ...S.smallBtn, padding: "0 1px", background: "none", border: "none" }} disabled={i === zeilen.length - 1} onClick={() => schritt(i, 1)} title="Nach unten"><ChevronDown size={11} /></button>
                   </td>
                   <td style={td({ color: SUB, width: 22 })}>{z.nr}</td>
-                  <td style={td({ minWidth: 150, borderLeft: `3px solid ${katColor(z.abteilung)}` })} title={z.abteilung}>
-                    <button onClick={() => onSelectDevice(z.id)} style={{ background: "none", border: "none", padding: 0, color: STRONG, fontWeight: z.isSwitch ? 800 : 700, cursor: "pointer", textAlign: "left", fontSize: 12 }}>{z.name}</button>
-                    <div style={{ fontSize: 10, color: MUTED, whiteSpace: "nowrap" }}>{[z.netzname, z.modell, z.stapel && `Stapel ${z.stapel}`].filter(Boolean).join(" · ")}</div>
+                  <td style={td({ width: 28 })}>{dev && <IconView icon={dev.icon} customIcons={P.icons} color={katColor(dev.kategorie)} size={20} />}</td>
+                  <td style={td({ minWidth: 150, cursor: "pointer" })} title={z.abteilung} onClick={() => onSelectDevice(z.id)}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <StatusDot st={status[z.id]} size={8} />
+                      <span style={{ fontWeight: z.isSwitch ? 800 : 600, whiteSpace: "nowrap", color: STRONG }}>{z.name}</span>
+                      {(() => { const iss = devIssues(z.id); const sev = iss.some((x) => x.sev === "error") ? ERR : iss.some((x) => x.sev === "warn") ? WARN : null;
+                        return sev && <span style={{ color: sev, display: "inline-flex" }} title={iss.map((x) => x.msg).join("\n")}><TriangleAlert size={14} /></span>; })()}
+                    </div>
+                    <div style={{ fontSize: 11, color: MUTED, whiteSpace: "nowrap" }}>{[z.modell, z.netzname, z.stapel && `Stapel ${z.stapel}`].filter(Boolean).join(" · ")}</div>
                   </td>
                   <td style={td({ whiteSpace: "nowrap" })}>
                     {z.ipPorts.length === 0 && <span style={{ color: MUTED }}>–</span>}
@@ -136,8 +141,18 @@ export default function PatchlisteTab({ P, X, mutate, onSelectDevice, onExport, 
           </tbody>
         </table>
       </div>
-      {!zeilen.length && <div style={S.empty}>Noch keine Geräte.</div>}
-      <div style={S.hint}>Umstecken nimmt Kabelart, Länge und Label mit. Weitere Kabel eines Geräts (z. B. Dante Secondary) zeigt die Liste nicht. Im PDF bekommt jede Zeile Platz für Notizen vor Ort und ein Kästchen zum Abhaken.</div>
-    </Section>
+      {!zeilen.length && <div style={S.empty}>{alle.length ? "Kein Gerät passt zum Filter." : "Noch keine Geräte."}</div>}
+      <div style={S.hint}>Aufbau-Reihenfolge vom Haupt-Switch aus, Geräte eines Switches nach Portnummer, Stapel zusammen. Zum Umsortieren ziehen oder die Pfeile nutzen. Umstecken nimmt Kabelart, Länge und Label mit. Im PDF bekommt jede Zeile Platz für Notizen vor Ort und ein Kästchen zum Abhaken.</div>
+    </>
   );
+}
+
+// Knöpfe für den Kopf der Geräteliste, solange die Patch-Ansicht offen ist
+export function PatchKnoepfe({ P, mutate, onExport }) {
+  const manuell = (P.patchliste?.reihenfolge || []).length > 0;
+  return <>
+    <button style={S.ghostBtn} disabled={!manuell} onClick={() => mutate((d) => { delete d.patchliste; })} title="Von Hand gesetzte Reihenfolge verwerfen und wieder nach Aufbau-Logik sortieren"><RotateCcw size={14} />Automatisch sortieren</button>
+    <button style={S.ghostBtn} onClick={() => onExport("patch-pdf")} title="Patchliste als PDF zum Ausdrucken, mit Platz für Notizen vor Ort"><Printer size={14} />PDF</button>
+    <button style={S.ghostBtn} onClick={() => onExport("patch-csv")} title="Patchliste als CSV (Excel, Numbers)"><FileSpreadsheet size={14} />CSV</button>
+  </>;
 }

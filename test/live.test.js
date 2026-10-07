@@ -254,3 +254,18 @@ test("Scan-Abgleich mit dem Plan", () => {
   assert.equal(rows.find((r) => r.status === "verschoben").host.ip, "10.0.0.50");
   assert.equal(rows.find((r) => r.status === "unbekannt").ip, "10.0.0.99");
 });
+
+test("Scan-Vorschläge kommen aus vergebenen IPs, nicht aus VLAN-Vorgaben", async () => {
+  const { scanTargets, danteOhneIp } = await import("../src/shared/live.js");
+  const P = { vlans: [{ id: "v1", vid: 10, name: "Audio", subnetz: "10.99.99.0/24" }], geraete: [
+    { id: "a", protokolle: ["Dante"], ports: [{ id: "p1", ip: "192.168.5.20", prefix: 24, vlan: "v1" }, { id: "p2", ip: "", prefix: 24 }] },
+    { id: "b", protokolle: ["Dante"], ports: [{ id: "p1", ip: "192.168.5.21", prefix: 24, vlan: "v1" }] },
+    { id: "c", protokolle: ["Art-Net"], ports: [{ id: "p1", ip: "2.0.0.5", prefix: 8 }] },
+    { id: "d", protokolle: ["Dante"], ports: [{ id: "p1", ip: "", dhcp: true, prefix: 24 }] },
+  ] };
+  const t = scanTargets(P);
+  assert.deepEqual(t.map((x) => x.cidr), ["192.168.5.0/24", "2.0.0.0/24"]);
+  assert.match(t[0].label, /2 geplante IPs · Dante · VLAN 10 Audio/);
+  assert.ok(!t.some((x) => x.cidr === "10.99.99.0/24"));
+  assert.equal(danteOhneIp(P), 1);
+});

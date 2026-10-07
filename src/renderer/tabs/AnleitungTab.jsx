@@ -129,12 +129,11 @@ const KAPITEL = [
       "„Leeres Gerät anlegen“ fragt nur nach dem Gerätetyp (vorausgewählt ist der Vorschlag der Discovery) und öffnet danach den normalen Editor. Name, IP, MAC, Protokolle und Verbindungen bleiben.",
     ]} />
   </> },
-  { id: "patch", titel: "Patchliste", tab: ["patch", "Patchliste"], inhalt: () => <>
+  { id: "patch", titel: "Patchliste", tab: ["patch", "Geräte → Patchliste"], inhalt: () => <>
     <Liste items={[
-      "Die Patchliste zeigt alle Geräte mit Netzwerkname, IPs je Interface, „Gesteckt auf“ (Switch und Port), allen weiteren Kabeln, Abteilung, Standort, eigenen Feldern („Name: Inhalt“) und Notizen.",
+      "Die Patchliste ist eine Ansicht im Tab „Geräte“ (Umschalter „Liste / Patchliste“ oben rechts). Sie zeigt alle Geräte mit IPs je Interface, „Gesteckt auf“ (Switch und Port), Standort, eigenen Feldern und Notizen. Alles davon lässt sich direkt in der Tabelle ändern; Switch und Port wählen steckt das Gerät um.",
       "Sortiert ist sie nach Aufbau-Logik: vom Haupt-Switch aus, die Geräte eines Switches nach dessen Portnummer, Unter-Switches mit ihren Geräten an der Stelle ihres Ports, Stapel immer zusammen.",
       "Zeilen lassen sich am Griff ziehen oder mit den Pfeilen verschieben. Neue Geräte rücken an ihre automatische Stelle. „Automatisch sortieren“ verwirft die eigene Reihenfolge.",
-      "Notizen lassen sich direkt in der Tabelle bearbeiten, sie landen im Gerät.",
       "„PDF“ druckt nur die Patchliste, mit linierter Spalte „Notizen vor Ort“ und einem Kästchen zum Abhaken je Gerät. „CSV“ gibt sie als Tabelle aus. Im Gesamt-PDF und im Excel-Export ist sie ebenfalls enthalten.",
     ]} />
   </> },
@@ -165,7 +164,7 @@ const KAPITEL = [
     <Bild id="live" text="Live-Tab: Online-Status der geplanten Geräte" />
     <Liste items={[
       "Netzwerkkarte (oben rechts): Alles im Live-Tab läuft nur über die gewählte Karte, also Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch der Status in der Topologie). Nach einem Wechsel laufende Monitore neu starten.",
-      "Online-Status: welche geplanten Geräte antworten. Netzwerkscan: ein Subnetz nach aktiven Adressen durchsuchen, gefundene IPs zeigen den Gerätenamen aus dem Plan.",
+      "Online-Status: welche geplanten Geräte antworten. Netzwerkscan: ein Subnetz nach aktiven Adressen durchsuchen, gefundene IPs zeigen den Gerätenamen aus dem Plan. Als Subnetz schlägt die App die Netze der im Plan vergebenen IPs vor (mit Anzahl und Protokollen, z. B. Dante).",
       "Switches (SNMP): Portstatus und Zähler der managed Switches lesen.",
       "Protokoll-Monitore für sACN, Art-Net, Dante, MA-Net, NDI, OSC, CITP und PTP-Clock hören im Netz mit. Das funktioniert nur in der Desktop-App und nur im selben Netz.",
       "Dante: Spalten wie in Dante Controller, soweit die Geräte sie per mDNS melden: Gerätename, Modell, Dante-Version, primäre und sekundäre Adresse, Abtastrate und Kanäle. Primär/Sekundär ordnet der Plan zu. Produktversion, Gerätesperre und Link-Geschwindigkeit liefert nur Dante Controller.",
