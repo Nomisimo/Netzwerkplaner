@@ -192,16 +192,17 @@ function PortLeiste({ d, X, x0, y0, w, h, onPortDown, markPort }) {
   if (!ports.length) return null;
   const gap = 3, n = ports.length, reihen = n > 3 ? 2 : 1, proReihe = Math.ceil(n / reihen);
   const bw = (w - gap * (proReihe - 1)) / proReihe;
-  const CARD_PORT_H = reihen === 2 ? (h - gap) / 2 : Math.min(18, h);
+  const CARD_PORT_H = reihen === 2 ? (h - gap) / 2 : Math.min(26, h);
+  const icon = Math.max(MINI, Math.min(18, CARD_PORT_H - 5)); // Stecker-Symbol gut erkennbar
   const oben = y0 + (h - (reihen * CARD_PORT_H + (reihen - 1) * gap)) / 2;
-  if (bw < 26) return <Buchsenleiste d={d} X={X} x1={x0 + w} y={y0 + h - MINI - 2} />;
+  if (bw < 34) return <Buchsenleiste d={d} X={X} x1={x0 + w} y={y0 + h - MINI - 2} />;
   const seite = portSeiten(d);
   return ports.map((port, i) => {
     const x = x0 + (i % proReihe) * (bw + gap), y = oben + Math.floor(i / proReihe) * (CARD_PORT_H + gap);
     const c = (X.connsByPort.get(`${d.id}:${port.id}`) || [])[0] || null;
     const st = steckerTyp(port);
     const v = X.vlanById.get(port.vlan);
-    const zeichen = Math.max(1, Math.floor((bw - MINI - 9) / 4.7));
+    const zeichen = Math.max(1, Math.floor((bw - icon - 10) / 4.7));
     const name = kurzerPortName(port.name);
     const text = name.length > zeichen ? name.slice(0, Math.max(1, zeichen - 1)) + "…" : name;
     const o = c ? (c.a.dev === d.id && c.a.port === port.id ? c.b : c.a) : null;
@@ -212,8 +213,8 @@ function PortLeiste({ d, X, x0, y0, w, h, onPortDown, markPort }) {
         onMouseDown={(e) => onPortDown?.(e, c, port, { ax: x + bw / 2, ay: y + CARD_PORT_H / 2, w: bw, h: CARD_PORT_H })}>
         <title>{[`${port.name} · ${STECKER[st]?.name || port.typ}${s0 ? " · " + SEITEN[s0] : ""}`, v ? `VLAN ${v.vid} ${v.name}` : null, gegen ? `→ ${gegen.dev.name} · ${gegen.port.name}` : "frei · anklicken zum Verbinden"].filter(Boolean).join("\n")}</title>
         <rect x={x} y={y} width={bw} height={CARD_PORT_H} rx="3" fill={c ? (v?.farbe || "#5a6a9a") + "40" : "#0e1430"} stroke={markPort === port.id ? ACCENT : c ? v?.farbe || "#c8d0ff" : "#3a4466"} strokeWidth={markPort === port.id ? 2 : 1} />
-        <Buchse x={x + 3} y={y + (CARD_PORT_H - MINI) / 2} stecker={st} aktiv={!!c} farbe={v?.farbe} />
-        <text x={x + MINI + 6} y={y + CARD_PORT_H / 2 + 3} fontSize="8.5" fontWeight="600" fill={c ? "#fff" : "#8f9bd0"}>{text}</text>
+        <Buchse x={x + 3} y={y + (CARD_PORT_H - icon) / 2} stecker={st} aktiv={!!c} farbe={v?.farbe} groesse={icon} />
+        <text x={x + icon + 7} y={y + CARD_PORT_H / 2 + 3} fontSize="8.5" fontWeight="600" fill={c ? "#fff" : "#8f9bd0"}>{text}</text>
       </g>
     );
   });
@@ -222,7 +223,8 @@ function PortLeiste({ d, X, x0, y0, w, h, onPortDown, markPort }) {
 /* Buchsen eines Endgeräts als kleine Symbole unten rechts auf der Karte,
    je Seite gruppiert (V = vorne, H = hinten), belegte Buchsen hell. */
 const MINI = 9;
-export function Buchse({ x, y, stecker, aktiv, farbe }) {
+export function Buchse({ x, y, stecker, aktiv, farbe, groesse }) {
+  if (groesse && groesse !== MINI) return <g transform={`translate(${x},${y}) scale(${groesse / MINI})`}><Buchse x={0} y={0} stecker={stecker} aktiv={aktiv} farbe={farbe} /></g>;
   const f = aktiv ? farbe || "#c8d0ff" : "#3a4466";
   const glas = STECKER_KATEGORIEN.glasfaser;
   if (stecker === "ethercon") return <g><circle cx={x + MINI / 2} cy={y + MINI / 2} r={MINI / 2} fill={f} stroke="#0b0f1f" strokeWidth=".6" /><rect x={x + 2.6} y={y + 3} width={MINI - 5.2} height="3" fill="#0b0f1f" /></g>;
