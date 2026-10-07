@@ -3,7 +3,7 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [0.7.0-beta.18] – unveröffentlicht
+## [0.7.0-beta.18] – 2026-10-07
 
 - VLAN-Setup: der Haken heißt jetzt „EEE (802.3az) an“. Gesetzt = EEE an, raus = EEE aus (vorher andersherum)
 - Einstellungen: „Port-Lasche an Geräten“ Standard (nur der Port, über den das Gerät hängt) oder Erweitert (alle belegten Ports)
