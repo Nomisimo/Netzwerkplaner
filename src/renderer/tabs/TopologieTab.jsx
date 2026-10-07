@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useRef, useMemo, useEffect, useCallback, useLayoutEffect } from "react";
 import { removeDevices } from "../../shared/invarianten.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor, BG, BTN, CANVAS, CARD, INPUT, LINE2, LINK, MID, TEXT, TEXT2, TRUNK, STRONG , HELL } from "../../shared/constants.js";
 import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts, unmanagedVlans } from "../../shared/model.js";
@@ -75,6 +75,7 @@ export default function TopologieTab(props) {
   const pinKey = front ? "fpPins" : "pins";         // angepinnte Geräte (feste Position)
   const fixKey = front ? "fpFix" : "fix";           // alle Positionen bei „Auto-Anordnen aus“
   const knickKey = front ? "fpKnicke" : "knicke";   // verschobene Verbindungen (Versatz zur Mitte)
+  const textKey = front ? "fpKabelText" : "kabelText"; // Stelle der Kabelbeschriftung als Anteil der Kabellänge
   const bgKey = front ? "fpHintergrund" : "hintergrund";
   const auto = P.layout.autoAnordnen !== false;
   const rasten = P.layout.einrasten !== false; // Einrasten beim Ziehen (Raster und Nachbarn), Alt hält es kurz aus
@@ -259,6 +260,11 @@ export default function TopologieTab(props) {
     if (!drag) return;
     const ddx = e.clientX - drag.sx, ddy = e.clientY - drag.sy;
     const moved = drag.moved || Math.abs(ddx) + Math.abs(ddy) > 4;
+    if (drag.kind === "kabeltext") {
+      const pfad = wrapRef.current?.querySelector(`path[data-kabeltext="${CSS.escape(drag.id)}"]`);
+      if (pfad) setDrag({ ...drag, f: naechsterAnteil(pfad, toWorld(e)), moved });
+      return;
+    }
     if (drag.kind === "rahmen") { const w = toWorld(e); setDrag({ ...drag, x1: w.x, y1: w.y, moved }); return; }
     if (drag.kind === "pan") setView((v) => ({ ...v, x: drag.vx + ddx, y: drag.vy + ddy })), moved !== drag.moved && setDrag({ ...drag, moved });
     else {
@@ -317,6 +323,12 @@ export default function TopologieTab(props) {
       return;
     }
     if (!drag) return;
+    if (drag.kind === "kabeltext") {
+      const { id, f, moved } = drag;
+      setDrag(null);
+      if (moved) mutate((d) => { d.layout[textKey] = { ...(d.layout[textKey] || {}), [id]: Math.round(f * 10000) / 10000 }; });
+      return;
+    }
     if (drag.kind === "node") {
       if (drag.moved) {
         const dx = drag.dx, dy = drag.dy;
@@ -498,6 +510,19 @@ export default function TopologieTab(props) {
     return { d: eckPfad(x1, y1, x2, y2, "h", xo), x1, y1, x2, y2, mx: xo, my: (y1 + y2) / 2 };
   };
   // Linie direkt greifen: im Bewegen-Werkzeug verschiebt Ziehen an einer Verbindung ihre Knickstelle
+  // Kabelbeschriftung: sitzt auf dem Kabel, Ziehen schiebt sie am Kabel entlang
+  const textAnteil = (c) => (drag?.kind === "kabeltext" && drag.id === c.id ? drag.f : P.layout[textKey]?.[c.id] ?? 0.5);
+  const textGreifen = (e, c) => {
+    if (e.button) return;
+    e.stopPropagation(); e.preventDefault();
+    setDrag({ kind: "kabeltext", id: c.id, f: textAnteil(c), sx: e.clientX, sy: e.clientY, moved: false });
+  };
+  const textZurueck = (c) => mutate((d) => { const m = { ...(d.layout[textKey] || {}) }; delete m[c.id]; d.layout[textKey] = m; });
+  // Beschriftungen kommen in eine eigene Ebene über allen Kabeln, damit sie greifbar bleiben
+  const textEbene = [];
+  const kabelText = (c, d) => { if (c.label) textEbene.push(<KabelText key={c.id} id={c.id} d={d} f={textAnteil(c)} text={c.label} bg={front ? FP_BG : CANVAS} farbe={front ? "#e6eaff" : TEXT}
+    onDown={(e) => textGreifen(e, c)} onReset={(e) => { e.stopPropagation(); textZurueck(c); }} />); return null; };
+
   const linieGreifen = (e, c) => {
     e.stopPropagation();
     if (e.button || tool !== "move" || e.shiftKey || stapelKlammer.has(c.id)) return;
@@ -761,7 +786,7 @@ export default function TopologieTab(props) {
                     <path d={dPath} stroke={st.color} strokeWidth={straight ? Math.max(2, st.width - 1) : 1.8} fill="none" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
                     {st.farben && <Streifen d={dPath} farben={st.farben} breite={straight ? Math.max(2, st.width - 1) : 1.8} />}
                     <circle cx={a1.x} cy={a1.y} r="2.2" fill={st.color} /><circle cx={b1.x} cy={b1.y} r="2.2" fill={st.color} />
-                    {c.label && <text x={(a1.x + b1.x) / 2 + 4} y={(a1.y + b1.y) / 2} fontSize="10" fill={TEXT2}>{c.label}</text>}
+                    {kabelText(c, dPath)}
                     {knickGriff(c, mx, my)}
                   </g>
                 );
@@ -790,11 +815,12 @@ export default function TopologieTab(props) {
                     {kl && <title>{`${da?.name} [${pName(c.a)}] ⇄ ${db?.name} [${pName(c.b)}] · im selben Stapel`}</title>}
                     {showPorts && !kl && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} />}
                     {sp?.anzahl > 1 && <g><rect x={g.mx - 11} y={g.my - 8} width="22" height="16" rx="8" fill={INPUT} stroke={st.color} /><text x={g.mx} y={g.my + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill={TEXT}>{sp.anzahl}×</text><title>{sp.anzahl} Kabel gebündelt</title></g>}
-                    {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill={TEXT2} textAnchor="middle">{c.label}</text>}
+                    {showPorts && kabelText(c, g.d)}
                     {knickGriff(c, g.mx, g.my)}
                   </g>
                 );
               })}
+              {textEbene}
               {draw && posOf(draw.from) && (() => {
                 // Gummiband mit Pfeil: rastet am Gerät unter der Maus ein
                 const x1 = draw.x0 ?? posOf(draw.from).x, y1 = draw.y0 ?? posOf(draw.from).y;
@@ -1028,6 +1054,39 @@ const eckPfad = (x1, y1, x2, y2, dir, mid) => {
   if (!sx) return `M${x1},${y1} L${x2},${y2}`;
   const rr = Math.min(r, Math.abs(x2 - x1) / 2, Math.abs(my - y1), Math.abs(y2 - my));
   return `M${x1},${y1} L${x1},${my - sy1 * rr} Q${x1},${my} ${x1 + sx * rr},${my} L${x2 - sx * rr},${my} Q${x2},${my} ${x2},${my + sy2 * rr} L${x2},${y2}`;
+};
+
+/* Kabelbeschriftung: liegt mittig auf dem Kabel (mit Rand in Hintergrundfarbe, damit
+   sie lesbar bleibt), an der Stelle f (0…1) der Kabellänge. Die Lage folgt dem Kabel,
+   auch wenn Geräte verschoben werden. */
+function KabelText({ id, d, f, text, bg, farbe, onDown, onReset }) {
+  const ref = useRef(null);
+  const [pt, setPt] = useState(null);
+  useLayoutEffect(() => {
+    const p = ref.current; if (!p) return;
+    try { const q = p.getPointAtLength(p.getTotalLength() * Math.max(0, Math.min(1, f))); setPt({ x: q.x, y: q.y }); } catch { setPt(null); }
+  }, [d, f]);
+  return (
+    <g>
+      <path ref={ref} d={d} data-kabeltext={id} fill="none" stroke="none" pointerEvents="none" />
+      {pt && <text x={pt.x} y={pt.y + 3.5} fontSize="10" fontWeight="600" fill={farbe} textAnchor="middle" paintOrder="stroke" stroke={bg} strokeWidth="4" strokeLinejoin="round"
+        style={{ cursor: "grab" }} onMouseDown={onDown} onDoubleClick={onReset} onClick={(e) => e.stopPropagation()}>
+        <title>{`${text}\nZiehen = am Kabel verschieben · Doppelklick = wieder in die Mitte`}</title>{text}
+      </text>}
+    </g>
+  );
+}
+// Nächste Stelle eines Pfads zu einem Punkt, als Anteil der Länge (grob abtasten, dann verfeinern)
+const naechsterAnteil = (pfad, w) => {
+  const L = pfad.getTotalLength();
+  if (!L) return 0.5;
+  const ab = (s) => { const q = pfad.getPointAtLength(s); return (q.x - w.x) ** 2 + (q.y - w.y) ** 2; };
+  let best = 0, bd = Infinity;
+  const n = 80;
+  for (let i = 0; i <= n; i++) { const s = (L * i) / n, dd = ab(s); if (dd < bd) { bd = dd; best = s; } }
+  const step = L / n;
+  for (let i = -10; i <= 10; i++) { const s = Math.max(0, Math.min(L, best + (step * i) / 10)), dd = ab(s); if (dd < bd) { bd = dd; best = s; } }
+  return best / L;
 };
 
 /* Port-Plakette an einer Verbindung: sitzt am Geräte-Ende und zeigt, an welchem
