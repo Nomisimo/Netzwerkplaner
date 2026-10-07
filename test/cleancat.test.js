@@ -185,3 +185,11 @@ test("Plott: Blattformate A3/A4 quer und hoch", async () => {
   assert.equal(plottFormat({ layout: {} }), "A3-quer");
   assert.equal(plottFormat({ layout: { plottFormat: "A4-quer" } }), "A4-quer");
 });
+
+test("Anschlussnamen höchstens 10 Zeichen", async () => {
+  const { kurzerPortName } = await import("../src/shared/catalog.js");
+  assert.equal(kurzerPortName("Steuerung 1"), "Strg 1");
+  assert.equal(kurzerPortName("Management 12"), "Mgmt 12");
+  assert.equal(kurzerPortName("LAN 1"), "LAN 1");
+  assert.ok(kurzerPortName("Irgendein langer Name").length <= 10);
+});

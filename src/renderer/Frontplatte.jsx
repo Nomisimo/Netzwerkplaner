@@ -1,12 +1,12 @@
 import React from "react";
 import { ACCENT, OK, ERR, MUTED, TYPEN, katColor } from "../shared/constants.js";
 import { mainIp, unmanagedVlans } from "../shared/model.js";
-import { CARD_W, CARD_H, TAB_H, plattenGeometrie } from "../shared/frontplatte.js";
+import { CARD_W, CARD_H, TAB_H, CARD_PORT_Y, plattenGeometrie } from "../shared/frontplatte.js";
 import { STECKER, STECKER_KATEGORIEN, SEITEN, portSeiten, steckerTyp, geraeteAnschluesse, anschlussText } from "../shared/anschluesse.js";
 import { SvgIcon } from "./icons.jsx";
 import { Zap, TriangleAlert, Globe } from "lucide-react";
 import { endInfo, portLabel, vlanLang, geraeteTitel } from "./portinfo.js";
-import { ipPorts } from "../shared/catalog.js";
+import { ipPorts, kurzerPortName } from "../shared/catalog.js";
 import { feldZeilen } from "../shared/felder.js";
 
 /* Darstellung für die Anschluss-Ansicht (früher „Frontplatten“, Stil Luminex Araneo) */
@@ -153,14 +153,14 @@ export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, wo
 }
 
 // Endgerät als Karte mit Port-Lasche
-export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status, worst, iss, titel, onDown, onContextMenu, tool }) {
+export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status, worst, iss, titel, onDown, onContextMenu, tool, onPortDown, markPort }) {
   const x0 = p.x - CARD_W / 2, y0 = p.y - CARD_H / 2;
   const col = katColor(d.kategorie);
   const ip = mainIp(d);
   const name = geraeteTitel(d, titel);
   const zeile2 = [ip || (ipPorts(d).some((i) => i.dhcp) ? "DHCP" : ""), d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ");
   const tabW = tab ? Math.max(46, tab.length * 6 + 14) : 0;
-  const max2 = Math.min(21, Math.floor((CARD_W - 46 - 8 - leistenBreite(d)) / 6)); // Platz bis zur Buchsenleiste
+  const max2 = Math.floor((CARD_W - 46 - 8) / 6);
   return (
     <g opacity={dim ? 0.2 : 1} onMouseDown={onDown} onContextMenu={onContextMenu} style={{ cursor: tool === "connect" ? "crosshair" : "pointer" }}>
       {(sel || hover || hit) && <rect x={x0 - 5} y={y0 - TAB_H - 5} width={CARD_W + 10} height={CARD_H + TAB_H + 10} rx="7" fill="none" stroke={sel ? ACCENT : hover ? OK : "#fff"} strokeWidth="2" />}
@@ -179,9 +179,44 @@ export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status
         <title>{!status ? "Status unbekannt" : status.ok ? `erreichbar (${status.method}, ${status.ms} ms)` : status.ok === false ? `nicht erreichbar (${status.method})` : status.method}</title>
       </circle>
       {worst && <g><TriangleAlert x={x0 + CARD_W - 30} y={y0 + 4} size={11} color={worst} strokeWidth={2.2} /><rect x={x0 + CARD_W - 30} y={y0 + 4} width="11" height="11" fill="transparent"><title>{iss.map((i) => i.msg).join("\n")}</title></rect></g>}
-      <Buchsenleiste d={d} X={X} x1={x0 + CARD_W - 6} y={y0 + CARD_H - 10} />
+      <PortLeiste d={d} X={X} x0={x0 + 6} y0={y0 + CARD_PORT_Y} w={CARD_W - 12} h={CARD_H - CARD_PORT_Y - 5} onPortDown={onPortDown} markPort={markPort} />
     </g>
   );
+}
+
+/* Anschlüsse eines Endgeräts als Leiste unten auf der Karte: Buchse und Name (bis 10 Zeichen),
+   Farbe nach VLAN, belegte hell. Anklicken startet ein Kabel genau von diesem Port bzw. steckt es dort ein.
+   Bis 3 Ports eine Reihe, darüber zwei. Bei sehr vielen Ports bleibt es bei den kleinen Buchsensymbolen. */
+function PortLeiste({ d, X, x0, y0, w, h, onPortDown, markPort }) {
+  const ports = (d.ports || []).filter((p) => !p.virtuell && steckerTyp(p));
+  if (!ports.length) return null;
+  const gap = 3, n = ports.length, reihen = n > 3 ? 2 : 1, proReihe = Math.ceil(n / reihen);
+  const bw = (w - gap * (proReihe - 1)) / proReihe;
+  const CARD_PORT_H = reihen === 2 ? (h - gap) / 2 : Math.min(18, h);
+  const oben = y0 + (h - (reihen * CARD_PORT_H + (reihen - 1) * gap)) / 2;
+  if (bw < 26) return <Buchsenleiste d={d} X={X} x1={x0 + w} y={y0 + h - MINI - 2} />;
+  const seite = portSeiten(d);
+  return ports.map((port, i) => {
+    const x = x0 + (i % proReihe) * (bw + gap), y = oben + Math.floor(i / proReihe) * (CARD_PORT_H + gap);
+    const c = (X.connsByPort.get(`${d.id}:${port.id}`) || [])[0] || null;
+    const st = steckerTyp(port);
+    const v = X.vlanById.get(port.vlan);
+    const zeichen = Math.max(1, Math.floor((bw - MINI - 9) / 4.7));
+    const name = kurzerPortName(port.name);
+    const text = name.length > zeichen ? name.slice(0, Math.max(1, zeichen - 1)) + "…" : name;
+    const o = c ? (c.a.dev === d.id && c.a.port === port.id ? c.b : c.a) : null;
+    const gegen = o ? X.portRef.get(`${o.dev}:${o.port}`) : null;
+    const s0 = seite.get(port.id);
+    return (
+      <g key={port.id} data-dev={d.id} data-port={port.id} style={{ cursor: "pointer" }}
+        onMouseDown={(e) => onPortDown?.(e, c, port, { ax: x + bw / 2, ay: y + CARD_PORT_H / 2, w: bw, h: CARD_PORT_H })}>
+        <title>{[`${port.name} · ${STECKER[st]?.name || port.typ}${s0 ? " · " + SEITEN[s0] : ""}`, v ? `VLAN ${v.vid} ${v.name}` : null, gegen ? `→ ${gegen.dev.name} · ${gegen.port.name}` : "frei · anklicken zum Verbinden"].filter(Boolean).join("\n")}</title>
+        <rect x={x} y={y} width={bw} height={CARD_PORT_H} rx="3" fill={c ? (v?.farbe || "#5a6a9a") + "40" : "#0e1430"} stroke={markPort === port.id ? ACCENT : c ? v?.farbe || "#c8d0ff" : "#3a4466"} strokeWidth={markPort === port.id ? 2 : 1} />
+        <Buchse x={x + 3} y={y + (CARD_PORT_H - MINI) / 2} stecker={st} aktiv={!!c} farbe={v?.farbe} />
+        <text x={x + MINI + 6} y={y + CARD_PORT_H / 2 + 3} fontSize="8.5" fontWeight="600" fill={c ? "#fff" : "#8f9bd0"}>{text}</text>
+      </g>
+    );
+  });
 }
 
 /* Buchsen eines Endgeräts als kleine Symbole unten rechts auf der Karte,
@@ -236,8 +271,11 @@ export const laschenText = (id, T, X) => {
   const up = c.a.dev === id ? c.b : c.a;
   const r = X.portRef.get(`${up.dev}:${up.port}`);
   if (!r) return null;
-  if (r.dev.isSwitch) return /^\d+$/.test(r.port.name) ? `Port ${r.port.name}` : r.port.name;
-  return `via ${r.dev.name.slice(0, 14)}`;
+  // Hat das Gerät mehrere Anschlüsse, steht dazu, mit welchem es dort steckt (z. B. „Port 5 → LAN 1“)
+  const self = c.a.dev === id ? c.a : c.b;
+  const eigen = X.devById.get(id)?.ports.filter((p) => !p.virtuell).length > 1 ? X.portRef.get(`${id}:${self.port}`)?.port.name : null;
+  const oben = r.dev.isSwitch ? (/^\d+$/.test(r.port.name) ? `Port ${r.port.name}` : r.port.name) : `via ${r.dev.name.slice(0, 14)}`;
+  return eigen ? `${oben} → ${kurzerPortName(eigen)}` : oben;
 };
 export const laschenZustand = (id, T, X) => {
   const c = T.treeConn.get(id);

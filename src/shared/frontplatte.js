@@ -7,7 +7,8 @@
 
 import { portSeiten, steckerTyp } from "./anschluesse.js";
 
-export const CARD_W = 184, CARD_H = 48, TAB_H = 15;
+// Endgeräte-Karte: oben Name/IP, unten eine Leiste mit den Anschlüssen (Name bis 10 Zeichen)
+export const CARD_W = 204, CARD_H = 82, TAB_H = 15, CARD_PORT_Y = 46; // Anschlussleiste ab CARD_PORT_Y bis 5 px vor Unterkante
 const PW = 20, PH = 18, PG = 3, BLOCK_GAP = 10, LOGO_W = 44, RIGHT_W = 30, PAD_Y = 9;
 const MAX_COLS = 6, CARD_GAP_X = 16, CARD_GAP_Y = 26, CARDS_TOP = 44, LABEL_H = 18, LAYER_GAP = 90, CLUSTER_GAP = 60;
 

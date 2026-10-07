@@ -167,7 +167,18 @@ export const parsePorts = (details, anzahl, isSwitch) => {
     const typ = portTyp(details || "");
     for (let k = 0; k < n; k++) ports.push({ name: null, typ, p2p: false });
   }
-  return ports.map((p, i) => ({ ...p, name: p.name || (isSwitch ? String(i + 1) : ports.length > 1 ? `LAN ${i + 1}` : "LAN") }));
+  return ports.map((p, i) => ({ ...p, name: kurzerPortName(p.name || (isSwitch ? String(i + 1) : ports.length > 1 ? `LAN ${i + 1}` : "LAN")) }));
+};
+
+/* Anschlussnamen höchstens 10 Zeichen (Platz in der Ansicht „Anschlüsse“).
+   Längere Namen werden erst gekürzt (Steuerung → Strg …), dann abgeschnitten. */
+export const PORTNAME_MAX = 10;
+const KUERZEL = [[/Steuerung/i, "Strg"], [/Management/i, "Mgmt"], [/Secondary/i, "Sec"], [/Primary/i, "Pri"], [/Network/i, "Net"], [/Ethernet/i, "Eth"], [/Control/i, "Ctrl"]];
+export const kurzerPortName = (n) => {
+  let s = String(n ?? "");
+  if (s.length <= PORTNAME_MAX) return s;
+  for (const [re, k] of KUERZEL) { s = s.replace(re, k); if (s.length <= PORTNAME_MAX) return s; }
+  return s.slice(0, PORTNAME_MAX);
 };
 
 export const splitProtokolle = (s) =>

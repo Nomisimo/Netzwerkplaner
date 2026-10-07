@@ -10,6 +10,10 @@ export const CHANGELOG = {
     "Plott: Blattformat wählbar (A3 oder A4, quer oder hoch). Der Export nimmt das im Export-Dialog gewählte Format, statt immer A3 quer",
     "Patchliste: „Gesteckt auf“ steht auf Höhe des Ports, über den das Gerät am Switch hängt; dieser Port ist markiert. Alle IP-Felder stehen untereinander, egal wie der Port heißt",
     "Standort-Auswahl (Patchliste und Geräte-Editor): Öffnen zeigt alle Standorte, Tippen filtert danach",
+    "VLAN per Klick: die VLANs stehen als farbige Kacheln mit ID und Namen im Switch-Editor. Kachel anklicken, dann in der Topologie auf die Ports klicken; die aktive Kachel noch mal anklicken beendet",
+    "Anschlüsse-Ansicht: Endgeräte zeigen ihre Ports als große Felder mit Namen (ab 4 Ports zweireihig), Farbe nach VLAN. Ein Klick auf einen Geräte-Port startet ein Kabel von genau diesem Port, und ein Kabel lässt sich auch auf einen Geräte-Port stecken, nicht nur auf Switch-Ports",
+    "Hat ein Gerät mehrere Anschlüsse, zeigt die Lasche oben auch den eigenen Port, z. B. „Port 3 → LAN 1“",
+    "Anschlussnamen höchstens 10 Zeichen. Lange Namen aus dem Katalog werden gekürzt (z. B. „Steuerung 1“ → „Strg 1“)",
   ],
   "0.7.0-beta.17": [
     "Neuer Tab „Setup“ (bisher „Projekt“): VLANs und Prüfung stehen jetzt dort, die Tabs „VLANs“ und „Prüfen“ entfallen. „Katalog“ und „Wissen“ haben die Plätze getauscht",

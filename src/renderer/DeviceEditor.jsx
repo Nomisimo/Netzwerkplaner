@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, PANEL, katColor, TYPEN, KATEGORIEN, PORT_TYPEN, CARD, INPUT, LINK, TEXT2 } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, PANEL, katColor, TYPEN, KATEGORIEN, PORT_TYPEN, CARD, INPUT, LINK, TEXT2, STRONG } from "../shared/constants.js";
 import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid, hardwareFest } from "../shared/catalog.js";
 import { portSeiten } from "../shared/anschluesse.js";
 import { otherEnd, suggestIp, webUrl, clone, vlanQuelle } from "../shared/model.js";
@@ -153,7 +153,7 @@ function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest
   return (
     <div style={{ border: `1px solid ${cons.length > 1 ? ERR : LINE}`, borderLeft: `3px solid ${ip && v?.farbe || LINE}`, borderRadius: 7, padding: 10, marginBottom: 8, background: CARD }}>
       <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : ip ? "1.3fr 1.3fr 1.7fr .6fr 1.3fr 1.4fr" : "1.3fr 1.3fr 3fr", gap: 8, alignItems: "end" }}>
-        <Field label={p.virtuell ? "Name" : "Port"} hint={p.virtuell ? "ohne Buchse" : undefined}><input style={{ ...S.inputSm, ...festStil(hw) }} value={p.name} readOnly={hw} title={hw ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.name = e.target.value))} /></Field>
+        <Field label={p.virtuell ? "Name" : "Port"} hint={p.virtuell ? "ohne Buchse" : undefined}><input style={{ ...S.inputSm, ...festStil(hw) }} value={p.name} maxLength={10} readOnly={hw} title={hw ? FEST_TIP : "Höchstens 10 Zeichen"} onChange={(e) => setP((x) => (x.name = e.target.value.slice(0, 10)))} /></Field>
         {ip ? <>
           {dev.isSwitch ? <Field label="VLAN"><VlanSelect vlans={P.vlans} value={p.vlan} onChange={(val) => setP((x) => {
             x.vlan = val;
@@ -380,7 +380,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
               const cons = connOf(p);
               return (
                 <tr key={p.id} style={{ background: cons.length > 1 ? ERR + "18" : undefined }}>
-                  <td style={{ ...S.td, width: 80 }}><input style={{ ...S.inputSm, padding: "3px 6px", ...festStil(fest) }} value={p.name} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.name = e.target.value))} /></td>
+                  <td style={{ ...S.td, width: 80 }}><input style={{ ...S.inputSm, padding: "3px 6px", ...festStil(fest) }} value={p.name} maxLength={10} readOnly={fest} title={fest ? FEST_TIP : "Höchstens 10 Zeichen"} onChange={(e) => setP((x) => (x.name = e.target.value.slice(0, 10)))} /></td>
                   <td style={{ ...S.td, minWidth: 92 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.typ} disabled={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></td>
                   <td style={{ ...S.td, minWidth: 104 }}><SeiteSelect dev={dev} p={p} setP={setP} /></td>
                   {!unmanaged && <>
@@ -464,7 +464,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
   );
 }
 
-/* Zuweisungsmodus: VLAN wählen, dann in der Topologie (Ansicht „Anschlüsse“) auf Switch-Ports klicken */
+/* Zuweisungsmodus: VLAN-Kachel anklicken, dann in der Topologie (Ansicht „Anschlüsse“) auf Switch-Ports klicken */
 function VlanZuweisenLeiste({ P, dev, mutate }) {
   const z = useVlanZuweisen();
   const an = !!z;
@@ -475,12 +475,31 @@ function VlanZuweisenLeiste({ P, dev, mutate }) {
     setVlanZuweisen({ vlan, dev: dev.id });
     if (P.layout.ansicht !== "front") mutate((d) => { d.layout.ansicht = "front"; });
   };
-  const waehle = (v) => { setVlan(v); if (an && v) setVlanZuweisen({ vlan: v, dev: dev.id }); };
+  // Kachel anklicken = dieses VLAN zuweisen (Modus an); die aktive Kachel noch mal = Modus aus
+  const kachel = (v) => {
+    if (an && z?.vlan === v) { setVlanZuweisen(null); return; }
+    setVlan(v);
+    setVlanZuweisen({ vlan: v, dev: dev.id });
+    if (P.layout.ansicht !== "front") mutate((d) => { d.layout.ansicht = "front"; });
+  };
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8, padding: "6px 8px", borderRadius: 6, border: `1px solid ${an ? ACCENT : LINE}`, background: an ? ACCENT + "14" : undefined, fontSize: 11, color: SUB }}>
       <Toggle checked={an} onChange={einschalten} label="VLAN per Klick zuweisen" title="An: in der Topologie (Ansicht „Anschlüsse“) setzt ein Klick auf einen Switch-Port dieses VLAN als Access-VLAN. Esc oder Aus beendet den Modus." />
-      <VlanSelect vlans={P.vlans} value={vlan} style={{ width: 170 }} noneLabel="VLAN wählen …" onChange={waehle} />
       {an && <span>Jetzt in der Topologie auf die Ports klicken · Esc beendet</span>}
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", width: "100%" }}>
+        {[...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => {
+          const aktiv = an && z?.vlan === v.id;
+          return (
+            <button key={v.id} onClick={() => kachel(v.id)} title={aktiv ? "Aktiv: Ports anklicken. Noch mal klicken beendet." : `VLAN ${v.vid} ${v.name} zuweisen`}
+              style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 74, maxWidth: 120, padding: "4px 8px", borderRadius: 6, cursor: "pointer", textAlign: "left",
+                background: v.farbe + (aktiv ? "" : "33"), color: aktiv ? "#fff" : STRONG, border: `2px solid ${aktiv ? STRONG : v.farbe}`, boxShadow: aktiv ? `0 0 0 2px ${v.farbe}` : "none" }}>
+              <span style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.1, textShadow: aktiv ? "0 1px 2px #0006" : "none" }}>{v.vid}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", textShadow: aktiv ? "0 1px 2px #0006" : "none" }}>{v.name || `VLAN ${v.vid}`}</span>
+            </button>
+          );
+        })}
+        {!P.vlans.length && <span>Noch keine VLANs. Im Tab „Setup“ anlegen.</span>}
+      </div>
     </div>
   );
 }
