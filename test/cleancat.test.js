@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText, cleanCatOptimieren, ccLaenge, ccKreuzungen, CC_KREUZUNG, ccEcken, CC_ECKE, plottGroesse } from "../src/shared/cleancat.js";
+import { cleanCatLayout, CC_FARBEN, CC_BOX_W, ccBlatt, passeText, cleanCatOptimieren, ccLaenge, ccKreuzungen, CC_KREUZUNG, ccEcken, CC_ECKE, plottGroesse, punktAufPfad, anteilAufPfad } from "../src/shared/cleancat.js";
 import { emptyProject } from "../src/shared/model.js";
 import { demoProject } from "../src/shared/demo.js";
 import { buildIndex } from "../src/shared/model.js";
@@ -207,4 +207,28 @@ test("Plott: Kastengröße skaliert die Geräte-Kästen, Abstände bleiben", () 
   assert.equal(plottGroesse({ layout: { plottGroesse: 0.8 } }), 0.8);
   assert.equal(plottGroesse({ layout: { plottGroesse: 7 } }), 1);
   assert.equal(plottGroesse({ layout: {} }), 1);
+});
+
+test("Plott: Kabelbeschriftungen sitzen auf ihrer Leitung, nicht auf Kästen, und lassen sich verschieben", () => {
+  const P = demoProject(), X = buildIndex(P);
+  const L = cleanCatLayout(P, X);
+  const kab = L.linien.flatMap((l) => l.labels.filter((t) => t.kabel).map((t) => ({ l, t })));
+  assert.ok(kab.length > 3, "es gibt Kabelbeschriftungen");
+  const breite = (t) => t.t.length * 8 * 0.56;
+  for (const { l, t } of kab) {
+    const p = punktAufPfad(l.pts, t.f);
+    if (t.rot) assert.ok(Math.abs(t.x + 2.5 - p.x) < 0.01 && Math.abs(t.y - p.y) < 0.01, t.t);
+    else assert.ok(Math.abs(t.x - p.x) < 0.01 && Math.abs(t.y + 2.5 - p.y) < 0.01, t.t);
+    const r = t.rot ? { x: t.x - 8, y: t.y - breite(t) / 2, w: 9, h: breite(t) } : { x: t.x - breite(t) / 2, y: t.y - 8, w: breite(t), h: 10 };
+    for (const b of L.boxen) assert.ok(!ueberlapp(r, b), `${t.t} liegt auf ${b.name}`);
+  }
+  // Von Hand: Anteil 0,25 der Leitung, bleibt auf dem Kabel
+  const { l } = kab[0];
+  P.layout.plottBeschriftung = { [l.id]: 0.25 };
+  const L2 = cleanCatLayout(P, X), l2 = L2.linien.find((x) => x.id === l.id), t2 = l2.labels.find((t) => t.kabel);
+  assert.equal(t2.f, 0.25);
+  const p2 = punktAufPfad(l2.pts, 0.25);
+  assert.ok(Math.abs((t2.rot ? t2.x + 2.5 : t2.x) - p2.x) < 0.01);
+  // Mausposition → nächster Punkt der Leitung
+  assert.ok(Math.abs(anteilAufPfad(l2.pts, p2.x + 3, p2.y + 2) - 0.25) < 0.02);
 });

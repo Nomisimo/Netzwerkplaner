@@ -13,6 +13,7 @@ export const CHANGELOG = {
     "VLAN zuweisen: die VLANs stehen als farbige Kacheln mit ID und Namen im Switch-Editor. Kachel anklicken, dann in der Topologie auf die Ports klicken; die aktive Kachel noch mal anklicken beendet",
     "Anschlüsse-Ansicht: Endgeräte zeigen ihre Ports als große Felder mit Namen und gut erkennbarem Stecker-Symbol (ab 4 Ports zweireihig), Farbe nach VLAN. Ein Klick auf einen Geräte-Port startet ein Kabel von genau diesem Port, und ein Kabel lässt sich auch auf einen Geräte-Port stecken, nicht nur auf Switch-Ports",
     "Hat ein Gerät mehrere Anschlüsse, zeigt die Lasche oben auch den eigenen Port, z. B. „Port 3 → LAN 1“. Sind mehrere eigene Ports belegt, stehen alle in der Lasche, z. B. „Port 3 → LAN 1 · Port 4 → LAN 2“",
+    "Plott: Kabelbeschriftungen sitzen immer auf ihrem Kabel, auf einem freien Stück ohne Kästen und möglichst ohne fremde Leitungen (zur Not senkrecht gedreht). Von Hand lassen sie sich mit der Maus entlang des Kabels verschieben; Doppelklick oder „Beschriftungen automatisch“ setzt sie zurück",
     "Anschlussnamen höchstens 10 Zeichen. Lange Namen aus dem Katalog werden gekürzt (z. B. „Steuerung 1“ → „Strg 1“)",
   ],
   "0.7.0-beta.17": [

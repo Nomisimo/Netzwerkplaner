@@ -60,16 +60,87 @@ const INNEN = 10; // Textabstand links und rechts in der Box
 // Zeichenfläche des Blatts (siehe ccBlatt), nach ihr richtet sich die Reihenaufteilung
 const istGlas = (c) => /fiber|opticalcon/.test(c.kabel || "");
 
-// Text mittig über das längste waagrechte Stück einer Leitung (wenn er hinpasst)
-const textAufLinie = (pts, t) => {
-  let best = null;
-  for (let i = 1; i < pts.length; i++) {
-    const [a, b] = [pts[i - 1], pts[i]];
-    if (Math.abs(a[1] - b[1]) > 0.01) continue;
-    const l = Math.abs(a[0] - b[0]);
-    if (!best || l > best.l) best = { l, x: (a[0] + b[0]) / 2, y: a[1] };
+/* ── Kabelbeschriftung: sitzt immer auf der Leitung ────────────────────────────
+   Die Stelle ist ein Anteil f (0…1) der Leitungslänge. Ohne Vorgabe sucht der Plan
+   das längste freie Stück (zuerst waagrecht, sonst senkrecht und gedreht), auf dem
+   der Text weder Kästen, Titel noch andere Beschriftungen überdeckt. Von Hand
+   verschoben wird nur f gespeichert (P.layout.plottBeschriftung[kabelId]), so
+   bleibt die Beschriftung auch nach Umbauten auf ihrem Kabel. */
+const KT_PX = 8;
+const kabelText = (t, alt = []) => (t ? { t, alt, anchor: "middle", kabel: true, x: 0, y: 0 } : null);
+const pfadLaenge = (pts) => segs(pts).reduce((s, [a, b]) => s + Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]), 0);
+export const punktAufPfad = (pts, f) => {
+  const ziel = Math.max(0, Math.min(1, f)) * pfadLaenge(pts);
+  let s = 0;
+  for (const [a, b] of segs(pts)) {
+    const l = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+    if (s + l >= ziel || l === 0) {
+      const u = l ? (ziel - s) / l : 0;
+      return { x: a[0] + (b[0] - a[0]) * u, y: a[1] + (b[1] - a[1]) * u, senkrecht: Math.abs(a[0] - b[0]) < 0.01 && l > 0 };
+    }
+    s += l;
   }
-  return best && best.l > textB(t, 8) + 10 ? { x: best.x, y: best.y - 2.5, t, anchor: "middle" } : null;
+  const e = pts[pts.length - 1] || [0, 0];
+  return { x: e[0], y: e[1], senkrecht: false };
+};
+// Nächster Punkt der Leitung zu (x, y), als Anteil der Länge
+export const anteilAufPfad = (pts, x, y) => {
+  const L = pfadLaenge(pts) || 1;
+  let s = 0, best = { d: Infinity, f: 0.5 };
+  for (const [a, b] of segs(pts)) {
+    const l = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+    const u = l ? Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / (l * l))) : 0;
+    const px = a[0] + (b[0] - a[0]) * u, py = a[1] + (b[1] - a[1]) * u, d = Math.hypot(px - x, py - y);
+    if (d < best.d) best = { d, f: (s + u * l) / L };
+    s += l;
+  }
+  return best.f;
+};
+// Beschriftung an Stelle f: waagrecht über der Linie, auf senkrechten Stücken gedreht links daneben
+export const kabelLabelAn = (pts, f, t) => {
+  const p = punktAufPfad(pts, f);
+  return p.senkrecht ? { x: p.x - 2.5, y: p.y, t, anchor: "middle", rot: true, kabel: true, f } : { x: p.x, y: p.y - 2.5, t, anchor: "middle", kabel: true, f };
+};
+const labelRahmen = (t) => {
+  const w = textB(t.t, t.rot ? 7.5 : KT_PX) + 4;
+  if (t.anchor === "middle") return t.rot ? { x: t.x - 8, y: t.y - w / 2, w: 9, h: w } : { x: t.x - w / 2, y: t.y - 8, w, h: 10 };
+  return t.rot ? { x: t.x - 8, y: t.y - w, w: 9, h: w } : { x: t.x, y: t.y - 8, w, h: 10 };
+};
+const ueberlappt = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const kabelBeschriften = (linien, hindernisse, hand) => {
+  const belegt = [...hindernisse];
+  for (const l of linien) for (const t of l.labels) if (!t.kabel) belegt.push(labelRahmen(t));
+  // Lange Texte zuerst, die brauchen die meisten Plätze
+  const liste = linien.filter((l) => l.labels.some((t) => t.kabel)).sort((a, b) => (hand[b.id] != null) - (hand[a.id] != null) || b.labels.find((t) => t.kabel).t.length - a.labels.find((t) => t.kabel).t.length);
+  for (const l of liste) {
+    const roh = l.labels.find((t) => t.kabel);
+    const L = pfadLaenge(l.pts);
+    const fremd = linien.filter((o) => o !== l).flatMap((o) => segs(o.pts));
+    let lab = null;
+    if (hand[l.id] != null && L > 0) lab = kabelLabelAn(l.pts, +hand[l.id], roh.t);
+    else if (L > 0) {
+      for (const text of [roh.t, ...(roh.alt || [])]) {
+        const w = textB(text, KT_PX) + 10;
+        let s = 0, best = null;
+        for (const [a, b] of segs(l.pts)) {
+          const sl = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]), senk = Math.abs(a[0] - b[0]) < 0.01;
+          if (sl >= w) for (const u of [0.5, 0.35, 0.65, 0.2, 0.8]) {
+            const pos = s + Math.max(w / 2, Math.min(sl - w / 2, sl * u));
+            const k = kabelLabelAn(l.pts, pos / L, text), r = labelRahmen(k);
+            const treffer = belegt.reduce((n, o) => n + (ueberlappt(r, o) ? 1 : 0), 0);
+            const kreuzen = fremd.reduce((n, g) => n + (schneidetRechteck(g, r) ? 1 : 0), 0); // andere Leitungen durch den Text
+            const wert = treffer * 1000 + kreuzen * 120 + (senk ? 300 : 0) - sl + Math.abs(u - 0.5) * 40;
+            if (!best || wert < best.wert) best = { wert, k };
+          }
+          s += sl;
+        }
+        if (best) { lab = best.k; break; }
+      }
+    }
+    l.labels = l.labels.filter((t) => !t.kabel);
+    if (lab) { l.labels.unshift(lab); belegt.push(labelRahmen(lab)); l.kabelText = lab.t; }
+    l.kabelVoll = roh.t;
+  }
 };
 
 export const ccRolle = (port) => (/primary|\bpri\b/i.test(port?.name || "") ? "primary" : /secondary|\bsec\b/i.test(port?.name || "") ? "secondary" : null);
@@ -114,11 +185,9 @@ const deckt = ([a, b], [c, d]) => { // liegen zwei Stücke aufeinander?
     return Math.min(Math.max(a[1], b[1]), Math.max(c[1], d[1])) - Math.max(Math.min(a[1], b[1]), Math.min(c[1], d[1])) > 1;
   return false;
 };
-const aufWeg = (pts, t) => segs(pts).some(([a, b]) => Math.abs(a[1] - b[1]) < 0.01 && Math.abs(t.y + 2.5 - a[1]) < 1.5 && t.x > Math.min(a[0], b[0]) && t.x < Math.max(a[0], b[0]));
 const abkuerzen = (linien, hindernisse, rahmen) => {
   for (const l of linien) {
     const andere = linien.filter((o) => o !== l).flatMap((o) => segs(o.pts));
-    const mitte = l.labels.filter((t) => t.anchor === "middle");
     const wert = (pts) => {
       const s = segs(pts);
       return { k: s.reduce((n, g) => n + andere.reduce((m, o) => m + kreuzt(g, o), 0), 0), r: s.reduce((n, g) => n + rahmen.reduce((m, r) => m + ueberRand(g, r), 0), 0) };
@@ -144,7 +213,7 @@ const abkuerzen = (linien, hindernisse, rahmen) => {
           const kand = glaetten([...pts.slice(0, i), ...neu, ...pts.slice(j + 1)]);
           if (kand.length >= n) continue;
           const w = wert(kand);
-          if (w.k > alt.k || w.r > alt.r || !mitte.every((t) => aufWeg(kand, t))) continue;
+          if (w.k > alt.k || w.r > alt.r) continue;
           l.pts = kand; besser = true; break;
         }
       }
@@ -379,7 +448,7 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
       const st = stil(p.w.c);
       const swPort = portVon(eigenes(p.w.c, g.sw.id));
       const nz = String(p.w.c.notiz || "").trim();
-      const tl = (nz && textAufLinie(p.pts, [st.text, nz].filter(Boolean).join(" · "))) || (st.text && textAufLinie(p.pts, st.text));
+      const tl = kabelText([st.text, nz].filter(Boolean).join(" · "), nz && st.text ? [st.text] : []);
       linien.push({ id: p.w.c.id, raum: r.name, von: p.w.z.d.id, bis: g.sw.id, pts: p.pts, ...st, labels: [
         tl,
         swPort && { x: xs - 2, y: sb.y - 3, t: swPort.name, rot: true, an: g.sw.id },
@@ -431,8 +500,8 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
       const ax = A.pts[A.pts.length - 1][0], bx = B.pts[B.pts.length - 1][0];
       const pts = [...A.pts, [ax, y], [bx, y], ...[...B.pts].reverse()];
       const kab = [c.label || (istGlas(c) ? KABEL[c.kabel]?.label : ""), String(c.notiz || "").trim()].filter(Boolean).join(" · ");
-      if (kab) labels.push({ x: (ax + bx) / 2, y: y - 3, t: kab, anchor: "middle" });
-      else if (st.text) { const t = textAufLinie(pts, st.text); if (t) labels.push(t); }
+      const kt = kabelText(kab || st.text);
+      if (kt) labels.push(kt);
       linien.push({ id: c.id, raum: A.r.name, von: c.a.dev, bis: c.b.dev, pts, ...st, labels: [...labels, ...endLabels(A, portA, dev(c.a.dev)), ...endLabels(B, portB, dev(c.b.dev))] });
     }
   });
@@ -562,34 +631,32 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
   wege.forEach((w, n) => {
     const { bl, ia, ib, aPts, bPts, ax, bx } = w;
     const { c, A, st, portA, portB } = bl;
-    let pts, lab;
+    let pts;
     if (w.art === "innen") { // im selben Standort: Trasse unten im Standort-Rahmen
       const b = blockVon.get(A.r.name);
       const y = b.y + b.kopf + b.subH + 10 + spurIn.get(w.tA).get(n) * SPUR;
       pts = [...aPts, [ax, y], [bx, y], ...[...bPts].reverse()];
-      lab = { x: (ax + bx) / 2, y: y - 3 };
     } else if (w.art === "reihe") {
       const yA = plan.reihen[ia].trasseY + spurIn.get(w.tA).get(n) * (SPUR + 4);
       pts = [...aPts, [ax, yA], [bx, yA], ...[...bPts].reverse()];
-      lab = { x: (ax + bx) / 2, y: yA - 3 };
     } else {
       const yA = plan.reihen[ia].trasseY + spurIn.get(w.tA).get(n) * (SPUR + 4);
       const yB = plan.reihen[ib].trasseY + spurIn.get(w.tB).get(n) * (SPUR + 4);
       const xs = w.xs;
       pts = [...aPts, [ax, yA], [xs, yA], [xs, yB], [bx, yB], ...[...bPts].reverse()];
-      lab = Math.abs(bx - xs) >= Math.abs(ax - xs) ? { x: (xs + bx) / 2, y: yB - 3 } : { x: (xs + ax) / 2, y: yA - 3 };
     }
     const kab = [c.label, KABEL[c.kabel]?.label, c.laenge ? `${c.laenge} m` : "", String(c.notiz || "").trim()].filter(Boolean).join(" · ");
     const umf = farbe === "dante" && !st.text;
     linien.push({ id: c.id, von: c.a.dev, bis: c.b.dev, pts, ...st, col: umf ? (istGlas(c) ? CC_FARBEN.glas : CC_FARBEN.trunk) : st.col, leg: umf ? (istGlas(c) ? "Glasfaser" : "Switch zu Switch") : st.leg,
-      labels: [{ ...lab, t: kab, anchor: "middle" }, ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))] });
+      labels: [kabelText(kab), ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))] });
   });
   // Leitungen glätten: doppelte Punkte und Punkte mitten auf einer Geraden entfernen (keine Schein-Ecken)
   for (const l of linien) l.pts = glaetten(l.pts);
   // Dann Umwege mit unnötigen Ecken abkürzen
-  abkuerzen(linien, [...boxen.values(), ...bloecke.filter((b) => b.kopf > 0).map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.kopf })),
-    ...raeume.map((r) => ({ x: r.x, y: r.y, w: r.w, h: RAUM_KOPF }))],
-  [...bloecke, ...raeume.filter((r) => r.stapel)]);
+  const titel = [...bloecke.filter((b) => b.kopf > 0).map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.kopf })), ...raeume.map((r) => ({ x: r.x, y: r.y, w: r.w, h: RAUM_KOPF }))];
+  abkuerzen(linien, [...boxen.values(), ...titel], [...bloecke, ...raeume.filter((r) => r.stapel)]);
+  // Zuletzt die Kabelbeschriftungen auf die fertigen Leitungen setzen
+  kabelBeschriften(linien, [...boxen.values(), ...titel], P.layout?.plottBeschriftung || {});
   const h = raeume.length ? plan.H : 0;
   const w = raeume.length ? plan.W : 0;
   // Legende: nur, was im Plan vorkommt

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, PANEL } from "../../shared/constants.js";
-import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat, PLOTT_GROESSEN, plottGroesse } from "../../shared/cleancat.js";
+import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat, PLOTT_GROESSEN, plottGroesse, kabelLabelAn, anteilAufPfad } from "../../shared/cleancat.js";
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
@@ -90,7 +90,7 @@ function Legende({ B, L }) {
   );
 }
 
-function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh }) {
+function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLabelDown, onLabelReset }) {
   const mid = (c) => "cc-" + c.replace("#", "");
   const farben = [...new Set(L.linien.map((l) => l.col))];
   // Nach dem Zeichnen genau messen: was trotz Schätzung zu breit ist, wird gestaucht
@@ -104,7 +104,7 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh }) {
   });
   return (
     <svg ref={svgRef} data-cleancat="1" xmlns="http://www.w3.org/2000/svg" width={B.w} height={B.h} viewBox={`0 0 ${B.w} ${B.h}`}
-      style={{ display: "block", fontFamily: "'Segoe UI',system-ui,sans-serif" }}>
+      style={{ display: "block", fontFamily: "'Segoe UI',system-ui,sans-serif", userSelect: "none" }}>
       <defs>{farben.map((c) => (
         <marker key={c} id={mid(c)} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L10 5 L0 9 z" fill={c} /></marker>
       ))}</defs>
@@ -135,9 +135,14 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh }) {
           <g key={l.id + i}>
             <polyline points={l.pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={l.col} strokeWidth="1.5" strokeDasharray={l.dash || undefined}
               markerStart={`url(#${mid(l.col)})`} markerEnd={`url(#${mid(l.col)})`} strokeLinejoin="round" />
-            {l.labels.map((t, k) => t.rot
-              ? <text key={k} transform={`translate(${t.x},${t.y}) rotate(-90)`} fontSize="7.5" fill="#333">{t.t}</text>
-              : <text key={k} x={t.x} y={t.y} fontSize="8" fill="#333" textAnchor={t.anchor || "start"} paintOrder="stroke" stroke="#ffffff" strokeWidth="2.5">{t.t}</text>)}
+            {l.labels.map((t, k) => {
+              // Kabelbeschriftung: auf der Leitung verschiebbar, Doppelklick = wieder automatisch
+              const zug = t.kabel && onLabelDown ? { onMouseDown: (e) => onLabelDown(e, l.id), onDoubleClick: (e) => { e.stopPropagation(); onLabelReset?.(l.id); }, style: { cursor: "grab" } } : {};
+              const titel = t.kabel && onLabelDown ? <title>{`${l.kabelVoll || t.t}\nZiehen = auf dem Kabel verschieben · Doppelklick = automatisch`}</title> : null;
+              return t.rot
+                ? <text key={k} transform={`translate(${t.x},${t.y}) rotate(-90)`} fontSize={t.kabel ? 8 : 7.5} fill="#333" textAnchor={t.anchor || "start"} {...(t.kabel ? { paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 } : {})} {...zug}>{titel}{t.t}</text>
+                : <text key={k} x={t.x} y={t.y} fontSize="8" fill="#333" textAnchor={t.anchor || "start"} paintOrder="stroke" stroke="#ffffff" strokeWidth="2.5" {...zug}>{titel}{t.t}</text>;
+            })}
           </g>
         ))}
         {L.boxen.map((b) => {
@@ -208,9 +213,12 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   // Automatische Anordnung mit kurzen Kabelwegen: nur neu rechnen, wenn sich Geräte, Kabel oder Stacks ändern
   const format = plottFormat(P), groesse = plottGroesse(P);
   const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp, format, groesse }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.bereiche, P.standortInfo, zeigeIp, format, groesse]); // eslint-disable-line react-hooks/exhaustive-deps
-  const L = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung, format, groesse }), [P, X, farbe, zeigeIp, ordnung, format, groesse]);
+  const L0 = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung, format, groesse }), [P, X, farbe, zeigeIp, ordnung, format, groesse]);
+  const [labZieh, setLabZieh] = useState(null); // Kabelbeschriftung ziehen: { id, f, bewegt }
+  const L = useMemo(() => (!labZieh ? L0 : { ...L0, linien: L0.linien.map((l) => l.id !== labZieh.id ? l
+    : { ...l, labels: [kabelLabelAn(l.pts, labZieh.f, l.kabelText || l.kabelVoll), ...l.labels.filter((t) => !t.kabel)] }) }), [L0, labZieh]);
   const [zieh, setZieh] = useState(null); // Standort ziehen: { name, sx, sy, dx, dy, bewegt, ziel }
-  const B = useMemo(() => ccBlatt(L, format), [L, format]);
+  const B = useMemo(() => ccBlatt(L0, format), [L0, format]);
   const [view, setView] = useState({ x: 20, y: 20, k: 0.6 });
   const wrap = useRef(null), eigenRef = useRef(null), drag = useRef(null);
   const svgRef = fremdRef || eigenRef;
@@ -258,6 +266,35 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   };
 
   // Ganze Standorte ziehen: setzt den Standort an eine andere Stelle der Reihenfolge, der Plan ordnet neu
+  // Kabelbeschriftung ziehen: Mausposition auf den nächsten Punkt der Leitung abbilden
+  const imPlan = (e) => {
+    const svg = svgRef.current; if (!svg) return null;
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return { x: (p.x - B.x) / B.k, y: (p.y - B.y) / B.k };
+  };
+  const labelDown = (e, id) => {
+    if (e.button !== 0 || !mutate) return;
+    e.stopPropagation(); e.preventDefault(); // kein Markieren von Text beim Ziehen
+    const l = L0.linien.find((x) => x.id === id), t = l?.labels.find((x) => x.kabel);
+    if (t) setLabZieh({ id, f: t.f ?? 0.5, sx: e.clientX, sy: e.clientY, bewegt: false });
+  };
+  const labelBewegen = (e) => {
+    if (!labZieh) return false;
+    const l = L0.linien.find((x) => x.id === labZieh.id), p = imPlan(e);
+    if (l && p) setLabZieh({ ...labZieh, f: anteilAufPfad(l.pts, p.x, p.y), bewegt: labZieh.bewegt || Math.abs(e.clientX - labZieh.sx) + Math.abs(e.clientY - labZieh.sy) > 3 });
+    return true;
+  };
+  const labelEnde = () => {
+    if (!labZieh) return false;
+    const { id, f, bewegt } = labZieh;
+    setLabZieh(null);
+    if (bewegt) mutate((d) => { d.layout.plottBeschriftung = { ...(d.layout.plottBeschriftung || {}), [id]: Math.round(f * 10000) / 10000 }; });
+    return true;
+  };
+  const labelReset = (id) => mutate?.((d) => { if (!d.layout.plottBeschriftung) return; delete d.layout.plottBeschriftung[id]; if (!Object.keys(d.layout.plottBeschriftung).length) delete d.layout.plottBeschriftung; });
+  const labelsVonHand = Object.keys(P.layout.plottBeschriftung || {}).length > 0;
+
   const raumDown = (e, name) => {
     if (e.button !== 0 || !mutate) return;
     e.stopPropagation();
@@ -296,6 +333,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
         <button style={knopf} onClick={() => zoom(1.25)} title="Vergrößern"><ZoomIn size={14} /></button>
         <button style={knopf} onClick={einpassen} title="Ganzes Blatt zeigen"><Maximize2 size={14} /> Einpassen</button>
         {mutate && <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; })} title="Von Hand gesetzte Reihenfolge der Standorte verwerfen. Der Plan ordnet sie wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Standorte automatisch</button>}
+        {mutate && <button style={knopf} disabled={!labelsVonHand} onClick={() => mutate((d) => { delete d.layout.plottBeschriftung; })} title="Von Hand verschobene Kabelbeschriftungen wieder automatisch setzen"><RotateCcw size={14} /> Beschriftungen automatisch</button>}
         <select style={{ ...S.selectSm, width: "auto" }} value={format} title="Blattformat des Plans (gilt auch für den Export)"
           onChange={(e) => { const v = e.target.value; mutate?.((d) => { if (v === "A3-quer") delete d.layout.plottFormat; else d.layout.plottFormat = v; }); }} disabled={!mutate}>
           {Object.entries(BLATT_FORMATE).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
@@ -311,13 +349,13 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
       </div>
       <div ref={wrap} style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative", background: "#d9dde1", cursor: drag.current ? "grabbing" : "grab" }}
         onMouseDown={(e) => { if (e.button !== 0 && e.button !== 1) return; drag.current = { sx: e.clientX, sy: e.clientY, v: view, bewegt: false }; }}
-        onMouseMove={(e) => { if (raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
-        onMouseUp={() => { if (raumEnde()) return; setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { raumEnde(); drag.current = null; }}>
+        onMouseMove={(e) => { if (labelBewegen(e) || raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
+        onMouseUp={() => { if (labelEnde() || raumEnde()) return; setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { labelEnde(); raumEnde(); drag.current = null; }}>
         {!P.geraete.length && <div style={{ ...S.empty, padding: 30, color: MUTED }}>Noch keine Geräte im Projekt.</div>}
         {P.geraete.length > 0 && <div style={{ position: "absolute", left: 0, top: 0, transform: `translate(${view.x}px,${view.y}px) scale(${view.k})`, transformOrigin: "0 0", boxShadow: "0 4px 24px rgba(0,0,0,.25)" }}>
-          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} onRaumDown={mutate ? raumDown : null} zieh={zieh} />
+          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} onRaumDown={mutate ? raumDown : null} zieh={zieh} onLabelDown={mutate ? labelDown : null} onLabelReset={labelReset} />
         </div>}
-        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Ziehen = verschieben · Standort ziehen = an andere Stelle setzen · Klick auf ein Gerät = bearbeiten</div>
+        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Ziehen = verschieben · Standort ziehen = an andere Stelle setzen · Kabeltext ziehen = auf dem Kabel verschieben · Klick auf ein Gerät = bearbeiten</div>
       </div>
     </div>
   );
