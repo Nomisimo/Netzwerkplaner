@@ -3,6 +3,8 @@ const { openUdp, closeUdp, Rate, explainError, zustand, aktivZuerst, kappen, alt
 
 // MA-Net-Verkehr kann pausieren: erst nach 30 s Stille „alt“
 const FRIST = 30000;
+// Die Ports sind nicht exklusiv MA: Ein Absender zählt erst ab ein paar Paketen als MA-Net (einzelne Streupakete fallen raus)
+const MIN_PAKETE = 5;
 
 // MA-Net3: UDP 30020, Multicast 236.4.1.0–.4 (MA-Doku). MA-Net2: UDP 29998/29999 (Anwenderangaben MA-Forum).
 const PROFILE = [
@@ -43,7 +45,7 @@ async function create(opts = {}, ctx) {
       return {
         iface, errors,
         sockets: socks.map((s) => ({ netz: s.netz, port: s.port, joined: s.joined, failed: s.failed })),
-        flows: aktivZuerst([...flows.values()].sort((a, b) => b.rate.bps - a.rate.bps).map((f) => ({
+        flows: aktivZuerst([...flows.values()].filter((f) => f.rate.total >= MIN_PAKETE).sort((a, b) => b.rate.bps - a.rate.bps).map((f) => ({
           ip: f.ip, port: f.port, netz: f.netz, pps: f.rate.rate, bps: f.rate.bps, total: f.rate.total, age: now - f.seen, since: now - f.first,
           sizes: [...f.sizes.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([s]) => s),
           zustand: zustand(f.seen, FRIST, now),

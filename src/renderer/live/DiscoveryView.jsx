@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { S, OK, INFO, MUTED, SUB, TYPEN, STRONG } from "../../shared/constants.js";
 import { sammleFunde, fundeMitPlan, fundZuGeraet } from "../../shared/discovery.js";
 import { useMonitor } from "./store.js";
-import { Table, td, Hint, Empty, Pill, mono, zeile } from "./common.jsx";
+import { Table, td, Hint, Empty, Pill, mono, zeile, MacHersteller } from "./common.jsx";
 import { Play, RefreshCw, Square } from "lucide-react";
 
 // Monitore, die beim Suchen starten. Nur Mithören plus mDNS-Abfragen und ArtPoll.
@@ -60,7 +60,7 @@ export default function DiscoveryView({ P, mutate, iface, onSelectDevice, notify
               <td style={td()}>{f.plan ? <Pill color={OK}>im Plan</Pill> : <Pill color={INFO}>neu</Pill>}{f.zustand === "alt" && <div style={{ fontSize: 10, color: MUTED }} title="Keine Quelle sieht das Gerät gerade">nicht mehr gesehen</div>}</td>
               <td style={td(mono)}>{f.ip}</td>
               <td style={td()}>{f.plan ? <a href="#" style={{ color: STRONG }} onClick={(e) => { e.preventDefault(); onSelectDevice(f.plan.dev.id); }}>{f.plan.dev.name}</a> : f.name || <span style={{ color: MUTED }}>–</span>}{f.plan && f.name && f.name !== f.plan.dev.name && <div style={{ fontSize: 11, color: MUTED }}>im Netz: {f.name}</div>}</td>
-              <td style={td(mono)}>{f.mac}</td>
+              <td style={td(mono)}>{f.mac}<MacHersteller mac={f.mac} hersteller={f.plan?.dev?.hersteller} /></td>
               <td style={td({ fontSize: 12 })}>{f.protokolle.join(", ")}</td>
               <td style={td({ fontSize: 12, color: SUB })}>{f.typ ? TYPEN[f.typ]?.label : ""}</td>
               <td style={td({ fontSize: 11, color: MUTED })}>{f.quellen.join(", ")}</td>

@@ -5,9 +5,11 @@
    per „Modell zuweisen“ oder „Leeres Gerät anlegen“ genauer bestimmen. */
 import { createDevice, newPort, ipPorts } from "./catalog.js";
 import { findPlanned } from "./live.js";
+import { macHersteller } from "./mac.js";
 
 // Dienste und TCP-Ports, die auf ein Protokoll oder einen Gerätetyp hinweisen
-const PORT_HINWEIS = { 4440: ["Dante"], 5959: ["NDI"], 30021: ["MA-Net3"], 49280: ["Yamaha RCP"], 161: ["SNMP"] };
+// 5959 ist der NDI Discovery Server, keine NDI-Quelle; SNMP (UDP) prüft der Scan nicht mehr per TCP
+const PORT_HINWEIS = { 4440: ["Dante"], 5959: ["NDI Discovery Server"], 30021: ["MA-Net3"], 49280: ["Yamaha RCP"] };
 const CITP_TYP = { LightingConsole: "lichtpult", MediaServer: "medienserver", Visualizer: "pc" };
 const hostname = (s) => String(s || "").replace(/\.local\.?$/i, "").split(".")[0];
 const ndiHost = (label) => String(label || "").split(" (")[0];
@@ -107,6 +109,7 @@ export const fundZuGeraet = (f, vlans) => {
   dev.protokolle = f.protokolle;
   dev.generisch = true;
   if (f.typ) dev.typVorschlag = f.typ;
-  dev.notizen = `Per Discovery gefunden (${f.quellen.join(", ")}) am ${new Date().toLocaleDateString("de-DE")}.`;
+  const h = f.mac ? macHersteller(f.mac) : null;
+  dev.notizen = `Per Discovery gefunden (${f.quellen.join(", ")}) am ${new Date().toLocaleDateString("de-DE")}.${h?.art === "hersteller" ? ` MAC-Hersteller: ${h.name}.` : ""}`;
   return dev;
 };

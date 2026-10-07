@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { S, ACCENT, OK, WARN, ERR, MUTED, SUB, INFO, STRONG } from "../../shared/constants.js";
 import { useMonitor } from "./store.js";
-import { MonBar, Table, td, Hint, Empty, PlanName, Age, Levels, LevelModeSwitch, Card, Pill, mono, zeile } from "./common.jsx";
+import { MonBar, Table, td, Hint, Empty, PlanName, Age, Levels, LevelModeSwitch, Card, Pill, mono, zeile, MacHersteller } from "./common.jsx";
 import { useSichtbar } from "./store.js";
 import { Toggle } from "../ui.jsx";
 import { ChevronUp, ChevronDown } from "lucide-react";
@@ -139,7 +139,7 @@ export function ArtnetView({ P, iface, onSelectDevice }) {
                     <td style={td()}><span style={mono}>{n.ip}</span>{n.bindIndex > 1 && <span style={{ color: MUTED, fontSize: 11 }}> #{n.bindIndex}</span>}<div style={{ fontSize: 11 }}><PlanName P={P} ip={n.ip} mac={n.mac} onSelectDevice={onSelectDevice} /></div></td>
                     <td style={td()}><b>{n.shortName}</b><div style={{ fontSize: 11, color: SUB }}>{n.longName}</div></td>
                     <td style={td({ fontSize: 11 })}>{n.ports.map((p, i) => <span key={i} style={{ ...S.chip, marginRight: 3, color: p.dir === "out" ? OK : INFO }}>{p.dir === "out" ? "Out" : "In"} {p.label}</span>)}</td>
-                    <td style={td(mono)}>{n.mac}</td>
+                    <td style={td(mono)}>{n.mac}<MacHersteller mac={n.mac} /></td>
                     <td style={td({ fontSize: 11, color: SUB, maxWidth: 260 })}>{n.report}</td>
                     <td style={td()}><Age ms={n.age} z={n.zustand} /></td>
                   </tr>

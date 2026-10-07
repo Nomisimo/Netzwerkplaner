@@ -4,7 +4,7 @@ import { compareScan, scanTargets } from "../../shared/live.js";
 import { inSubnet } from "../../shared/net.js";
 import { fundZuGeraet } from "../../shared/discovery.js";
 import { useMonitor } from "./store.js";
-import { Table, td, Hint, Empty, Pill, mono } from "./common.jsx";
+import { Table, td, Hint, Empty, Pill, mono, MacHersteller } from "./common.jsx";
 import { Square, Play, X as XIcon, OctagonX } from "lucide-react";
 
 const STATUS = {
@@ -24,7 +24,7 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
     return t;
   }, [P, interfaces]);
   const [cidr, setCidr] = useState(() => snap?.cidr || "");
-  const [ports, setPorts] = useState("80, 443, 8080, 22, 23, 4440, 5959, 30021, 49280, 161");
+  const [ports, setPorts] = useState("80, 443, 8080, 22, 23, 4440, 5959, 30021, 49280");
   const [filter, setFilter] = useState("");
   useEffect(() => {
     if (cidr) return;
@@ -96,7 +96,7 @@ export default function ScanView({ P, mutate, iface, interfaces, onSelectDevice,
                 <td style={td(mono)}>{h?.ip || r.ip}{r.status === "verschoben" && <span style={{ color: MUTED }}> (Plan: {r.ip})</span>}</td>
                 <td style={td()}>{r.dev ? <a href="#" style={{ color: STRONG }} onClick={(e) => { e.preventDefault(); onSelectDevice(r.dev.id); }}>{r.dev.name}</a> : <span style={{ color: MUTED }}>–</span>}</td>
                 <td style={td({ fontSize: 12 })}>{h?.name || (h?.self ? "dieser Rechner" : "")}</td>
-                <td style={td(mono)}>{h?.mac || ""}{r.status === "mac" && <div style={{ color: WARN, fontSize: 11 }}>Plan: {r.iface.mac}</div>}</td>
+                <td style={td(mono)}>{h?.mac || ""}<MacHersteller mac={h?.mac} hersteller={r.dev?.hersteller} />{r.status === "mac" && <div style={{ color: WARN, fontSize: 11 }}>Plan: {r.iface.mac}</div>}</td>
                 <td style={td({ fontSize: 12 })}>{!h ? "" : h.ping ? `${h.ms} ms` : h.arpOnly ? <span style={{ color: MUTED }}>nur ARP</span> : <span style={{ color: MUTED }}>blockt</span>}</td>
                 <td style={td({ fontSize: 11 })}>{(h?.open || []).map((p) => <span key={p} title={snap.portNames[p] || ""} style={{ ...S.chip, marginRight: 3 }}>{p}</span>)}</td>
                 <td style={td()}>{r.status === "unbekannt" && !h.self && <button style={S.smallBtn} onClick={() => uebernehmen(h)}>+ In den Plan</button>}</td>

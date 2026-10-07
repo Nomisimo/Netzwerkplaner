@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, WARN, INPUT, MID, STRONG } from "../../shared/constants.js";
 import { findPlanned, fmtAge } from "../../shared/live.js";
+import { macHerstellerText, herstellerPasst } from "../../shared/mac.js";
 import { Dot, Toggle, th, td } from "../ui.jsx";
 import { Square, Play, OctagonX, TriangleAlert, X as XIcon, Clock, Eraser } from "lucide-react";
 import { useAlteAusblenden } from "./store.js";
@@ -27,6 +28,14 @@ export function MonBar({ mon, label = "Mitlesen", onStart, children, stopLabel =
       {(mon.snapshot?.errors || []).map((e, i) => <div key={i} style={{ color: WARN, fontSize: 12, marginTop: 6, display: "flex", alignItems: "flex-start", gap: 5 }}><TriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {e}</div>)}
     </div>
   );
+}
+
+// Hersteller zur MAC (IEEE-Liste) als kleine Zeile unter der Adresse; rot, wenn er nicht zum Plan passt
+export function MacHersteller({ mac, hersteller }) {
+  const text = mac ? macHerstellerText(mac) : "";
+  if (!text) return null;
+  const passt = herstellerPasst(hersteller, mac);
+  return <div style={{ fontSize: 10, fontFamily: "inherit", color: passt === false ? ERR : MUTED }} title={passt === false ? `Im Plan steht „${hersteller}“` : "Hersteller laut IEEE-Liste (erste Bytes der MAC)"}>{text}</div>;
 }
 
 export const Empty = ({ children }) => <div style={S.empty}>{children}</div>;
