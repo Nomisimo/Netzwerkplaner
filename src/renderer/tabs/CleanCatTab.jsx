@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, PANEL } from "../../shared/constants.js";
-import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText } from "../../shared/cleancat.js";
+import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat, PLOTT_GROESSEN, plottGroesse, kabelLabelAn, anteilAufPfad } from "../../shared/cleancat.js";
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
 import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText, RotateCcw } from "lucide-react";
 
-/* Plott: Signalfluss-Plan als A3-Blatt (quer) wie eine Visio-Zeichnung.
+/* Plott: Signalfluss-Plan als Blatt (A3/A4, quer oder hoch) wie eine Visio-Zeichnung.
    Räume = Standorte, Geräte als gleich große Blöcke, Leitungen rechtwinklig,
    unten Legende und Plankopf aus den Projektdaten. Mausrad zoomt, Ziehen
    verschiebt, Klick auf ein Gerät öffnet es im Geräte-Editor. */
@@ -50,7 +50,7 @@ function Plankopf({ B, P, stand, logo }) {
       <Zelle x={x + w / 2} y={y + r1} w={w / 2} h={r2} label="Ersteller" wert={m.ersteller} />
       <Zelle x={x} y={y + r1 + r2} w={w * 0.5} h={r3} label="Planinhalt" wert="Plott · Netzwerk-Signalfluss" />
       <Zelle x={x + w * 0.5} y={y + r1 + r2} w={w * 0.25} h={r3} label="Planversion" wert={m.version ? `v${m.version}` : ""} />
-      <Zelle x={x + w * 0.75} y={y + r1 + r2} w={w * 0.25} h={r3} label="Format" wert="A3 quer" />
+      <Zelle x={x + w * 0.75} y={y + r1 + r2} w={w * 0.25} h={r3} label="Format" wert={B.label} />
       <Zelle x={x} y={y + r1 + r2 + r3} w={w * 0.5} h={r4} label="Projektdatum" wert={datumDe(m.datum)} />
       <Zelle x={x + w * 0.5} y={y + r1 + r2 + r3} w={w * 0.5} h={r4} label="Exportiert am" wert={stand} id="cc-exportdatum" />
     </g>
@@ -90,7 +90,7 @@ function Legende({ B, L }) {
   );
 }
 
-function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh }) {
+function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLabelDown, onLabelReset }) {
   const mid = (c) => "cc-" + c.replace("#", "");
   const farben = [...new Set(L.linien.map((l) => l.col))];
   // Nach dem Zeichnen genau messen: was trotz Schätzung zu breit ist, wird gestaucht
@@ -104,7 +104,7 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh }) {
   });
   return (
     <svg ref={svgRef} data-cleancat="1" xmlns="http://www.w3.org/2000/svg" width={B.w} height={B.h} viewBox={`0 0 ${B.w} ${B.h}`}
-      style={{ display: "block", fontFamily: "'Segoe UI',system-ui,sans-serif" }}>
+      style={{ display: "block", fontFamily: "'Segoe UI',system-ui,sans-serif", userSelect: "none" }}>
       <defs>{farben.map((c) => (
         <marker key={c} id={mid(c)} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L10 5 L0 9 z" fill={c} /></marker>
       ))}</defs>
@@ -135,25 +135,32 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh }) {
           <g key={l.id + i}>
             <polyline points={l.pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={l.col} strokeWidth="1.5" strokeDasharray={l.dash || undefined}
               markerStart={`url(#${mid(l.col)})`} markerEnd={`url(#${mid(l.col)})`} strokeLinejoin="round" />
-            {l.labels.map((t, k) => t.rot
-              ? <text key={k} transform={`translate(${t.x},${t.y}) rotate(-90)`} fontSize="7.5" fill="#333">{t.t}</text>
-              : <text key={k} x={t.x} y={t.y} fontSize="8" fill="#333" textAnchor={t.anchor || "start"} paintOrder="stroke" stroke="#ffffff" strokeWidth="2.5">{t.t}</text>)}
+            {l.labels.map((t, k) => {
+              // Kabelbeschriftung: auf der Leitung verschiebbar, Doppelklick = wieder automatisch
+              const zug = t.kabel && onLabelDown ? { onMouseDown: (e) => onLabelDown(e, l.id), onDoubleClick: (e) => { e.stopPropagation(); onLabelReset?.(l.id); }, style: { cursor: "grab" } } : {};
+              const titel = t.kabel && onLabelDown ? <title>{`${l.kabelVoll || t.t}\nZiehen = auf dem Kabel verschieben · Doppelklick = automatisch`}</title> : null;
+              return t.rot
+                ? <text key={k} transform={`translate(${t.x},${t.y}) rotate(-90)`} fontSize={t.kabel ? 8 : 7.5} fill="#333" textAnchor={t.anchor || "start"} {...(t.kabel ? { paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 } : {})} {...zug}>{titel}{t.t}</text>
+                : <text key={k} x={t.x} y={t.y} fontSize="8" fill="#333" textAnchor={t.anchor || "start"} paintOrder="stroke" stroke="#ffffff" strokeWidth="2.5" {...zug}>{titel}{t.t}</text>;
+            })}
           </g>
         ))}
         {L.boxen.map((b) => {
-          const frei = b.w - 20, zeilen = [b.tName, b.tSub, b.tIp].filter(Boolean).length;
-          const kopfH = b.basisH || b.h;
+          // Kasten in eigenen Maßen zeichnen und mit b.s auf die Plott-Größe bringen
+          const s = b.s || 1, bw = b.w / s, bh = b.h / s;
+          const frei = bw - 20, zeilen = [b.tName, b.tSub, b.tIp].filter(Boolean).length;
+          const kopfH = (b.basisH || b.h) / s;
           const yName = zeilen === 3 ? 17 : zeilen === 2 ? 20 : kopfH / 2 + 4;
           return (
-            <g key={b.id} transform={`translate(${b.x},${b.y})`} style={{ cursor: onBox ? "pointer" : "default" }} onClick={onBox ? () => onBox(b.id) : undefined}>
-              <rect width={b.w} height={b.h} fill={b.fill} stroke="#3b3f45" strokeWidth={1} />
-              <T x={b.w / 2} y={yName} max={frei} fit={b.tName} anchor="middle" weight={600} />
-              {b.tSub && <T x={b.w / 2} y={zeilen === 3 ? 30 : 34} max={frei} fit={b.tSub} anchor="middle" fill="#333" />}
-              {b.tIp && <T x={b.w / 2} y={b.tSub ? 43 : 34} max={frei} fit={b.tIp} anchor="middle" fill="#333" mono />}
+            <g key={b.id} transform={`translate(${b.x},${b.y})${s !== 1 ? ` scale(${s})` : ""}`} style={{ cursor: onBox ? "pointer" : "default" }} onClick={onBox ? () => onBox(b.id) : undefined}>
+              <rect width={bw} height={bh} fill={b.fill} stroke="#3b3f45" strokeWidth={1} />
+              <T x={bw / 2} y={yName} max={frei} fit={b.tName} anchor="middle" weight={600} />
+              {b.tSub && <T x={bw / 2} y={zeilen === 3 ? 30 : 34} max={frei} fit={b.tSub} anchor="middle" fill="#333" />}
+              {b.tIp && <T x={bw / 2} y={b.tSub ? 43 : 34} max={frei} fit={b.tIp} anchor="middle" fill="#333" mono />}
               {b.notiz && (
                 <>
-                  <line x1={6} y1={kopfH - 2} x2={b.w - 6} y2={kopfH - 2} stroke="#3b3f45" strokeOpacity="0.3" />
-                  {b.notiz.map((z, i) => <T key={i} x={b.w / 2} y={kopfH + 10 + i * 10.5} max={frei} fit={passeText(z, 8.5, frei, 8.5)} anchor="middle" fill="#444" />)}
+                  <line x1={6} y1={kopfH - 2} x2={bw - 6} y2={kopfH - 2} stroke="#3b3f45" strokeOpacity="0.3" />
+                  {b.notiz.map((z, i) => <T key={i} x={bw / 2} y={kopfH + 10 + i * 10.5} max={frei} fit={passeText(z, 8.5, frei, 8.5)} anchor="middle" fill="#444" />)}
                   <title>{b.notizVoll}</title>
                 </>
               )}
@@ -204,10 +211,14 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   const [farbe, setFarbe] = useState(() => localStorage.getItem("np_cc_farbe") || "dante");
   const [zeigeIp, setZeigeIp] = useState(() => localStorage.getItem("np_cc_ip") !== "0");
   // Automatische Anordnung mit kurzen Kabelwegen: nur neu rechnen, wenn sich Geräte, Kabel oder Stacks ändern
-  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.bereiche, P.standortInfo, zeigeIp]); // eslint-disable-line react-hooks/exhaustive-deps
-  const L = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung }), [P, X, farbe, zeigeIp, ordnung]);
+  const format = plottFormat(P), groesse = plottGroesse(P);
+  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp, format, groesse }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.bereiche, P.standortInfo, zeigeIp, format, groesse]); // eslint-disable-line react-hooks/exhaustive-deps
+  const L0 = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung, format, groesse }), [P, X, farbe, zeigeIp, ordnung, format, groesse]);
+  const [labZieh, setLabZieh] = useState(null); // Kabelbeschriftung ziehen: { id, f, bewegt }
+  const L = useMemo(() => (!labZieh ? L0 : { ...L0, linien: L0.linien.map((l) => l.id !== labZieh.id ? l
+    : { ...l, labels: [kabelLabelAn(l.pts, labZieh.f, l.kabelText || l.kabelVoll), ...l.labels.filter((t) => !t.kabel)] }) }), [L0, labZieh]);
   const [zieh, setZieh] = useState(null); // Standort ziehen: { name, sx, sy, dx, dy, bewegt, ziel }
-  const B = useMemo(() => ccBlatt(L), [L]);
+  const B = useMemo(() => ccBlatt(L0, format), [L0, format]);
   const [view, setView] = useState({ x: 20, y: 20, k: 0.6 });
   const wrap = useRef(null), eigenRef = useRef(null), drag = useRef(null);
   const svgRef = fremdRef || eigenRef;
@@ -220,7 +231,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     const k = Math.min(1.5, Math.max(0.1, Math.min((el.clientWidth - 40) / B.w, (el.clientHeight - 40) / B.h)));
     setView({ k, x: (el.clientWidth - B.w * k) / 2, y: (el.clientHeight - B.h * k) / 2 });
   }, [B.w, B.h]);
-  useEffect(() => { einpassen(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { einpassen(); }, [format]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const el = wrap.current; if (!el) return;
@@ -250,11 +261,40 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
       const name = `${fileBase(P)} – Plott`;
       if (art === "svg") await api.saveFile(svgText(), `${name}.svg`, [{ name: "SVG", extensions: ["svg"] }]);
       else if (art === "png") await api.saveFile(await svgToPngBase64(svgText(), B.w, B.h), `${name}.png`, [{ name: "PNG", extensions: ["png"] }], "base64");
-      else await api.exportPdf(`<!doctype html><html><head><meta charset="utf-8"><title>${name}</title><style>@page{size:A3 landscape;margin:0}html,body{margin:0;padding:0}svg{display:block;width:420mm;height:297mm}</style></head><body>${svgText()}</body></html>`, name, { pageSize: "A3" });
+      else await api.exportPdf(`<!doctype html><html><head><meta charset="utf-8"><title>${name}</title><style>@page{size:${B.seite} ${B.hoch ? "portrait" : "landscape"};margin:0}html,body{margin:0;padding:0}svg{display:block;width:${B.w / B.mm}mm;height:${B.h / B.mm}mm}</style></head><body>${svgText()}</body></html>`, name, { pageSize: B.seite, hoch: B.hoch });
     } catch (e) { console.error(e); notify?.("Export fehlgeschlagen: " + e.message, "err"); }
   };
 
   // Ganze Standorte ziehen: setzt den Standort an eine andere Stelle der Reihenfolge, der Plan ordnet neu
+  // Kabelbeschriftung ziehen: Mausposition auf den nächsten Punkt der Leitung abbilden
+  const imPlan = (e) => {
+    const svg = svgRef.current; if (!svg) return null;
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return { x: (p.x - B.x) / B.k, y: (p.y - B.y) / B.k };
+  };
+  const labelDown = (e, id) => {
+    if (e.button !== 0 || !mutate) return;
+    e.stopPropagation(); e.preventDefault(); // kein Markieren von Text beim Ziehen
+    const l = L0.linien.find((x) => x.id === id), t = l?.labels.find((x) => x.kabel);
+    if (t) setLabZieh({ id, f: t.f ?? 0.5, sx: e.clientX, sy: e.clientY, bewegt: false });
+  };
+  const labelBewegen = (e) => {
+    if (!labZieh) return false;
+    const l = L0.linien.find((x) => x.id === labZieh.id), p = imPlan(e);
+    if (l && p) setLabZieh({ ...labZieh, f: anteilAufPfad(l.pts, p.x, p.y), bewegt: labZieh.bewegt || Math.abs(e.clientX - labZieh.sx) + Math.abs(e.clientY - labZieh.sy) > 3 });
+    return true;
+  };
+  const labelEnde = () => {
+    if (!labZieh) return false;
+    const { id, f, bewegt } = labZieh;
+    setLabZieh(null);
+    if (bewegt) mutate((d) => { d.layout.plottBeschriftung = { ...(d.layout.plottBeschriftung || {}), [id]: Math.round(f * 10000) / 10000 }; });
+    return true;
+  };
+  const labelReset = (id) => mutate?.((d) => { if (!d.layout.plottBeschriftung) return; delete d.layout.plottBeschriftung[id]; if (!Object.keys(d.layout.plottBeschriftung).length) delete d.layout.plottBeschriftung; });
+  const labelsVonHand = Object.keys(P.layout.plottBeschriftung || {}).length > 0;
+
   const raumDown = (e, name) => {
     if (e.button !== 0 || !mutate) return;
     e.stopPropagation();
@@ -293,20 +333,29 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
         <button style={knopf} onClick={() => zoom(1.25)} title="Vergrößern"><ZoomIn size={14} /></button>
         <button style={knopf} onClick={einpassen} title="Ganzes Blatt zeigen"><Maximize2 size={14} /> Einpassen</button>
         {mutate && <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; })} title="Von Hand gesetzte Reihenfolge der Standorte verwerfen. Der Plan ordnet sie wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Standorte automatisch</button>}
+        {mutate && <button style={knopf} disabled={!labelsVonHand} onClick={() => mutate((d) => { delete d.layout.plottBeschriftung; })} title="Von Hand verschobene Kabelbeschriftungen wieder automatisch setzen"><RotateCcw size={14} /> Beschriftungen automatisch</button>}
+        <select style={{ ...S.selectSm, width: "auto" }} value={format} title="Blattformat des Plans (gilt auch für den Export)"
+          onChange={(e) => { const v = e.target.value; mutate?.((d) => { if (v === "A3-quer") delete d.layout.plottFormat; else d.layout.plottFormat = v; }); }} disabled={!mutate}>
+          {Object.entries(BLATT_FORMATE).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
+        </select>
+        <select style={{ ...S.selectSm, width: "auto" }} value={groesse} title="Größe der Geräte-Kästen. Kleiner lässt mehr Platz zwischen den Einträgen, größer füllt das Blatt. Gilt auch für den Export."
+          onChange={(e) => { const v = +e.target.value; mutate?.((d) => { if (v === 1) delete d.layout.plottGroesse; else d.layout.plottGroesse = v; }); }} disabled={!mutate}>
+          {PLOTT_GROESSEN.map((g) => <option key={g} value={g}>Kästen {Math.round(g * 100)} %</option>)}
+        </select>
         <span style={{ flex: 1 }} />
-        <button style={knopf} onClick={() => exportieren("pdf")} title="Als PDF im Format A3 quer speichern"><FileText size={14} /> PDF A3</button>
+        <button style={knopf} onClick={() => exportieren("pdf")} title={`Als PDF im Format ${B.label} speichern`}><FileText size={14} /> PDF {B.seite}</button>
         <button style={knopf} onClick={() => exportieren("svg")} title="Als SVG speichern (z. B. für Visio, Illustrator)"><FileCode size={14} /> SVG</button>
         <button style={knopf} onClick={() => exportieren("png")} title="Als PNG speichern"><FileImage size={14} /> PNG</button>
       </div>
       <div ref={wrap} style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative", background: "#d9dde1", cursor: drag.current ? "grabbing" : "grab" }}
         onMouseDown={(e) => { if (e.button !== 0 && e.button !== 1) return; drag.current = { sx: e.clientX, sy: e.clientY, v: view, bewegt: false }; }}
-        onMouseMove={(e) => { if (raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
-        onMouseUp={() => { if (raumEnde()) return; setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { raumEnde(); drag.current = null; }}>
+        onMouseMove={(e) => { if (labelBewegen(e) || raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
+        onMouseUp={() => { if (labelEnde() || raumEnde()) return; setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { labelEnde(); raumEnde(); drag.current = null; }}>
         {!P.geraete.length && <div style={{ ...S.empty, padding: 30, color: MUTED }}>Noch keine Geräte im Projekt.</div>}
         {P.geraete.length > 0 && <div style={{ position: "absolute", left: 0, top: 0, transform: `translate(${view.x}px,${view.y}px) scale(${view.k})`, transformOrigin: "0 0", boxShadow: "0 4px 24px rgba(0,0,0,.25)" }}>
-          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} onRaumDown={mutate ? raumDown : null} zieh={zieh} />
+          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} onRaumDown={mutate ? raumDown : null} zieh={zieh} onLabelDown={mutate ? labelDown : null} onLabelReset={labelReset} />
         </div>}
-        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · A3 quer · Mausrad = Zoom · Ziehen = verschieben · Standort ziehen = an andere Stelle setzen · Klick auf ein Gerät = bearbeiten</div>
+        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Ziehen = verschieben · Standort ziehen = an andere Stelle setzen · Kabeltext ziehen = auf dem Kabel verschieben · Klick auf ein Gerät = bearbeiten</div>
       </div>
     </div>
   );

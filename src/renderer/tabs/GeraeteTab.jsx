@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
 import { mainIp, webUrl, suggestIp } from "../../shared/model.js";
 import { ipSort } from "../../shared/net.js";
@@ -18,6 +18,7 @@ const leseAnsicht = () => { try { return localStorage.getItem(ANSICHT_KEY) === "
 export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand, onExport, notify }) {
   const [ansicht, setAnsichtState] = useState(leseAnsicht);
   const setAnsicht = (a) => { setAnsichtState(a); try { localStorage.setItem(ANSICHT_KEY, a); } catch {} };
+  useEffect(() => { const h = (e) => setAnsichtState(e.detail === "patch" ? "patch" : "liste"); window.addEventListener("np-geraete-ansicht", h); return () => window.removeEventListener("np-geraete-ansicht", h); }, []);
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [vlan, setVlan] = useState(null);

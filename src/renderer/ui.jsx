@@ -3,6 +3,7 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, TYPEN, KATE
 import { KATALOG_GERAETE, ipPorts } from "../shared/catalog.js";
 import { IconView, ICON_GRUPPEN, ICON_LABEL } from "./icons.jsx";
 import { vlanBaum, vlanPfad } from "../shared/qinq.js";
+import { istFokus, einstellungen } from "./einstellungen.js";
 import { X as XIcon, OctagonX, TriangleAlert, Info, ChevronDown } from "lucide-react";
 
 export function Section({ title, subtitle, right, children, style }) {
@@ -108,7 +109,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
   const items = useMemo(() => {
     const gen = Object.entries(TYPEN).map(([k, t]) => ({ kind: "typ", key: k, title: t.label, sub: "Generischer Typ", icon: t.icon, kat: t.kat }));
     const own = vorlagen.map((v) => ({ kind: "vorlage", key: v.id, title: v.name, sub: `Eigene Vorlage · ${v.geraet.hersteller || ""} ${v.geraet.modell || ""}`, icon: v.geraet.icon, kat: v.geraet.kategorie }));
-    const kg = KATALOG_GERAETE.filter((g) => !nurFokus || g.fokus).map((g) => ({ kind: "katalog", key: g.id, title: `${g.hersteller} ${g.modell}`, sub: g.geraetetyp + (g.raw["Web-UI"] !== "Nein" ? " · Web-UI" : ""), icon: g.icon, kat: g.kategorie, search: `${g.raw.Protokolle} ${g.raw.Funktion}` }));
+    const kg = KATALOG_GERAETE.filter((g) => !nurFokus || istFokus(g)).map((g) => ({ kind: "katalog", key: g.id, title: `${g.hersteller} ${g.modell}`, sub: g.geraetetyp + (g.raw["Web-UI"] !== "Nein" ? " · Web-UI" : ""), icon: g.icon, kat: g.kategorie, search: `${g.raw.Protokolle} ${g.raw.Funktion}` }));
     const best = bestand.map((b) => ({ kind: "bestand", key: b.id, title: b.name, sub: ["Bestand", [b.geraet.hersteller, b.geraet.modell].filter(Boolean).join(" "), ipPorts(b.geraet).filter((i) => i.ip).map((i) => i.ip).join(", ")].filter(Boolean).join(" · "), icon: b.geraet.icon, kat: b.geraet.kategorie, search: `${b.geraet.netzname || ""} ${(b.geraet.felder || []).map((f) => f.wert).join(" ")}` }));
     return [...best, ...own, ...kg, ...gen].filter((i) => (!kat || i.kat === kat) && (!ql || `${i.title} ${i.sub} ${i.search || ""}`.toLowerCase().includes(ql)));
   }, [ql, kat, vorlagen, bestand, nurFokus]);
@@ -121,7 +122,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
           <option value="">Alle Bereiche</option>
           {Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>
-        <Toggle checked={nurFokus} onChange={setNurFokus} label="nur Fokus" title="Nur Modelle der Fokus-Hersteller (MA, Luminex, Cisco, Yamaha, Schnick-Schnack-Systems, Dante) anzeigen" />
+        <Toggle checked={nurFokus} onChange={setNurFokus} label="nur Fokus" title={`Nur Modelle der Fokus-Hersteller anzeigen${Array.isArray(einstellungen().fokusHersteller) ? ` (${einstellungen().fokusHersteller.join(", ")})` : ""}. Welche das sind, stellst du in den Einstellungen ein.`} />
       </div>
       <div style={{ maxHeight: "58vh", overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 8 }}>
         {items.length === 0 && <div style={{ ...S.empty, padding: 16 }}>Nichts gefunden.</div>}
@@ -197,5 +198,42 @@ export function EingabeHost() {
       <div style={{ fontSize: 13, color: TEXT2, marginBottom: 8 }}>{f.frage}</div>
       <input autoFocus style={S.input} value={wert} onChange={(e) => setWert(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && wert.trim()) fertig(wert.trim()); }} />
     </Modal>
+  );
+}
+
+/* Eingabefeld mit Vorschlagsliste (z. B. Standort). Anders als <datalist>:
+   Öffnen ohne Tippen zeigt alle Einträge, erst Tippen filtert nach dem Getippten.
+   Die Liste liegt „fixed“ über allem, damit sie in scrollenden Tabellen nicht abgeschnitten wird. */
+export function AuswahlFeld({ value, onChange, optionen, style, placeholder }) {
+  const ref = useRef(null);
+  const [offen, setOffen] = useState(null); // { x, y, w, filter }
+  const zeige = (filter) => { const r = ref.current?.getBoundingClientRect(); if (r) setOffen({ x: r.left, y: r.bottom + 2, w: Math.max(r.width, 140), filter }); };
+  const liste = useMemo(() => {
+    if (!offen) return [];
+    const q = (offen.filter || "").trim().toLowerCase();
+    return optionen.filter((o) => !q || o.toLowerCase().includes(q));
+  }, [offen, optionen]);
+  useEffect(() => {
+    if (!offen) return;
+    const zu = () => setOffen(null);
+    window.addEventListener("scroll", zu, true); window.addEventListener("resize", zu);
+    return () => { window.removeEventListener("scroll", zu, true); window.removeEventListener("resize", zu); };
+  }, [offen]);
+  return (
+    <>
+      <input ref={ref} style={style} value={value} placeholder={placeholder}
+        onFocus={() => zeige("")} onClick={() => !offen && zeige("")} onBlur={() => setOffen(null)}
+        onKeyDown={(e) => { if (e.key === "Escape" || e.key === "Enter") setOffen(null); }}
+        onChange={(e) => { onChange(e.target.value); zeige(e.target.value); }} />
+      {offen && liste.length > 0 && (
+        <div style={{ position: "fixed", left: offen.x, top: offen.y, minWidth: offen.w, maxHeight: 220, overflowY: "auto", zIndex: 2000, background: INPUT, border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 6px 18px #0004", padding: 2 }}>
+          {liste.map((o) => (
+            <div key={o} onMouseDown={(e) => { e.preventDefault(); onChange(o); setOffen(null); }}
+              style={{ padding: "4px 8px", fontSize: 12, cursor: "pointer", borderRadius: 4, color: TEXT, background: o === value ? ACCENT + "22" : undefined }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = ACCENT + "33"; }} onMouseLeave={(e) => { e.currentTarget.style.background = o === value ? ACCENT + "22" : ""; }}>{o}</div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

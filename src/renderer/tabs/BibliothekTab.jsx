@@ -5,6 +5,7 @@ import { Section, KatChip, Toggle } from "../ui.jsx";
 import { IconView, ICON_NAMES } from "../icons.jsx";
 import { api } from "../api.js";
 import BestandView from "./BestandView.jsx";
+import { useEinstellungen, istFokus } from "../einstellungen.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
 import { newFeld, feldUmbenennen, feldEntfernen } from "../../shared/felder.js";
 import { Link, Check, X as XIcon, ChevronUp, ChevronDown } from "lucide-react";
@@ -63,9 +64,10 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
   const ql = q.toLowerCase();
 
   const protos = useMemo(() => PROTOKOLLE.filter((p) => (!kat || p.kategorie === kat) && (!ql || `${p.name} ${p.raw.Ports} ${p.raw["Hersteller / Gremium"]}`.toLowerCase().includes(ql))), [ql, kat]);
-  const geraete = useMemo(() => KATALOG_GERAETE.filter((g) => (!nurFokus || g.fokus) && (!herst || g.hersteller === herst) && (!kat || g.kategorie === kat) && (!ql || `${g.hersteller} ${g.modell} ${g.geraetetyp} ${g.raw.Protokolle}`.toLowerCase().includes(ql))), [ql, herst, kat]);
+  const einst = useEinstellungen();
+  const geraete = useMemo(() => KATALOG_GERAETE.filter((g) => (!nurFokus || istFokus(g, einst)) && (!herst || g.hersteller === herst) && (!kat || g.kategorie === kat) && (!ql || `${g.hersteller} ${g.modell} ${g.geraetetyp} ${g.raw.Protokolle}`.toLowerCase().includes(ql))), [ql, herst, kat, nurFokus, einst]);
   const cur = PROTOKOLLE.find((p) => p.id === protoId) || protos[0];
-  const hersteller = [...new Set(KATALOG_GERAETE.filter((g) => !nurFokus || g.fokus).map((g) => g.hersteller))].sort((a, b) => a.localeCompare(b, "de"));
+  const hersteller = [...new Set(KATALOG_GERAETE.filter((g) => !nurFokus || istFokus(g, einst)).map((g) => g.hersteller))].sort((a, b) => a.localeCompare(b, "de"));
 
   const uploadIcon = (e) => {
     const f = e.target.files[0];
@@ -111,7 +113,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       )}
 
       {sub === "katalog" && (
-        <Section title="Herstellergeräte" subtitle={`Stand ${KATALOG.stand} · ${geraete.length} Modelle. Fokus-Hersteller (${(KATALOG.fokus || []).join(", ")}) sind gegen Herstellerdoku recherchiert; der Datenstand steht je Modell in den Details.`}>
+        <Section title="Herstellergeräte" subtitle={`Stand ${KATALOG.stand} · ${geraete.length} Modelle. Recherchierte Fokus-Hersteller (${(KATALOG.fokus || []).join(", ")}) sind gegen Herstellerdoku geprüft; welche Hersteller der Filter „nur Fokus“ zeigt, stellst du in den Einstellungen ein; der Datenstand steht je Modell in den Details.`}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="Hersteller, Modell, Typ, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
             <select style={{ ...S.selectSm, width: "auto" }} value={herst} onChange={(e) => setHerst(e.target.value)}><option value="">Alle Hersteller</option>{hersteller.map((h) => <option key={h}>{h}</option>)}</select>

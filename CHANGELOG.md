@@ -3,6 +3,26 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.18] – unveröffentlicht
+
+- VLAN-Setup: der Haken heißt jetzt „EEE (802.3az) an“. Gesetzt = EEE an, raus = EEE aus (vorher andersherum)
+- Einstellungen: „Port-Lasche an Geräten“ Standard (nur der Port, über den das Gerät hängt) oder Erweitert (alle belegten Ports)
+- Einstellungen: „Fokus im Katalog“ – Hersteller anhaken, die der Filter „nur Fokus“ zeigt. Der Filter im Katalog reagiert jetzt auch sofort beim Umschalten
+- Einstellungen: „Topologie: Standard-Anzeige“ (Ansicht, Linien, Farbe, Titel, Einrasten, Auto-Anordnen, Kabel bündeln, Port & VLAN) für neue Projekte, mit „Auf offenes Projekt anwenden“
+- Anschlüsse: Geräte-Ports sind immer gleich groß, drei pro Zeile
+- Mindmap: Kabelbezeichnungen stehen immer am Kabel, auch ohne „Port & VLAN“
+- Äste: Mindmap und Anschlüsse klappen gleich ein. Jedes Gerät mit Geräten dahinter hat den Einklapp-Knopf (auch Endgeräte in „Anschlüsse“), die Zahl zeigt alle versteckten Geräte, der „Äste“-Knopf und das Kontextmenü folgen derselben Regel; nur der Hauptswitch bleibt offen
+- Mac: eigene Menüleiste oben am Bildschirmrand (Ablage, Bearbeiten, Darstellung, Topologie, Hilfe) mit Tastenkürzeln im System, z. B. ⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘E, ⌘1–⌘7 für die Tabs, ⌥⌘1–3 für die Topologie-Ansichten. Hilfen wie KeyClu zeigen sie an. Die Knöpfe in der App bleiben
+- Plott: Blattformat wählbar (A3 oder A4, quer oder hoch). Der Export nimmt das im Export-Dialog gewählte Format, statt immer A3 quer. Neu: „Kästen 60–150 %“ macht die Geräte-Kästen kleiner oder größer, die Abstände bleiben, so ist mehr Platz zum Anordnen (gilt auch für den Export)
+- Patchliste: „Gesteckt auf“ steht auf Höhe des Ports, über den das Gerät am Switch hängt; dieser Port ist markiert. Alle IP-Felder stehen untereinander, egal wie der Port heißt
+- Standort-Auswahl (Patchliste und Geräte-Editor): Öffnen zeigt alle Standorte, Tippen filtert danach
+- VLAN zuweisen: die VLANs stehen als farbige Kacheln mit ID und Namen im Switch-Editor. Kachel anklicken, dann in der Topologie auf die Ports klicken; die aktive Kachel noch mal anklicken beendet
+- Anschlüsse-Ansicht: Endgeräte zeigen ihre Ports als große Felder mit Namen und gut erkennbarem Stecker-Symbol (ab 4 Ports zweireihig), Farbe nach VLAN. Ein Klick auf einen Geräte-Port startet ein Kabel von genau diesem Port, und ein Kabel lässt sich auch auf einen Geräte-Port stecken, nicht nur auf Switch-Ports
+- Hat ein Gerät mehrere Anschlüsse, zeigt die Lasche oben auch den eigenen Port, z. B. „Port 3 → LAN 1“. Sind mehrere eigene Ports belegt, stehen alle in der Lasche, z. B. „Port 3 → LAN 1 · Port 4 → LAN 2“
+- Kabelbeschriftungen (Kabelbezeichnung) sitzen auch in Mindmap und „Anschlüsse“ direkt auf dem Kabel, gut lesbar mit Rand in Hintergrundfarbe, und folgen dem Kabel, wenn Geräte wandern. Ziehen schiebt sie am Kabel entlang, Doppelklick setzt sie wieder in die Mitte
+- Plott: Kabelbeschriftungen sitzen immer auf ihrem Kabel, auf einem freien Stück ohne Kästen und möglichst ohne fremde Leitungen (zur Not senkrecht gedreht). Von Hand lassen sie sich mit der Maus entlang des Kabels verschieben; Doppelklick oder „Beschriftungen automatisch“ setzt sie zurück
+- Anschlussnamen höchstens 10 Zeichen. Lange Namen aus dem Katalog werden gekürzt (z. B. „Steuerung 1“ → „Strg 1“)
+
 ## [0.7.0-beta.17] – 2026-10-07
 
 - Neuer Tab „Setup“ (bisher „Projekt“): VLANs und Prüfung stehen jetzt dort, die Tabs „VLANs“ und „Prüfen“ entfallen. „Katalog“ und „Wissen“ haben die Plätze getauscht

@@ -58,7 +58,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0 }) {
           <Field label="Zweck / Protokolle" style={{ marginTop: 10 }}><input style={S.inputSm} value={v.zweck} onChange={(e) => upd((x) => (x.zweck = e.target.value))} /></Field>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12 }}>
             <Toggle checked={v.igmp} onChange={(b) => upd((x) => (x.igmp = b))} label="IGMP-Snooping" />
-            <Toggle checked={v.eeeAus} onChange={(b) => upd((x) => (x.eeeAus = b))} label="EEE (802.3az) aus" />
+            <Toggle checked={!v.eeeAus} onChange={(b) => upd((x) => (x.eeeAus = !b))} label="EEE (802.3az) an" title="Energy Efficient Ethernet. Haken gesetzt = EEE an, Haken raus = EEE aus (für Dante, AES67 und MA-Net3 empfohlen)" />
             <Toggle checked={v.qos} onChange={(b) => upd((x) => (x.qos = b))} label="QoS / DSCP aktiv" />
             <Toggle checked={v.dhcp?.aktiv} onChange={(b) => upd((x) => (x.dhcp = { ...x.dhcp, aktiv: b }))} label="DHCP" />
           </div>

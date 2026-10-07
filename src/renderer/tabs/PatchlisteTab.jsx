@@ -3,9 +3,9 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, katColor, STRONG } from "../../
 import { patchZeilen, steckZiele, steckeUm, setzeFeld } from "../../shared/patchliste.js";
 import { feldSpalten, feldWert } from "../../shared/felder.js";
 import { ip2int } from "../../shared/net.js";
-import { StatusDot } from "../ui.jsx";
+import { StatusDot, AuswahlFeld } from "../ui.jsx";
 import { IconView } from "../icons.jsx";
-import { GripVertical, ChevronUp, ChevronDown, RotateCcw, Printer, FileSpreadsheet, TriangleAlert } from "lucide-react";
+import { GripVertical, ChevronUp, ChevronDown, RotateCcw, Printer, FileSpreadsheet, TriangleAlert, Cable } from "lucide-react";
 
 /* Patch-Ansicht der Geräteliste: alle Geräte in Aufbau-Reihenfolge, per Ziehen oder Pfeilen umsortierbar.
    Kompakt und direkt bearbeitbar: IP-Adressen, Switch und Port („gesteckt auf“), Standort,
@@ -13,6 +13,8 @@ import { GripVertical, ChevronUp, ChevronDown, RotateCcw, Printer, FileSpreadshe
    und ein Kästchen zum Abhaken. Weitere Kabel (z. B. Dante Secondary) stehen hier nicht. */
 const ein = { ...S.inputSm, padding: "2px 5px", fontSize: 11.5, height: 22, minHeight: 0 };
 const mono = { fontFamily: "ui-monospace,monospace" };
+const ZEILE = 24; // Höhe einer IP-Zeile, „Gesteckt auf“ richtet sich danach aus
+const PORT_W = 74; // feste Breite der Portnamen, damit alle IP-Felder untereinander stehen
 
 export default function PatchTabelle({ P, X, mutate, onSelectDevice, notify, sichtbar = null, status = {}, issues = [], aktivId = null }) {
   const alle = useMemo(() => patchZeilen(P, X), [P, X]);
@@ -51,7 +53,6 @@ export default function PatchTabelle({ P, X, mutate, onSelectDevice, notify, sic
   return (
     <>
       {manuell && <div style={{ ...S.hint, marginTop: 0, marginBottom: 6 }}>Reihenfolge von Hand angepasst. Neue Geräte erscheinen an ihrer automatischen Stelle.</div>}
-      <datalist id="np-patch-standorte">{standorte.map((s) => <option key={s} value={s} />)}</datalist>
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
           <thead><tr>
@@ -63,7 +64,13 @@ export default function PatchTabelle({ P, X, mutate, onSelectDevice, notify, sic
               const dev = X.devById.get(z.id);
               const ziele = steckZiele(P, z.id, z);
               const ziel = ziele.find((s) => s.id === z.aufSwitch);
-              const td = (extra) => ({ ...S.td, padding: "3px 6px", ...extra });
+              const td = (extra) => ({ ...S.td, padding: "3px 6px", verticalAlign: "top", ...extra });
+              // Kompakt: nur belegte Ports zeigen (und den gesteckten), leere erst auf Klick; mindestens ein Feld bleibt sichtbar
+              const belegt = z.ipPorts.filter((p) => p.ip || p.dhcp || p.id === z.eigenerPort);
+              const sicht = alleIps.has(z.id) ? z.ipPorts : belegt.length ? belegt : z.ipPorts.slice(0, 1);
+              const rest = z.ipPorts.length - sicht.length;
+              // „Gesteckt auf“ steht auf Höhe des Ports, über den das Gerät am Switch hängt
+              const steckZeile = Math.max(0, sicht.findIndex((p) => p.id === z.eigenerPort));
               return (
                 <tr key={z.id} draggable onDragStart={(e) => { if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return; setZieht(z.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", z.id); }}
                   onDragOver={(e) => { if (zieht) { e.preventDefault(); setUeber(z.id); } }} onDragLeave={() => setUeber((u) => (u === z.id ? null : u))}
@@ -88,16 +95,13 @@ export default function PatchTabelle({ P, X, mutate, onSelectDevice, notify, sic
                   </td>
                   <td style={td({ whiteSpace: "nowrap" })}>
                     {z.ipPorts.length === 0 && <span style={{ color: MUTED }}>–</span>}
-                    {(() => {
-                      // Kompakt: nur belegte Ports zeigen, leere erst auf Klick (mindestens ein Feld bleibt sichtbar)
-                      const belegt = z.ipPorts.filter((p) => p.ip || p.dhcp);
-                      const sicht = alleIps.has(z.id) ? z.ipPorts : belegt.length ? belegt : z.ipPorts.slice(0, 1);
-                      const rest = z.ipPorts.length - sicht.length;
-                      return <>{sicht.map((p) => {
+                    {sicht.map((p) => {
                       const falsch = p.ip && ip2int(p.ip) === null;
+                      const gesteckt = z.aufSwitch && p.id === z.eigenerPort && z.ipPorts.length > 1;
                       return (
-                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1 }}>
-                          {z.ipPorts.length > 1 && <span style={{ fontSize: 10, color: MUTED, minWidth: 34 }}>{p.name}</span>}
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, height: ZEILE }}>
+                          <span style={{ fontSize: 10, color: gesteckt ? STRONG : MUTED, fontWeight: gesteckt ? 700 : 400, width: PORT_W, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", display: "inline-flex", alignItems: "center", gap: 3 }}
+                            title={gesteckt ? `${p.name}: steckt am Switch` : p.name}>{gesteckt && <Cable size={10} style={{ flexShrink: 0 }} />}{z.ipPorts.length > 1 ? p.name : ""}</span>
                           {p.dhcp ? <span style={{ fontSize: 11, color: SUB }}>DHCP</span>
                             : <input style={{ ...ein, ...mono, width: 112, ...(falsch ? { borderColor: ERR } : {}) }} value={p.ip} placeholder="IP" title={falsch ? "Keine gültige IPv4-Adresse" : undefined}
                                 onChange={(e) => { const v = e.target.value.trim(); geraet((g) => { const port = g.ports.find((x) => x.id === p.id); if (port) port.ip = v; }, z.id); }} />}
@@ -105,11 +109,10 @@ export default function PatchTabelle({ P, X, mutate, onSelectDevice, notify, sic
                         </div>
                       );
                     })}
-                    {rest > 0 && <button style={{ background: "none", border: "none", padding: 0, fontSize: 10, color: MUTED, cursor: "pointer" }} title="Weitere Ports ohne IP zeigen"
-                      onClick={() => setAlleIps((s) => new Set(s).add(z.id))}>+ {rest} weitere</button>}</>;
-                    })()}
+                    {rest > 0 && <button style={{ background: "none", border: "none", padding: 0, marginLeft: PORT_W + 4, fontSize: 10, color: MUTED, cursor: "pointer" }} title="Weitere Ports ohne IP zeigen"
+                      onClick={() => setAlleIps((s) => new Set(s).add(z.id))}>+ {rest} weitere</button>}
                   </td>
-                  <td style={td({ whiteSpace: "nowrap" })}>
+                  <td style={td({ whiteSpace: "nowrap", paddingTop: 3 + steckZeile * ZEILE })}>
                     <select style={{ ...ein, width: 120 }} value={z.aufSwitch || ""} title="Switch"
                       onChange={(e) => { const sw = ziele.find((s) => s.id === e.target.value); umstecken(z, e.target.value, sw?.ports[0]?.id); }}>
                       <option value="">– nicht gesteckt –</option>
@@ -122,8 +125,8 @@ export default function PatchTabelle({ P, X, mutate, onSelectDevice, notify, sic
                     {z.aufSwitch && (dev?.ports || []).length > 1 && <div style={{ fontSize: 10, color: MUTED }}>am Gerät: {dev.ports.find((p) => p.id === z.eigenerPort)?.name || "?"}</div>}
                   </td>
                   <td style={td()}>
-                    <input style={{ ...ein, width: 96 }} list="np-patch-standorte" value={dev?.bereich || ""} placeholder="Standort"
-                      onChange={(e) => { const v = e.target.value; geraet((g) => { g.bereich = v; }, z.id); }} />
+                    <AuswahlFeld style={{ ...ein, width: 96 }} optionen={standorte} value={dev?.bereich || ""} placeholder="Standort"
+                      onChange={(v) => geraet((g) => { g.bereich = v; }, z.id)} />
                   </td>
                   {felder.length > 0 && <td style={td()}>
                     <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(felder.length, 3)}, 92px)`, gap: 2 }}>

@@ -1,7 +1,7 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useRef, useMemo, useEffect, useCallback, useLayoutEffect } from "react";
 import { removeDevices } from "../../shared/invarianten.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor, BG, BTN, CANVAS, CARD, INPUT, LINE2, LINK, MID, TEXT, TEXT2, TRUNK, STRONG , HELL } from "../../shared/constants.js";
-import { buildTree, subtreeIds, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts, unmanagedVlans } from "../../shared/model.js";
+import { buildTree, subtreeIds, astKlappbar, aesteUmschalten, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts, unmanagedVlans } from "../../shared/model.js";
 import { layoutMindmap, NODE_W, NODE_H } from "../../shared/layout.js";
 import { SvgIcon, IconView } from "../icons.jsx";
 import { Toggle, VlanSelect, Dot, Modal } from "../ui.jsx";
@@ -13,6 +13,7 @@ import { endInfo, portLabel, vlanLang, geraeteTitel } from "../portinfo.js";
 import { feldZeilen } from "../../shared/felder.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
+import { useEinstellungen, ansichtVon, topoWert } from "../einstellungen.js";
 import { STAPEL_PAD, anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren, bahnenVergeben, endenVerteilen } from "../../shared/anordnung.js";
 import { uid, ipPorts } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
@@ -34,15 +35,18 @@ const HW = NODE_W / 2, HH = NODE_H / 2;
 export default function TopologieTab(props) {
   const { P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onDeleteConn, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand, svgRef, autoStatus, setAutoStatus, onShowIssue, goTab } = props;
   const [tool, setTool] = useState("move");
+  const einst = useEinstellungen(); // Standard-Anzeige und Port-Lasche aus den Einstellungen
+  // Werkzeug aus der nativen Menüleiste
+  useEffect(() => { const h = (e) => setTool(e.detail); window.addEventListener("np-werkzeug", h); return () => window.removeEventListener("np-werkzeug", h); }, []);
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const [drag, setDrag] = useState(null);   // { kind:'node'|'pan', id, sx, sy, dx, dy, moved }
   const [draw, setDraw] = useState(null);   // { from, x, y }
   const [hover, setHover] = useState(null);
-  const [colorBy, setColorBy] = useState("vlan");
+  const [colorBy, setColorBy] = useState(() => einst.topo.farbe || "vlan");
   const [katFilter, setKatFilter] = useState("");
   const [vlanFilter, setVlanFilter] = useState(null);
   const [q, setQ] = useState("");
-  const [showPorts, setShowPorts] = useState(true);
+  const [showPorts, setShowPorts] = useState(() => einst.topo.portVlan !== false);
   const [ctx, setCtx] = useState(null);
   const [bgOpen, setBgOpen] = useState(false);
   const stapelClip = useZwischenablage("stapel");
@@ -56,16 +60,16 @@ export default function TopologieTab(props) {
     return () => { window.removeEventListener("keydown", ab); window.removeEventListener("keyup", auf); };
   }, []);
   const [tausch, setTausch] = useState(null); // { from, to, voll: [devId] } wenn Anschlüsse fehlen
-  const titel = P.layout.titel || "name"; // Beschriftung der Knoten
+  const titel = topoWert(P, "titel") || "name"; // Beschriftung der Knoten
   const setTitel = (t) => mutate((d) => { d.layout.titel = t; });
-  const linien = P.layout.linien || "rund"; // Verbindungslinien: rund, eckig oder direkt (kürzester Weg)
-  const buendeln = linien === "eckig" && !!P.layout.kabelBuendel; // Kabel bündeln (nur eckig), sonst einzeln nebeneinander
+  const linien = topoWert(P, "linien") || "rund"; // Verbindungslinien: rund, eckig oder direkt (kürzester Weg)
+  const buendeln = linien === "eckig" && !!topoWert(P, "kabelBuendel"); // Kabel bündeln (nur eckig), sonst einzeln nebeneinander
   const [paletteOpen, setPaletteOpen] = useState(true);
   const wrapRef = useRef(null);
   const fitted = useRef(false);
 
   const T = useMemo(() => buildTree(P, X), [P, X]);
-  const front = P.layout.ansicht === "front";
+  const front = ansichtVon(P) === "front";
   const setAnsicht = (a) => { mutate((d) => { d.layout.ansicht = a; }); fitted.current = false; };
   const LM = useMemo(() => (front ? null : layoutMindmap(P, T)), [P, T, front]);
   const F = useMemo(() => (front ? layoutFrontplatten(P, T, X) : null), [P, T, X, front]);
@@ -73,9 +77,10 @@ export default function TopologieTab(props) {
   const pinKey = front ? "fpPins" : "pins";         // angepinnte Geräte (feste Position)
   const fixKey = front ? "fpFix" : "fix";           // alle Positionen bei „Auto-Anordnen aus“
   const knickKey = front ? "fpKnicke" : "knicke";   // verschobene Verbindungen (Versatz zur Mitte)
+  const textKey = front ? "fpKabelText" : "kabelText"; // Stelle der Kabelbeschriftung als Anteil der Kabellänge
   const bgKey = front ? "fpHintergrund" : "hintergrund";
-  const auto = P.layout.autoAnordnen !== false;
-  const rasten = P.layout.einrasten !== false; // Einrasten beim Ziehen (Raster und Nachbarn), Alt hält es kurz aus
+  const auto = topoWert(P, "autoAnordnen") !== false;
+  const rasten = topoWert(P, "einrasten") !== false; // Einrasten beim Ziehen (Raster und Nachbarn), Alt hält es kurz aus
   const pins = P.layout[pinKey] || {};
   const stapel = P.layout.stapel || [];
   // Mehrfachauswahl: { type: "multi", ids } (Shift/⌘/Strg-Klick, Rahmen auf der Fläche, ⌘/Strg+A)
@@ -257,6 +262,11 @@ export default function TopologieTab(props) {
     if (!drag) return;
     const ddx = e.clientX - drag.sx, ddy = e.clientY - drag.sy;
     const moved = drag.moved || Math.abs(ddx) + Math.abs(ddy) > 4;
+    if (drag.kind === "kabeltext") {
+      const pfad = wrapRef.current?.querySelector(`path[data-kabeltext="${CSS.escape(drag.id)}"]`);
+      if (pfad) setDrag({ ...drag, f: naechsterAnteil(pfad, toWorld(e)), moved });
+      return;
+    }
     if (drag.kind === "rahmen") { const w = toWorld(e); setDrag({ ...drag, x1: w.x, y1: w.y, moved }); return; }
     if (drag.kind === "pan") setView((v) => ({ ...v, x: drag.vx + ddx, y: drag.vy + ddy })), moved !== drag.moved && setDrag({ ...drag, moved });
     else {
@@ -315,6 +325,12 @@ export default function TopologieTab(props) {
       return;
     }
     if (!drag) return;
+    if (drag.kind === "kabeltext") {
+      const { id, f, moved } = drag;
+      setDrag(null);
+      if (moved) mutate((d) => { d.layout[textKey] = { ...(d.layout[textKey] || {}), [id]: Math.round(f * 10000) / 10000 }; });
+      return;
+    }
     if (drag.kind === "node") {
       if (drag.moved) {
         const dx = drag.dx, dy = drag.dy;
@@ -496,6 +512,19 @@ export default function TopologieTab(props) {
     return { d: eckPfad(x1, y1, x2, y2, "h", xo), x1, y1, x2, y2, mx: xo, my: (y1 + y2) / 2 };
   };
   // Linie direkt greifen: im Bewegen-Werkzeug verschiebt Ziehen an einer Verbindung ihre Knickstelle
+  // Kabelbeschriftung: sitzt auf dem Kabel, Ziehen schiebt sie am Kabel entlang
+  const textAnteil = (c) => (drag?.kind === "kabeltext" && drag.id === c.id ? drag.f : P.layout[textKey]?.[c.id] ?? 0.5);
+  const textGreifen = (e, c) => {
+    if (e.button) return;
+    e.stopPropagation(); e.preventDefault();
+    setDrag({ kind: "kabeltext", id: c.id, f: textAnteil(c), sx: e.clientX, sy: e.clientY, moved: false });
+  };
+  const textZurueck = (c) => mutate((d) => { const m = { ...(d.layout[textKey] || {}) }; delete m[c.id]; d.layout[textKey] = m; });
+  // Beschriftungen kommen in eine eigene Ebene über allen Kabeln, damit sie greifbar bleiben
+  const textEbene = [];
+  const kabelText = (c, d) => { if (c.label) textEbene.push(<KabelText key={c.id} id={c.id} d={d} f={textAnteil(c)} text={c.label} bg={front ? FP_BG : CANVAS} farbe={front ? "#e6eaff" : TEXT}
+    onDown={(e) => textGreifen(e, c)} onReset={(e) => { e.stopPropagation(); textZurueck(c); }} />); return null; };
+
   const linieGreifen = (e, c) => {
     e.stopPropagation();
     if (e.button || tool !== "move" || e.shiftKey || stapelKlammer.has(c.id)) return;
@@ -612,7 +641,7 @@ export default function TopologieTab(props) {
   }, []);
   const lbl = (t) => (kompakt ? null : t);
 
-  const aktAnsicht = P.layout.ansicht === "front" || P.layout.ansicht === "cleancat" ? P.layout.ansicht : "mindmap";
+  const aktAnsicht = ["front", "cleancat"].includes(ansichtVon(P)) ? ansichtVon(P) : "mindmap";
   const ANSICHT_TITEL = { mindmap: "Baum vom Hauptswitch aus", front: "Geräte mit ihren Anschlüssen, Kabel von Buchse zu Buchse", cleancat: "Aufgeräumter Signalfluss-Plan als A3-Blatt mit Legende und Plankopf" };
   const ansichtWahl = (
     <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
@@ -649,7 +678,7 @@ export default function TopologieTab(props) {
           <Toggle checked={auto} onChange={(an) => an ? mitWarnung("Auto-Anordnen ordnet alle Geräte neu an. Die von Hand gesetzten Positionen gehen dabei verloren, angepinnte Geräte bleiben stehen.", () => setAuto(true)) : setAuto(false)} label="Auto-Anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
           {trenner}
           <button style={{ ...knopf, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan"><ImageIcon {...ico} />{lbl("Hintergrund")}</button>
-          <button style={knopf} title="Alle Äste ein- oder ausklappen" onClick={() => mutate((d) => { const any = Object.values(d.layout.collapsed || {}).some(Boolean); d.layout.collapsed = any ? {} : Object.fromEntries([...T.children].filter(([id, ch]) => ch.length && !T.roots.includes(id)).map(([id]) => [id, true])); })}><ListTree {...ico} />{lbl("Äste")}</button>
+          <button style={knopf} title="Alle Äste ein- oder ausklappen" onClick={() => mutate((d) => { d.layout.collapsed = aesteUmschalten(T, d.layout.collapsed); })}><ListTree {...ico} />{lbl("Äste")}</button>
           <button style={knopf} disabled={!stapelClip} onClick={() => { if (!stapelClip) return; let neu = null; mutate((d) => { neu = stapelEinfuegen(d, stapelClip); }); if (neu?.stapelId) setSelection({ type: "stapel", id: neu.stapelId }); else if (neu?.ids[0]) setSelection({ type: "dev", id: neu.ids[0] }); }}
             title={stapelClip ? `Kopierten Stapel „${stapelClip.name || "Stapel"}“ (${stapelClip.geraete.length} Geräte) einfügen` : "Erst im Stapel-Fenster einen Stapel kopieren"}><ClipboardPaste {...ico} />{lbl("Stapel einfügen")}</button>
           <span style={{ flex: 1 }} />
@@ -759,7 +788,7 @@ export default function TopologieTab(props) {
                     <path d={dPath} stroke={st.color} strokeWidth={straight ? Math.max(2, st.width - 1) : 1.8} fill="none" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
                     {st.farben && <Streifen d={dPath} farben={st.farben} breite={straight ? Math.max(2, st.width - 1) : 1.8} />}
                     <circle cx={a1.x} cy={a1.y} r="2.2" fill={st.color} /><circle cx={b1.x} cy={b1.y} r="2.2" fill={st.color} />
-                    {c.label && <text x={(a1.x + b1.x) / 2 + 4} y={(a1.y + b1.y) / 2} fontSize="10" fill={TEXT2}>{c.label}</text>}
+                    {kabelText(c, dPath)}
                     {knickGriff(c, mx, my)}
                   </g>
                 );
@@ -788,11 +817,12 @@ export default function TopologieTab(props) {
                     {kl && <title>{`${da?.name} [${pName(c.a)}] ⇄ ${db?.name} [${pName(c.b)}] · im selben Stapel`}</title>}
                     {showPorts && !kl && <PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} />}
                     {sp?.anzahl > 1 && <g><rect x={g.mx - 11} y={g.my - 8} width="22" height="16" rx="8" fill={INPUT} stroke={st.color} /><text x={g.mx} y={g.my + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill={TEXT}>{sp.anzahl}×</text><title>{sp.anzahl} Kabel gebündelt</title></g>}
-                    {showPorts && c.label && <text x={(g.x1 + g.x2) / 2} y={(g.y1 + g.y2) / 2 - 6} fontSize="10" fill={TEXT2} textAnchor="middle">{c.label}</text>}
+                    {kabelText(c, g.d)}
                     {knickGriff(c, g.mx, g.my)}
                   </g>
                 );
               })}
+              {textEbene}
               {draw && posOf(draw.from) && (() => {
                 // Gummiband mit Pfeil: rastet am Gerät unter der Maus ein
                 const x1 = draw.x0 ?? posOf(draw.from).x, y1 = draw.y0 ?? posOf(draw.from).y;
@@ -822,17 +852,19 @@ export default function TopologieTab(props) {
                 const common = { d, p, P, sel: selIds.includes(id), hover: hover === id, hit: !!(ql && matches(d)), dim: filtering && !matches(d), status: status[id], worst, iss, titel, tool,
                   onDown: (e) => onDown(e, id), onContextMenu: (e) => { e.preventDefault(); e.stopPropagation(); setCtx({ id, x: e.clientX, y: e.clientY }); } };
                 if (p.kind === "switch") {
-                  const kids = T.children.get(id) || [];
                   const collapsed = !!P.layout.collapsed?.[id];
                   const url = webUrl(d);
                   return <FrontPlate key={id} {...common} X={X} slots={slotsOf(id)} url={url} onWeb={() => api.openExternal(url)}
                     onPortDown={(e, c, port, s) => portDown(e, id, c, port, s)} markPort={draw?.from === id ? draw.port : null}
-                    canCollapse={kids.length > 0 && !T.roots.includes(id)} collapsed={collapsed} hidden={L.hidden.get(id)}
+                    canCollapse={astKlappbar(T, id)} collapsed={collapsed} hidden={L.hidden.get(id)}
                     onToggle={() => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [id]: !collapsed }; })} />;
                 }
                 const z = laschenZustand(id, T, X);
                 const own = X.vlanById.get(ipPorts(d).find((i) => i.ip)?.vlan || ipPorts(d)[0]?.vlan);
-                return <FrontCard key={id} {...common} X={X} tab={laschenText(id, T, X)} farbe={z ? kartenFarbe(z) : own?.farbe || MUTED} />;
+                const zu = !!P.layout.collapsed?.[id];
+                return <FrontCard key={id} {...common} X={X} tab={laschenText(id, T, X, einst.lasche === "erweitert")} farbe={z ? kartenFarbe(z) : own?.farbe || MUTED}
+                  canCollapse={astKlappbar(T, id)} collapsed={zu} hidden={L.hidden.get(id)} onToggle={() => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [id]: !zu }; })}
+                  onPortDown={(e, c, port, s) => portDown(e, id, c, port, s)} markPort={draw?.from === id ? draw.port : null} />;
               })}
               {!front && [...L.pos.keys()].map((id) => {
                 const d = X.devById.get(id);
@@ -876,7 +908,7 @@ export default function TopologieTab(props) {
                         <title>Web-UI öffnen: {url}</title>
                       </g>
                     )}
-                    {kids.length > 0 && !isRoot && (
+                    {astKlappbar(T, id) && (
                       <g className="np-ui" transform={`translate(${side > 0 ? NODE_W + 2 : -18},${HH - 8})`} onMouseDown={(e) => e.stopPropagation()}
                         onClick={(e) => { e.stopPropagation(); mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [id]: !collapsed }; }); }} style={{ cursor: "pointer" }}>
                         <circle cx="8" cy="8" r="8" fill={collapsed ? ACCENT : BTN} stroke={collapsed ? ACCENT : LINE} />
@@ -941,7 +973,7 @@ export default function TopologieTab(props) {
           {bgOpen && <HintergrundPanel bg={bg} bounds={Lbase.bounds} onClose={() => setBgOpen(false)} onChange={(fn) => mutate((d) => { d.layout[bgKey] = fn(d.layout[bgKey] ? { ...d.layout[bgKey] } : null); })} />}
           {ctx && X.devById.get(ctx.id) && (() => {
             const d = X.devById.get(ctx.id);
-            const hasKids = (T.children.get(d.id) || []).length > 0 && !T.roots.includes(d.id);
+            const hasKids = astKlappbar(T, d.id);
             return <DeviceContextMenu P={P} X={X} dev={d} x={ctx.x} y={ctx.y} status={status[d.id]} issues={devIssues.get(d.id) || []} onClose={closeCtx}
               onEdit={() => setSelection({ type: "dev", id: d.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(d.id)}
               onSetRoot={d.isSwitch && P.layout.rootId !== d.id ? () => mutate((dd) => { dd.layout.rootId = d.id; }) : null}
@@ -1025,6 +1057,39 @@ const eckPfad = (x1, y1, x2, y2, dir, mid) => {
   if (!sx) return `M${x1},${y1} L${x2},${y2}`;
   const rr = Math.min(r, Math.abs(x2 - x1) / 2, Math.abs(my - y1), Math.abs(y2 - my));
   return `M${x1},${y1} L${x1},${my - sy1 * rr} Q${x1},${my} ${x1 + sx * rr},${my} L${x2 - sx * rr},${my} Q${x2},${my} ${x2},${my + sy2 * rr} L${x2},${y2}`;
+};
+
+/* Kabelbeschriftung: liegt mittig auf dem Kabel (mit Rand in Hintergrundfarbe, damit
+   sie lesbar bleibt), an der Stelle f (0…1) der Kabellänge. Die Lage folgt dem Kabel,
+   auch wenn Geräte verschoben werden. */
+function KabelText({ id, d, f, text, bg, farbe, onDown, onReset }) {
+  const ref = useRef(null);
+  const [pt, setPt] = useState(null);
+  useLayoutEffect(() => {
+    const p = ref.current; if (!p) return;
+    try { const q = p.getPointAtLength(p.getTotalLength() * Math.max(0, Math.min(1, f))); setPt({ x: q.x, y: q.y }); } catch { setPt(null); }
+  }, [d, f]);
+  return (
+    <g>
+      <path ref={ref} d={d} data-kabeltext={id} fill="none" stroke="none" pointerEvents="none" />
+      {pt && <text x={pt.x} y={pt.y + 3.5} fontSize="10" fontWeight="600" fill={farbe} textAnchor="middle" paintOrder="stroke" stroke={bg} strokeWidth="4" strokeLinejoin="round"
+        style={{ cursor: "grab" }} onMouseDown={onDown} onDoubleClick={onReset} onClick={(e) => e.stopPropagation()}>
+        <title>{`${text}\nZiehen = am Kabel verschieben · Doppelklick = wieder in die Mitte`}</title>{text}
+      </text>}
+    </g>
+  );
+}
+// Nächste Stelle eines Pfads zu einem Punkt, als Anteil der Länge (grob abtasten, dann verfeinern)
+const naechsterAnteil = (pfad, w) => {
+  const L = pfad.getTotalLength();
+  if (!L) return 0.5;
+  const ab = (s) => { const q = pfad.getPointAtLength(s); return (q.x - w.x) ** 2 + (q.y - w.y) ** 2; };
+  let best = 0, bd = Infinity;
+  const n = 80;
+  for (let i = 0; i <= n; i++) { const s = (L * i) / n, dd = ab(s); if (dd < bd) { bd = dd; best = s; } }
+  const step = L / n;
+  for (let i = -10; i <= 10; i++) { const s = Math.max(0, Math.min(L, best + (step * i) / 10)), dd = ab(s); if (dd < bd) { bd = dd; best = s; } }
+  return best / L;
 };
 
 /* Port-Plakette an einer Verbindung: sitzt am Geräte-Ende und zeigt, an welchem

@@ -1,4 +1,5 @@
-const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, dialog, Menu } = require('electron');
+const { baueMenue } = require('./menu.js');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -31,6 +32,8 @@ function createWindow() {
     },
   });
   mainWin.setMenuBarVisibility(false);
+  // macOS: eigene Menüleiste oben am Bildschirmrand (Windows behält die Leiste in der App)
+  if (process.platform === 'darwin') Menu.setApplicationMenu(baueMenue(mainWin, app));
   mainWin.loadFile(path.join(root, 'dist-app', 'index.html'));
 
   let appReady = false, minTimeUp = false, shown = false;

@@ -6,8 +6,10 @@
    verschieben (Offsets in layout.fpOffsets). */
 
 import { portSeiten, steckerTyp } from "./anschluesse.js";
+import { astKlappbar, astVersteckt } from "./model.js";
 
-export const CARD_W = 184, CARD_H = 48, TAB_H = 15;
+// Endgeräte-Karte: oben Name/IP, unten eine Leiste mit den Anschlüssen (Name bis 10 Zeichen)
+export const CARD_W = 204, CARD_H = 96, TAB_H = 15, CARD_PORT_Y = 46; // Anschlussleiste ab CARD_PORT_Y bis 5 px vor Unterkante
 const PW = 20, PH = 18, PG = 3, BLOCK_GAP = 10, LOGO_W = 44, RIGHT_W = 30, PAD_Y = 9;
 const MAX_COLS = 6, CARD_GAP_X = 16, CARD_GAP_Y = 26, CARDS_TOP = 44, LABEL_H = 18, LAYER_GAP = 90, CLUSTER_GAP = 60;
 
@@ -75,7 +77,8 @@ export const layoutFrontplatten = (P, T, X) => {
   const off = P.layout.fpOffsets || {};
   const pinned = P.layout.pinned || {};
   const isSw = (id) => !!X.devById.get(id)?.isSwitch;
-  const kids = (id) => T.children.get(id) || [];
+  const kids = (id) => (collapsed[id] && astKlappbar(T, id) ? [] : T.children.get(id) || []);
+  const versteckt = astVersteckt(T, collapsed);
 
   // Gruppen bilden: Kopf (Switch oder Endgerät-Wurzel) + alle Endgeräte darunter bis zum nächsten Switch
   const cluster = new Map(); // headId → { head, cards: [], childHeads: [] }
@@ -114,7 +117,6 @@ export const layoutFrontplatten = (P, T, X) => {
       }
     }
     for (const k of st) if (isSw(k)) c.childHeads.push(k);
-    if (collapsed[head]) { c.hiddenCount = c.cards.length + c.childHeads.length; c.cards = []; c.oben = []; c.unten = []; c.childHeads = []; }
     for (const k of c.childHeads) make(k);
   };
   T.roots.forEach(make);
@@ -150,7 +152,7 @@ export const layoutFrontplatten = (P, T, X) => {
     const c = cluster.get(head), g = geo.get(head);
     const o = off[head] || { dx: 0, dy: 0 };
     const px = cx + (o.dx || 0), py = top + g.oben.h + (o.dy || 0);
-    pos.set(head, { x: px, y: py + g.plate.h / 2, w: g.plate.w, h: g.plate.h, kind: X.devById.get(head)?.isSwitch ? "switch" : "card", head, hidden: c.hiddenCount || 0 });
+    pos.set(head, { x: px, y: py + g.plate.h / 2, w: g.plate.w, h: g.plate.h, kind: X.devById.get(head)?.isSwitch ? "switch" : "card", head, hidden: versteckt.get(head) || 0 });
     if (g.plate.slots.size) {
       const m = new Map();
       for (const [pid, s] of g.plate.slots) m.set(pid, { ...s, ax: px - g.plate.w / 2 + s.x, ay: py + s.y });
@@ -212,7 +214,7 @@ export const layoutFrontplatten = (P, T, X) => {
   }
   const bounds = pos.size ? { minX, minY, maxX, maxY } : { minX: -300, minY: -200, maxX: 300, maxY: 200 };
   const members = new Map([...cluster].map(([h, c]) => [h, [h, ...c.cards]]));
-  return { pos, slots: slotsAbs, bounds, members, hidden: new Map([...cluster].filter(([, c]) => c.hiddenCount).map(([h, c]) => [h, c.hiddenCount])) };
+  return { pos, slots: slotsAbs, bounds, members, hidden: versteckt };
 };
 
 // Ankerpunkt einer Verbindung: p = Geräteposition, s = absoluter Port-Slot (oder null), toward = Gegenstelle
