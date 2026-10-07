@@ -93,7 +93,7 @@ const KAPITEL = [
   { id: "cleancat", titel: "Plott", tab: ["topologie", "Topologie"], inhalt: () => <>
     <Liste items={[
       "Plott (früher „Clean Cat“) ist eine Ansicht im Topologie-Tab: oben links zwischen „Mindmap“, „Anschlüsse“ und „Plott“ umschalten.",
-      "Der Plan ist immer ein A3-Blatt quer mit Rahmen, wie eine aufgeräumte Visio-Zeichnung: jeder Standort ist ein gestrichelter Raum, jedes Gerät ein farbiger Block (Farbe nach Bereich, Switches gelb). Die Räume werden so in Reihen gelegt, dass das Blatt möglichst gut gefüllt ist.",
+      "Der Plan ist ein Blatt mit Rahmen (Standard A3 quer, umstellbar auf A3 hoch oder A4 quer/hoch), wie eine aufgeräumte Visio-Zeichnung: jeder Standort ist ein gestrichelter Raum, jedes Gerät ein farbiger Block (Farbe nach Bereich, Switches gelb). Die Räume werden so in Reihen gelegt, dass das Blatt möglichst gut gefüllt ist.",
       "Alle Endgeräte sind gleich groß, Switches richten sich nach ihrer Portzahl: gleiches Modell, gleiche Größe. Zu lange Namen werden kleiner geschrieben und notfalls mit „…“ gekürzt, der volle Name steht im Tooltip. Text läuft nie aus seinem Feld.",
       "Je Switch stehen seine Endgeräte in Reihen darüber, die Leitungen laufen rechtwinklig in eigenen Spuren. Dante Primary ist rot, Dante Secondary grün (erkannt am Portnamen Primary/Secondary), Glasfaser lila, Switch zu Switch dunkelgrau. Pfeile zeigen die Anschlüsse, am Switch steht die Portnummer.",
       "Die Anordnung hält die Kabelwege kurz und vermeidet Kreuzungen: die Spuren werden so vergeben, dass sich Leitungen möglichst nicht schneiden. Umwege mit unnötigen Ecken werden abgekürzt, wo kein Gerät und keine andere Leitung im Weg ist.",
@@ -101,7 +101,7 @@ const KAPITEL = [
       "Leitungen zwischen Geräten desselben Standorts bleiben in dessen Kasten: auch zwischen zwei Stacks laufen sie unten im Standort-Rahmen. Nur Verbindungen zwischen Standorten gehen nach draußen, in eine Trasse unter ihrer Reihe, zwischen zwei Reihen links am Blatt entlang. Sie tragen Kabelbezeichnung, Kabeltyp, Länge und Notiz.",
       "Unten links steht die Legende mit allen Leitungsfarben und Gerätefarben, die im Plan vorkommen. Unten rechts der Plankopf aus den Projektdaten (Veranstaltung, Ort, Ersteller, Planversion, Projektdatum), dazu das Exportdatum und dein Logo, wenn eins hinterlegt ist.",
       "„Farbe: VLAN“ färbt die Leitungen nach dem VLAN statt nach Dante. „IP-Adressen“ blendet die IPs in den Blöcken ein oder aus.",
-      "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt das ganze Blatt. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „PDF A3“, „SVG“ und „PNG“ speichern das Blatt, z. B. für Visio oder die Doku.",
+      "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt das ganze Blatt. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „PDF“, „SVG“ und „PNG“ speichern das Blatt im eingestellten Format, z. B. für Visio oder die Doku.",
       "Die Anordnung entsteht automatisch aus Standort und Verbindungen. Ein Gerät landet im Raum seines Standorts; ohne Standort im Raum „Ohne Standort“. Die Reihenfolge von Standorten, Switches und Geräten wird so gewählt, dass die Kabelwege möglichst kurz sind.",
       "Jedes Gerät zeigt unter Name, Modell und IP auch seine Notiz (zwei Zeilen, der Rest im Tooltip). Alle Blöcke bleiben dabei gleich groß. Eine Notiz an einer Verbindung steht an der Leitung.",
       "Der Standort-Kasten zeigt unter seinem Namen die Anmerkung, die du auf der Projekt-Seite unter „Standorte / Äste“ einträgst. Sie erscheint nur hier in Plott.",

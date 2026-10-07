@@ -7,6 +7,7 @@ import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
 import { DevicePicker, Modal, EingabeHost, frageText } from "./ui.jsx";
 import { topologySvg, svgToPngBase64, buildXlsxBase64, buildIpCsv, buildPdfHtml, buildPatchCsv, fileBase } from "./exports.js";
+import { formatName } from "../shared/cleancat.js";
 import ExportDialog from "./ExportDialog.jsx";
 import { ProtokollDetail } from "./tabs/BibliothekTab.jsx";
 import { PROTOKOLLE } from "../shared/catalog.js";
@@ -429,18 +430,19 @@ export default function App() {
     if (!svgRef.current) { setTab("topologie"); await new Promise((r) => setTimeout(r, 300)); }
     return topologySvg(svgRef.current, P);
   };
-  // Topologie in einer bestimmten Ansicht holen und danach alles zurückstellen (Tab, Ansicht, Undo-Liste)
-  const topoIn = async (ansicht) => {
-    const vorher = Pref.current.layout?.ansicht || "mindmap", tabVorher = tab;
-    const wechseln = ansicht && ansicht !== "aktuell" && ansicht !== vorher;
-    if (!wechseln) return needTopo();
+  // Topologie in der gewünschten Ansicht zeichnen; der Plott bekommt dabei das gewählte Blattformat
+  const topoIn = async (ansicht, format) => {
+    const vorher = Pref.current.layout?.ansicht || "mindmap", fVorher = Pref.current.layout?.plottFormat, tabVorher = tab;
+    const ziel = !ansicht || ansicht === "aktuell" ? vorher : ansicht;
+    const fNeu = ziel === "cleancat" && format && format !== (fVorher || "A3-quer");
+    if (ziel === vorher && !fNeu) return needTopo();
     const undoLen = hist.current.undo.length;
-    mutate((d) => { d.layout.ansicht = ansicht; });
+    mutate((d) => { d.layout.ansicht = ziel; if (fNeu) d.layout.plottFormat = format; });
     setTab("topologie");
     await new Promise((r) => setTimeout(r, 600));
     try { return topologySvg(svgRef.current, Pref.current); }
     finally {
-      mutate((d) => { d.layout.ansicht = vorher; });
+      mutate((d) => { d.layout.ansicht = vorher; if (fNeu) { if (fVorher) d.layout.plottFormat = fVorher; else delete d.layout.plottFormat; } });
       hist.current.undo.length = undoLen;
       setTab(tabVorher);
     }
@@ -457,7 +459,7 @@ export default function App() {
       if (o.format === "patch-csv") await datei(buildPatchCsv(Pv, X), `${base} – Patchliste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
       if (o.format === "pdf") {
         const teile = o.teile || undefined;
-        const t = !teile || teile.includes("topologie") ? await topoIn(o.ansicht) : null;
+        const t = !teile || teile.includes("topologie") ? await topoIn(o.ansicht, formatName(o.seite, o.hoch)) : null;
         await api.exportPdf(buildPdfHtml(Pv, X, issues, t, { teile, seite: o.seite, hoch: o.hoch }), `${base} – Netzwerkplan`, { pageSize: o.seite, hoch: o.hoch, planPfad: pp });
       }
       if (o.format === "xlsx") await datei(buildXlsxBase64(Pv, X, issues, o.blaetter), `${base} – Netzwerkplan.xlsx`, [{ name: "Excel", extensions: ["xlsx"] }], "base64");
@@ -465,12 +467,37 @@ export default function App() {
         if (o.csv === "ip") await datei(buildIpCsv(P, X), `${base} – IP-Liste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
         else await datei(buildPatchCsv(Pv, X), `${base} – Patchliste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
       }
-      if (o.format === "svg") { const t = await topoIn(o.ansicht); await datei(t.svg, `${base} – Topologie.svg`, [{ name: "SVG", extensions: ["svg"] }]); }
-      if (o.format === "png") { const t = await topoIn(o.ansicht); await datei(await svgToPngBase64(t.svg, t.w, t.h), `${base} – Topologie.png`, [{ name: "PNG", extensions: ["png"] }], "base64"); }
+      if (o.format === "svg") { const t = await topoIn(o.ansicht, formatName(o.seite, o.hoch)); await datei(t.svg, `${base} – Topologie.svg`, [{ name: "SVG", extensions: ["svg"] }]); }
+      if (o.format === "png") { const t = await topoIn(o.ansicht, formatName(o.seite, o.hoch)); await datei(await svgToPngBase64(t.svg, t.w, t.h), `${base} – Topologie.png`, [{ name: "PNG", extensions: ["png"] }], "base64"); }
     } catch (e) { console.error(e); notify("Export fehlgeschlagen: " + e.message, "err"); }
   };
 
   const nErr = issues.filter((i) => i.sev === "error").length, nWarn = issues.filter((i) => i.sev === "warn").length;
+  // Native Menüleiste (macOS): Aktionen aus dem Menü; immer die aktuelle Fassung der Funktionen nutzen
+  const menuAktion = useRef(null);
+  menuAktion.current = (a) => {
+    const [art, wert] = a.split(":");
+    const imFeld = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
+    if (art === "neu") newProject();
+    else if (art === "oeffnen") openProject();
+    else if (art === "zuletzt") setShowRecents(true);
+    else if (art === "speichern") save(false);
+    else if (art === "speichernUnter") save(true);
+    else if (art === "export") setShowExport(true);
+    else if (art === "sitzung") setShowSitzung(true);
+    else if (art === "einstellungen") setShowEinst(true);
+    else if (art === "neuigkeiten") setChangelog(true);
+    else if (art === "undo") { if (imFeld) document.execCommand("undo"); else undo(); }
+    else if (art === "redo") { if (imFeld) document.execCommand("redo"); else redo(); }
+    else if (art === "geraetNeu") addDevice(null, { picker: true });
+    else if (art === "pruefung") geheZu("pruefung");
+    else if (art === "tab") geheZu(wert);
+    else if (art === "geraeteAnsicht") { try { localStorage.setItem(ANSICHT_KEY, wert); } catch {} window.dispatchEvent(new CustomEvent("np-geraete-ansicht", { detail: wert })); setTab("geraete"); }
+    else if (art === "ansicht") { mutate((d) => { d.layout.ansicht = wert; }); setTab("topologie"); }
+    else if (art === "werkzeug") { setTab("topologie"); setTimeout(() => window.dispatchEvent(new CustomEvent("np-werkzeug", { detail: wert })), 50); }
+  };
+  useEffect(() => api.onMenu((a) => menuAktion.current?.(a)), []);
+
   const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }), onTypWaehlen: (id, key) => umbauen(id, { kind: "typ", key }), onShowIssue: (i) => showIssue(i), goTab: geheZu };
 
   return (
@@ -542,7 +569,7 @@ export default function App() {
       {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={library.bestand || []} customIcons={allIcons} title={picker.umbauFor ? `Modell für „${X.devById.get(picker.umbauFor)?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
         onClose={() => setPicker(null)} onPick={(item) => { if (picker.umbauFor) { umbauen(picker.umbauFor, item); setPicker(null); return; } const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
       <EingabeHost />
-      {showExport && <ExportDialog onClose={() => setShowExport(false)} onExport={doExport} planPfad={filePath} />}
+      {showExport && <ExportDialog onClose={() => setShowExport(false)} onExport={doExport} planPfad={filePath} aktuelleAnsicht={P.layout?.ansicht || "mindmap"} />}
       {protoModal && <Modal title="Protokoll" width={860} onClose={() => setProtoModal(null)}
         footer={<button style={S.secondaryBtn} onClick={() => { setProtoId(protoModal); setBibSub("protokolle"); setTab("bibliothek"); setProtoModal(null); }}>Im Katalog öffnen</button>}>
         <ProtokollDetail p={PROTOKOLLE.find((p) => p.id === protoModal)} P={Pv} onSelectDevice={(id) => { setProtoModal(null); selectDevice(id); }} />

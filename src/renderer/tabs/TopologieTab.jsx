@@ -34,6 +34,8 @@ const HW = NODE_W / 2, HH = NODE_H / 2;
 export default function TopologieTab(props) {
   const { P, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice, onDeleteDevice, onDeleteConn, onShowProto, onSaveVorlage, onSaveBestand, onUmbauen, onTypWaehlen, bestand, svgRef, autoStatus, setAutoStatus, onShowIssue, goTab } = props;
   const [tool, setTool] = useState("move");
+  // Werkzeug aus der nativen Menüleiste
+  useEffect(() => { const h = (e) => setTool(e.detail); window.addEventListener("np-werkzeug", h); return () => window.removeEventListener("np-werkzeug", h); }, []);
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const [drag, setDrag] = useState(null);   // { kind:'node'|'pan', id, sx, sy, dx, dy, moved }
   const [draw, setDraw] = useState(null);   // { from, x, y }

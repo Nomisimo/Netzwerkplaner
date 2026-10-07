@@ -57,8 +57,7 @@ export const umbrechen = (t, px, maxW, maxZeilen = 2) => {
 export const CC_BOX_W = 150;
 export const ccBoxBreite = (d) => (d.isSwitch ? Math.max(170, Math.min(340, physPorts(d).length * 8 + 40)) : CC_BOX_W);
 const INNEN = 10; // Textabstand links und rechts in der Box
-// Zeichenfläche des A3-Blatts (siehe ccBlatt), nach ihr richtet sich die Reihenaufteilung
-const CC_FLAECHE = { w: 1572, h: 928 };
+// Zeichenfläche des Blatts (siehe ccBlatt), nach ihr richtet sich die Reihenaufteilung
 const istGlas = (c) => /fiber|opticalcon/.test(c.kabel || "");
 
 // Text mittig über das längste waagrechte Stück einer Leitung (wenn er hinpasst)
@@ -166,7 +165,8 @@ const nachListe = (arr, liste, key = (x) => x.id) => {
 // Anmerkung zu einem Standort (Projektseite); erscheint nur in Plott
 export const ccAnmerkung = (P, name) => String(P.standortInfo?.[name]?.anmerkung || "").trim();
 const NOTIZ_PX = 8.5, NOTIZ_ZEILE = 10.5, ANM_PX = 10, ANM_ZEILE = 12.5;
-export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung = null } = {}) => {
+export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung = null, format = "A3-quer" } = {}) => {
+  const flaeche = ccMasse(format).flaeche;
   const genutzt = { standorte: [], gruppen: {}, oben: {} };
   // Alle Boxen gleich hoch: gibt es irgendwo eine Notiz, bekommen alle Platz für zwei Notizzeilen
   const BASIS_H = zeigeIp ? 52 : 40;
@@ -488,7 +488,7 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     const zeilenW = reihen.map((z) => z.reduce((a, b) => a + b.w, 0) + (z.length - 1) * RAUM_ABSTAND);
     const zeilenH = reihen.map((z, i) => Math.max(...z.map((b) => b.h)) + (spuren[i] ? 30 + spuren[i] * (SPUR + 4) + 10 : 0));
     const W = schachtW + Math.max(...zeilenW), H = zeilenH.reduce((a, b) => a + b, 0) + (reihen.length - 1) * RAUM_ABSTAND;
-    return { reihen, idx, spuren, schachtW, zeilenH, W, H, k: Math.min(CC_FLAECHE.w / W, CC_FLAECHE.h / H) };
+    return { reihen, idx, spuren, schachtW, zeilenH, W, H, k: Math.min(flaeche.w / W, flaeche.h / H) };
   };
   const gesamt = bloecke.reduce((a, b) => a + b.w, 0) + Math.max(0, bloecke.length - 1) * RAUM_ABSTAND;
   const breitester = Math.max(0, ...bloecke.map((b) => b.w));
@@ -611,22 +611,35 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
   };
 };
 
-/* ── A3-Blatt (quer, 420 × 297 mm, 4 px je mm) ──────────────────────────────
+/* ── Blatt (Standard A3 quer, 4 px je mm) ───────────────────────────────────
    Rahmen, unten links die Legende, unten rechts der Plankopf, darüber die
    Zeichnung, auf die freie Fläche eingepasst (nie größer als 1,6-fach). */
 export const A3 = { w: 1680, h: 1188, mm: 4 };
-export const ccBlatt = (L) => {
+export const BLATT_FORMATE = {
+  "A3-quer": { w: 1680, h: 1188, seite: "A3", hoch: false, label: "A3 quer" },
+  "A3-hoch": { w: 1188, h: 1680, seite: "A3", hoch: true, label: "A3 hoch" },
+  "A4-quer": { w: 1188, h: 840, seite: "A4", hoch: false, label: "A4 quer" },
+  "A4-hoch": { w: 840, h: 1188, seite: "A4", hoch: true, label: "A4 hoch" },
+};
+export const plottFormat = (P) => (BLATT_FORMATE[P?.layout?.plottFormat] ? P.layout.plottFormat : "A3-quer");
+export const formatName = (seite, hoch) => `${seite === "A4" ? "A4" : "A3"}-${hoch ? "hoch" : "quer"}`;
+const ccMasse = (format) => {
+  const b = BLATT_FORMATE[format] || BLATT_FORMATE["A3-quer"];
   const rand = 10 * A3.mm, fuss = 38 * A3.mm, luft = 14;
-  const kopfW = 175 * A3.mm;
-  const flaeche = { x: rand + luft, y: rand + luft, w: A3.w - 2 * (rand + luft), h: A3.h - 2 * rand - fuss - 2 * luft };
+  const kopfW = Math.min(175 * A3.mm, Math.round((b.w - 2 * rand) * 0.5));
+  const flaeche = { x: rand + luft, y: rand + luft, w: b.w - 2 * (rand + luft), h: b.h - 2 * rand - fuss - 2 * luft };
+  return { ...b, rand, fuss, kopfW, flaeche };
+};
+export const ccBlatt = (L, format = "A3-quer") => {
+  const { w, h, rand, fuss, kopfW, flaeche, label, seite, hoch } = ccMasse(format);
   const k = L.w > 0 && L.h > 0 ? Math.min(1.6, flaeche.w / L.w, flaeche.h / L.h) : 1;
   return {
-    ...A3, rand, k,
+    w, h, mm: A3.mm, rand, k, format, label, seite, hoch,
     x: flaeche.x + (flaeche.w - L.w * k) / 2, y: flaeche.y + (flaeche.h - L.h * k) / 2,
     flaeche,
-    fuss: { y: A3.h - rand - fuss, h: fuss },
-    kopf: { x: A3.w - rand - kopfW, y: A3.h - rand - fuss, w: kopfW, h: fuss },
-    legende: { x: rand, y: A3.h - rand - fuss, w: A3.w - 2 * rand - kopfW, h: fuss },
+    fuss: { y: h - rand - fuss, h: fuss },
+    kopf: { x: w - rand - kopfW, y: h - rand - fuss, w: kopfW, h: fuss },
+    legende: { x: rand, y: h - rand - fuss, w: w - 2 * rand - kopfW, h: fuss },
   };
 };
 

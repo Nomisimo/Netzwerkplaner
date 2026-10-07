@@ -199,3 +199,40 @@ export function EingabeHost() {
     </Modal>
   );
 }
+
+/* Eingabefeld mit Vorschlagsliste (z. B. Standort). Anders als <datalist>:
+   Öffnen ohne Tippen zeigt alle Einträge, erst Tippen filtert nach dem Getippten.
+   Die Liste liegt „fixed“ über allem, damit sie in scrollenden Tabellen nicht abgeschnitten wird. */
+export function AuswahlFeld({ value, onChange, optionen, style, placeholder }) {
+  const ref = useRef(null);
+  const [offen, setOffen] = useState(null); // { x, y, w, filter }
+  const zeige = (filter) => { const r = ref.current?.getBoundingClientRect(); if (r) setOffen({ x: r.left, y: r.bottom + 2, w: Math.max(r.width, 140), filter }); };
+  const liste = useMemo(() => {
+    if (!offen) return [];
+    const q = (offen.filter || "").trim().toLowerCase();
+    return optionen.filter((o) => !q || o.toLowerCase().includes(q));
+  }, [offen, optionen]);
+  useEffect(() => {
+    if (!offen) return;
+    const zu = () => setOffen(null);
+    window.addEventListener("scroll", zu, true); window.addEventListener("resize", zu);
+    return () => { window.removeEventListener("scroll", zu, true); window.removeEventListener("resize", zu); };
+  }, [offen]);
+  return (
+    <>
+      <input ref={ref} style={style} value={value} placeholder={placeholder}
+        onFocus={() => zeige("")} onClick={() => !offen && zeige("")} onBlur={() => setOffen(null)}
+        onKeyDown={(e) => { if (e.key === "Escape" || e.key === "Enter") setOffen(null); }}
+        onChange={(e) => { onChange(e.target.value); zeige(e.target.value); }} />
+      {offen && liste.length > 0 && (
+        <div style={{ position: "fixed", left: offen.x, top: offen.y, minWidth: offen.w, maxHeight: 220, overflowY: "auto", zIndex: 2000, background: INPUT, border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 6px 18px #0004", padding: 2 }}>
+          {liste.map((o) => (
+            <div key={o} onMouseDown={(e) => { e.preventDefault(); onChange(o); setOffen(null); }}
+              style={{ padding: "4px 8px", fontSize: 12, cursor: "pointer", borderRadius: 4, color: TEXT, background: o === value ? ACCENT + "22" : undefined }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = ACCENT + "33"; }} onMouseLeave={(e) => { e.currentTarget.style.background = o === value ? ACCENT + "22" : ""; }}>{o}</div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}

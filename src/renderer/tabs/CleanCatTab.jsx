@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, PANEL } from "../../shared/constants.js";
-import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText } from "../../shared/cleancat.js";
+import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat } from "../../shared/cleancat.js";
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
 import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText, RotateCcw } from "lucide-react";
 
-/* Plott: Signalfluss-Plan als A3-Blatt (quer) wie eine Visio-Zeichnung.
+/* Plott: Signalfluss-Plan als Blatt (A3/A4, quer oder hoch) wie eine Visio-Zeichnung.
    Räume = Standorte, Geräte als gleich große Blöcke, Leitungen rechtwinklig,
    unten Legende und Plankopf aus den Projektdaten. Mausrad zoomt, Ziehen
    verschiebt, Klick auf ein Gerät öffnet es im Geräte-Editor. */
@@ -50,7 +50,7 @@ function Plankopf({ B, P, stand, logo }) {
       <Zelle x={x + w / 2} y={y + r1} w={w / 2} h={r2} label="Ersteller" wert={m.ersteller} />
       <Zelle x={x} y={y + r1 + r2} w={w * 0.5} h={r3} label="Planinhalt" wert="Plott · Netzwerk-Signalfluss" />
       <Zelle x={x + w * 0.5} y={y + r1 + r2} w={w * 0.25} h={r3} label="Planversion" wert={m.version ? `v${m.version}` : ""} />
-      <Zelle x={x + w * 0.75} y={y + r1 + r2} w={w * 0.25} h={r3} label="Format" wert="A3 quer" />
+      <Zelle x={x + w * 0.75} y={y + r1 + r2} w={w * 0.25} h={r3} label="Format" wert={B.label} />
       <Zelle x={x} y={y + r1 + r2 + r3} w={w * 0.5} h={r4} label="Projektdatum" wert={datumDe(m.datum)} />
       <Zelle x={x + w * 0.5} y={y + r1 + r2 + r3} w={w * 0.5} h={r4} label="Exportiert am" wert={stand} id="cc-exportdatum" />
     </g>
@@ -204,10 +204,11 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   const [farbe, setFarbe] = useState(() => localStorage.getItem("np_cc_farbe") || "dante");
   const [zeigeIp, setZeigeIp] = useState(() => localStorage.getItem("np_cc_ip") !== "0");
   // Automatische Anordnung mit kurzen Kabelwegen: nur neu rechnen, wenn sich Geräte, Kabel oder Stacks ändern
-  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.bereiche, P.standortInfo, zeigeIp]); // eslint-disable-line react-hooks/exhaustive-deps
-  const L = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung }), [P, X, farbe, zeigeIp, ordnung]);
+  const format = plottFormat(P);
+  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp, format }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.bereiche, P.standortInfo, zeigeIp, format]); // eslint-disable-line react-hooks/exhaustive-deps
+  const L = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung, format }), [P, X, farbe, zeigeIp, ordnung, format]);
   const [zieh, setZieh] = useState(null); // Standort ziehen: { name, sx, sy, dx, dy, bewegt, ziel }
-  const B = useMemo(() => ccBlatt(L), [L]);
+  const B = useMemo(() => ccBlatt(L, format), [L, format]);
   const [view, setView] = useState({ x: 20, y: 20, k: 0.6 });
   const wrap = useRef(null), eigenRef = useRef(null), drag = useRef(null);
   const svgRef = fremdRef || eigenRef;
@@ -220,7 +221,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     const k = Math.min(1.5, Math.max(0.1, Math.min((el.clientWidth - 40) / B.w, (el.clientHeight - 40) / B.h)));
     setView({ k, x: (el.clientWidth - B.w * k) / 2, y: (el.clientHeight - B.h * k) / 2 });
   }, [B.w, B.h]);
-  useEffect(() => { einpassen(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { einpassen(); }, [format]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const el = wrap.current; if (!el) return;
@@ -250,7 +251,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
       const name = `${fileBase(P)} – Plott`;
       if (art === "svg") await api.saveFile(svgText(), `${name}.svg`, [{ name: "SVG", extensions: ["svg"] }]);
       else if (art === "png") await api.saveFile(await svgToPngBase64(svgText(), B.w, B.h), `${name}.png`, [{ name: "PNG", extensions: ["png"] }], "base64");
-      else await api.exportPdf(`<!doctype html><html><head><meta charset="utf-8"><title>${name}</title><style>@page{size:A3 landscape;margin:0}html,body{margin:0;padding:0}svg{display:block;width:420mm;height:297mm}</style></head><body>${svgText()}</body></html>`, name, { pageSize: "A3" });
+      else await api.exportPdf(`<!doctype html><html><head><meta charset="utf-8"><title>${name}</title><style>@page{size:${B.seite} ${B.hoch ? "portrait" : "landscape"};margin:0}html,body{margin:0;padding:0}svg{display:block;width:${B.w / B.mm}mm;height:${B.h / B.mm}mm}</style></head><body>${svgText()}</body></html>`, name, { pageSize: B.seite, hoch: B.hoch });
     } catch (e) { console.error(e); notify?.("Export fehlgeschlagen: " + e.message, "err"); }
   };
 
@@ -293,8 +294,12 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
         <button style={knopf} onClick={() => zoom(1.25)} title="Vergrößern"><ZoomIn size={14} /></button>
         <button style={knopf} onClick={einpassen} title="Ganzes Blatt zeigen"><Maximize2 size={14} /> Einpassen</button>
         {mutate && <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; })} title="Von Hand gesetzte Reihenfolge der Standorte verwerfen. Der Plan ordnet sie wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Standorte automatisch</button>}
+        <select style={{ ...S.selectSm, width: "auto" }} value={format} title="Blattformat des Plans (gilt auch für den Export)"
+          onChange={(e) => { const v = e.target.value; mutate?.((d) => { if (v === "A3-quer") delete d.layout.plottFormat; else d.layout.plottFormat = v; }); }} disabled={!mutate}>
+          {Object.entries(BLATT_FORMATE).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
+        </select>
         <span style={{ flex: 1 }} />
-        <button style={knopf} onClick={() => exportieren("pdf")} title="Als PDF im Format A3 quer speichern"><FileText size={14} /> PDF A3</button>
+        <button style={knopf} onClick={() => exportieren("pdf")} title={`Als PDF im Format ${B.label} speichern`}><FileText size={14} /> PDF {B.seite}</button>
         <button style={knopf} onClick={() => exportieren("svg")} title="Als SVG speichern (z. B. für Visio, Illustrator)"><FileCode size={14} /> SVG</button>
         <button style={knopf} onClick={() => exportieren("png")} title="Als PNG speichern"><FileImage size={14} /> PNG</button>
       </div>
@@ -306,7 +311,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
         {P.geraete.length > 0 && <div style={{ position: "absolute", left: 0, top: 0, transform: `translate(${view.x}px,${view.y}px) scale(${view.k})`, transformOrigin: "0 0", boxShadow: "0 4px 24px rgba(0,0,0,.25)" }}>
           <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} onRaumDown={mutate ? raumDown : null} zieh={zieh} />
         </div>}
-        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · A3 quer · Mausrad = Zoom · Ziehen = verschieben · Standort ziehen = an andere Stelle setzen · Klick auf ein Gerät = bearbeiten</div>
+        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Ziehen = verschieben · Standort ziehen = an andere Stelle setzen · Klick auf ein Gerät = bearbeiten</div>
       </div>
     </div>
   );

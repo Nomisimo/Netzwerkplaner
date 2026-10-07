@@ -5,7 +5,7 @@ import { portSeiten } from "../shared/anschluesse.js";
 import { otherEnd, suggestIp, webUrl, clone, vlanQuelle } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
 import { normMac, macHersteller, herstellerPasst } from "../shared/mac.js";
-import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot, frageText } from "./ui.jsx";
+import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot, frageText, AuswahlFeld } from "./ui.jsx";
 import { api } from "./api.js";
 import StroemeEditor from "./StroemeEditor.jsx";
 import { KonfigKopieren, KonfigEinfuegen } from "./KonfigDialog.jsx";
@@ -337,8 +337,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         <Field label="Hersteller"><input style={{ ...S.inputSm, ...festStil(fest) }} value={dev.hersteller} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.hersteller = e.target.value))} /></Field>
         <Field label="Modell"><input style={{ ...S.inputSm, ...festStil(fest) }} value={dev.modell} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.modell = e.target.value))} /></Field>
         <Field label="Standort / Ast">
-          <input style={S.inputSm} list="np-bereiche" value={dev.bereich} onChange={(e) => upd((g) => (g.bereich = e.target.value))} placeholder="z. B. FOH" />
-          <datalist id="np-bereiche">{P.bereiche.map((b) => <option key={b} value={b} />)}</datalist>
+          <AuswahlFeld style={S.inputSm} optionen={P.bereiche} value={dev.bereich || ""} onChange={(v) => upd((g) => (g.bereich = v))} placeholder="z. B. FOH" />
         </Field>
         {dev.isSwitch
           ? <Field label="PoE-Budget (W)" hint="0 = keine Prüfung"><input type="number" min="0" style={{ ...S.inputSm, ...festStil(fest) }} value={dev.poeBudget || 0} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.poeBudget = +e.target.value))} /></Field>

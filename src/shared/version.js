@@ -5,6 +5,12 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.18": [
+    "Mac: eigene Menüleiste oben am Bildschirmrand (Ablage, Bearbeiten, Darstellung, Topologie, Hilfe) mit Tastenkürzeln im System, z. B. ⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘E, ⌘1–⌘7 für die Tabs, ⌥⌘1–3 für die Topologie-Ansichten. Hilfen wie KeyClu zeigen sie an. Die Knöpfe in der App bleiben",
+    "Plott: Blattformat wählbar (A3 oder A4, quer oder hoch). Der Export nimmt das im Export-Dialog gewählte Format, statt immer A3 quer",
+    "Patchliste: „Gesteckt auf“ steht auf Höhe des Ports, über den das Gerät am Switch hängt; dieser Port ist markiert. Alle IP-Felder stehen untereinander, egal wie der Port heißt",
+    "Standort-Auswahl (Patchliste und Geräte-Editor): Öffnen zeigt alle Standorte, Tippen filtert danach",
+  ],
   "0.7.0-beta.17": [
     "Neuer Tab „Setup“ (bisher „Projekt“): VLANs und Prüfung stehen jetzt dort, die Tabs „VLANs“ und „Prüfen“ entfallen. „Katalog“ und „Wissen“ haben die Plätze getauscht",
     "Prüfung kompakt in der Übersicht: nur Fehler und Warnungen, ohne Hinweise. „Switch-Konfiguration je VLAN“ und die MA-Net-Tabellen sind raus",

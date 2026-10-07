@@ -67,4 +67,6 @@ export const api = {
   monState: () => (E?.monState ? E.monState() : Promise.resolve({})),
   onMonEvent: (cb) => (E?.onMonEvent ? E.onMonEvent(cb) : () => {}),
   onOpenFile: (cb) => E && E.onOpenFile && E.onOpenFile(cb),
+  // Klicks aus der nativen Menüleiste (macOS)
+  onMenu: (cb) => (E?.onMenu ? E.onMenu(cb) : () => {}),
 };

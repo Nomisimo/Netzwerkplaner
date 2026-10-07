@@ -170,3 +170,18 @@ test("Plott: Leitungen ohne unnötige Ecken, höchstens vier Abbiegungen, Enden 
     }
   }
 });
+
+test("Plott: Blattformate A3/A4 quer und hoch", async () => {
+  const { ccBlatt, BLATT_FORMATE, formatName, plottFormat } = await import("../src/shared/cleancat.js");
+  const L = { w: 1000, h: 600 };
+  for (const [k, f] of Object.entries(BLATT_FORMATE)) {
+    const B = ccBlatt(L, k);
+    assert.equal(B.w, f.w); assert.equal(B.h, f.h);
+    assert.ok(B.kopf.x + B.kopf.w <= B.w - B.rand + 0.5, k);
+    assert.ok(B.legende.w > 0 && B.flaeche.w > 0 && B.flaeche.h > 0, k);
+  }
+  assert.equal(ccBlatt(L).w, 1680);
+  assert.equal(formatName("A4", true), "A4-hoch");
+  assert.equal(plottFormat({ layout: {} }), "A3-quer");
+  assert.equal(plottFormat({ layout: { plottFormat: "A4-quer" } }), "A4-quer");
+});

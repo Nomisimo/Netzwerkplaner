@@ -30,11 +30,14 @@ const Gruppe = ({ titel, children }) => (
   </div>
 );
 
-export default function ExportDialog({ onClose, onExport, planPfad }) {
+export default function ExportDialog({ onClose, onExport, planPfad, aktuelleAnsicht = "mindmap" }) {
   const [o, setO] = useState(lade);
   const set = (k, v) => setO((x) => ({ ...x, [k]: v }));
   const umschalten = (k, wert) => setO((x) => ({ ...x, [k]: x[k].includes(wert) ? x[k].filter((y) => y !== wert) : [...x[k], wert] }));
   const mitTopo = o.format === "svg" || o.format === "png" || (o.format === "pdf" && o.teile.includes("topologie"));
+  // Seite gilt fürs PDF und für den Plott (der wird auf genau dieses Blatt gezeichnet)
+  const plott = mitTopo && (o.ansicht === "aktuell" ? aktuelleAnsicht : o.ansicht) === "cleancat";
+  const mitSeite = o.format === "pdf" || ((o.format === "svg" || o.format === "png") && plott);
   const leer = (o.format === "pdf" && !o.teile.length) || (o.format === "xlsx" && !o.blaetter.length);
   const los = () => {
     try { localStorage.setItem(LS, JSON.stringify(o)); } catch {}
@@ -65,7 +68,7 @@ export default function ExportDialog({ onClose, onExport, planPfad }) {
         {ANSICHTEN.map(([k, l]) => <Wahl key={k} aktiv={o.ansicht === k} onClick={() => set("ansicht", k)}>{l}</Wahl>)}
       </Gruppe>}
 
-      {o.format === "pdf" && <Gruppe titel="Seite">
+      {mitSeite && <Gruppe titel={o.format === "pdf" ? (plott ? "Seite (auch Blatt des Plotts)" : "Seite") : "Blatt des Plotts"}>
         {["A4", "A3"].map((k) => <Wahl key={k} aktiv={o.seite === k} onClick={() => set("seite", k)}>{k}</Wahl>)}
         <span style={{ width: 10 }} />
         <Wahl aktiv={!o.hoch} onClick={() => set("hoch", false)}>Quer</Wahl>

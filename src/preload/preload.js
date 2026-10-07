@@ -26,4 +26,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   monState:          () => ipcRenderer.invoke('mon-state'),
   onMonEvent:        (cb) => { const h = (_, msg) => cb(msg); ipcRenderer.on('mon-event', h); return () => ipcRenderer.removeListener('mon-event', h); },
   onOpenFile:        (cb) => ipcRenderer.on('open-file', (_, msg) => cb(msg)),
+  onMenu:            (cb) => { const h = (_, aktion) => cb(aktion); ipcRenderer.on('menu', h); return () => ipcRenderer.removeListener('menu', h); },
 });
