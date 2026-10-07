@@ -389,6 +389,44 @@ I.coda_linus = (() => { const r = rack(2); let s = r.s + display(3.4, r.y + 1.2,
 /* Colorlight */
 I.colorlight_proc = (() => { const r = rack(2); let s = r.s + display(3.4, r.y + 1.2, 5, 2.4) + ring(4.6, r.y + 5.6, 0.9, 0.6); for (let row = 0; row < 2; row++) s += ethReihe(10.4, r.y + 2.6 + row * 3.4, 6, 1.75, 0.7); return s; })();
 
+/* Lautsprecher mit Netzwerkanschluss (Front, ohne Gitter) */
+// Line-Array-Element: breites, flaches Gehäuse, zwei Tieftöner und mittiger Hochtonschlitz
+const lineArray = () => path_("M1.5 8H22.5L21 16H3Z", 1.2) + ring(6.4, 12, 2.4, 0.8, 0.15) + ring(17.6, 12, 2.4, 0.8, 0.15) + rect(10.6, 9.4, 2.8, 5.2, { rx: 0.3, sw: 0.6, fill: 0.35 });
+// Subwoofer: Kiste mit großem Tieftöner und Bassreflex-Schlitz
+const subBox = () => rect(3, 3.5, 18, 17, { rx: 1 }) + ring(12, 11, 6, 1, 0.12) + ring(12, 11, 2, 0.6) + line(5, 18.6, 19, 18.6, 1, 0.6);
+// Kompakter Installationslautsprecher mit einem Chassis und RJ45 (Smart IP)
+const ipSpeaker = () => rect(5.5, 2.5, 13, 19, { rx: 3 }) + ring(12, 13.4, 4, 0.9, 0.15) + ring(12, 6.6, 1.5, 0.7) + rj45(11.2, 18.7, 1.6, 1.1);
+I.genelec_ip = ipSpeaker();
+I.lautsprecher_array = lineArray();
+I.lautsprecher_sub = subBox();
+
+/* DiGiCo */
+I.digico_s = pultOben(21, 15, screen(3, 4.8, 8, 5.2) + screen(13, 4.8, 8, 5.2) + yamKnobs(3.4, 11, 12, 1, 1.4) + faders(3.4, 12.8, 12, 1.4, 5.4));
+I.digico_q = pultOben(22.4, 16, screen(1.8, 4.4, 13, 6) + screen(16, 4.4, 6.2, 6) + yamKnobs(2.4, 11.6, 15, 1, 1.32) + faders(2.2, 13.2, 16, 1.25, 5.4));
+I.digico_rack = (() => { const r = rack(4); let s = r.s + display(3.4, r.y + 1.2, 3.6, 1.6); for (let row = 0; row < 3; row++) s += xlrReihe(9, r.y + 2 + row * 2.8, 7, 1.7, 0.65); return s + rect(3.4, r.y + 4.4, 3.6, 6, { rx: 0.3, sw: 0.5 }) + rj45(4.6, r.y + 5.4, 1.2, 1) + rj45(4.6, r.y + 7.4, 1.2, 1); })();
+
+/* Waves SoundGrid / DiGiGrid */
+I.waves_server = (() => { const r = rack(1); return r.s + led(3.6, 11.2) + led(3.6, 12.8, 0.5) + vents(5.4, r.y + 1.2, 10.4, 5, 0.75) + rj45(17.4, 11.4, 1.2, 1) + rj45(19.4, 11.4, 1.2, 1); })();
+I.digigrid_io = (() => { const r = rack(1, { half: true }); return r.s + display(6.4, 10.6, 3, 1.4) + xlrReihe(11.2, 11.2, 4, 1.6, 0.6) + xlrReihe(11.2, 13.2, 4, 1.6, 0.6) + rj45(6.6, 12.8, 1.2, 1); })();
+
+/* Green Hippo Hippotizer: Rack-Medienserver mit Bedienfeld */
+I.hippotizer = (() => { const r = rack(2); return r.s + display(3.4, r.y + 1.2, 4.6, 2.4) + keys(3.6, r.y + 4.8, 3, 1, 1.4, 1, 0.8) + vents(9.6, r.y + 1.4, 11, 7, 0.95); })();
+
+/* Matrox ConvertIP / Monarch EDGE */
+I.matrox_ip = avBox("sfp");
+
+/* DirectOut PRODIGY: Rack mit Modulschächten */
+I.directout_prodigy = (() => { const r = rack(2); let s = r.s + display(3.4, r.y + 1.2, 4.8, 2.6) + ring(5.8, r.y + 6, 1, 0.6); for (let c = 0; c < 4; c++) s += rect(10 + c * 2.8, r.y + 1.4, 2.3, r.h - 2.8, { rx: 0.2, sw: 0.45 }); return s; })();
+
+/* Endstufen mit Netzwerk (2 HE, vier Kanäle) */
+I.amp_4k = amp2(4, 2);
+
+/* Kleiner Installationsverstärker / DSP (1 HE) */
+I.inst_1he = (() => { const r = rack(1); let s = r.s + display(3.4, r.y + 1, 4, 1.7); for (let c = 0; c < 4; c++) s += ring(10 + c * 2, 12, 0.7, 0.6); return s + rj45(18.4, 11.4, 1.2, 1) + led(20.4, 12); })();
+
+/* Wandpanel mit Netzwerkanschluss (Dante-Wandplatte) */
+I.wandpanel = rect(6, 3, 12, 18, { rx: 1.4 }) + xlr(12, 8.6, 1.8) + ring(12, 14.2, 1.3, 0.6) + rj45(11.2, 17.6, 1.6, 1.1);
+
 // ── Schreiben ──────────────────────────────────────────────────────────────
 const HEAD = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">';
 if (require.main === module) {

@@ -120,6 +120,20 @@ export const MODELL_ICONS = {
   chauvet_netx: ["Chauvet Professional", "Net-X II"],
   coda_linus: ["CODA Audio", "LINUS-Verstärker"],
   colorlight_proc: ["Colorlight", "LED-Prozessor"],
+  genelec_ip: ["Genelec", "Smart IP"],
+  lautsprecher_array: ["Lautsprecher", "Line-Array-Element (Netzwerk)"],
+  lautsprecher_sub: ["Lautsprecher", "Subwoofer (Netzwerk)"],
+  digico_s: ["DiGiCo", "S21 / S31"],
+  digico_q: ["DiGiCo", "Quantum"],
+  digico_rack: ["DiGiCo", "Stagebox (Rack)"],
+  waves_server: ["Waves Audio", "SoundGrid Server"],
+  digigrid_io: ["Waves Audio", "DiGiGrid I/O"],
+  hippotizer: ["Green Hippo", "Hippotizer"],
+  matrox_ip: ["Matrox Video", "ConvertIP / Monarch EDGE"],
+  directout_prodigy: ["DirectOut", "PRODIGY"],
+  amp_4k: ["Endstufen", "4-Kanal-Endstufe (Netzwerk, 2 HE)"],
+  inst_1he: ["Installation", "Installationsverstärker / DSP (1 HE)"],
+  wandpanel: ["Installation", "Dante-Wandpanel"],
 };
 
 const REGELN = [
@@ -246,6 +260,20 @@ const REGELN = [
   [/^Chauvet Professional Net-X/i, "chauvet_netx"],
   [/^CODA Audio LINUS/i, "coda_linus"],
   [/^Colorlight /i, "colorlight_proc"],
+  [/^Genelec Smart IP/i, "genelec_ip"],
+  [/^(HK Audio .*(Sub|SUB)|ADAMSON CS11[89]|FBT Elettronica MUSE (118|218))/i, "lautsprecher_sub"],
+  [/^(HK Audio LINEAR .*LTA|ADAMSON (CS10|CS7|VG))/i, "lautsprecher_array"],
+  [/^DiGiCo (S21|S31)/i, "digico_s"],
+  [/^DiGiCo Quantum/i, "digico_q"],
+  [/^DiGiCo .*Rack/i, "digico_rack"],
+  [/^Waves Audio .*SoundGrid Server/i, "waves_server"],
+  [/^(Waves Audio DiGiGrid|DiGiGrid) /i, "digigrid_io"],
+  [/^Green Hippo Hippotizer/i, "hippotizer"],
+  [/^Matrox Video (ConvertIP|Monarch EDGE)/i, "matrox_ip"],
+  [/^DirectOut PRODIGY/i, "directout_prodigy"],
+  [/^(Dynacord (IPX|TGX)|Fohhn Audio DI-|Martin Audio iKON|FBT Elettronica TALOS|ADAMSON XG)/i, "amp_4k"],
+  [/^(DAS Audio INTEGRAL-MA|AUDAC AMP|ECLER eCA|Fohhn Audio MA-|MONACOR PA-)/i, "inst_1he"],
+  [/^(AUDAC NWP|MONACOR (DADC|ADP-DAI))/i, "wandpanel"],
 ];
 
 // Katalog-Rohdaten (Hersteller/Modell) → Icon-Schlüssel oder null

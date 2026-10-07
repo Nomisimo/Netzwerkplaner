@@ -37,6 +37,9 @@ test("Ergänzte Hersteller stehen in der Herstellerliste", () => {
 test("Neue Geräte bekommen passende Icons", () => {
   assert.equal(modellIcon("Allen & Heath", "SQ-5 / SQ-6"), "ah_sq");
   assert.equal(modellIcon("Avid", "VENUE S6L-24C / S6L-16C"), "avid_s6l");
+  assert.equal(modellIcon("Genelec", "Smart IP 4430A"), "genelec_ip");
+  assert.equal(modellIcon("HK Audio", "LINEAR 9 118 Sub A"), "lautsprecher_sub");
+  assert.equal(modellIcon("Dynacord", "TGX20"), "amp_4k");
   const typ = (h, m) => KATALOG_GERAETE.find((g) => g.hersteller === h && g.modell === m)?.typ;
   const lsp = ERG.geraete.find((g) => /Lautsprecher/.test(g.Gerätetyp));
   if (lsp) assert.equal(typ(lsp.Hersteller, lsp.Modell), "lautsprecher");
