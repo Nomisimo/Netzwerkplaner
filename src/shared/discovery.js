@@ -14,10 +14,13 @@ const ndiHost = (label) => String(label || "").split(" (")[0];
 
 export const sammleFunde = (snaps = {}) => {
   const byIp = new Map();
-  const fund = (ip) => {
+  // z = Zustand des Eintrags im Monitor; ein Fund ist aktiv, sobald eine Quelle ihn gerade sieht
+  const fund = (ip, z) => {
     if (!ip) return null;
-    if (!byIp.has(ip)) byIp.set(ip, { ip, mac: "", namen: {}, protokolle: new Set(), typen: {}, quellen: new Set(), ports: [] });
-    return byIp.get(ip);
+    if (!byIp.has(ip)) byIp.set(ip, { ip, mac: "", namen: {}, protokolle: new Set(), typen: {}, quellen: new Set(), ports: [], aktiv: false });
+    const f = byIp.get(ip);
+    if (!z || z === "aktiv") f.aktiv = true;
+    return f;
   };
   const s = snaps;
   for (const h of s.scan?.hosts || []) {
@@ -31,7 +34,7 @@ export const sammleFunde = (snaps = {}) => {
     if (f.ports.includes(49280)) f.typen.scan = "mischpult";
   }
   for (const n of s.artnet?.nodes || []) {
-    const f = fund(n.ip);
+    const f = fund(n.ip, n.zustand);
     f.quellen.add("Art-Net");
     f.protokolle.add("Art-Net");
     if (n.mac && !/^0{2}(:0{2}){5}$/.test(n.mac)) f.mac = f.mac || n.mac;
@@ -39,19 +42,19 @@ export const sammleFunde = (snaps = {}) => {
     f.typen.artnet = /grandma|console|pult/i.test(`${n.shortName} ${n.longName}`) ? "lichtpult" : "node";
   }
   for (const u of s.sacn?.universes || []) for (const q of u.sources || []) {
-    const f = fund(q.ip);
+    const f = fund(q.ip, q.zustand);
     f.quellen.add("sACN"); f.protokolle.add("sACN (E1.31)");
     if (q.source) f.namen.sacn = q.source;
     f.typen.sacn = f.typen.sacn || "lichtpult";
   }
   for (const d of s.sacn?.discovery || []) {
-    const f = fund(d.ip);
+    const f = fund(d.ip, d.zustand);
     f.quellen.add("sACN"); f.protokolle.add("sACN (E1.31)");
     if (d.source) f.namen.sacn = d.source;
     f.typen.sacn = f.typen.sacn || "lichtpult";
   }
   for (const i of s.dante?.instances || []) {
-    const f = fund(i.ip);
+    const f = fund(i.ip, i.zustand);
     if (!f) continue;
     f.quellen.add("Dante"); f.protokolle.add("Dante");
     const kanal = String(i.service || "").startsWith("_netaudio-chan") && String(i.label).includes("@");
@@ -59,24 +62,24 @@ export const sammleFunde = (snaps = {}) => {
     if (!kanal || !f.namen.dante) f.namen.dante = nm || hostname(i.host) || f.namen.dante;
   }
   for (const i of s.ndi?.instances || []) {
-    const f = fund(i.ip);
+    const f = fund(i.ip, i.zustand);
     if (!f) continue;
     f.quellen.add("NDI"); f.protokolle.add("NDI");
     f.namen.ndi = f.namen.ndi || ndiHost(i.label) || hostname(i.host);
   }
   for (const fl of s.manet?.flows || []) {
-    const f = fund(fl.ip);
+    const f = fund(fl.ip, fl.zustand);
     f.quellen.add("MA-Net"); f.protokolle.add(/3/.test(fl.netz || "") ? "MA-Net3" : fl.netz || "MA-Net");
     f.typen.manet = "lichtpult";
   }
   for (const p of s.citp?.peers || []) {
-    const f = fund(p.ip);
+    const f = fund(p.ip, p.zustand);
     f.quellen.add("CITP"); f.protokolle.add("CITP");
     if (p.name) f.namen.citp = p.name;
     if (CITP_TYP[p.type]) f.typen.citp = CITP_TYP[p.type];
   }
   for (const c of s.ptp?.clocks || []) {
-    const f = fund(c.ip);
+    const f = fund(c.ip, c.zustand);
     if (!f) continue;
     f.quellen.add("PTP"); f.protokolle.add("PTP");
   }
@@ -87,6 +90,7 @@ export const sammleFunde = (snaps = {}) => {
     typ: f.typen.citp || f.typen.artnet || f.typen.manet || f.typen.scan || f.typen.sacn || null,
     quellen: [...f.quellen],
     ports: f.ports,
+    zustand: f.aktiv ? "aktiv" : "alt",
   })).sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }));
 };
 

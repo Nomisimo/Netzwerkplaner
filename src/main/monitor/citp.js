@@ -1,5 +1,7 @@
 // CITP/MSEx: Medienserver, Pulte und Visualizer über PINF/PLoc finden
-const { openUdp, closeUdp, Rate, explainError } = require('./util');
+const { openUdp, closeUdp, Rate, explainError, zustand, aktivZuerst, kappen, alteEntfernen } = require('./util');
+
+const FRIST = 60000; // PLoc kommt etwa jede Sekunde, aber nicht von allen Geräten zuverlässig
 
 const PORT = 4809;
 const GROUPS = ['224.0.0.180', '239.224.0.180']; // zweite Gruppe: neuere Versionen, laut Recherche unbestätigt
@@ -49,16 +51,16 @@ async function create(opts = {}, ctx) {
   try { res = await openUdp({ port: PORT, iface, groups: GROUPS, onMessage }); }
   catch (e) { throw new Error(explainError(e, PORT)); }
   return {
-    tick(dt) { for (const r of layers.values()) r.tick(dt); for (const [ip, p] of peers) if (Date.now() - p.seen > 60000) peers.delete(ip); },
+    tick(dt) { for (const r of layers.values()) r.tick(dt); kappen(peers); },
     snapshot() {
       const now = Date.now();
       return {
         iface, joined: res.joined, failed: res.failed,
-        peers: [...peers.values()].map((p) => ({ ip: p.ip, name: p.name || '', type: p.type || '', state: p.state || '', tcpPort: p.tcpPort, version: p.version, age: now - p.seen })),
+        peers: aktivZuerst([...peers.values()].map((p) => ({ ip: p.ip, name: p.name || '', type: p.type || '', state: p.state || '', tcpPort: p.tcpPort, version: p.version, age: now - p.seen, zustand: zustand(p.seen, FRIST, now) }))),
         layers: [...layers.entries()].map(([k, r]) => ({ key: k, rate: r.rate, total: r.total })),
       };
     },
-    action() { return false; },
+    action(name) { if (name === 'alteEntfernen') return alteEntfernen(peers, FRIST); return false; },
     stop() { closeUdp(res); },
   };
 }

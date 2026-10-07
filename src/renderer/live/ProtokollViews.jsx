@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { S, OK, WARN, ERR, MUTED, SUB, INFO } from "../../shared/constants.js";
 import { fmtBps, findPlanned } from "../../shared/live.js";
 import { useMonitor } from "./store.js";
-import { MonBar, Table, td, Hint, Empty, PlanName, Age, Card, Pill, mono } from "./common.jsx";
+import { MonBar, Table, td, Hint, Empty, PlanName, Age, Card, Pill, mono, zeile } from "./common.jsx";
+import { useSichtbar } from "./store.js";
 import { ipPorts } from "../../shared/catalog.js";
 import { Toggle } from "../ui.jsx";
 import { parseList } from "./LichtViews.jsx";
@@ -15,6 +16,7 @@ const TxtList = ({ txt }) => {
 };
 
 /* ── Dante (mDNS) ───────────────────────────────────────────────────────── */
+const ZUSTAND_RANG = { aktiv: 0, alt: 1, beendet: 2 };
 const DANTE_SVC = { "_netaudio-arc._udp.local": "ARC", "_netaudio-cmc._udp.local": "CMC", "_netaudio-dbc._udp.local": "DBC", "_netaudio-chan._udp.local": "Kanal" };
 
 export function DanteView({ P, iface, onSelectDevice, goSub }) {
@@ -26,13 +28,16 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
     for (const i of s?.instances || []) {
       const isChan = i.service.startsWith("_netaudio-chan");
       const name = isChan && i.label.includes("@") ? i.label.slice(i.label.lastIndexOf("@") + 1) : i.label;
-      const d = m.get(name) || { name, ip: "", ips: new Set(), services: new Set(), chans: [], txt: {}, chanTxt: {}, age: Infinity, host: "" };
+      const d = m.get(name) || { name, ip: "", ips: new Set(), services: new Set(), chans: [], txt: {}, chanTxt: {}, age: Infinity, host: "", zustand: "beendet" };
       d.services.add(DANTE_SVC[i.service] || i.service);
-      if (isChan) { d.chans.push(i.label.slice(0, i.label.lastIndexOf("@")) || i.label); d.chanTxt = { ...d.chanTxt, ...i.txt }; }
+      // Alte Kanäle (umbenannt oder abgemeldet) nicht mehr mitzählen
+      if (isChan && (!i.zustand || i.zustand === "aktiv")) { d.chans.push(i.label.slice(0, i.label.lastIndexOf("@")) || i.label); d.chanTxt = { ...d.chanTxt, ...i.txt }; }
       else { d.txt = { ...d.txt, ...i.txt }; if (i.ip) d.ip = i.ip; if (i.host) d.host = i.host; }
       if (!d.ip && i.ip) d.ip = i.ip;
       for (const x of i.ips || (i.ip ? [i.ip] : [])) d.ips.add(x);
       d.age = Math.min(d.age, i.age);
+      // Gerät gilt als aktiv, solange einer seiner Einträge aktiv ist; alte Kanäle zählen nicht mit
+      if (ZUSTAND_RANG[i.zustand || "aktiv"] < ZUSTAND_RANG[d.zustand]) d.zustand = i.zustand || "aktiv";
       m.set(name, d);
     }
     // Primary/Secondary: über den Plan zuordnen (erste bzw. zweite IP des Geräts), sonst in der gemeldeten Reihenfolge
@@ -43,8 +48,9 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
       const pri = plan[0] && ips.includes(plan[0].ip) ? plan[0].ip : ips.find((ip) => !plan[1] || ip !== plan[1].ip) || d.ip;
       const sec = plan[1] && ips.includes(plan[1].ip) ? plan[1].ip : ips.find((ip) => ip !== pri) || "";
       return { ...d, plan: hit?.dev || null, pri, sec, secPlan: !sec && plan[1] ? plan[1].ip : "" };
-    }).sort((a, b) => a.name.localeCompare(b.name));
+    }).sort((a, b) => ZUSTAND_RANG[a.zustand] - ZUSTAND_RANG[b.zustand] || a.name.localeCompare(b.name));
   }, [s?.instances, P]);
+  const sichtbar = useSichtbar();
   const masters = (ptp.snapshot?.clocks || []).filter((c) => c.isMaster);
 
   return (
@@ -58,11 +64,11 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
         <Card title={`Dante-Geräte (${devices.length})`}>
           {!devices.length ? <Empty>Noch keine Antwort. Dante-Geräte melden sich per mDNS, wenn der Rechner im selben Netz hängt.</Empty> : (
             <Table head={["Gerätename", "Modell", "Dante-Version", "Primäre Adresse", "Sekundäre Adresse", "Abtastrate", "Kanäle (mDNS)", "Plan", "zuletzt"]}>
-              {devices.map((d) => {
+              {sichtbar(devices).map((d) => {
                 const t = d.txt, modell = [t.mf, t.model].filter((x) => x && x !== true).join(" ");
                 const planModell = d.plan ? [d.plan.hersteller, d.plan.modell].filter(Boolean).join(" ") : "";
                 return (
-                  <tr key={d.name}>
+                  <tr key={d.name} style={zeile(d.zustand)}>
                     <td style={td()}><b>{d.name}</b><div style={{ marginTop: 2 }}>{[...d.services].map((x) => <Pill key={x} color={INFO}>{x}</Pill>)}</div></td>
                     <td style={td({ fontSize: 12 })}>{modell || <span style={{ color: MUTED }}>{planModell ? `${planModell} (Plan)` : "–"}</span>}{t.router_info && t.router_info !== true && <div style={{ fontSize: 10, color: MUTED }}>{t.router_info}</div>}</td>
                     <td style={td(mono)}>{t.router_vers || t.server_vers || <span style={{ color: MUTED }}>–</span>}{t.arcp_vers && <div style={{ fontSize: 10, color: MUTED }}>ARCP {t.arcp_vers}</div>}</td>
@@ -71,7 +77,7 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
                     <td style={td({ fontSize: 12 })}>{d.chanTxt.rate ? `${(+d.chanTxt.rate / 1000).toLocaleString("de-DE")} kHz` : <span style={{ color: MUTED }}>–</span>}{d.chanTxt.latency_ns && <div style={{ fontSize: 10, color: MUTED }}>Latenz {(+d.chanTxt.latency_ns / 1e6).toLocaleString("de-DE")} ms</div>}</td>
                     <td style={td({ fontSize: 11, maxWidth: 260 })}>{d.chans.length ? <span title={d.chans.join(", ")}>{d.chans.length}: {d.chans.slice(0, 6).join(", ")}{d.chans.length > 6 ? " …" : ""}</span> : <span style={{ color: MUTED }}>–</span>}</td>
                     <td style={td({ fontSize: 11 })}><PlanName P={P} ip={d.pri} onSelectDevice={onSelectDevice} /><TxtList txt={t} /></td>
-                    <td style={td()}><Age ms={d.age} /></td>
+                    <td style={td()}><Age ms={d.age} z={d.zustand} /></td>
                   </tr>
                 );
               })}
@@ -96,7 +102,8 @@ export function DanteView({ P, iface, onSelectDevice, goSub }) {
 export function NdiView({ P, iface, onSelectDevice }) {
   const mon = useMonitor("ndi");
   const s = mon.snapshot;
-  const list = (s?.instances || []).slice().sort((a, b) => a.label.localeCompare(b.label));
+  const sichtbar = useSichtbar();
+  const list = (s?.instances || []).slice().sort((a, b) => ZUSTAND_RANG[a.zustand || "aktiv"] - ZUSTAND_RANG[b.zustand || "aktiv"] || a.label.localeCompare(b.label));
   return (
     <div>
       <MonBar mon={mon} label="Quellen suchen" onStart={() => mon.start({ iface })}>
@@ -107,13 +114,13 @@ export function NdiView({ P, iface, onSelectDevice }) {
         <Card title={`NDI-Quellen (${list.length})`}>
           {!list.length ? <Empty>Keine NDI-Quelle gefunden. Mit NDI Discovery Server (TCP 5959) melden sich Quellen nicht per mDNS.</Empty> : (
             <Table head={["Quelle", "Host", "IP / Plan", "Port", "zuletzt"]}>
-              {list.map((i) => (
-                <tr key={i.instance}>
+              {sichtbar(list).map((i) => (
+                <tr key={i.instance} style={zeile(i.zustand)}>
                   <td style={td()}><b>{i.label}</b><TxtList txt={i.txt} /></td>
                   <td style={td({ fontSize: 12 })}>{i.host}</td>
                   <td style={td()}><span style={mono}>{i.ip}</span><div style={{ fontSize: 11 }}><PlanName P={P} ip={i.ip} onSelectDevice={onSelectDevice} /></div></td>
                   <td style={td(mono)}>{i.port}</td>
-                  <td style={td()}><Age ms={i.age} /></td>
+                  <td style={td()}><Age ms={i.age} z={i.zustand} /></td>
                 </tr>
               ))}
             </Table>
@@ -130,6 +137,7 @@ export function ManetView({ P, iface, onSelectDevice }) {
   const mon = useMonitor("manet");
   const s = mon.snapshot;
   const sum = (s?.flows || []).reduce((a, f) => a + f.bps, 0);
+  const sichtbar = useSichtbar();
   return (
     <div>
       <MonBar mon={mon} onStart={() => mon.start({ iface })}>
@@ -141,8 +149,8 @@ export function ManetView({ P, iface, onSelectDevice }) {
           <Card title="Sender">
             {!s.flows.length ? <Empty>Kein MA-Net-Verkehr empfangen.</Empty> : (
               <Table head={["IP / Gerät", "Netz", "UDP-Port", "Pakete/s", "Bandbreite", "häufige Größen", "seit", "zuletzt"]}>
-                {s.flows.map((f) => (
-                  <tr key={f.ip + f.port}>
+                {sichtbar(s.flows).map((f) => (
+                  <tr key={f.ip + f.port} style={zeile(f.zustand)}>
                     <td style={td()}><span style={mono}>{f.ip}</span><div style={{ fontSize: 11 }}><PlanName P={P} ip={f.ip} onSelectDevice={onSelectDevice} /></div></td>
                     <td style={td()}><Pill color={f.netz === "MA-Net3" ? OK : INFO}>{f.netz}</Pill></td>
                     <td style={td(mono)}>{f.port}</td>
@@ -150,7 +158,7 @@ export function ManetView({ P, iface, onSelectDevice }) {
                     <td style={td(mono)}>{fmtBps(f.bps)}</td>
                     <td style={td({ ...mono, color: SUB })}>{f.sizes.join(", ")} B</td>
                     <td style={td({ fontSize: 12, color: SUB })}>{Math.round(f.since / 1000)} s</td>
-                    <td style={td()}><Age ms={f.age} /></td>
+                    <td style={td()}><Age ms={f.age} z={f.zustand} /></td>
                   </tr>
                 ))}
               </Table>
@@ -178,7 +186,8 @@ export function OscView({ iface }) {
   const [q, setQ] = useState("");
   const fmtArgs = (a) => (a || []).map((x) => (typeof x === "string" ? `"${x}"` : String(x))).join(", ");
   const log = (s?.log || []).filter((m) => !q || m.address.toLowerCase().includes(q.toLowerCase())).slice().reverse();
-  const addrs = (s?.addresses || []).filter((m) => !q || m.address.toLowerCase().includes(q.toLowerCase()));
+  const sichtbar = useSichtbar();
+  const addrs = sichtbar(s?.addresses).filter((m) => !q || m.address.toLowerCase().includes(q.toLowerCase()));
   return (
     <div>
       <MonBar mon={mon} onStart={() => mon.start({ iface, ports: parseList(ports, 8) })}>
@@ -215,13 +224,13 @@ export function OscView({ iface }) {
           )) : (!addrs.length ? <Empty>Keine Adressen.</Empty> : (
             <Table head={["Adresse", "letzter Wert", "Anzahl", "pro s", "von", "zuletzt"]}>
               {addrs.map((a) => (
-                <tr key={a.address}>
+                <tr key={a.address} style={zeile(a.zustand)}>
                   <td style={td(mono)}>{a.address}</td>
                   <td style={td(mono)}>{fmtArgs(a.last)}</td>
                   <td style={td(mono)}>{a.count}</td>
                   <td style={td(mono)}>{a.rate}</td>
                   <td style={td(mono)}>{a.from}:{a.port}</td>
-                  <td style={td()}><Age ms={a.age} /></td>
+                  <td style={td()}><Age ms={a.age} z={a.zustand} /></td>
                 </tr>
               ))}
             </Table>
@@ -237,6 +246,7 @@ export function OscView({ iface }) {
 export function CitpView({ P, iface, onSelectDevice }) {
   const mon = useMonitor("citp");
   const s = mon.snapshot;
+  const sichtbar = useSichtbar();
   return (
     <div>
       <MonBar mon={mon} onStart={() => mon.start({ iface })} />
@@ -245,15 +255,15 @@ export function CitpView({ P, iface, onSelectDevice }) {
           <Card title={`Teilnehmer (${s.peers.length})`}>
             {!s.peers.length ? <Empty>Noch kein CITP-Teilnehmer. Medienserver und Pulte melden sich etwa jede Sekunde per PINF/PLoc.</Empty> : (
               <Table head={["Name", "Typ", "Status", "IP / Plan", "TCP-Port", "CITP", "zuletzt"]}>
-                {s.peers.map((p) => (
-                  <tr key={p.ip}>
+                {sichtbar(s.peers).map((p) => (
+                  <tr key={p.ip} style={zeile(p.zustand)}>
                     <td style={td()}><b>{p.name}</b></td>
                     <td style={td()}><Pill color={p.type === "MediaServer" ? OK : INFO}>{p.type || "?"}</Pill></td>
                     <td style={td({ fontSize: 12 })}>{p.state}</td>
                     <td style={td()}><span style={mono}>{p.ip}</span><div style={{ fontSize: 11 }}><PlanName P={P} ip={p.ip} onSelectDevice={onSelectDevice} /></div></td>
                     <td style={td(mono)}>{p.tcpPort}</td>
                     <td style={td(mono)}>{p.version}</td>
-                    <td style={td()}><Age ms={p.age} /></td>
+                    <td style={td()}><Age ms={p.age} z={p.zustand} /></td>
                   </tr>
                 ))}
               </Table>
@@ -272,7 +282,8 @@ const CLOCK_CLASS = { 6: "primäre Referenz (GPS)", 7: "primär, Holdover", 13: 
 export function PtpView({ P, iface, onSelectDevice }) {
   const mon = useMonitor("ptp");
   const s = mon.snapshot;
-  const clocks = (s?.clocks || []).slice().sort((a, b) => b.isMaster - a.isMaster || a.ip.localeCompare(b.ip, undefined, { numeric: true }));
+  const sichtbar = useSichtbar();
+  const clocks = sichtbar(s?.clocks).slice().sort((a, b) => ZUSTAND_RANG[a.zustand || "aktiv"] - ZUSTAND_RANG[b.zustand || "aktiv"] || b.isMaster - a.isMaster || a.ip.localeCompare(b.ip, undefined, { numeric: true }));
   return (
     <div>
       <MonBar mon={mon} onStart={() => mon.start({ iface })}>
@@ -284,8 +295,8 @@ export function PtpView({ P, iface, onSelectDevice }) {
           {!clocks.length ? <Empty>Noch kein PTP-Paket. Sichtbar sind Master (Sync/Announce) und Slaves, die Delay_Req per Multicast senden.</Empty> : (
             <Table head={["Rolle", "IP / Plan", "Version / Domain", "Clock-ID", "Grandmaster", "Sync/s", "Announce/s", "Details", "zuletzt"]}>
               {clocks.map((c) => (
-                <tr key={c.version + c.domain + c.clock}>
-                  <td style={td()}>{c.isMaster ? <Pill color={OK}>Master</Pill> : <Pill color={MUTED}>Slave</Pill>}</td>
+                <tr key={c.version + c.domain + c.clock} style={zeile(c.zustand)}>
+                  <td style={td()}>{c.isMaster ? <Pill color={OK}>Master</Pill> : c.warMaster && c.zustand !== "aktiv" ? <Pill color={MUTED}>war Master</Pill> : <Pill color={MUTED}>Slave</Pill>}</td>
                   <td style={td()}><span style={mono}>{c.ip}</span><div style={{ fontSize: 11 }}><PlanName P={P} ip={c.ip} onSelectDevice={onSelectDevice} /></div></td>
                   <td style={td({ fontSize: 12 })}>PTPv{c.version} · {c.domain}{c.version === 1 && <div style={{ fontSize: 10, color: MUTED }}>Dante (Standard)</div>}</td>
                   <td style={td({ ...mono, fontSize: 11 })}>{c.clock}</td>
@@ -296,7 +307,7 @@ export function PtpView({ P, iface, onSelectDevice }) {
                     {c.version === 2 && c.prio1 != null && <>Prio {c.prio1}/{c.prio2} · Klasse {c.clockClass}{CLOCK_CLASS[c.clockClass] ? ` (${CLOCK_CLASS[c.clockClass]})` : ""} · {c.stepsRemoved} Hops</>}
                     {c.version === 1 && c.stratum != null && <>Stratum {c.stratum}{c.gmIdent ? ` · ${c.gmIdent}` : ""}{c.preferred ? " · bevorzugt" : ""}</>}
                   </td>
-                  <td style={td()}><Age ms={c.age} /></td>
+                  <td style={td()}><Age ms={c.age} z={c.zustand} /></td>
                 </tr>
               ))}
             </Table>

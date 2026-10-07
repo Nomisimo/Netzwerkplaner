@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { S, OK, INFO, MUTED, SUB, TYPEN, STRONG } from "../../shared/constants.js";
 import { sammleFunde, fundeMitPlan, fundZuGeraet } from "../../shared/discovery.js";
 import { useMonitor } from "./store.js";
-import { Table, td, Hint, Empty, Pill, mono } from "./common.jsx";
+import { Table, td, Hint, Empty, Pill, mono, zeile } from "./common.jsx";
 import { Play, RefreshCw, Square } from "lucide-react";
 
 // Monitore, die beim Suchen starten. Nur Mithören plus mDNS-Abfragen und ArtPoll.
@@ -56,8 +56,8 @@ export default function DiscoveryView({ P, mutate, iface, onSelectDevice, notify
       {!funde.length ? <Empty>Noch nichts gefunden. „Geräte suchen“ startet die Monitore, ein Netzwerkscan findet auch stille Geräte.</Empty> : (
         <Table head={["", "IP", "Name im Netz", "MAC", "Protokolle", "Vorschlag", "Quellen", ""]}>
           {funde.map((f) => (
-            <tr key={f.ip}>
-              <td style={td()}>{f.plan ? <Pill color={OK}>im Plan</Pill> : <Pill color={INFO}>neu</Pill>}</td>
+            <tr key={f.ip} style={zeile(f.zustand)}>
+              <td style={td()}>{f.plan ? <Pill color={OK}>im Plan</Pill> : <Pill color={INFO}>neu</Pill>}{f.zustand === "alt" && <div style={{ fontSize: 10, color: MUTED }} title="Keine Quelle sieht das Gerät gerade">nicht mehr gesehen</div>}</td>
               <td style={td(mono)}>{f.ip}</td>
               <td style={td()}>{f.plan ? <a href="#" style={{ color: STRONG }} onClick={(e) => { e.preventDefault(); onSelectDevice(f.plan.dev.id); }}>{f.plan.dev.name}</a> : f.name || <span style={{ color: MUTED }}>–</span>}{f.plan && f.name && f.name !== f.plan.dev.name && <div style={{ fontSize: 11, color: MUTED }}>im Netz: {f.name}</div>}</td>
               <td style={td(mono)}>{f.mac}</td>

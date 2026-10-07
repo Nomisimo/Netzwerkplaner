@@ -1,6 +1,8 @@
 // PTP-Clock mitlesen (Dante nutzt PTPv1, AES67 PTPv2):
 // Wer ist Master bzw. Grandmaster, in welcher Domain, wie oft kommt Sync, gibt es konkurrierende Master?
-const { openUdp, closeUdp, cstr, mac, Rate, explainError } = require('./util');
+const { openUdp, closeUdp, cstr, mac, Rate, explainError, zustand, aktivZuerst, kappen, alteEntfernen } = require('./util');
+
+const FRIST = 5000; // Sync/Announce/Delay_Req kommen jede Sekunde oder öfter
 
 const GROUP = '224.0.1.129';
 const PORTS = [319, 320];
@@ -70,23 +72,29 @@ async function create(opts = {}, ctx) {
   if (!socks.length) throw new Error(errors.join(' '));
   return {
     tick(dt) {
-      for (const [k, c] of clocks) { c.sync.tick(dt); c.announce.tick(dt); c.delayReq.tick(dt); if (Date.now() - c.seen > 30000) clocks.delete(k); }
+      for (const c of clocks.values()) { c.sync.tick(dt); c.announce.tick(dt); c.delayReq.tick(dt); }
+      kappen(clocks);
     },
     snapshot() {
       const now = Date.now();
-      const list = [...clocks.values()].map((c) => ({
+      const list = aktivZuerst([...clocks.values()].map((c) => ({
         version: c.version, domain: c.domain, clock: c.clock, ip: c.ip, age: now - c.seen,
         syncRate: c.sync.rate, announceRate: c.announce.rate, delayReqRate: c.delayReq.rate,
         isMaster: !!c.lastSync && now - c.lastSync < 5000 || !!c.lastAnnounce && now - c.lastAnnounce < 5000,
+        zustand: zustand(c.seen, FRIST, now), warMaster: !!(c.lastSync || c.lastAnnounce),
         ...c.info,
-      }));
+      })));
       // Mehr als ein sendender Master je Domain → Warnung
       const byDomain = {};
       for (const c of list.filter((c) => c.isMaster)) (byDomain[`v${c.version} ${c.domain}`] ||= []).push(c.ip);
       const conflicts = Object.entries(byDomain).filter(([, ips]) => ips.length > 1).map(([d, ips]) => ({ domain: d, ips }));
-      return { iface, errors, clocks: list, conflicts, followers: list.filter((c) => !c.isMaster).length };
+      return { iface, errors, clocks: list, conflicts, followers: list.filter((c) => !c.isMaster && c.zustand === 'aktiv').length };
     },
-    action(name) { if (name === 'clear') { clocks.clear(); return true; } return false; },
+    action(name) {
+      if (name === 'clear') { clocks.clear(); return true; }
+      if (name === 'alteEntfernen') return alteEntfernen(clocks, FRIST);
+      return false;
+    },
     stop() { socks.forEach(closeUdp); },
   };
 }

@@ -1,5 +1,7 @@
 // OSC mitlesen: Nachrichten an frei wählbare UDP-Ports (grandMA3 8000, Yamaha 49900, Eos 8000/8001 …)
-const { openUdp, closeUdp, Rate, explainError } = require('./util');
+const { openUdp, closeUdp, Rate, explainError, zustand, aktivZuerst, kappen, alteEntfernen } = require('./util');
+
+const FRIST = 30000; // OSC kommt oft nur bei Bedienung
 
 const pad4 = (n) => (n + 3) & ~3;
 const ostr = (buf, o) => {
@@ -79,19 +81,20 @@ async function create(opts = {}, ctx) {
   }
   if (!socks.length) throw new Error(errors.join(' ') || 'Kein Port geöffnet.');
   return {
-    tick(dt) { for (const a of addrs.values()) a.rate.tick(dt); },
+    tick(dt) { for (const a of addrs.values()) a.rate.tick(dt); kappen(addrs); },
     snapshot() {
       const now = Date.now();
       return {
         ports, errors, paused,
         log: log.slice(-150),
-        addresses: [...addrs.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(0, 400)
-          .map(([address, a]) => ({ address, count: a.count, rate: a.rate.rate, last: a.last, from: a.from, port: a.port, age: now - a.seen })),
+        addresses: aktivZuerst([...addrs.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([address, a]) => ({ address, count: a.count, rate: a.rate.rate, last: a.last, from: a.from, port: a.port, age: now - a.seen, zustand: zustand(a.seen, FRIST, now) }))).slice(0, 400),
       };
     },
     action(name, args = {}) {
       if (name === 'clear') { log.length = 0; addrs.clear(); return true; }
       if (name === 'pause') { paused = !!args.on; return paused; }
+      if (name === 'alteEntfernen') return alteEntfernen(addrs, FRIST);
       return false;
     },
     stop() { socks.forEach(closeUdp); },
