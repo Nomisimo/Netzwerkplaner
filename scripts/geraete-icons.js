@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* Erzeugt die Modell-Icons der Fokus-Hersteller (MA, Luminex, Cisco, Yamaha,
-   Schnick-Schnack-Systems, Audinate/Dante) nach assets/icons/devices/.
+   Schnick-Schnack-Systems, Audinate/Dante) und der Aussteller der LEaT con 26
+   nach assets/icons/devices/.
 
    Aufruf:  node scripts/geraete-icons.js
 
@@ -284,6 +285,109 @@ I.dante_karte = rect(2, 5, 17, 12, { rx: 0.6 }) + rect(19, 5, 2.4, 14.5, { rx: 0
 // OEM-Modul (Brooklyn, Broadway, Ultimo)
 I.dante_modul = rect(5.5, 5.5, 13, 13, { rx: 0.8 }) + rect(8.5, 8.5, 7, 7, { rx: 0.4, sw: 0.8, fill: 0.35 }) +
   [0, 1, 2, 3, 4].map((i) => line(7.4 + i * 2.3, 3, 7.4 + i * 2.3, 5.5, 0.8) + line(7.4 + i * 2.3, 18.5, 7.4 + i * 2.3, 21, 0.8) + line(3, 7.4 + i * 2.3, 5.5, 7.4 + i * 2.3, 0.8) + line(18.5, 7.4 + i * 2.3, 21, 7.4 + i * 2.3, 0.8)).join("");
+
+/* ── Aussteller der LEaT con 26 ─────────────────────────────────────────────
+   Gleiche Bauweise wie oben: Pulte von oben, Rack- und Tischgeräte von vorne.
+   Merkmale aus Form und Bedienelementen, keine Logos. */
+
+// Generische Bauteile für die neuen Hersteller
+const pultOben = (w, h, inner) => rect(12 - w / 2, 12 - h / 2, w, h, { rx: 1 }) + inner;
+const xlrReihe = (x, y, n, pitch, r = 0.7) => Array.from({ length: n }, (_, i) => xlr(x + i * pitch, y, r)).join("");
+const ethReihe = (x, y, n, pitch, r = 0.85) => Array.from({ length: n }, (_, i) => ethercon(x + i * pitch, y, r)).join("");
+const rjReihe = (x, y, n, pitch, w = 1, h = 0.9) => Array.from({ length: n }, (_, i) => rj45(x + i * pitch, y, w, h)).join("");
+// PTZ-Kamera: Sockel, Kopf mit Objektiv
+const ptz = (breit = false) => rect(6, 17, 12, 4, { rx: 1 }) + path_("M9 17V14.5H15V17", 0.9) +
+  rect(breit ? 4.5 : 5.5, 4.5, breit ? 15 : 13, 9.5, { rx: 4.2 }) + ring(12, 9.2, breit ? 3.2 : 2.8, 1, 0.25) + ring(12, 9.2, 1.2, 0.6) + led(breit ? 17.4 : 16.6, 6.6);
+// Kleiner AV-over-IP-Encoder/Decoder: flache Box, HDMI + RJ45
+const avBox = (label) => box(3, 8, 18, 8) + rect(4.6, 11.1, 3.2, 1.6, { rx: 0.3, sw: 0.6 }) + rj45(9.2, 11.2, 1.4, 1.2) + rj45(11.2, 11.2, 1.4, 1.2) +
+  led(15, 10) + led(16.2, 10, 0.5) + (label === "sfp" ? sfp(14.6, 12.2, 2.6, 1) : display(14.4, 12, 3.6, 1.4));
+// Endstufe mit Display und Kanal-LEDs (2 HE)
+const amp2 = (kanaele, eth = 2) => { const r = rack(2); let s = r.s + display(3.4, r.y + 1.2, 4.4, 2) + vents(3.4, r.y + 4.2, 4.4, 4, 0.8);
+  for (let c = 0; c < kanaele; c++) s += led(10 + c * (9 / kanaele), 10.6) + line(10 + c * (9 / kanaele), 11.8, 10 + c * (9 / kanaele), 13.8, 0.6, 0.6);
+  return s + ethReihe(20.2, 10.6, 1, 0) + (eth > 1 ? ethercon(20.2, 13.4, 0.85) : ""); };
+
+/* Allen & Heath */
+I.ah_sq = pultOben(20, 15, screen(4, 5.4, 6.8, 4.4) + yamKnobs(12.6, 5.6, 6, 2, 1.2) + faders(3.4, 11.4, 12, 1.15, 6.4) + keys(18, 11.6, 2, 4, 1.2, 1.5));
+I.ah_avantis = pultOben(21, 15.6, screen(2.6, 5, 9, 5.4) + yamKnobs(13.6, 5.4, 6, 3, 1.2) + faders(3, 12.2, 12, 1.15, 6) + faders(17.6, 12.2, 3, 1.25, 6));
+I.ah_mixrack = (() => { const r = rack(3); let s = r.s + display(3.4, r.y + 1.2, 3.6, 1.6); s += xlrReihe(9, r.y + 2.2, 8, 1.5, 0.6) + xlrReihe(9, r.y + 4.6, 8, 1.5, 0.6);
+  return s + rect(3.4, r.y + 4.2, 3.6, 4.2, { rx: 0.3, sw: 0.5 }) + ethercon(5.2, r.y + 6.3, 0.75) + vents(9, r.y + 7.2, 11, 2, 0.8); })();
+I.ah_ahm = (() => { const r = rack(1); return r.s + display(3.4, r.y + 1, 3.6, 1.6) + led(8.6, 11.2) + led(8.6, 12.8, 0.5) + vents(10.4, r.y + 1.2, 6, 5, 0.75) + ethercon(18.4, 12, 0.85) + ethercon(20.4, 12, 0.85); })();
+I.ah_expander = (() => { const r = rack(1); return r.s + xlrReihe(4, 11, 8, 1.55, 0.6) + xlrReihe(4, 13.2, 8, 1.55, 0.6) + rj45(17.4, 11.4, 1.2, 1) + rj45(19.2, 11.4, 1.2, 1) + led(18, 13.6); })();
+I.ah_ip = box(4.5, 3, 15, 18) + Array.from({ length: 8 }, (_, i) => ring(7.5 + (i % 4) * 3, 7 + Math.floor(i / 4) * 3.6, 1.1, 0.7)).join("") + keys(6.6, 14.2, 4, 2, 3, 2.2, 1.6, 0.55) + led(12, 4.6);
+
+/* Avid VENUE */
+I.avid_s6l = pultOben(22, 16, screen(1.8, 4.6, 6, 4) + screen(9, 4.6, 6, 4) + screen(16.2, 4.6, 6, 4) +
+  yamKnobs(2.4, 10, 15, 1, 1.32) + faders(2.2, 11.8, 8, 1.05, 6) + faders(13.6, 11.8, 8, 1.05, 6) + rect(11.1, 11.8, 1.8, 6, { rx: 0.3, sw: 0.5 }));
+I.avid_engine = (() => { const r = rack(4); return r.s + display(3.4, r.y + 1.2, 4, 1.8) + vents(9, r.y + 1.4, 11.6, 4, 0.9) +
+  [0, 1, 2].map((i) => rect(9 + i * 4, r.y + 6.4, 3.4, 4.4, { rx: 0.3, sw: 0.5 })).join("") + led(4, r.y + r.h - 1.6) + led(5.4, r.y + r.h - 1.6, 0.5); })();
+I.avid_stage = (() => { const r = rack(4); let s = r.s; for (let row = 0; row < 4; row++) s += xlrReihe(3.8, r.y + 1.7 + row * 2.4, 7, 1.85, 0.7); return s + ethercon(19.6, r.y + 2.4) + ethercon(19.6, r.y + 5.2) + display(18.4, r.y + r.h - 3, 2.6, 1.2); })();
+
+/* AlphaTheta (Pioneer DJ) */
+I.at_cdj = rect(4, 2, 16, 20, { rx: 1.2 }) + screen(5.6, 3.4, 12.8, 5.6) + ring(12, 15, 4.4, 1, 0.12) + ring(12, 15, 2.6, 0.6) + dot(12, 15, 0.5) +
+  solid(5.4, 19.6, 2.2, 1.2, 0.7) + solid(8.2, 19.6, 2.2, 1.2, 0.7) + line(18.6, 11.4, 18.6, 19.6, 0.5, 0.6) + solid(18.1, 15.4, 1, 0.8);
+I.at_djm = rect(5, 2, 14, 20, { rx: 1.2 }) + display(9.6, 3.4, 4.8, 2) + yamKnobs(7.4, 6.8, 4, 4, 3) + faders(7.4, 16.4, 4, 3, 3.4, 0.6) + line(9.5, 20.6, 14.5, 20.6, 0.7);
+I.at_xdj = rect(0.8, 4, 22.4, 16, { rx: 1.2 }) + screen(8.2, 5, 7.6, 4.6) + ring(4.6, 14.4, 3, 0.9, 0.12) + ring(19.4, 14.4, 3, 0.9, 0.12) +
+  faders(9.8, 11.4, 4, 1.45, 5, 0.6) + line(9.6, 18.6, 14.4, 18.6, 0.7) + dot(4.6, 14.4, 0.45) + dot(19.4, 14.4, 0.45);
+
+/* Biamp Tesira */
+I.biamp_tesira = (() => { const r = rack(1); let s = r.s + display(3.4, r.y + 1, 4.6, 1.8); for (let c = 0; c < 12; c++) s += led(10 + c * 0.9, 11.2, c % 3 ? 0.5 : 1) + led(10 + c * 0.9, 12.8, 0.35); return s + ring(21, 12, 0.6, 0.6); })();
+
+/* Brompton Tessera */
+I.brompton_proc = (() => { const r = rack(1); return r.s + display(3.4, r.y + 1, 5, 2) + ring(10.2, 12, 0.9, 0.6) + keys(12, 11.2, 4, 2, 1.1, 1, 0.7) + ethReihe(17.2, 12, 3, 1.75, 0.7); })();
+I.brompton_xd = (() => { const r = rack(1); return r.s + display(3.4, r.y + 1, 3, 1.5) + ethReihe(8.6, 12, 7, 1.7, 0.7) + sfp(20, 11.2, 1.4, 0.7) + sfp(20, 12.4, 1.4, 0.7); })();
+
+/* Barco Event Master */
+I.barco_s3 = (() => { const r = rack(2); let s = r.s + display(3.4, r.y + 1.2, 5.4, 3) + keys(3.6, r.y + 5.2, 4, 1, 1.3, 1, 0.8); for (let c = 0; c < 6; c++) s += rect(10.2 + c * 1.75, r.y + 2, 1.3, 4.6, { rx: 0.2, sw: 0.45 }); return s; })();
+I.barco_ec = pultOben(20, 14, screen(3.6, 6, 8, 4.4) + keys(13, 6.2, 5, 3, 1.3, 1.4) + keys(3.6, 12.2, 8, 2, 1.2, 1.4) + faders(16, 11.6, 1, 1, 5.6, 0.8) + ring(18.6, 15.4, 1.4, 0.7));
+
+/* AV Stumpfl PIXERA */
+I.pixera = (() => { const r = rack(2); return r.s + rect(3.4, r.y + 1.1, 7, r.h - 2.2, { rx: 0.4, sw: 0.6, fill: 0.15 }) + led(4.4, r.y + 2) + vents(12, r.y + 1.6, 8.6, 6, 0.95) + display(17, r.y + r.h - 2.6, 3.4, 1.3); })();
+
+/* PTZ-Kameras */
+I.canon_ptz = ptz(true);
+I.aver_ptz = ptz(false);
+
+/* Vizrt TriCaster */
+I.tricaster = pultOben(22, 14, keys(2.6, 6.4, 12, 3, 1.25, 1.5, 0.8) + faders(18.2, 6, 1, 1, 8, 0.9) + ring(20.6, 8.4, 1.2, 0.7) + keys(2.6, 12, 8, 2, 1.25, 1.5, 0.6, 0.5) + display(13.4, 11.8, 3.4, 1.6));
+
+/* AV over IP / KVM */
+I.crestron_nvx = avBox("display");
+I.blustream_ip = avBox("rj");
+I.adder_alif = box(3, 7.5, 18, 9) + rect(4.4, 10.6, 3.2, 1.6, { rx: 0.3, sw: 0.6 }) + rect(8.4, 10.6, 2, 1.4, { rx: 0.3, sw: 0.5 }) + rect(8.4, 12.6, 2, 1.4, { rx: 0.3, sw: 0.5 }) + rj45(12, 11.2, 1.4, 1.2) + sfp(14.6, 11.4, 2.6, 1) + led(19, 10) + led(19, 11.6, 0.5);
+
+/* DIGITUS Switches */
+I.digitus_24 = (() => { const r = rack(1); return r.s + led(3.6, 10.8) + led(3.6, 12.6, 0.5) + ciscoRows(5.6, 10.4, 12, 1, 2, 0.8) + sfp(18.4, 10.4, 1.4, 0.7) + sfp(18.4, 12.3, 1.4, 0.7) + sfp(20, 10.4, 1.2, 0.7) + sfp(20, 12.3, 1.2, 0.7); })();
+
+/* Avolites */
+I.avo_diamond = pultOben(22.4, 17, screen(1.8, 4.4, 6.4, 4.4) + screen(8.8, 4.4, 6.4, 4.4) + screen(15.8, 4.4, 6.4, 4.4) + trackball(12, 11.6, 0.9) +
+  encoders(3, 10.8, 4, 1.6) + encoders(16, 10.8, 4, 1.6) + faders(2.4, 13.4, 7, 1.1, 5.6) + faders(14.4, 13.4, 7, 1.1, 5.6));
+I.avo_sapphire = pultOben(22, 16, screen(2, 4.6, 8.8, 5.2) + screen(13.2, 4.6, 8.8, 5.2) + trackball(12, 7.2, 0.8) + faders(2.4, 11.6, 15, 1.27, 6.4));
+I.avo_tnp = (() => { const r = rack(1); return r.s + display(3.4, r.y + 1, 4, 1.7) + keys(8.6, 11.2, 3, 2, 1.1, 1.1, 0.7) + vents(12.6, r.y + 1.2, 3.6, 5, 0.75) + ethercon(17.6, 12, 0.85) + ethercon(19.8, 12, 0.85); })();
+
+/* ADJ NET-Nodes */
+I.adj_net = (() => { const r = rack(1); return r.s + display(3.4, r.y + 1, 3.4, 1.5) + rj45(8, 11.4, 1.3, 1.1) + rj45(9.8, 11.4, 1.3, 1.1) + xlrReihe(12.8, 12, 4, 2.1, 0.85); })();
+
+/* Astera NetBox */
+I.astera_netbox = box(4.5, 6, 15, 12) + rect(4.5, 6, 15, 3, { rx: 1, sw: 0.6, fill: 0.2 }) + rj45(6.4, 11, 1.4, 1.2) + rj45(8.4, 11, 1.4, 1.2) + rj45(10.4, 11, 1.4, 1.2) + rj45(12.4, 11, 1.4, 1.2) + xlr(16.4, 12.2, 1.2) + led(6.8, 15.6) + led(8.2, 15.6, 0.5);
+
+/* Bose PowerShare / ControlSpace */
+I.bose_amp = (() => { const r = rack(1); let s = r.s + vents(3.4, r.y + 1.2, 6, 5, 0.75); for (let c = 0; c < 4; c++) s += led(11 + c * 1.6, 11.2) + led(11 + c * 1.6, 12.8, 0.5); return s + ring(19.6, 12, 0.9, 0.7); })();
+
+/* d&b audiotechnik */
+I.db_amp = amp2(4, 2);
+I.db_ds100 = (() => { const r = rack(1); return r.s + display(3.4, r.y + 1, 4, 1.7) + ring(9.4, 12, 0.9, 0.6) + vents(11.2, r.y + 1.2, 5, 5, 0.75) + ethercon(18, 12, 0.85) + ethercon(20.2, 12, 0.85); })();
+
+/* DAD AX-Serie */
+I.dad_ax = (() => { const r = rack(2); let s = r.s + display(3.4, r.y + 1.2, 6, 3.2) + ring(4.6, r.y + 6.4, 0.9, 0.6); for (let c = 0; c < 10; c++) s += line(11 + c * 0.9, r.y + 1.6, 11 + c * 0.9, r.y + 5.6, 0.45, 0.6); return s + rj45(11, r.y + 6.4, 1.2, 1) + rj45(12.8, r.y + 6.4, 1.2, 1); })();
+
+/* Chauvet Net-X II */
+I.chauvet_netx = (() => { const r = rack(1); return r.s + display(3.4, r.y + 1, 3.6, 1.6) + ethercon(8.8, 12, 0.85) + ethercon(10.9, 12, 0.85) + xlrReihe(13.4, 12, 4, 2, 0.85); })();
+
+/* CODA Audio LINUS */
+I.coda_linus = (() => { const r = rack(2); let s = r.s + display(3.4, r.y + 1.2, 6.4, 3.4); for (let c = 0; c < 4; c++) s += ring(12 + c * 2, r.y + 2.6, 0.7, 0.6) + led(12 + c * 2, r.y + 5.2, 0.7); return s + rj45(19.6, r.y + 1.6, 1.2, 1) + rj45(19.6, r.y + 3.4, 1.2, 1) + rj45(19.6, r.y + 5.2, 1.2, 1); })();
+
+/* Colorlight */
+I.colorlight_proc = (() => { const r = rack(2); let s = r.s + display(3.4, r.y + 1.2, 5, 2.4) + ring(4.6, r.y + 5.6, 0.9, 0.6); for (let row = 0; row < 2; row++) s += ethReihe(10.4, r.y + 2.6 + row * 3.4, 6, 1.75, 0.7); return s; })();
 
 // ── Schreiben ──────────────────────────────────────────────────────────────
 const HEAD = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">';

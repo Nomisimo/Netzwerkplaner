@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor, DARK, INPUT, TEXT } from "../../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor, DARK, INPUT, TEXT, LINK } from "../../shared/constants.js";
 import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid, ipPorts, physPorts } from "../../shared/catalog.js";
 import { Section, KatChip, Toggle } from "../ui.jsx";
 import { IconView, ICON_NAMES } from "../icons.jsx";
@@ -8,7 +8,7 @@ import BestandView from "./BestandView.jsx";
 import { useEinstellungen, istFokus } from "../einstellungen.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
 import { newFeld, feldUmbenennen, feldEntfernen } from "../../shared/felder.js";
-import { Link, Check, X as XIcon, ChevronUp, ChevronDown } from "lucide-react";
+import { Link, Check, X as XIcon, ChevronUp, ChevronDown, FileText } from "lucide-react";
 
 const FLAG_LABELS = [
   ["p2p", "Punkt-zu-Punkt, nicht über Switch", ERR],
@@ -20,6 +20,19 @@ const FLAG_LABELS = [
   ["l2", "nur Layer 2", WARN],
   ["lokal", "nur lokal (nicht routbar)", MUTED],
 ];
+
+// URLs in Katalogfeldern (Quelle, Datenblatt, Produktseite) als Links, mehrere mit „;“ getrennt
+const MitLinks = ({ text }) => String(text).split(/\s*;\s*/).filter(Boolean).map((u, i) => /^https?:\/\//.test(u)
+  ? <div key={i}><a href="#" style={{ color: LINK, wordBreak: "break-all" }} onClick={(e) => { e.preventDefault(); api.openExternal(u); }}>{u}</a></div>
+  : <div key={i}>{u}</div>);
+
+// Datenblatt-Spalte: Link, wenn eins hinterlegt ist; „kein Datenblatt“, wenn die Recherche keins gefunden hat
+const DatenblattZelle = ({ g }) => {
+  const url = g.raw.Datenblatt, hat = g.raw["Datenblatt vorhanden"];
+  if (/^https?:\/\//.test(url || "")) return <a href="#" title={url} style={{ color: LINK, display: "inline-flex", alignItems: "center", gap: 3 }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); api.openExternal(url); }}><FileText size={13} /> Datenblatt</a>;
+  if (hat === "Nein") return <span style={{ color: MUTED }} title="Kein Datenblatt gefunden, Angaben laut Herstellerseite (siehe Quelle)">kein Datenblatt</span>;
+  return null;
+};
 
 export function ProtokollDetail({ p, P, onSelectDevice }) {
   const r = p.raw;
@@ -121,26 +134,27 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
             <Toggle checked={nurFokus} onChange={(c) => { setNurFokus(c); setHerst(""); }} label="nur Fokus-Hersteller" />
           </div>
           <table style={S.table}>
-            <thead><tr><th style={S.th}></th><th style={S.th}>Hersteller / Modell</th><th style={S.th}>Typ</th><th style={S.th}>Ports</th><th style={S.th}>Web-UI</th><th style={S.th}></th></tr></thead>
+            <thead><tr><th style={S.th}></th><th style={S.th}>Hersteller / Modell</th><th style={S.th}>Typ</th><th style={S.th}>Ports</th><th style={S.th}>Web-UI</th><th style={S.th}>Datenblatt</th><th style={S.th}></th></tr></thead>
             <tbody>
               {geraete.map((g) => (
                 <React.Fragment key={g.id}>
                   <tr style={{ cursor: "pointer" }} onClick={() => setOpen(open === g.id ? null : g.id)}>
-                    <td style={S.td}><IconView icon={TYPEN[g.typ]?.icon} color={katColor(g.kategorie)} size={20} /></td>
+                    <td style={S.td}><IconView icon={g.icon} color={katColor(g.kategorie)} size={20} /></td>
                     <td style={S.td}><div style={{ fontWeight: 600 }}>{g.modell}{g.fokus && /geprüft/i.test(g.raw.Datenstand || "") && <span title={g.raw.Datenstand} style={{ color: OK, marginLeft: 6, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 3 }}><Check size={12} /> geprüft</span>}</div><div style={{ fontSize: 11, color: MUTED }}>{g.hersteller}</div></td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.geraetetyp}</td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.raw["Netzwerkports (Anzahl)"]}</td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.raw["Web-UI"]}</td>
+                    <td style={{ ...S.td, fontSize: 12 }}><DatenblattZelle g={g} /></td>
                     <td style={S.td}><button style={S.smallBtn} onClick={(e) => { e.stopPropagation(); onAddDevice({ kind: "katalog", key: g.id }, {}); }}>+ ins Projekt</button></td>
                   </tr>
                   {open === g.id && (
-                    <tr><td colSpan="6" style={{ ...S.td, background: INPUT }}>
+                    <tr><td colSpan="7" style={{ ...S.td, background: INPUT }}>
                       <table style={{ ...S.table, marginTop: 0, fontSize: 12 }}><tbody>
                         {Object.entries(g.raw).filter(([k, v]) => v && !["Hersteller", "Modell"].includes(k)).map(([k, v]) => (
                           <tr key={k}><td style={{ ...S.td, color: SUB, width: 190 }}>{k}</td><td style={S.td}>{k === "Protokolle" ? v.split(/,(?![^(]*\))/).map((s) => s.trim()).map((s, i) => {
                             const r = findProtokoll(s);
                             return <span key={i} style={{ ...S.chip, marginRight: 4, marginBottom: 3, cursor: r ? "pointer" : "default", borderColor: r ? ACCENT + "66" : LINE }} onClick={() => r && (setProtoId(r.id), setSub("protokolle"))}>{s}</span>;
-                          }) : v}</td></tr>
+                          }) : /^https?:\/\//.test(v) ? <MitLinks text={v} /> : v}</td></tr>
                         ))}
                       </tbody></table>
                     </td></tr>

@@ -13,6 +13,7 @@
     "test": "node scripts/test.js",
     "import-data": "node scripts/import-data.js",
     "korrekturen": "node scripts/katalog-korrekturen.js",
+    "ergaenzungen": "node scripts/katalog-ergaenzungen.js",
     "import-oui": "node scripts/import-oui.js",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",

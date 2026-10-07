@@ -102,6 +102,10 @@ if (fs.existsSync(fokusFile)) {
   console.log(`Fokus-Katalog: ${entfernt} alte Einträge durch Fokus-Daten ersetzt, ${ersetzt + neu} Fokus-Geräte; ${pErs} Protokolle ersetzt, ${pNeu} neu; ${out.kernprotokolle.length} Kernprotokolle, ${out.switch_empfehlungen.length} Switch-Empfehlungen`);
 }
 
+// Recherchierte Zusatzgeräte (katalog-ergaenzungen.json, je Gerät mit Quelle und Datenblatt)
+const erg = require("./katalog-ergaenzungen.js").anwenden(out);
+console.log(`${erg.neu} Zusatzgeräte ergänzt, ${erg.ersetzt} ersetzt`);
+
 // Geprüfte Werte aus katalog-korrekturen.json gewinnen gegen die Rohdaten
 const nKorr = require("./katalog-korrekturen.js").anwenden(out);
 console.log(`${nKorr} geprüfte Korrekturen angewendet`);
