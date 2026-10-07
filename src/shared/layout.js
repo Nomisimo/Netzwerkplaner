@@ -1,3 +1,4 @@
+import { astKlappbar, astVersteckt } from "./model.js";
 /* ── Mindmap-Layout ───────────────────────────────────────────────────────
    Core-Switch in der Mitte, Äste nach links und rechts verteilt.
    Manuelle Verschiebungen werden als Offset je Gerät gespeichert und wirken
@@ -7,7 +8,7 @@ export const NODE_W = 224, NODE_H = 58, HGAP = 290, VGAP = 74;
 export const layoutMindmap = (P, T) => {
   const collapsed = P.layout.collapsed || {};
   const offsets = P.layout.offsets || {};
-  const kids = (id) => (collapsed[id] ? [] : T.children.get(id) || []);
+  const kids = (id) => (collapsed[id] && astKlappbar(T, id) ? [] : T.children.get(id) || []);
   const pos = new Map();
 
   const leaves = new Map();
@@ -101,13 +102,7 @@ export const layoutMindmap = (P, T) => {
   for (const r of T.roots) apply(r, { dx: 0, dy: 0 });
   for (const id of T.lose) apply(id, { dx: 0, dy: 0 });
 
-  const hidden = new Map();
-  for (const id of Object.keys(collapsed)) if (collapsed[id]) {
-    let n = 0;
-    const st = [...(T.children.get(id) || [])];
-    while (st.length) { const x = st.pop(); n++; st.push(...(T.children.get(x) || [])); }
-    if (n) hidden.set(id, n);
-  }
+  const hidden = astVersteckt(T, collapsed);
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of final.values()) {

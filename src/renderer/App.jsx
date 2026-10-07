@@ -26,6 +26,7 @@ import AnleitungTab from "./tabs/AnleitungTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
 import SitzungDialog from "./SitzungDialog.jsx";
 import Einstellungen from "./Einstellungen.jsx";
+import { ansichtVon, einstellungen } from "./einstellungen.js";
 import { useSitzung } from "./sync.js";
 import { diff, apply, invert, valueAt, pathKey } from "../shared/ops.js";
 import { removeDevice } from "../shared/invarianten.js";
@@ -432,7 +433,7 @@ export default function App() {
   };
   // Topologie in der gewünschten Ansicht zeichnen; der Plott bekommt dabei das gewählte Blattformat
   const topoIn = async (ansicht, format) => {
-    const vorher = Pref.current.layout?.ansicht || "mindmap", fVorher = Pref.current.layout?.plottFormat, tabVorher = tab;
+    const vorher = ansichtVon(Pref.current), aRoh = Pref.current.layout?.ansicht, fVorher = Pref.current.layout?.plottFormat, tabVorher = tab;
     const ziel = !ansicht || ansicht === "aktuell" ? vorher : ansicht;
     const fNeu = ziel === "cleancat" && format && format !== (fVorher || "A3-quer");
     if (ziel === vorher && !fNeu) return needTopo();
@@ -442,7 +443,7 @@ export default function App() {
     await new Promise((r) => setTimeout(r, 600));
     try { return topologySvg(svgRef.current, Pref.current); }
     finally {
-      mutate((d) => { d.layout.ansicht = vorher; if (fNeu) { if (fVorher) d.layout.plottFormat = fVorher; else delete d.layout.plottFormat; } });
+      mutate((d) => { if (aRoh) d.layout.ansicht = aRoh; else delete d.layout.ansicht; if (fNeu) { if (fVorher) d.layout.plottFormat = fVorher; else delete d.layout.plottFormat; } });
       hist.current.undo.length = undoLen;
       setTab(tabVorher);
     }
@@ -569,7 +570,7 @@ export default function App() {
       {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={library.bestand || []} customIcons={allIcons} title={picker.umbauFor ? `Modell für „${X.devById.get(picker.umbauFor)?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
         onClose={() => setPicker(null)} onPick={(item) => { if (picker.umbauFor) { umbauen(picker.umbauFor, item); setPicker(null); return; } const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
       <EingabeHost />
-      {showExport && <ExportDialog onClose={() => setShowExport(false)} onExport={doExport} planPfad={filePath} aktuelleAnsicht={P.layout?.ansicht || "mindmap"} />}
+      {showExport && <ExportDialog onClose={() => setShowExport(false)} onExport={doExport} planPfad={filePath} aktuelleAnsicht={ansichtVon(P)} />}
       {protoModal && <Modal title="Protokoll" width={860} onClose={() => setProtoModal(null)}
         footer={<button style={S.secondaryBtn} onClick={() => { setProtoId(protoModal); setBibSub("protokolle"); setTab("bibliothek"); setProtoModal(null); }}>Im Katalog öffnen</button>}>
         <ProtokollDetail p={PROTOKOLLE.find((p) => p.id === protoModal)} P={Pv} onSelectDevice={(id) => { setProtoModal(null); selectDevice(id); }} />
@@ -586,7 +587,7 @@ export default function App() {
         </div>
         {Object.entries(CHANGELOG).map(([v, items]) => <div key={v}><div className="sp-section-label">Version {v}{v === version ? " (installiert)" : ""}</div><ul style={{ margin: "0 0 12px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13 }}>{items.map((t, i) => <li key={i}>{t}</li>)}</ul></div>)}
       </Modal>}
-      {showEinst && <Einstellungen onClose={() => setShowEinst(false)} inSitzung={!!sitzung.zustand && !sitzung.zustand.veraltet} vorReload={() => { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) { console.error(e); } }} />}
+      {showEinst && <Einstellungen onClose={() => setShowEinst(false)} onTopoAnwenden={() => { const t = einstellungen().topo; mutate((d) => { d.layout.ansicht = t.ansicht; d.layout.linien = t.linien; d.layout.titel = t.titel; d.layout.einrasten = t.einrasten; d.layout.kabelBuendel = t.kabelBuendel; }); notify("Standard-Anzeige auf das Projekt angewendet"); }} inSitzung={!!sitzung.zustand && !sitzung.zustand.veraltet} vorReload={() => { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) { console.error(e); } }} />}
       {showSitzung && <SitzungDialog sitzung={sitzung} version={version} projektName={P.meta.veranstaltung} onClose={() => setShowSitzung(false)} onKopieSpeichern={() => save(true)} />}
       {toast && <div style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", background: INPUT, border: `1px solid ${toast.kind === "err" ? ERR : toast.kind === "warn" ? WARN : ACCENT}`, color: TEXT, padding: "9px 16px", borderRadius: 8, fontSize: 13, zIndex: 2000, boxShadow: "0 8px 24px rgba(0,0,0,.5)", maxWidth: "80vw" }}>{toast.msg}</div>}
     </div>

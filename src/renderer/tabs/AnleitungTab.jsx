@@ -45,7 +45,7 @@ const KAPITEL = [
       "Die Werkzeugleiste steht fest über Geräteliste, Zeichenfläche und Seitenleiste. Öffnet sich rechts der Editor, springt nichts mehr um.",
       "„+ Aus Katalog …“ öffnet die Suche über Herstellermodelle, eigene Vorlagen und deinen Gerätebestand. Ist ein Gerät ausgewählt, hängt das neue direkt daran.",
       "„Verbinden“ (Taste C): von Gerät zu Gerät ziehen. Das Endgerät übernimmt das VLAN des Switch-Ports. Switch-zu-Switch-Verbindungen werden Trunks mit allen VLANs.",
-      "„Bewegen“ (Taste M): Geräte ziehen, der ganze Ast zieht mit. „Auto-Layout“ setzt die Verschiebungen zurück, „Äste“ klappt Äste ein. Die Geräte eines Astes stehen bei jedem Switch in der Reihenfolge seiner Ports (Port 1 oben), genau wie in der Patchliste.",
+      "„Bewegen“ (Taste M): Geräte ziehen, der ganze Ast zieht mit. „Auto-Layout“ setzt die Verschiebungen zurück, „Äste“ klappt alle Äste unter den Wurzeln ein, ein zweiter Klick wieder auf. Jedes Gerät mit Geräten dahinter hat einen eigenen Knopf zum Einklappen, in Mindmap und „Anschlüsse“ gleich; nur der Hauptswitch bleibt immer offen. Die Geräte eines Astes stehen bei jedem Switch in der Reihenfolge seiner Ports (Port 1 oben), genau wie in der Patchliste.",
       "Rechtsklick auf ein Gerät zeigt Ports, Verbindungen und IPs. Entf löscht die Auswahl.",
       "Mausrad zoomt. Shift + Mausrad schiebt die Fläche hoch und runter, ⌘ (Mac) bzw. Strg (Windows) + Mausrad schiebt sie nach links und rechts.",
     ]} />
@@ -219,6 +219,9 @@ const KAPITEL = [
       "„Wie das System“ übernimmt beim Start der App Hell oder Dunkel vom Betriebssystem. Wechselt das System später, gilt das beim nächsten Start.",
       "Beim Umschalten lädt die Oberfläche kurz neu. Das Projekt, der offene Tab und die Datei bleiben erhalten. In einer laufenden Sitzung fragt die App vorher, weil das Neuladen die Sitzung verlässt.",
       "Die Ansicht „Anschlüsse“ in der Topologie bleibt in beiden Modi im dunkelblauen Blaupausen-Stil, Plott immer auf weißem Papier.",
+      "„Port-Lasche an Geräten“: „Standard“ zeigt in der Lasche über einem Gerät nur den Port, über den es hängt (z. B. „Port 3 → LAN 1“), „Erweitert“ alle belegten Ports des Geräts.",
+      "„Fokus im Katalog“: die Hersteller anhaken, die der Filter „nur Fokus“ im Katalog und beim Gerät-Hinzufügen zeigen soll. „Recherchierte“ stellt die gegen Herstellerdoku geprüften Hersteller wieder her.",
+      "„Topologie: Standard-Anzeige“: Ansicht, Linien, Farbe, Titel, Einrasten, Auto-Anordnen, Kabel bündeln und Port & VLAN für neue Projekte. Was ein Projekt selbst eingestellt hat, bleibt; „Auf offenes Projekt anwenden“ übernimmt die Standards ins offene Projekt.",
     ]} />
   </> },
   { id: "export", titel: "Export, Logo & Updates", inhalt: () => <>

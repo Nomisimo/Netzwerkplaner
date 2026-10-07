@@ -3,6 +3,7 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, TYPEN, KATE
 import { KATALOG_GERAETE, ipPorts } from "../shared/catalog.js";
 import { IconView, ICON_GRUPPEN, ICON_LABEL } from "./icons.jsx";
 import { vlanBaum, vlanPfad } from "../shared/qinq.js";
+import { istFokus, einstellungen } from "./einstellungen.js";
 import { X as XIcon, OctagonX, TriangleAlert, Info, ChevronDown } from "lucide-react";
 
 export function Section({ title, subtitle, right, children, style }) {
@@ -108,7 +109,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
   const items = useMemo(() => {
     const gen = Object.entries(TYPEN).map(([k, t]) => ({ kind: "typ", key: k, title: t.label, sub: "Generischer Typ", icon: t.icon, kat: t.kat }));
     const own = vorlagen.map((v) => ({ kind: "vorlage", key: v.id, title: v.name, sub: `Eigene Vorlage · ${v.geraet.hersteller || ""} ${v.geraet.modell || ""}`, icon: v.geraet.icon, kat: v.geraet.kategorie }));
-    const kg = KATALOG_GERAETE.filter((g) => !nurFokus || g.fokus).map((g) => ({ kind: "katalog", key: g.id, title: `${g.hersteller} ${g.modell}`, sub: g.geraetetyp + (g.raw["Web-UI"] !== "Nein" ? " · Web-UI" : ""), icon: g.icon, kat: g.kategorie, search: `${g.raw.Protokolle} ${g.raw.Funktion}` }));
+    const kg = KATALOG_GERAETE.filter((g) => !nurFokus || istFokus(g)).map((g) => ({ kind: "katalog", key: g.id, title: `${g.hersteller} ${g.modell}`, sub: g.geraetetyp + (g.raw["Web-UI"] !== "Nein" ? " · Web-UI" : ""), icon: g.icon, kat: g.kategorie, search: `${g.raw.Protokolle} ${g.raw.Funktion}` }));
     const best = bestand.map((b) => ({ kind: "bestand", key: b.id, title: b.name, sub: ["Bestand", [b.geraet.hersteller, b.geraet.modell].filter(Boolean).join(" "), ipPorts(b.geraet).filter((i) => i.ip).map((i) => i.ip).join(", ")].filter(Boolean).join(" · "), icon: b.geraet.icon, kat: b.geraet.kategorie, search: `${b.geraet.netzname || ""} ${(b.geraet.felder || []).map((f) => f.wert).join(" ")}` }));
     return [...best, ...own, ...kg, ...gen].filter((i) => (!kat || i.kat === kat) && (!ql || `${i.title} ${i.sub} ${i.search || ""}`.toLowerCase().includes(ql)));
   }, [ql, kat, vorlagen, bestand, nurFokus]);
@@ -121,7 +122,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
           <option value="">Alle Bereiche</option>
           {Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>
-        <Toggle checked={nurFokus} onChange={setNurFokus} label="nur Fokus" title="Nur Modelle der Fokus-Hersteller (MA, Luminex, Cisco, Yamaha, Schnick-Schnack-Systems, Dante) anzeigen" />
+        <Toggle checked={nurFokus} onChange={setNurFokus} label="nur Fokus" title={`Nur Modelle der Fokus-Hersteller anzeigen${Array.isArray(einstellungen().fokusHersteller) ? ` (${einstellungen().fokusHersteller.join(", ")})` : ""}. Welche das sind, stellst du in den Einstellungen ein.`} />
       </div>
       <div style={{ maxHeight: "58vh", overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 8 }}>
         {items.length === 0 && <div style={{ ...S.empty, padding: 16 }}>Nichts gefunden.</div>}

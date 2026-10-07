@@ -311,6 +311,19 @@ export const subtreeIds = (T, id) => {
   return out;
 };
 
+/* Äste: jedes Gerät mit Kindern lässt sich einklappen, in Mindmap und Anschlüsse gleich.
+   Nur der Hauptswitch (erste Wurzel) bleibt offen, sonst wäre der ganze Plan weg. */
+export const astKlappbar = (T, id) => (T.children.get(id) || []).length > 0 && T.roots[0] !== id;
+// Alle eingeklappten Äste → Anzahl versteckter Geräte (alle Ebenen darunter)
+export const astVersteckt = (T, collapsed = {}) => {
+  const m = new Map();
+  for (const id of Object.keys(collapsed)) if (collapsed[id] && astKlappbar(T, id)) m.set(id, subtreeIds(T, id).length - 1);
+  return m;
+};
+// „Äste“-Knopf: ist etwas eingeklappt, alles aufklappen, sonst alle Äste unterhalb der Wurzeln einklappen
+export const aesteUmschalten = (T, collapsed = {}) => (Object.values(collapsed).some(Boolean) ? {}
+  : Object.fromEntries([...T.children].filter(([id]) => astKlappbar(T, id) && !T.roots.includes(id)).map(([id]) => [id, true])));
+
 /* ── Prüfungen ─────────────────────────────────────────────────────────── */
 const AOIP = /dante|aes67|ravenna|avb|milan|q-lan|soundgrid/i;
 // Steuer-/Management-Ports tragen keine Medienströme, wenn das Gerät noch andere IP-Ports hat

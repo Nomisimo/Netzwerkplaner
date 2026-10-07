@@ -145,7 +145,7 @@ export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, wo
         <g className="np-ui" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggle(); }} style={{ cursor: "pointer" }}>
           <circle cx={x0 + p.w + 12} cy={p.y} r="8" fill={collapsed ? ACCENT : "#2c343e"} stroke={collapsed ? ACCENT : "#56606c"} />
           <text x={x0 + p.w + 12} y={p.y + 3.5} fontSize={collapsed ? 8.5 : 11} fontWeight="700" textAnchor="middle" fill="#fff">{collapsed ? "+" + (hidden || "") : "−"}</text>
-          <title>{collapsed ? "Gruppe ausklappen" : "Gruppe einklappen"}</title>
+          <title>{collapsed ? "Ast ausklappen" : "Ast einklappen"}</title>
         </g>
       )}
     </g>
@@ -153,7 +153,7 @@ export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, wo
 }
 
 // Endgerät als Karte mit Port-Lasche
-export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status, worst, iss, titel, onDown, onContextMenu, tool, onPortDown, markPort }) {
+export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status, worst, iss, titel, onDown, onContextMenu, tool, onPortDown, markPort, canCollapse, collapsed, hidden, onToggle }) {
   const x0 = p.x - CARD_W / 2, y0 = p.y - CARD_H / 2;
   const col = katColor(d.kategorie);
   const ip = mainIp(d);
@@ -180,6 +180,13 @@ export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status
       </circle>
       {worst && <g><TriangleAlert x={x0 + CARD_W - 30} y={y0 + 4} size={11} color={worst} strokeWidth={2.2} /><rect x={x0 + CARD_W - 30} y={y0 + 4} width="11" height="11" fill="transparent"><title>{iss.map((i) => i.msg).join("\n")}</title></rect></g>}
       <PortLeiste d={d} X={X} x0={x0 + 6} y0={y0 + CARD_PORT_Y} w={CARD_W - 12} h={CARD_H - CARD_PORT_Y - 5} onPortDown={onPortDown} markPort={markPort} />
+      {canCollapse && ( // Ast einklappen wie bei Switches
+        <g className="np-ui" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggle(); }} style={{ cursor: "pointer" }}>
+          <circle cx={x0 + CARD_W + 12} cy={p.y} r="8" fill={collapsed ? ACCENT : "#2c343e"} stroke={collapsed ? ACCENT : "#56606c"} />
+          <text x={x0 + CARD_W + 12} y={p.y + 3.5} fontSize={collapsed ? 8.5 : 11} fontWeight="700" textAnchor="middle" fill="#fff">{collapsed ? "+" + (hidden || "") : "−"}</text>
+          <title>{collapsed ? "Ast ausklappen" : "Ast einklappen"}</title>
+        </g>
+      )}
     </g>
   );
 }
@@ -190,12 +197,13 @@ export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status
 function PortLeiste({ d, X, x0, y0, w, h, onPortDown, markPort }) {
   const ports = (d.ports || []).filter((p) => !p.virtuell && steckerTyp(p));
   if (!ports.length) return null;
-  const gap = 3, n = ports.length, reihen = n > 3 ? 2 : 1, proReihe = Math.ceil(n / reihen);
+  // Immer drei gleich große Felder pro Zeile, egal wie viele Ports das Gerät hat
+  const gap = 3, n = ports.length, proReihe = 3, reihen = Math.ceil(n / proReihe);
   const bw = (w - gap * (proReihe - 1)) / proReihe;
-  const CARD_PORT_H = reihen === 2 ? (h - gap) / 2 : Math.min(26, h);
+  const CARD_PORT_H = Math.min(24, (h - gap * (reihen - 1)) / reihen);
   const icon = Math.max(MINI, Math.min(18, CARD_PORT_H - 5)); // Stecker-Symbol gut erkennbar
   const oben = y0 + (h - (reihen * CARD_PORT_H + (reihen - 1) * gap)) / 2;
-  if (bw < 34) return <Buchsenleiste d={d} X={X} x1={x0 + w} y={y0 + h - MINI - 2} />;
+  if (CARD_PORT_H < 11) return <Buchsenleiste d={d} X={X} x1={x0 + w} y={y0 + h - MINI - 2} />;
   const seite = portSeiten(d);
   return ports.map((port, i) => {
     const x = x0 + (i % proReihe) * (bw + gap), y = oben + Math.floor(i / proReihe) * (CARD_PORT_H + gap);
@@ -267,7 +275,7 @@ function Buchsenleiste({ d, X, x1, y }) {
 }
 
 // Beschriftung der Lasche: Port am übergeordneten Gerät
-export const laschenText = (id, T, X) => {
+export const laschenText = (id, T, X, alle = false) => {
   const c = T.treeConn.get(id);
   if (!c) return null;
   const up = c.a.dev === id ? c.b : c.a;
@@ -278,8 +286,9 @@ export const laschenText = (id, T, X) => {
   const phys = (dev?.ports || []).filter((p) => !p.virtuell);
   if (phys.length < 2) return name(r);
   // Mehrere Anschlüsse: dazu, mit welchem eigenen Port es steckt (z. B. „Port 5 → LAN 1“);
-  // sind mehrere eigene Ports belegt, stehen alle in der Lasche, der Baum-Anschluss zuerst
+  // „erweitert“ (Einstellungen): alle belegten eigenen Ports, der Baum-Anschluss zuerst
   const self = c.a.dev === id ? c.a : c.b;
+  if (!alle) { const eigen = X.portRef.get(`${id}:${self.port}`)?.port; return eigen ? `${name(r)} → ${kurzerPortName(eigen.name)}` : name(r); }
   const teile = [];
   const pos = (pid) => (pid === self.port ? -1 : phys.findIndex((p) => p.id === pid));
   for (const p of [...phys].sort((a, b) => pos(a.id) - pos(b.id))) {

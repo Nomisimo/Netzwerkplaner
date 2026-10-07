@@ -41,3 +41,25 @@ test("Frontplatten-Layout platziert alle Geräte, Karten hängen über oder unte
   const F2 = layoutFrontplatten(P2, T, X);
   for (const id of F.members.get(head)) assert.equal(F2.pos.get(id).x - F.pos.get(id).x, 100);
 });
+
+test("Äste: Mindmap und Anschlüsse klappen gleich ein, auch Endgeräte mit Kindern", async () => {
+  const { demoProject } = await import("../src/shared/demo.js");
+  const { buildIndex, buildTree, astKlappbar, astVersteckt, aesteUmschalten, subtreeIds } = await import("../src/shared/model.js");
+  const { layoutMindmap } = await import("../src/shared/layout.js");
+  const { layoutFrontplatten } = await import("../src/shared/frontplatte.js");
+  const P = demoProject(), X = buildIndex(P), T = buildTree(P, X);
+  assert.equal(astKlappbar(T, T.roots[0]), false, "Hauptswitch bleibt offen");
+  const zu = aesteUmschalten(T, {});
+  assert.ok(Object.keys(zu).length > 0);
+  for (const id of Object.keys(zu)) assert.ok(astKlappbar(T, id));
+  assert.deepEqual(aesteUmschalten(T, zu), {}, "zweiter Klick klappt alles auf");
+  // Einen Ast einklappen: beide Ansichten verstecken dieselben Geräte und zählen gleich
+  const ast = Object.keys(zu)[0];
+  P.layout.collapsed = { [ast]: true };
+  const weg = subtreeIds(T, ast).slice(1);
+  const M = layoutMindmap(P, T), F = layoutFrontplatten(P, T, X);
+  for (const id of weg) { assert.ok(!M.pos.has(id), `Mindmap zeigt ${id}`); assert.ok(!F.pos.has(id), `Anschlüsse zeigt ${id}`); }
+  assert.equal(M.hidden.get(ast), weg.length);
+  assert.equal(F.hidden.get(ast), weg.length);
+  assert.equal(astVersteckt(T, { [T.roots[0]]: true }).size, 0, "Hauptswitch lässt sich nicht einklappen");
+});
