@@ -8,6 +8,7 @@
    Ergebnis in Weltkoordinaten: { w, h, raeume, boxen, linien }. */
 import { KATEGORIEN, KABEL } from "./constants.js";
 import { physPorts, ipPorts } from "./catalog.js";
+import { flussRichtungen } from "./fluss.js";
 
 export const CC_FARBEN = { primary: "#e53935", secondary: "#2e9e44", glas: "#c05bd6", trunk: "#3a3f45", sonst: "#55595f" };
 export const CC_SWITCH_FILL = "#fff176";
@@ -655,6 +656,17 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
   // Dann Umwege mit unnötigen Ecken abkürzen
   const titel = [...bloecke.filter((b) => b.kopf > 0).map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.kopf })), ...raeume.map((r) => ({ x: r.x, y: r.y, w: r.w, h: RAUM_KOPF }))];
   abkuerzen(linien, [...boxen.values(), ...titel], [...bloecke, ...raeume.filter((r) => r.stapel)]);
+  /* Signalfluss: Pfeil nur am Empfänger. pts beginnen bei l.von; ohne bekannte Richtung
+     bleiben beide Pfeile (wie bisher). einweg markiert Leitungen mit nur einer Richtung. */
+  const fluss = flussRichtungen(P, X);
+  const connById = new Map(conns.map((c) => [c.id, c]));
+  for (const l of linien) {
+    const c = connById.get(l.id), f = c && fluss.get(c.id);
+    if (!f || (f.ab && f.ba)) { l.pfeil = { start: true, ende: true }; continue; }
+    const vor = l.von === c.a.dev ? f.ab : f.ba; // von → bis
+    l.pfeil = { start: !vor, ende: vor };
+    l.einweg = true;
+  }
   // Zuletzt die Kabelbeschriftungen auf die fertigen Leitungen setzen
   kabelBeschriften(linien, [...boxen.values(), ...titel], P.layout?.plottBeschriftung || {});
   const h = raeume.length ? plan.H : 0;
@@ -675,10 +687,10 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     w, h,
     // Standort-Rahmen (mit Stacks: um alle Unterräume) und Stack-Rahmen darin
     raeume: bloecke.map((b) => ({ name: b.standort, x: b.x, y: b.y, w: b.w, h: b.h, anmerkung: b.anmerkung })),
-    stapel: raeume.filter((r) => r.stapel).map(({ stapel: name, standort, x, y, w: rw, h: rh }) => ({ name, standort, x, y, w: rw, h: rh })),
+    stapel: raeume.filter((r) => r.stapel).map(({ name: key, stapel: name, standort, x, y, w: rw, h: rh }) => ({ id: key.split("\u0001")[1], name, standort, x, y, w: rw, h: rh })),
     boxen: [...boxen.entries()].map(([id, b]) => ({ ...b, id })),
     linien,
-    legende: { linien: legLinien, boxen: legBoxen, stapel: mitStapel },
+    legende: { linien: legLinien, boxen: legBoxen, stapel: mitStapel, fluss: linien.some((l) => l.einweg) },
     ordnung: genutzt,
   };
 };
@@ -743,14 +755,18 @@ export const ccEcken = (L) => L.linien.reduce((n, l) => n + Math.max(0, l.pts.le
 export const CC_KREUZUNG = 250; // Aufschlag je Kreuzung in Längeneinheiten
 export const CC_ECKE = 30; // Aufschlag je Ecke
 const ccKosten = (L) => ccLaenge(L) + CC_KREUZUNG * ccKreuzungen(L) + CC_ECKE * ccEcken(L);
+/* Von Hand gezogene Reihenfolgen (P.layout.cleancatOrdnung = { gruppen: { raum: [switchIds] },
+   oben: { gruppe: [geräteIds] } }) bleiben stehen; nur die übrigen Listen werden optimiert. */
 export const cleanCatOptimieren = (P, X, opts = {}) => {
   const hand = (P.layout?.cleancatStandorte || []).filter(Boolean);
-  const basis = cleanCatLayout(P, X, { ...opts, ordnung: hand.length ? { standorte: hand } : null });
+  const handO = P.layout?.cleancatOrdnung || {};
+  const basis = cleanCatLayout(P, X, { ...opts, ordnung: { standorte: hand.length ? hand : null, gruppen: { ...(handO.gruppen || {}) }, oben: { ...(handO.oben || {}) } } });
   const ord = JSON.parse(JSON.stringify(basis.ordnung));
   const start = ccKosten(basis);
   let best = start, n = 0;
   const maxEval = Math.max(20, Math.min(300, Math.floor(6000 / Math.max(1, P.geraete.length))));
-  const listen = [...(hand.length ? [] : [ord.standorte]), ...Object.values(ord.gruppen), ...Object.values(ord.oben)].filter((l) => l.length > 1);
+  const frei = (m, fest = {}) => Object.entries(m).filter(([k]) => !fest[k]).map(([, l]) => l);
+  const listen = [...(hand.length ? [] : [ord.standorte]), ...frei(ord.gruppen, handO.gruppen), ...frei(ord.oben, handO.oben)].filter((l) => l.length > 1);
   for (let runde = 0; runde < 6 && n < maxEval; runde++) {
     let besser = false;
     for (const l of listen) for (let i = 0; i < l.length - 1 && n < maxEval; i++) {

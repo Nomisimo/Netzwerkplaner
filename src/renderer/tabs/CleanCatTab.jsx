@@ -62,6 +62,7 @@ function Legende({ B, L }) {
   const eintraege = [
     ...L.legende.linien.map((l) => ({ art: "linie", ...l })),
     ...L.legende.boxen.map((b) => ({ art: "box", ...b })),
+    ...(L.legende.fluss ? [{ art: "einweg", t: "Signal in eine Richtung" }, { art: "zweiweg", t: "Signal in beide Richtungen" }] : []),
     { art: "raum", t: "Raum = Standort" },
     ...(L.legende.stapel ? [{ art: "stapel", t: "Stack (Rack, Case)" }] : []),
   ];
@@ -79,6 +80,11 @@ function Legende({ B, L }) {
         return (
           <g key={i}>
             {e.art === "linie" && <line x1={ex} y1={ey} x2={ex + 30} y2={ey} stroke={e.col} strokeWidth="2.2" strokeDasharray={e.dash || undefined} />}
+            {(e.art === "einweg" || e.art === "zweiweg") && <g>
+              <line x1={ex + 2} y1={ey} x2={ex + 28} y2={ey} stroke="#3a3f45" strokeWidth="1.6" />
+              <path d={`M${ex + 30} ${ey} l-7 -3.5 v7 z`} fill="#3a3f45" />
+              {e.art === "zweiweg" && <path d={`M${ex} ${ey} l7 -3.5 v7 z`} fill="#3a3f45" />}
+            </g>}
             {e.art === "box" && <rect x={ex + 3} y={ey - 6} width={24} height={12} fill={e.fill} stroke="#3b3f45" />}
             {e.art === "raum" && <rect x={ex + 1} y={ey - 7} width={28} height={14} fill="#f6f7f8" stroke="#8a8f96" strokeDasharray="4 3" />}
             {e.art === "stapel" && <rect x={ex + 1} y={ey - 7} width={28} height={14} fill="#ffffff" stroke="#6f7680" strokeWidth="1.2" rx="2" />}
@@ -90,7 +96,21 @@ function Legende({ B, L }) {
   );
 }
 
-function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLabelDown, onLabelReset }) {
+/* Pfeil mitten auf dem längsten Stück einer Einweg-Leitung, damit die Richtung auch bei
+   langen Wegen ohne Blick auf die Enden lesbar ist. */
+function FlussPfeil({ pts, rueck, col }) {
+  let best = null;
+  for (let i = 1; i < pts.length; i++) {
+    const [a, b] = [pts[i - 1], pts[i]], l = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+    if (!best || l > best.l) best = { a, b, l };
+  }
+  if (!best || best.l < 40) return null;
+  const [a, b] = rueck ? [best.b, best.a] : [best.a, best.b];
+  const w = (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI;
+  return <path d="M4 0 L-4 -3.6 L-4 3.6 z" fill={col} transform={`translate(${(a[0] + b[0]) / 2},${(a[1] + b[1]) / 2}) rotate(${w})`} />;
+}
+
+function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLabelDown, onLabelReset, onBoxDown, onStapelDown, boxZieh }) {
   const mid = (c) => "cc-" + c.replace("#", "");
   const farben = [...new Set(L.linien.map((l) => l.col))];
   // Nach dem Zeichnen genau messen: was trotz Schätzung zu breit ist, wird gestaucht
@@ -124,7 +144,9 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLa
           </g>
         ))}
         {(L.stapel || []).map((r) => (
-          <g key={"st" + r.standort + r.name + r.x}>
+          <g key={"st" + r.standort + r.name + r.x} onMouseDown={onStapelDown ? (e) => onStapelDown(e, r.id) : undefined} style={{ cursor: onStapelDown ? "move" : undefined }}
+            opacity={boxZieh?.art === "stapel" && boxZieh.id === r.id && boxZieh.bewegt ? 0.45 : 1}>
+            {onStapelDown && <title>{`Stack ${r.name} · ziehen = an eine andere Stelle im Standort setzen`}</title>}
             <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#ffffff" stroke="#6f7680" strokeWidth="1.2" rx="3" />
             <rect x={r.x + 0.6} y={r.y + 0.6} width={r.w - 1.2} height={20} fill="#eceef1" stroke="none" rx="2.5" />
             <line x1={r.x} y1={r.y + 21} x2={r.x + r.w} y2={r.y + 21} stroke="#c3c8ce" />
@@ -134,7 +156,8 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLa
         {L.linien.map((l, i) => (
           <g key={l.id + i}>
             <polyline points={l.pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={l.col} strokeWidth="1.5" strokeDasharray={l.dash || undefined}
-              markerStart={`url(#${mid(l.col)})`} markerEnd={`url(#${mid(l.col)})`} strokeLinejoin="round" />
+              markerStart={l.pfeil?.start !== false ? `url(#${mid(l.col)})` : undefined} markerEnd={l.pfeil?.ende !== false ? `url(#${mid(l.col)})` : undefined} strokeLinejoin="round" />
+            {l.einweg && <FlussPfeil pts={l.pts} rueck={!l.pfeil.ende} col={l.col} />}
             {l.labels.map((t, k) => {
               // Kabelbeschriftung: auf der Leitung verschiebbar, Doppelklick = wieder automatisch
               const zug = t.kabel && onLabelDown ? { onMouseDown: (e) => onLabelDown(e, l.id), onDoubleClick: (e) => { e.stopPropagation(); onLabelReset?.(l.id); }, style: { cursor: "grab" } } : {};
@@ -152,7 +175,9 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLa
           const kopfH = (b.basisH || b.h) / s;
           const yName = zeilen === 3 ? 17 : zeilen === 2 ? 20 : kopfH / 2 + 4;
           return (
-            <g key={b.id} transform={`translate(${b.x},${b.y})${s !== 1 ? ` scale(${s})` : ""}`} style={{ cursor: onBox ? "pointer" : "default" }} onClick={onBox ? () => onBox(b.id) : undefined}>
+            <g key={b.id} transform={`translate(${b.x},${b.y})${s !== 1 ? ` scale(${s})` : ""}`} style={{ cursor: onBoxDown ? "move" : onBox ? "pointer" : "default" }}
+              opacity={boxZieh?.art === "box" && boxZieh.id === b.id && boxZieh.bewegt ? 0.45 : 1}
+              onMouseDown={onBoxDown ? (e) => onBoxDown(e, b.id) : undefined} onClick={!onBoxDown && onBox ? () => onBox(b.id) : undefined}>
               <rect width={bw} height={bh} fill={b.fill} stroke="#3b3f45" strokeWidth={1} />
               <T x={bw / 2} y={yName} max={frei} fit={b.tName} anchor="middle" weight={600} />
               {b.tSub && <T x={bw / 2} y={zeilen === 3 ? 30 : 34} max={frei} fit={b.tSub} anchor="middle" fill="#333" />}
@@ -167,6 +192,18 @@ function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLa
             </g>
           );
         })}
+        {boxZieh?.bewegt && (() => {
+          // Kasten oder Stack ziehen: Vorschau und Einfügemarke neben dem Ziel
+          const liste = boxZieh.art === "box" ? L.boxen : L.stapel || [];
+          const r = liste.find((x) => x.id === boxZieh.id);
+          if (!r) return null;
+          const z = boxZieh.ziel && liste.find((x) => x.id === boxZieh.ziel.name);
+          const xm = z && (boxZieh.ziel.vor ? z.x - 7 : z.x + z.w + 7);
+          return <g pointerEvents="none">
+            <rect x={r.x + boxZieh.dx} y={r.y + boxZieh.dy} width={r.w} height={r.h} fill="#2c3b9314" stroke="#2c3b93" strokeWidth="2" strokeDasharray="8 5" rx="3" />
+            {z && <line x1={xm} x2={xm} y1={z.y} y2={z.y + z.h} stroke="#2c3b93" strokeWidth="4" strokeLinecap="round" />}
+          </g>;
+        })()}
         {zieh?.bewegt && (() => {
           const r = L.raeume.find((x) => x.name === zieh.name);
           if (!r) return null;
@@ -212,7 +249,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   const [zeigeIp, setZeigeIp] = useState(() => localStorage.getItem("np_cc_ip") !== "0");
   // Automatische Anordnung mit kurzen Kabelwegen: nur neu rechnen, wenn sich Geräte, Kabel oder Stacks ändern
   const format = plottFormat(P), groesse = plottGroesse(P);
-  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp, format, groesse }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.bereiche, P.standortInfo, zeigeIp, format, groesse]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { zeigeIp, format, groesse }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.layout.cleancatOrdnung, P.bereiche, P.standortInfo, zeigeIp, format, groesse]); // eslint-disable-line react-hooks/exhaustive-deps
   const L0 = useMemo(() => cleanCatLayout(P, X, { farbe, zeigeIp, ordnung, format, groesse }), [P, X, farbe, zeigeIp, ordnung, format, groesse]);
   const [labZieh, setLabZieh] = useState(null); // Kabelbeschriftung ziehen: { id, f, bewegt }
   const L = useMemo(() => (!labZieh ? L0 : { ...L0, linien: L0.linien.map((l) => l.id !== labZieh.id ? l
@@ -318,7 +355,64 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     }
     return true;
   };
-  const vonHand = (P.layout.cleancatStandorte || []).length > 0;
+  /* Kästen ziehen: Geräte über einem Switch und Switches eines Standorts lassen sich in
+     ihrer Reihe umstellen, Stacks innerhalb ihres Standorts. Die Reihenfolge bleibt dann
+     von Hand gesetzt (layout.cleancatOrdnung bzw. Reihenfolge der Stapel). */
+  const [boxZieh, setBoxZieh] = useState(null); // { art, id, art2: "oben"|"gruppen", key, liste, sx, sy, dx, dy, bewegt, ziel }
+  const listeVon = (id) => {
+    const o = L0.ordnung || {};
+    for (const art2 of ["oben", "gruppen"]) for (const [key, l] of Object.entries(o[art2] || {})) if (l.includes(id)) return { art2, key, liste: l };
+    return null;
+  };
+  const boxDown = (e, id) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    setBoxZieh({ art: "box", id, ...(listeVon(id) || {}), sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, bewegt: false, ziel: null });
+  };
+  const stapelDown = (e, id) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const st = (L0.stapel || []).find((x) => x.id === id);
+    const liste = (L0.stapel || []).filter((x) => x.standort === st?.standort).map((x) => x.id);
+    setBoxZieh({ art: "stapel", id, liste, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, bewegt: false, ziel: null });
+  };
+  const boxBewegen = (e) => {
+    if (!boxZieh) return false;
+    const f = view.k * B.k, dx = (e.clientX - boxZieh.sx) / f, dy = (e.clientY - boxZieh.sy) / f;
+    const bewegt = boxZieh.bewegt || Math.abs(e.clientX - boxZieh.sx) + Math.abs(e.clientY - boxZieh.sy) > 4;
+    let ziel = null;
+    if (bewegt && boxZieh.liste?.length > 1) {
+      const alle = boxZieh.art === "box" ? L0.boxen : L0.stapel || [];
+      const r = alle.find((x) => x.id === boxZieh.id);
+      ziel = r && standortZiel({ raeume: alle.filter((x) => boxZieh.liste.includes(x.id)).map((x) => ({ ...x, name: x.id })) }, boxZieh.id, dx, dy);
+    }
+    setBoxZieh({ ...boxZieh, dx, dy, bewegt, ziel });
+    return true;
+  };
+  const boxEnde = () => {
+    if (!boxZieh) return false;
+    const { art, id, art2, key, liste, bewegt, ziel } = boxZieh;
+    setBoxZieh(null);
+    if (!bewegt) { if (art === "box") onSelectDevice?.(id); return true; }
+    if (!ziel || !liste) return true;
+    const neu = standortVerschieben(liste, id, ziel);
+    if (neu.join("\u0001") === liste.join("\u0001")) return true;
+    if (art === "box") mutate((d) => {
+      const o = d.layout.cleancatOrdnung || {};
+      d.layout.cleancatOrdnung = { ...o, [art2]: { ...(o[art2] || {}), [key]: neu } };
+    });
+    else mutate((d) => {
+      const st = d.layout.stapel || [];
+      const rang = new Map(neu.map((x, i) => [x, i]));
+      const plaetze = st.map((x, i) => (rang.has(x.id) ? i : -1)).filter((i) => i >= 0);
+      const sortiert = [...plaetze].map((i) => st[i]).sort((a, b) => rang.get(a.id) - rang.get(b.id));
+      const out = [...st];
+      plaetze.forEach((i, k) => { out[i] = sortiert[k]; });
+      d.layout.stapel = out;
+    });
+    return true;
+  };
+  const vonHand = (P.layout.cleancatStandorte || []).length > 0 || Object.keys(P.layout.cleancatOrdnung || {}).length > 0;
   const knopf = { ...S.ghostBtn, whiteSpace: "nowrap" };
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -332,7 +426,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
         <button style={knopf} onClick={() => zoom(1 / 1.25)} title="Verkleinern"><ZoomOut size={14} /></button>
         <button style={knopf} onClick={() => zoom(1.25)} title="Vergrößern"><ZoomIn size={14} /></button>
         <button style={knopf} onClick={einpassen} title="Ganzes Blatt zeigen"><Maximize2 size={14} /> Einpassen</button>
-        {mutate && <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; })} title="Von Hand gesetzte Reihenfolge der Standorte verwerfen. Der Plan ordnet sie wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Standorte automatisch</button>}
+        {mutate && <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; delete d.layout.cleancatOrdnung; })} title="Von Hand gesetzte Reihenfolge der Standorte und Kästen verwerfen. Der Plan ordnet sie wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Anordnung automatisch</button>}
         {mutate && <button style={knopf} disabled={!labelsVonHand} onClick={() => mutate((d) => { delete d.layout.plottBeschriftung; })} title="Von Hand verschobene Kabelbeschriftungen wieder automatisch setzen"><RotateCcw size={14} /> Beschriftungen automatisch</button>}
         <select style={{ ...S.selectSm, width: "auto" }} value={format} title="Blattformat des Plans (gilt auch für den Export)"
           onChange={(e) => { const v = e.target.value; mutate?.((d) => { if (v === "A3-quer") delete d.layout.plottFormat; else d.layout.plottFormat = v; }); }} disabled={!mutate}>
@@ -349,13 +443,14 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
       </div>
       <div ref={wrap} style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative", background: "#d9dde1", cursor: drag.current ? "grabbing" : "grab" }}
         onMouseDown={(e) => { if (e.button !== 0 && e.button !== 1) return; drag.current = { sx: e.clientX, sy: e.clientY, v: view, bewegt: false }; }}
-        onMouseMove={(e) => { if (labelBewegen(e) || raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
-        onMouseUp={() => { if (labelEnde() || raumEnde()) return; setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { labelEnde(); raumEnde(); drag.current = null; }}>
+        onMouseMove={(e) => { if (labelBewegen(e) || boxBewegen(e) || raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
+        onMouseUp={() => { if (labelEnde() || boxEnde() || raumEnde()) return; setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { labelEnde(); setBoxZieh(null); raumEnde(); drag.current = null; }}>
         {!P.geraete.length && <div style={{ ...S.empty, padding: 30, color: MUTED }}>Noch keine Geräte im Projekt.</div>}
         {P.geraete.length > 0 && <div style={{ position: "absolute", left: 0, top: 0, transform: `translate(${view.x}px,${view.y}px) scale(${view.k})`, transformOrigin: "0 0", boxShadow: "0 4px 24px rgba(0,0,0,.25)" }}>
-          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} onRaumDown={mutate ? raumDown : null} zieh={zieh} onLabelDown={mutate ? labelDown : null} onLabelReset={labelReset} />
+          <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} onRaumDown={mutate ? raumDown : null} zieh={zieh} onLabelDown={mutate ? labelDown : null} onLabelReset={labelReset}
+            onBoxDown={mutate ? boxDown : null} onStapelDown={mutate ? stapelDown : null} boxZieh={boxZieh} />
         </div>}
-        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Ziehen = verschieben · Standort ziehen = an andere Stelle setzen · Kabeltext ziehen = auf dem Kabel verschieben · Klick auf ein Gerät = bearbeiten</div>
+        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Ziehen = verschieben · Standort, Gerät oder Stack ziehen = an andere Stelle setzen · Kabeltext ziehen = auf dem Kabel verschieben · Klick auf ein Gerät = bearbeiten</div>
       </div>
     </div>
   );
