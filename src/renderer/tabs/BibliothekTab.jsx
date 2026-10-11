@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { passtSuche } from "../../shared/suche.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor, DARK, INPUT, TEXT } from "../../shared/constants.js";
 import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid, ipPorts, physPorts } from "../../shared/catalog.js";
 import { Section, KatChip, Toggle } from "../ui.jsx";
@@ -63,9 +64,9 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
   const [neueVorlage, setNeueVorlage] = useState(false);
   const ql = q.toLowerCase();
 
-  const protos = useMemo(() => PROTOKOLLE.filter((p) => (!kat || p.kategorie === kat) && (!ql || `${p.name} ${p.raw.Ports} ${p.raw["Hersteller / Gremium"]}`.toLowerCase().includes(ql))), [ql, kat]);
+  const protos = useMemo(() => PROTOKOLLE.filter((p) => (!kat || p.kategorie === kat) && (!ql || passtSuche(`${p.name} ${p.raw.Ports} ${p.raw["Hersteller / Gremium"]}`, ql))), [ql, kat]);
   const einst = useEinstellungen();
-  const geraete = useMemo(() => KATALOG_GERAETE.filter((g) => (!nurFokus || istFokus(g, einst)) && (!herst || g.hersteller === herst) && (!kat || g.kategorie === kat) && (!ql || `${g.hersteller} ${g.modell} ${g.geraetetyp} ${g.raw.Protokolle}`.toLowerCase().includes(ql))), [ql, herst, kat, nurFokus, einst]);
+  const geraete = useMemo(() => KATALOG_GERAETE.filter((g) => (!nurFokus || istFokus(g, einst)) && (!herst || g.hersteller === herst) && (!kat || g.kategorie === kat) && (!ql || passtSuche(`${g.hersteller} ${g.modell} ${g.geraetetyp} ${g.raw.Protokolle}`, ql))), [ql, herst, kat, nurFokus, einst]);
   const cur = PROTOKOLLE.find((p) => p.id === protoId) || protos[0];
   const hersteller = [...new Set(KATALOG_GERAETE.filter((g) => !nurFokus || istFokus(g, einst)).map((g) => g.hersteller))].sort((a, b) => a.localeCompare(b, "de"));
 
@@ -115,7 +116,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       {sub === "katalog" && (
         <Section title="Herstellergeräte" subtitle={`Stand ${KATALOG.stand} · ${geraete.length} Modelle. Recherchierte Fokus-Hersteller (${(KATALOG.fokus || []).join(", ")}) sind gegen Herstellerdoku geprüft; welche Hersteller der Filter „nur Fokus“ zeigt, stellst du in den Einstellungen ein; der Datenstand steht je Modell in den Details.`}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="Hersteller, Modell, Typ, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="Hersteller, Modell, Typ, Protokoll · * als Platzhalter, z. B. Cisco*1300*24" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
             <select style={{ ...S.selectSm, width: "auto" }} value={herst} onChange={(e) => setHerst(e.target.value)}><option value="">Alle Hersteller</option>{hersteller.map((h) => <option key={h}>{h}</option>)}</select>
             <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}><option value="">Alle Bereiche</option>{["Ton", "Licht", "Bild", "Netzwerk", "Bühne", "Intercom"].map((k) => <option key={k}>{k}</option>)}</select>
             <Toggle checked={nurFokus} onChange={(c) => { setNurFokus(c); setHerst(""); }} label="nur Fokus-Hersteller" />

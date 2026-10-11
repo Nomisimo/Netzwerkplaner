@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, PANEL, katColor, TYPEN, KATEGORIEN, PORT_TYPEN, CARD, INPUT, LINK, TEXT2, STRONG } from "../shared/constants.js";
 import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid, hardwareFest } from "../shared/catalog.js";
 import { portSeiten } from "../shared/anschluesse.js";
-import { otherEnd, suggestIp, webUrl, clone, vlanQuelle } from "../shared/model.js";
+import { otherEnd, suggestIp, webUrl, clone, vlanQuelle, standortListe } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
 import { normMac, macHersteller, herstellerPasst } from "../shared/mac.js";
 import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot, frageText, AuswahlFeld } from "./ui.jsx";
@@ -355,7 +355,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         <Field label="Hersteller"><input style={{ ...S.inputSm, ...festStil(fest) }} value={dev.hersteller} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.hersteller = e.target.value))} /></Field>
         <Field label="Modell"><input style={{ ...S.inputSm, ...festStil(fest) }} value={dev.modell} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.modell = e.target.value))} /></Field>
         <Field label="Standort / Ast">
-          <AuswahlFeld style={S.inputSm} optionen={P.bereiche} value={dev.bereich || ""} onChange={(v) => upd((g) => (g.bereich = v))} placeholder="z. B. FOH" />
+          <AuswahlFeld style={S.inputSm} optionen={standortListe(P)} value={dev.bereich || ""} onChange={(v) => upd((g) => (g.bereich = v))} placeholder="z. B. FOH" />
         </Field>
         {dev.isSwitch
           ? <Field label="PoE-Budget (W)" hint="0 = keine Prüfung"><input type="number" min="0" style={{ ...S.inputSm, ...festStil(fest) }} value={dev.poeBudget || 0} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.poeBudget = +e.target.value))} /></Field>
@@ -365,11 +365,20 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
       <EigeneFelder dev={dev} katalog={P.feldKatalog || []} upd={upd} grid={grid} />
 
 
+      {/* Switches: Management-IP (virtueller Anschluss ohne Buchse), unter der der Switch selbst erreichbar ist */}
+      {dev.isSwitch && (!unmanaged || dev.ports.some((p) => p.virtuell)) && <>
+        <Sub right={!unmanaged && <button style={S.smallBtn} title="Weitere Management-IP ohne eigene Buchse, z. B. für ein zweites Management-VLAN" onClick={() => upd((g) => g.ports.push(newPort({ name: "Management", virtuell: true })))}>+ Management-IP</button>}>
+          Management-IP
+        </Sub>
+        <div style={{ ...S.hint, marginTop: -4, marginBottom: 8 }}>Die Adresse des Switches selbst (Web-UI, SNMP, Status-Prüfung). Keine Netzwerkkarte und keine Buchse; die Ports stehen darunter.</div>
+        {dev.ports.filter((p) => p.virtuell).length === 0 && <div style={{ ...S.empty, padding: "4px 0" }}>Keine Management-IP. Ohne sie ist der Switch im Plan nicht erreichbar.</div>}
+        {dev.ports.filter((p) => p.virtuell).map((p) => <IpPort key={p.id} P={P} X={X} dev={dev} p={p} upd={upd} mutate={mutate} compact={compact} cons={connOf(p)} onSelectDevice={onSelectDevice} fest={fest} pst={status?.ifs?.[p.id]} />)}
+      </>}
+
       {/* Ports: jeder Port ist zugleich ein Interface mit VLAN und IP-Daten */}
       <Sub right={<>
         {!fest && <button style={S.smallBtn} onClick={() => upd((g) => { const n = physPorts(g).length + 1; g.ports.push(newPort({ name: g.isSwitch ? String(n) : `LAN ${n}` })); })}>+ Port</button>}
         {dev.isSwitch && !fest && <button style={S.smallBtn} onClick={() => upd((g) => { for (let n = 0; n < 8; n++) g.ports.push(newPort({ name: String(physPorts(g).length + 1) })); })}>+ 8 Ports</button>}
-        {dev.isSwitch && !unmanaged && <button style={S.smallBtn} title="Management-Interface ohne eigene Buchse (IP des Switches)" onClick={() => upd((g) => g.ports.push(newPort({ name: "Management", virtuell: true })))}>+ Management</button>}
       </>}>
         Ports ({physPorts(dev).length})
       </Sub>
@@ -383,7 +392,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         </div>
       )}
       {dev.ports.length === 0 && <div style={{ ...S.empty, padding: "4px 0" }}>Keine Ports.</div>}
-      {dev.ports.filter((p) => !dev.isSwitch || p.virtuell).map((p) => <IpPort key={p.id} P={P} X={X} dev={dev} p={p} upd={upd} mutate={mutate} compact={compact} cons={connOf(p)} onSelectDevice={onSelectDevice} fest={fest} pst={status?.ifs?.[p.id]} />)}
+      {dev.ports.filter((p) => !dev.isSwitch).map((p) => <IpPort key={p.id} P={P} X={X} dev={dev} p={p} upd={upd} mutate={mutate} compact={compact} cons={connOf(p)} onSelectDevice={onSelectDevice} fest={fest} pst={status?.ifs?.[p.id]} />)}
       {dev.isSwitch && physPorts(dev).length > 0 && <div style={{ overflowX: "auto" }}>
         <table style={{ ...S.table, marginTop: 0, fontSize: 12, minWidth: 660 }}>
           <thead><tr>

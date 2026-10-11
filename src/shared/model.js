@@ -16,13 +16,14 @@ export const newVlan = (o = {}) => ({
 
 export const standardVlans = () => STANDARD_VLANS.map((v) => newVlan(clone(v)));
 
-export const emptyProject = () => ({
+// mitVlans: false legt das Projekt ohne die Standard-VLANs an („Neu“ in der App)
+export const emptyProject = ({ mitVlans = true } = {}) => ({
   format: "netzwerkplaner",
   version: 1,
   meta: { veranstaltung: "Veranstaltung 2026", ort: "", ersteller: "", datum: new Date().toISOString().slice(0, 10), version: "1", notiz: "" },
   bereiche: [...DEFAULT_BEREICHE],
   standortInfo: {}, // Standortname → { anmerkung }: erscheint nur in der Clean-Cat-Ansicht
-  vlans: standardVlans(),
+  vlans: mitVlans ? standardVlans() : [],
   trunks: [], // benannte VLAN-Bündel für Switch-Ports (shared/trunks.js)
   geraete: [],
   verbindungen: [],
@@ -30,6 +31,9 @@ export const emptyProject = () => ({
   icons: [],
   vlanVomSwitch: true, // VLANs nur an Switches (seit 0.7.0-beta.8)
 });
+
+// Alle Standorte für Auswahllisten: die des Projekts und alle, die an Geräten stehen
+export const standortListe = (P) => [...new Set([...(P.bereiche || []), ...(P.geraete || []).map((d) => (d.bereich || "").trim()).filter(Boolean)])];
 
 // Ältere oder unvollständige Projektdateien auf den aktuellen Stand bringen
 export const migrateProject = (p) => {

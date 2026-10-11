@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from "react";
+import { passtSuche } from "../../shared/suche.js";
 import { S, LINE, SUB, MUTED, OK, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
 import { uid, migrateBestand } from "../../shared/catalog.js";
 import { Section } from "../ui.jsx";
@@ -30,7 +31,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   const list = useMemo(() => bestand.filter((b) => {
     const g = b.geraet;
     if (kat && g.kategorie !== kat) return false;
-    return !ql || `${b.name} ${g.netzname || ""} ${g.hersteller} ${g.modell} ${g.ports.map((i) => (i.ip || "") + " " + (i.mac || "")).join(" ")} ${(g.felder || []).map((f) => f.wert).join(" ")}`.toLowerCase().includes(ql);
+    return !ql || passtSuche(`${b.name} ${g.netzname || ""} ${g.hersteller} ${g.modell} ${g.ports.map((i) => (i.ip || "") + " " + (i.mac || "")).join(" ")} ${(g.felder || []).map((f) => f.wert).join(" ")}`, ql);
   }).sort((a, b) => a.name.localeCompare(b.name, "de", { numeric: true })), [bestand, ql, kat]);
 
   const setName = (id, name) => setLibrary((l) => ({ ...l, bestand: l.bestand.map((b) => (b.id === id ? { ...b, name, geraet: { ...b.geraet, name } } : b)) }));
@@ -93,7 +94,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
         <input ref={fileRef} type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv" style={{ display: "none" }} onChange={importDatei} />
       </div>}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="Name, IP, MAC, Modell, eigene Felder" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="Name, IP, MAC, Modell, eigene Felder · * als Platzhalter" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
         <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}>
           <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>

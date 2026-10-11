@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO, VLAN_FARBEN, STRONG } from "../../shared/constants.js";
-import { newVlan } from "../../shared/model.js";
+import { newVlan, standardVlans } from "../../shared/model.js";
 import { newTrunk, vlanZuTrunk, trunkZuVlan, trunkPorts, trunkVlanText } from "../../shared/trunks.js";
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
@@ -174,7 +174,10 @@ export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
             mutate((d) => { d.vlans.push(v); });
           }}>+ VLAN</button>
         </div>}>
-        {baum.length === 0 && <p style={S.empty}>Keine VLANs angelegt.</p>}
+        {baum.length === 0 && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <p style={{ ...S.empty, margin: 0 }}>Keine VLANs angelegt.</p>
+          <button style={S.smallBtn} title="Audio Primary/Secondary, Licht, Video, Intercom, Steuerung und Management (10, 11, 20, 30, 40, 50, 99)" onClick={() => mutate((d) => { d.vlans.push(...standardVlans()); })}>Standard-VLANs einfügen</button>
+        </div>}
         {baum.map(({ v, tiefe }) => <VlanRow key={v.id} v={v} tiefe={tiefe} P={P} mutate={mutate} issues={issues} count={counts[v.id]} startOffen={v.id === neuId} onNeu={setNeuId} />)}
         {trunks.length > 0 && <div className="sp-section-label" style={{ marginTop: 16 }}>Trunks</div>}
         {trunks.map((t) => <TrunkRow key={t.id} t={t} P={P} mutate={mutate} startOffen={t.id === neuId} onNeu={setNeuId} />)}
