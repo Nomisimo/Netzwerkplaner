@@ -137,7 +137,7 @@ export const stapelAus = (P, stapelId) => {
     const { id, a, b, ...rest } = clone(c);
     return { ...rest, a: { g: di.get(a.dev), p: pi(a) }, b: { g: di.get(b.dev), p: pi(b) } };
   });
-  return { art: "stapel", name: s.name || "", geraete, verbindungen };
+  return { art: "stapel", name: s.name || "", richtung: s.richtung, geraete, verbindungen };
 };
 
 /* Stapel aus der Zwischenablage ins Projekt einfügen (ändert d).
@@ -152,7 +152,7 @@ export const stapelEinfuegen = (d, clip, { namensZusatz = " (Kopie)" } = {}) => 
   const ids = neu.map((g) => g.id);
   if (ids.length < 2) return { ids, stapelId: null };
   const stapelId = uid();
-  d.layout.stapel = [...(d.layout.stapel || []), { id: stapelId, name: clip.name ? clip.name + namensZusatz : "", ids }];
+  d.layout.stapel = [...(d.layout.stapel || []), { id: stapelId, name: clip.name ? clip.name + namensZusatz : "", ids, ...(clip.richtung === "h" ? { richtung: "h" } : {}) }];
   return { ids, stapelId };
 };
 
@@ -173,7 +173,7 @@ export const auswahlAus = (P, ids, pos = new Map()) => {
     return { ...rest, a: { g: di.get(a.dev), p: pi(a) }, b: { g: di.get(b.dev), p: pi(b) } };
   });
   const stapel = (P.layout.stapel || []).filter((s) => s.ids.some((id) => di.has(id)))
-    .map((s) => ({ name: s.name || "", g: s.ids.filter((id) => di.has(id)).map((id) => di.get(id)) })).filter((s) => s.g.length > 1);
+    .map((s) => ({ name: s.name || "", richtung: s.richtung, g: s.ids.filter((id) => di.has(id)).map((id) => di.get(id)) })).filter((s) => s.g.length > 1);
   const pts = devs.map((g) => pos.get(g.id)).filter(Boolean);
   const mx = pts.length ? pts.reduce((a, p) => a + p.x, 0) / pts.length : 0, my = pts.length ? pts.reduce((a, p) => a + p.y, 0) / pts.length : 0;
   const rel = devs.map((g, n) => { const p = pos.get(g.id); return p ? { x: Math.round(p.x - mx), y: Math.round(p.y - my) } : { x: n * 30, y: n * 30 }; });
@@ -190,7 +190,7 @@ export const auswahlEinfuegen = (d, clip, at = null) => {
   }
   for (const s of clip.stapel || []) {
     const ids = s.g.map((n) => neu[n]?.id).filter(Boolean);
-    if (ids.length > 1) d.layout.stapel = [...(d.layout.stapel || []), { id: uid(), name: s.name ? s.name + " (Kopie)" : "", ids }];
+    if (ids.length > 1) d.layout.stapel = [...(d.layout.stapel || []), { id: uid(), name: s.name ? s.name + " (Kopie)" : "", ids, ...(s.richtung === "h" ? { richtung: "h" } : {}) }];
   }
   if (at) d.layout.pinned = { ...(d.layout.pinned || {}), ...Object.fromEntries(neu.map((g, n) => [g.id, { x: Math.round(at.x + (clip.rel?.[n]?.x || 0)), y: Math.round(at.y + (clip.rel?.[n]?.y || 0)) }])) };
   return neu.map((g) => g.id);

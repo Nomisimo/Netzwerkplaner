@@ -12,7 +12,8 @@ import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { endInfo, portLabel, vlanLang, geraeteTitel } from "../portinfo.js";
 import { feldZeilen } from "../../shared/felder.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
-import { FrontPlate, FrontCard, FP_BG, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
+import { FrontPlate, FrontCard, FP_FARBEN, FpFarben, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
+import { wegSuchen, wegFrei, aufblasen, standardWeg, handWeg, wegSpeichern, streckeVerschieben, knickEinfuegen, naechsteStrecke, streckenMitten, wegPfad, wegMitte } from "../../shared/kabelweg.js";
 import { useEinstellungen, ansichtVon, topoWert } from "../einstellungen.js";
 import { STAPEL_PAD, anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren, bahnenVergeben, endenVerteilen } from "../../shared/anordnung.js";
 import { uid, ipPorts } from "../../shared/catalog.js";
@@ -67,9 +68,12 @@ export default function TopologieTab(props) {
   const [paletteOpen, setPaletteOpen] = useState(true);
   const wrapRef = useRef(null);
   const fitted = useRef(false);
+  const wegCache = useRef(new Map()); // gesuchte Kabelwege der Anschluss-Ansicht
 
   const T = useMemo(() => buildTree(P, X), [P, X]);
   const front = ansichtVon(P) === "front";
+  const FPF = FP_FARBEN[P.layout.fpHell ? "hell" : "dunkel"]; // Anschluss-Ansicht hell (Druck) oder dunkel
+  const kabelVorne = front && !!P.layout.fpKabelVorne;       // Kabel vor den Geräten bis in die Buchse statt dahinter
   const setAnsicht = (a) => { mutate((d) => { d.layout.ansicht = a; }); fitted.current = false; };
   const LM = useMemo(() => (front ? null : layoutMindmap(P, T)), [P, T, front]);
   const F = useMemo(() => (front ? layoutFrontplatten(P, T, X) : null), [P, T, X, front]);
@@ -134,7 +138,7 @@ export default function TopologieTab(props) {
      (bei Auto-Anordnen aus) Positionen, die vom automatischen Stand abweichen. */
   const manuellAngepasst = () => {
     const lay = P.layout;
-    if (Object.keys(lay[offKey] || {}).length || Object.keys(lay[knickKey] || {}).length) return true;
+    if (Object.keys(lay[offKey] || {}).length || Object.keys(lay[knickKey] || {}).length || (front && Object.keys(lay.fpWege || {}).length)) return true;
     if (!auto) for (const [id, z] of Object.entries(lay[fixKey] || {})) { const p = Lroh.pos.get(id); if (p && !pins[id] && Math.hypot(p.x - z.x, p.y - z.y) > 4) return true; }
     return false;
   };
@@ -165,6 +169,8 @@ export default function TopologieTab(props) {
     mutate((d) => removeDevices(d, weg)); // gemeinsame Kaskade: Verbindungen, Layout, Knicke, Stapel, Stromziele
     setSelection(null);
   };
+  // Von Hand gesetzter Kabelweg (Anschluss-Ansicht): Zwischenpunkte, beim Ziehen die Live-Form
+  const fpHand = (c) => (drag?.kind === "strecke" && drag.id === c.id && drag.moved ? wegSpeichern(drag.live) : P.layout.fpWege?.[c.id]);
   const knickOf = (c) => (drag?.kind === "knick" && drag.id === c.id ? { dx: drag.bx + drag.dx, dy: drag.by + drag.dy } : P.layout[knickKey]?.[c.id]);
   const bg = P.layout[bgKey];
   const bgPos = bg && (drag?.kind === "bg" ? { ...bg, x: bg.x + drag.dx, y: bg.y + drag.dy } : bg);
@@ -268,6 +274,12 @@ export default function TopologieTab(props) {
       return;
     }
     if (drag.kind === "rahmen") { const w = toWorld(e); setDrag({ ...drag, x1: w.x, y1: w.y, moved }); return; }
+    if (drag.kind === "strecke") {
+      const d0 = (drag.waag ? ddy : ddx) / view.k;
+      const d = rasten && !e.altKey ? Math.round(d0 / 5) * 5 : d0;
+      setDrag({ ...drag, live: streckeVerschieben(drag.basis, drag.k, d), moved });
+      return;
+    }
     if (drag.kind === "pan") setView((v) => ({ ...v, x: drag.vx + ddx, y: drag.vy + ddy })), moved !== drag.moved && setDrag({ ...drag, moved });
     else {
       let dx = ddx / view.k, dy = ddy / view.k, linien = null;
@@ -359,6 +371,8 @@ export default function TopologieTab(props) {
         const id = drag.klick || drag.id;
         waehle(selIds.includes(id) ? selIds.filter((x) => x !== id) : [...selIds, id]);
       } else setSelection(drag.conn ? { type: "conn", id: drag.conn.id } : drag.stapel ? { type: "stapel", id: drag.stapel } : { type: "dev", id: drag.klick || drag.id });
+    } else if (drag.kind === "strecke") {
+      if (drag.moved) wegSetzen(drag.id, drag.live);
     } else if (drag.kind === "knick") {
       const { id, bx, by, dx, dy } = drag;
       if (drag.moved) mutate((d) => { d.layout[knickKey] = { ...(d.layout[knickKey] || {}), [id]: { dx: Math.round(bx + dx), dy: Math.round(by + dy) } }; });
@@ -511,6 +525,52 @@ export default function TopologieTab(props) {
     const y1 = pa.y + 4 + i * 3, y2 = pb.y - 4 - i * 3;
     return { d: eckPfad(x1, y1, x2, y2, "h", xo), x1, y1, x2, y2, mx: xo, my: (y1 + y2) / 2 };
   };
+  // Klammer unter nebeneinander gestapelten Geräten
+  const klammerUnten = (pa, pb, i, halb, n = 1) => {
+    const y1 = pa.y + halb(pa), y2 = pb.y + halb(pb);
+    const schritt = n > 1 ? Math.min(3, (STAPEL_PAD - 5) / (n - 1)) : 0;
+    const yo = Math.max(y1, y2) + 3 + i * schritt;
+    const [l, r] = pa.x <= pb.x ? [1, -1] : [-1, 1];
+    const x1 = pa.x + l * (4 + i * 3), x2 = pb.x + r * (4 + i * 3);
+    return { d: eckPfad(x1, y1, x2, y2, "v", yo), x1, y1, x2, y2, mx: (x1 + x2) / 2, my: yo };
+  };
+  // Anschluss-Ansicht: mittlere Strecke eines Kabels greifen und quer verschieben
+  const streckeGreifen = (e, c, pts, k0 = null) => {
+    e.stopPropagation();
+    if (e.button || e.shiftKey) return;
+    setSelection({ type: "conn", id: c.id });
+    const k = k0 ?? naechsteStrecke(pts, toWorld(e))?.k;
+    if (k == null || k < 1 || k > pts.length - 3) return; // Strecken an den Buchsen bleiben
+    const waag = Math.abs(pts[k].y - pts[k + 1].y) < 0.5;
+    setDrag({ kind: "strecke", id: c.id, k, basis: pts, live: pts, waag, sx: e.clientX, sy: e.clientY, moved: false });
+  };
+  const wegSetzen = (id, pts) => mutate((d) => {
+    d.layout.fpWege = { ...(d.layout.fpWege || {}), [id]: wegSpeichern(pts) };
+    if (d.layout.fpKnicke?.[id]) { const m = { ...d.layout.fpKnicke }; delete m[id]; d.layout.fpKnicke = m; }
+  });
+  const wegZurueck = (id) => mutate((d) => {
+    for (const k of ["fpWege", "fpKnicke"]) if (d.layout[k]?.[id]) { const m = { ...d.layout[k] }; delete m[id]; d.layout[k] = m; }
+  });
+  // Doppelklick auf ein Kabel: an der nächsten mittleren Strecke zwei Ecken einfügen
+  const ecken = (c, pts, w) => {
+    const n = naechsteStrecke(pts, w);
+    const neu = knickEinfuegen(pts, n?.k ?? 1, 30);
+    if (neu !== pts) wegSetzen(c.id, neu);
+  };
+  // Griffe an den verschiebbaren Strecken des gewählten Kabels
+  const streckenGriffe = (c, pts) => (
+    <g className="np-ui">
+      {streckenMitten(pts).filter((m) => m.k >= 1 && m.k <= pts.length - 3).map((m) => (
+        <g key={m.k} style={{ cursor: m.waag ? "ns-resize" : "ew-resize" }} onMouseDown={(e) => streckeGreifen(e, c, pts, m.k)}
+          onDoubleClick={(e) => { e.stopPropagation(); wegZurueck(c.id); }}>
+          <circle cx={m.x} cy={m.y} r="10" fill="transparent" />
+          <rect x={m.x - (m.waag ? 8 : 3.5)} y={m.y - (m.waag ? 3.5 : 8)} width={m.waag ? 16 : 7} height={m.waag ? 7 : 16} rx="3" fill={ACCENT} stroke="#fff" strokeWidth="1.2" />
+          <title>Ziehen = Strecke verschieben · Doppelklick aufs Kabel = zwei Ecken einfügen · Doppelklick hier = Verlauf zurücksetzen</title>
+        </g>
+      ))}
+    </g>
+  );
+
   // Linie direkt greifen: im Bewegen-Werkzeug verschiebt Ziehen an einer Verbindung ihre Knickstelle
   // Kabelbeschriftung: sitzt auf dem Kabel, Ziehen schiebt sie am Kabel entlang
   const textAnteil = (c) => (drag?.kind === "kabeltext" && drag.id === c.id ? drag.f : P.layout[textKey]?.[c.id] ?? 0.5);
@@ -522,7 +582,7 @@ export default function TopologieTab(props) {
   const textZurueck = (c) => mutate((d) => { const m = { ...(d.layout[textKey] || {}) }; delete m[c.id]; d.layout[textKey] = m; });
   // Beschriftungen kommen in eine eigene Ebene über allen Kabeln, damit sie greifbar bleiben
   const textEbene = [];
-  const kabelText = (c, d) => { if (c.label) textEbene.push(<KabelText key={c.id} id={c.id} d={d} f={textAnteil(c)} text={c.label} bg={front ? FP_BG : CANVAS} farbe={front ? "#e6eaff" : TEXT}
+  const kabelText = (c, d) => { if (c.label) textEbene.push(<KabelText key={c.id} id={c.id} d={d} f={textAnteil(c)} text={c.label} bg={front ? FPF.bg : CANVAS} farbe={front ? FPF.kabelText : TEXT}
     onDown={(e) => textGreifen(e, c)} onReset={(e) => { e.stopPropagation(); textZurueck(c); }} />); return null; };
 
   const linieGreifen = (e, c) => {
@@ -613,15 +673,52 @@ export default function TopologieTab(props) {
       r.straight = r.pa.kind === "switch" && r.pb.kind === "switch";
       fpWeg.set(r.c.id, r);
     }
-    const bahn = bahnenVergeben(roh.filter((r) => !r.kl && !r.straight && !knickOf(r.c)).map((r) => ({
+    // Geräte als Hindernisse: Karten mit Lasche, Switches mit ihrer Beschriftung darunter
+    const hindernisse = [...L.pos].filter(([id]) => X.devById.has(id)).map(([id, p]) => {
+      const w = p.w || CARD_W, h = p.h || CARD_H, top = p.y - h / 2 - (p.kind === "card" ? TAB_H : 0);
+      return { dev: id, x0: p.x - w / 2, x1: p.x + w / 2, y0: top, y1: p.y + h / 2 + (p.kind === "switch" ? 16 : 0) };
+    });
+    const bahn = bahnenVergeben(roh.filter((r) => !r.kl && !fpHand(r.c)).map((r) => ({
       id: r.c.id, x1: r.a1.x, y1: r.a1.y, x2: r.b1.x, y2: r.b1.y,
       gruppe: r.pa.kind === "switch" ? r.c.a.dev : r.pb.kind === "switch" ? r.c.b.dev : r.c.a.dev, devs: [r.c.a.dev, r.c.b.dev],
       gy: r.pa.kind === "switch" ? r.a1.y : r.pb.kind === "switch" ? r.b1.y : undefined,
-    })), { abstand: 12, rand: 22, buendeln, hindernisse: [...L.pos].filter(([id]) => X.devById.has(id)).map(([id, p]) => {
-      const w = p.w || CARD_W, h = p.h || CARD_H, top = p.y - h / 2 - (p.kind === "card" ? TAB_H : 0);
-      return { dev: id, x0: p.x - w / 2, x1: p.x + w / 2, y0: top, y1: p.y + h / 2 };
-    }) });
+    })), { abstand: 12, rand: 22, buendeln, hindernisse });
     for (const [id, y] of bahn) fpWeg.get(id).bahn = y;
+    /* Weg je Kabel: von Hand gesetzt, sonst die Bahn. Läuft die durch ein Gerät, sucht der
+       Router einen Weg außen herum (mit Abstand, neben schon verlegten Kabeln). Beim Ziehen
+       eines Geräts nur die schnelle Bahn, gesucht wird nach dem Loslassen. */
+    const ABSTAND = 6; // Mindestabstand zu Geräten (Kartenreihen stehen 16 px auseinander, dazwischen bleibt eine Gasse)
+    const routen = linien !== "direkt" && !(drag?.kind === "node" && drag.moved);
+    const dicht = aufblasen(hindernisse, ABSTAND - 2);
+    const hSig = hindernisse.map((h) => `${h.dev}:${Math.round(h.x0)},${Math.round(h.y0)},${Math.round(h.x1)},${Math.round(h.y1)}`).join(";");
+    const belegt = [];
+    const reihe = [...fpWeg.values()].filter((r) => !r.kl).sort((x, y) => Math.abs(x.a1.x - x.b1.x) + Math.abs(x.a1.y - x.b1.y) - (Math.abs(y.a1.x - y.b1.x) + Math.abs(y.a1.y - y.b1.y)));
+    for (const r of reihe) {
+      const a = { x: r.a1.x, y: r.a1.y, dir: r.a1.dir }, b = { x: r.b1.x, y: r.b1.y, dir: r.b1.dir };
+      const devs = [r.c.a.dev, r.c.b.dev];
+      const hand = fpHand(r.c);
+      let pts;
+      if (linien === "direkt") pts = [a, b];
+      else if (hand) pts = handWeg(a, b, hand);
+      else {
+        const kn = knickOf(r.c); // ältere Projekte: verschobene Bahn
+        pts = standardWeg(a, b, (r.bahn ?? (a.y + b.y) / 2) + (kn?.dy || 0));
+        if (routen && !wegFrei(pts, dicht, devs)) {
+          // Gesuchte Wege merken: gleiche Geräte-Lage und gleiche Enden ergeben denselben Weg
+          const key = hSig + "|" + [a.x, a.y, a.dir, b.x, b.y, b.dir, pts[1]?.y].join(",");
+          let w = wegCache.current.get(key);
+          if (w === undefined) {
+            w = wegSuchen(a, b, hindernisse, { abstand: ABSTAND, devs, belegt });
+            if (wegCache.current.size > 3000) wegCache.current.clear();
+            wegCache.current.set(key, w);
+          }
+          pts = w || pts;
+        }
+      }
+      r.pts = pts;
+      r.voll = [...(r.a1.stich ? [r.a1.stich] : []), ...pts, ...(r.b1.stich ? [r.b1.stich] : [])];
+      for (let i = 0; i + 1 < pts.length; i++) belegt.push({ a: pts[i], b: pts[i + 1] });
+    }
   }
 
   const closeCtx = useCallback(() => setCtx(null), []);
@@ -656,6 +753,46 @@ export default function TopologieTab(props) {
       onSelectDevice={(id) => { setSelection({ type: "dev", id }); goTab("geraete"); }} />;
   }
 
+  /* Kabel der Anschluss-Ansicht: rechtwinklig um die Geräte herum. Im Bewegen-Werkzeug
+     verschiebt Ziehen an einer mittleren Strecke diese Strecke, Doppelklick fügt dort zwei
+     Ecken ein; Doppelklick auf einen Griff setzt den Verlauf zurück. */
+  const fpKabelEbene = front ? allConns.map((c) => {
+    const w = fpWeg.get(c.id);
+    if (!w) return null;
+    const { pa, pb, straight, kl } = w;
+    let dPath, pts = w.pts, mitte;
+    if (kl) { // im selben Stapel: Klammer an der Seite (nebeneinander: unten)
+      const quer = stapel.find((x) => x.id === kl.stapel)?.richtung === "h";
+      const g = quer ? klammerUnten(pa, pb, kl.i, (p) => (p.h || CARD_H) / 2, kl.n) : klammerPfad(pa, pb, kl.i, 1, (p) => (p.w || CARD_W) / 2, kl.n);
+      dPath = g.d; mitte = { x: g.mx, y: g.my }; pts = [{ x: g.x1, y: g.y1 }, { x: g.x2, y: g.y2 }];
+    } else {
+      dPath = wegPfad(w.voll, linien === "rund" ? 10 : 0);
+      mitte = wegMitte(w.pts);
+    }
+    const ende0 = kl ? pts[0] : w.voll[0], ende1 = kl ? pts[pts.length - 1] : w.voll[w.voll.length - 1];
+    const st = edgeStyle(c);
+    const farbe = st.trunk && !st.errs ? FPF.trunk : st.color;
+    const sel = selConn?.id === c.id;
+    const dim = filtering && !(matches(X.devById.get(c.a.dev)) && matches(X.devById.get(c.b.dev)));
+    const breite = straight ? Math.max(2, st.width - 1) : 1.8;
+    const bearbeitbar = tool === "move" && !kl && linien !== "direkt";
+    return (
+      <g key={c.id} opacity={dim ? 0.12 : 1} style={{ cursor: bearbeitbar ? "grab" : "pointer" }}
+        onMouseDown={(e) => (bearbeitbar ? streckeGreifen(e, c, w.pts) : linieGreifen(e, c))} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}
+        onDoubleClick={(e) => { if (!bearbeitbar) return; e.stopPropagation(); ecken(c, w.pts, toWorld(e)); }}>
+        <path d={dPath} stroke="transparent" strokeWidth="12" fill="none" />
+        {sel && <path className="np-ui" d={dPath} stroke={ACCENT} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
+        {st.errs && <path d={dPath} stroke={ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
+        <path d={dPath} stroke={farbe} strokeWidth={breite} fill="none" strokeLinejoin="round" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
+        {st.farben && <Streifen d={dPath} farben={st.farben} breite={breite} />}
+        <circle cx={ende0.x} cy={ende0.y} r="2.2" fill={farbe} /><circle cx={ende1.x} cy={ende1.y} r="2.2" fill={farbe} />
+        {kabelText(c, dPath)}
+        {sel && bearbeitbar && streckenGriffe(c, w.pts)}
+        {sel && kl && tool === "move" && <circle className="np-ui" cx={mitte.x} cy={mitte.y} r="4" fill={ACCENT} />}
+      </g>
+    );
+  }) : null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {/* Werkzeugleiste: feste Reihen über Palette, Zeichenfläche und Seitenleiste, damit nichts umspringt */}
@@ -671,7 +808,7 @@ export default function TopologieTab(props) {
           </div>
           {trenner}
           <button style={knopf} onClick={fit} title="Alles einpassen"><Maximize {...ico} />{lbl("Einpassen")}</button>
-          <button style={knopf} onClick={() => mitWarnung("Auto-Layout setzt alle von Hand verschobenen Geräte und Verbindungen dieser Ansicht zurück. Angepinnte Geräte und Stapel bleiben stehen.", () => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; }))}
+          <button style={knopf} onClick={() => mitWarnung("Auto-Layout setzt alle von Hand verschobenen Geräte und Verbindungen dieser Ansicht zurück. Angepinnte Geräte und Stapel bleiben stehen.", () => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; if (front) d.layout.fpWege = {}; }))}
             title="Verschiebungen von Geräten und Verbindungen zurücksetzen. Angepinnte Geräte und Stapel bleiben."><RotateCcw {...ico} />{lbl("Auto-Layout")}</button>
           <Toggle checked={rasten} onChange={(v) => mutate((d) => { d.layout.einrasten = v; })} label="Einrasten"
             title="An: Geräte rasten beim Ziehen im Raster ein und richten sich an Kanten und Mitten benachbarter Geräte aus. Alt gedrückt halten = frei ziehen." />
@@ -707,6 +844,13 @@ export default function TopologieTab(props) {
             <input style={{ ...S.inputSm, width: 170, paddingLeft: 26 }} placeholder="Suchen (Name, IP)" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <Toggle checked={showPorts && !front} disabled={front} onChange={setShowPorts} label="Port & VLAN" title={front ? "In der Anschluss-Ansicht stehen die Ports direkt an den Buchsen" : "Switch-Port und VLAN an jeder Verbindung anzeigen"} />
+          {front && <>
+            {trenner}
+            <Toggle checked={!!P.layout.fpHell} onChange={(v) => mutate((d) => { d.layout.fpHell = v; })} label="Hell"
+              title="Weißer Hintergrund, z. B. zum Drucken. Gilt auch für den Export und lässt sich beim Bearbeiten anlassen." />
+            <Toggle checked={kabelVorne} onChange={(v) => mutate((d) => { d.layout.fpKabelVorne = v; })} label="Kabel vorne"
+              title="An: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante." />
+          </>}
         </div>
       </div>
       </div>
@@ -735,18 +879,19 @@ export default function TopologieTab(props) {
 
       {/* Zeichenfläche */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FP_BG : CANVAS, cursor: tool !== "move" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
+        <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FPF.bg : CANVAS, cursor: tool !== "move" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
           onMouseDown={(e) => onDown(e, null)} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { setDrag(null); setDraw(null); }}
           onWheel={onWheel} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+          <FpFarben.Provider value={FPF}>
           <svg ref={svgRef} width="100%" height="100%" style={{ display: "block", userSelect: "none" }} xmlns="http://www.w3.org/2000/svg" fontFamily="'Segoe UI',system-ui,sans-serif">
             <defs>
               <pattern id="np-grid" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform={`translate(${view.x},${view.y}) scale(${view.k})`}>
-                {front ? <path d="M40 0 L0 0 0 40" fill="none" stroke="#1c2552" strokeWidth="1" /> : <circle cx="1" cy="1" r="1" fill={PANEL} />}
+                {front ? <path d="M40 0 L0 0 0 40" fill="none" stroke={FPF.raster} strokeWidth="1" /> : <circle cx="1" cy="1" r="1" fill={PANEL} />}
               </pattern>
               <filter id="np-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" /></filter>
             </defs>
             <rect className="np-ui" width="100%" height="100%" fill="url(#np-grid)" />
-            <g id="np-world" transform={`translate(${view.x},${view.y}) scale(${view.k})`} data-bounds={JSON.stringify(L.bounds)} data-bg={front ? FP_BG : BG}>
+            <g id="np-world" transform={`translate(${view.x},${view.y}) scale(${view.k})`} data-bounds={JSON.stringify(L.bounds)} data-bg={front ? FPF.bg : BG}>
               {/* Hintergrundbild (z. B. Stage-Plot) */}
               {bgPos?.src && <image href={bgPos.src} x={bgPos.x} y={bgPos.y} width={bgPos.w} height={bgPos.h} opacity={bgPos.deckkraft ?? 0.5} preserveAspectRatio="none"
                 style={{ cursor: bgPos.fest === false && tool === "move" ? "move" : undefined, pointerEvents: bgPos.fest === false && tool === "move" ? "auto" : "none" }}
@@ -754,52 +899,23 @@ export default function TopologieTab(props) {
               {/* Stapel (grafische Gruppen, z. B. Rack oder Tower) */}
               {(L.stapel || []).map((b) => (
                 <g key={b.id} data-stapel={b.id} onMouseDown={(e) => onDown(e, b.ids[0], null, b.id)} style={{ cursor: "move" }}>
-                  <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="#ffffff08" stroke={selection?.type === "stapel" && selection.id === b.id ? ACCENT : SUB} strokeWidth={selection?.type === "stapel" && selection.id === b.id ? 2 : 1.2} strokeDasharray="5 4" />
+                  <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill={front && P.layout.fpHell ? "#00000006" : "#ffffff08"} stroke={front ? FPF.leerText : SUB} strokeWidth={1.2} strokeDasharray="5 4" />
+                  {selection?.type === "stapel" && selection.id === b.id && <rect className="np-ui" x={b.x} y={b.y} width={b.w} height={b.h} rx="10" fill="none" stroke={ACCENT} strokeWidth={2} strokeDasharray="5 4" />}
                   {pins[b.ids[0]] && <Pin x={b.x + b.w - 15} y={b.y + 3} size={11} color={ACCENT} strokeWidth={2.2} />}
-                  <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill={SUB} style={{ cursor: "pointer" }}>
+                  <text x={front ? b.x + 10 : b.x + b.w / 2 >= 0 ? b.x + b.w + 6 : b.x - 6} y={front ? b.y + 13 : b.y + b.h / 2 + 4} textAnchor={front || b.x + b.w / 2 >= 0 ? "start" : "end"} fontSize="10.5" fontWeight="700" fill={front ? FPF.leerText : SUB} style={{ cursor: "pointer" }}>
                     {b.name || "Stapel"} · {b.ids.length}<title>Klick auf Rahmen oder Name = Stapel bearbeiten (Name, Reihenfolge, kopieren, duplizieren)</title>
                   </text>
                 </g>
               ))}
               {/* Verbindungen */}
-              {front && allConns.map((c) => {
-                const w = fpWeg.get(c.id);
-                if (!w) return null;
-                const { pa, pb, straight, bahn, kl } = w;
-                let { a1, b1 } = w;
-                const kn = knickOf(c);
-                let mx = (a1.x + b1.x) / 2 + (kn?.dx || 0), my = (bahn ?? (a1.y + b1.y) / 2) + (kn?.dy || 0);
-                let dPath;
-                if (kl) { // im selben Stapel: Klammer an der rechten Seite der Karten
-                  const g = klammerPfad(pa, pb, kl.i, 1, (p) => (p.w || CARD_W) / 2, kl.n);
-                  dPath = g.d; a1 = { x: g.x1, y: g.y1 }; b1 = { x: g.x2, y: g.y2 }; mx = g.mx; my = g.my;
-                } else if (kn) dPath = straight ? `M${a1.x},${a1.y} L${mx},${my} L${b1.x},${b1.y}` : knickPfad(a1.x, a1.y, b1.x, b1.y, { x: mx, y: my }, "v", linien);
-                else if (straight || linien === "direkt") dPath = `M${a1.x},${a1.y} L${b1.x},${b1.y}`;
-                else if (linien === "eckig") dPath = eckPfad(a1.x, a1.y, b1.x, b1.y, "v", my);
-                else dPath = knickPfad(a1.x, a1.y, b1.x, b1.y, { x: mx, y: my }, "v", "rund");
-                const st = edgeStyle(c);
-                const sel = selConn?.id === c.id;
-                const dim = filtering && !(matches(X.devById.get(c.a.dev)) && matches(X.devById.get(c.b.dev)));
-                return (
-                  <g key={c.id} opacity={dim ? 0.12 : 1} style={{ cursor: tool === "move" && !stapelKlammer.has(c.id) ? "grab" : "pointer" }}
-                    onMouseDown={(e) => linieGreifen(e, c)} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}>
-                    <path d={dPath} stroke="transparent" strokeWidth="12" fill="none" />
-                    {(sel || st.errs) && <path d={dPath} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
-                    <path d={dPath} stroke={st.color} strokeWidth={straight ? Math.max(2, st.width - 1) : 1.8} fill="none" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
-                    {st.farben && <Streifen d={dPath} farben={st.farben} breite={straight ? Math.max(2, st.width - 1) : 1.8} />}
-                    <circle cx={a1.x} cy={a1.y} r="2.2" fill={st.color} /><circle cx={b1.x} cy={b1.y} r="2.2" fill={st.color} />
-                    {kabelText(c, dPath)}
-                    {knickGriff(c, mx, my)}
-                  </g>
-                );
-              })}
+              {front && !kabelVorne && fpKabelEbene}
               {!front && allConns.map((c) => {
                 const tree = treeConnIds.has(c.id);
                 // Baumkanten vom Elternknoten aus zeichnen
                 const { from, to, fromEnd, toEnd } = kabelWeg.get(c.id);
                 const sp = spuren.get(c.id);
                 const kl = stapelKlammer.get(c.id);
-                const g = kl ? klammerPfad(from, to, kl.i, from.side || (from.x >= 0 ? 1 : -1), () => HW, kl.n) : edgePath(from, to, knickOf(c), sp);
+                const g = kl ? (stapel.find((x) => x.id === kl.stapel)?.richtung === "h" ? klammerUnten(from, to, kl.i, () => HH, kl.n) : klammerPfad(from, to, kl.i, from.side || (from.x >= 0 ? 1 : -1), () => HW, kl.n)) : edgePath(from, to, knickOf(c), sp);
                 // gebündelt: parallele Kabel als eine Linie, die Port-Plaketten bleiben sichtbar
                 if (sp?.versteckt && selConn?.id !== c.id) return showPorts && plakettenReihe.has(c.id) ? <g key={c.id} style={{ cursor: "pointer" }} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}><PortBadge c={c} g={g} fromEnd={fromEnd} toEnd={toEnd} X={X} extra={!tree} reihe={plakettenReihe.get(c.id)} ziel={to} /></g> : null;
                 const st = edgeStyle(c);
@@ -811,7 +927,7 @@ export default function TopologieTab(props) {
                   <g key={c.id} opacity={dim ? 0.12 : 1} style={{ cursor: tool === "move" && !stapelKlammer.has(c.id) ? "grab" : "pointer" }}
                     onMouseDown={(e) => linieGreifen(e, c)} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}>
                     <path d={g.d} stroke="transparent" strokeWidth="14" fill="none" />
-                    {(sel || st.errs) && <path d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
+                    {(sel || st.errs) && <path className={sel ? "np-ui" : undefined} d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
                     {st.farben && <Streifen d={g.d} farben={st.farben} breite={st.width} />}
                     {kl && <title>{`${da?.name} [${pName(c.a)}] ⇄ ${db?.name} [${pName(c.b)}] · im selben Stapel`}</title>}
@@ -822,7 +938,7 @@ export default function TopologieTab(props) {
                   </g>
                 );
               })}
-              {textEbene}
+              {!kabelVorne && textEbene}
               {draw && posOf(draw.from) && (() => {
                 // Gummiband mit Pfeil: rastet am Gerät unter der Maus ein
                 const x1 = draw.x0 ?? posOf(draw.from).x, y1 = draw.y0 ?? posOf(draw.from).y;
@@ -866,6 +982,8 @@ export default function TopologieTab(props) {
                   canCollapse={astKlappbar(T, id)} collapsed={zu} hidden={L.hidden.get(id)} onToggle={() => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [id]: !zu }; })}
                   onPortDown={(e, c, port, s) => portDown(e, id, c, port, s)} markPort={draw?.from === id ? draw.port : null} />;
               })}
+              {kabelVorne && fpKabelEbene}
+              {kabelVorne && textEbene}
               {!front && [...L.pos.keys()].map((id) => {
                 const d = X.devById.get(id);
                 if (!d) return null;
@@ -888,7 +1006,7 @@ export default function TopologieTab(props) {
                   <g key={id} transform={`translate(${p.x - HW},${p.y - HH})`} opacity={dim ? 0.2 : 1}
                     onMouseDown={(e) => onDown(e, id)} style={{ cursor: tool !== "move" ? "crosshair" : "pointer" }}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtx({ id, x: e.clientX, y: e.clientY }); }}>
-                    {(sel || hover === id || hit) && <rect x="-4" y="-4" width={NODE_W + 8} height={NODE_H + 8} rx="11" fill="none" stroke={sel ? ACCENT : hover === id ? OK : STRONG} strokeWidth="2" opacity=".9" />}
+                    {(sel || hover === id || hit) && <rect className="np-ui" x="-4" y="-4" width={NODE_W + 8} height={NODE_H + 8} rx="11" fill="none" stroke={sel ? ACCENT : hover === id ? OK : STRONG} strokeWidth="2" opacity=".9" />}
                     <rect width={NODE_W} height={NODE_H} rx="8" fill={isRoot ? (HELL ? "#fbefed" : "#262d36") : CARD} stroke={isRoot ? ACCENT : worst || LINE} strokeWidth={isRoot || worst ? 1.6 : 1} />
                     <rect width="5" height={NODE_H} rx="2" fill={col} />
                     <rect x="12" y="11" width="36" height="36" rx="7" fill={col + "1f"} />
@@ -949,6 +1067,7 @@ export default function TopologieTab(props) {
               )}
             </g>
           </svg>
+          </FpFarben.Provider>
           <div style={{ position: "absolute", left: 10, bottom: 8, fontSize: 11, color: MUTED, pointerEvents: "none" }}>
             {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · {tool === "move" ? "Leertaste/mittlere Taste + ziehen" : "Fläche ziehen"} = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"}{rasten && tool === "move" ? " · Alt = ohne Einrasten" : ""}{tool === "move" ? " · Fläche ziehen = Rahmen, Shift+Klick = mehrere wählen · ⌘/Strg+C/V = kopieren/einfügen" : ""} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
           </div>
