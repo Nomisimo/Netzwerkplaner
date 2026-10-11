@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { passtSuche } from "../../shared/suche.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor, DARK, INPUT, TEXT } from "../../shared/constants.js";
 import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid, ipPorts, physPorts } from "../../shared/catalog.js";
-import { Section, KatChip, Toggle } from "../ui.jsx";
+import { Section, KatChip, Toggle, uiAlert, uiConfirm } from "../ui.jsx";
 import { IconView, ICON_NAMES } from "../icons.jsx";
 import { api } from "../api.js";
 import BestandView from "./BestandView.jsx";
@@ -76,7 +76,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
     const f = e.target.files[0];
     e.target.value = "";
     if (!f) return;
-    if (f.size > 300 * 1024) return alert("Icon ist zu groß (max. 300 KB).");
+    if (f.size > 300 * 1024) { uiAlert("Icon ist zu groß (max. 300 KB)."); return; }
     const r = new FileReader();
     r.onload = () => {
       const icon = { id: uid(), name: f.name.replace(/\.[^.]+$/, ""), data: r.result };
@@ -173,7 +173,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
               <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{v.geraet.hersteller} {v.geraet.modell} · {physPorts(v.geraet).length} Ports · {ipPorts(v.geraet).filter((i) => i.ip || i.dhcp || i.virtuell).length} mit IP</span>
               <button style={S.smallBtn} onClick={() => setVorlageEdit(v)} title="Ports, Protokolle, Web-UI und Notizen der Vorlage ändern"><Pencil size={13} /> Bearbeiten</button>
               <button style={S.smallBtn} onClick={() => onAddDevice({ kind: "vorlage", key: v.id }, { anzahl })}>+ {+anzahl > 1 ? `${Math.min(99, Math.floor(+anzahl))}× ` : ""}ins Projekt</button>
-              <button style={S.dangerBtn} onClick={() => confirm(`Vorlage „${v.name}“ löschen?`) && setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.filter((x) => x.id !== v.id) }))}><XIcon size={14} /></button>
+              <button style={S.dangerBtn} onClick={async () => (await uiConfirm(`Vorlage „${v.name}“ löschen?`)) && setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.filter((x) => x.id !== v.id) }))}><XIcon size={14} /></button>
             </div>
           ))}
         </Section>
@@ -199,8 +199,8 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
               <div key={ic.id} style={{ background: INPUT, border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                 <img src={ic.data} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
                 <span style={{ fontSize: 10, color: SUB, textAlign: "center", wordBreak: "break-all" }}>{ic.name}</span>
-                <button style={{ ...S.dangerBtn, padding: "1px 6px", fontSize: 10 }} onClick={() => {
-                  if (!confirm(`Icon „${ic.name}“ entfernen? Geräte damit bekommen wieder ihr Standard-Icon.`)) return;
+                <button style={{ ...S.dangerBtn, padding: "1px 6px", fontSize: 10 }} onClick={async () => {
+                  if (!await uiConfirm(`Icon „${ic.name}“ entfernen? Geräte damit bekommen wieder ihr Standard-Icon.`)) return;
                   setLibrary((l) => ({ ...l, icons: (l.icons || []).filter((x) => x.id !== ic.id) }));
                   mutate((d) => { d.icons = d.icons.filter((x) => x.id !== ic.id); d.geraete.forEach((g) => { if (g.icon === "custom:" + ic.id) g.icon = TYPEN[g.typ]?.icon || "sonstiges"; }); });
                 }}>entfernen</button>
@@ -227,7 +227,7 @@ function FelderView({ P, mutate, library, setLibrary }) {
   const anlegen = () => {
     const name = neu.trim();
     if (!name) return;
-    if (felder.some((f) => f.name.toLowerCase() === name.toLowerCase())) return alert(`Das Feld „${name}“ gibt es schon.`);
+    if (felder.some((f) => f.name.toLowerCase() === name.toLowerCase())) { uiAlert(`Das Feld „${name}“ gibt es schon.`); return; }
     setLibrary((l) => ({ ...l, felder: [...(l.felder || []), newFeld(name)] }));
     setNeu("");
   };
@@ -240,10 +240,10 @@ function FelderView({ P, mutate, library, setLibrary }) {
     });
     mutate((d) => feldUmbenennen(d.geraete, id, name));
   };
-  const loeschen = (f) => {
+  const loeschen = async (f) => {
     const { imProjekt, imKatalog } = nutzung(f.id);
     const wo = [imProjekt && `${imProjekt} Projektgerät${imProjekt > 1 ? "en" : ""}`, imKatalog && `${imKatalog} Gerät${imKatalog > 1 ? "en" : ""} in Bestand/Vorlagen`].filter(Boolean).join(" und ");
-    if (!confirm(`Feld „${f.name}“ löschen?${wo ? `\nEs wird mit seinen Werten aus ${wo} entfernt.` : ""}`)) return;
+    if (!await uiConfirm(`Feld „${f.name}“ löschen?${wo ? `\nEs wird mit seinen Werten aus ${wo} entfernt.` : ""}`)) return;
     setLibrary((l) => {
       const n = JSON.parse(JSON.stringify(l));
       n.felder = n.felder.filter((x) => x.id !== f.id);

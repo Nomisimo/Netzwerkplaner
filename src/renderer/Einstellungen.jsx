@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, STRONG, THEME_KEY, themeWahl, systemHell, HELL } from "../shared/constants.js";
-import { Modal, Toggle } from "./ui.jsx";
+import { Modal, Toggle, uiConfirm } from "./ui.jsx";
 import { KATALOG_GERAETE } from "../shared/catalog.js";
 import { useEinstellungen, setzeEinstellungen, istFokus, TOPO_STANDARD } from "./einstellungen.js";
 import { Monitor, Sun, Moon } from "lucide-react";
@@ -108,7 +108,7 @@ export default function Einstellungen({ onClose, vorReload, inSitzung, onTopoAnw
         {ARTEN.map(([k, l, Ic]) => {
           const an = wahl === k;
           return (
-            <button key={k} onClick={() => { setWahl(k); if (inSitzung && !confirm("Zum Umschalten lädt die Oberfläche neu, und du verlässt dabei die laufende Sitzung. Trotzdem umschalten?")) { try { localStorage.setItem(THEME_KEY, k); } catch { /* */ } return; } themeSetzen(k, vorReload); }}
+            <button key={k} onClick={async () => { setWahl(k); if (inSitzung && !await uiConfirm("Zum Umschalten lädt die Oberfläche neu, und du verlässt dabei die laufende Sitzung. Trotzdem umschalten?")) { try { localStorage.setItem(THEME_KEY, k); } catch { /* */ } return; } themeSetzen(k, vorReload); }}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 8px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: an ? 700 : 500,
                 border: `2px solid ${an ? ACCENT : LINE}`, background: an ? ACCENT + "1f" : "transparent", color: an ? STRONG : SUB }}>
               <Ic size={22} />{l}
