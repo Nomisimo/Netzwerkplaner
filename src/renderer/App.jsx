@@ -277,7 +277,7 @@ export default function App() {
     let id = null, konflikte = [], neueVlans = [], voll = null;
     mutate((d) => {
       const vorher = new Set(d.vlans.map((v) => v.id));
-      const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
+      const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, trunks: (d.trunks ||= []), eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
       if (item.kind === "bestand") {
         dev.bestandId = vorlage.id;
         const belegt = new Set(d.geraete.flatMap((g) => g.ports.map((i) => i.ip)).filter(Boolean));
@@ -318,7 +318,7 @@ export default function App() {
     }
     let konflikte = [];
     mutate((d) => {
-      const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: quelle, mitAdressen: ausBestand });
+      const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, trunks: (d.trunks ||= []), eigeneVorlage: quelle, mitAdressen: ausBestand });
       if (ausBestand) {
         neu.bestandId = quelle.id;
         const belegt = new Set(d.geraete.filter((g) => g.id !== devId).flatMap((g) => g.ports.map((i) => i.ip)).filter(Boolean));
@@ -345,7 +345,7 @@ export default function App() {
   const saveVorlage = async (dev) => {
     const name = await frageText("Name der Vorlage:", [dev.hersteller, dev.modell].filter(Boolean).join(" ") || dev.name, "Als Vorlage speichern");
     if (!name) return;
-    const g = snapshotDevice(dev, P.vlans);
+    const g = snapshotDevice(dev, P.vlans, P.trunks);
     g.ports.forEach((i) => { i.ip = ""; i.mac = ""; });
     g.notizen = ""; g.netzname = ""; (g.felder || []).forEach((f) => { f.wert = ""; }); // Vorlage behält die Felder, ohne Werte
     setLibrary((l) => ({ ...l, vorlagen: [...(l.vorlagen || []), { id: uid(), name, geraet: g }] }));
@@ -362,7 +362,7 @@ export default function App() {
   // Feste ID aus Inventar-Nr., Seriennummer oder MAC: derselbe Bestand auf zwei Rechnern hat dieselben IDs
   const bestandId = (g) => { const k = bestandSchluessel(g); return k && !(library.bestand || []).some((b) => b.id === k) ? k : uid(); };
   const saveBestand = (dev) => {
-    const g = snapshotDevice(dev, P.vlans);
+    const g = snapshotDevice(dev, P.vlans, P.trunks);
     const now = new Date().toISOString();
     const vorhanden = dev.bestandId && (library.bestand || []).some((b) => b.id === dev.bestandId);
     if (vorhanden) {
@@ -381,8 +381,8 @@ export default function App() {
     if (!neu.length) return notify("Alle Projektgeräte sind schon im Bestand.");
     if (!confirm(`${neu.length} Geräte aus diesem Projekt in den Bestand übernehmen?`)) return;
     const now = new Date().toISOString();
-    const entries = neu.map((d) => ({ id: bestandId(snapshotDevice(d, P.vlans)), dev: d }));
-    setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...entries.map(({ id, dev }) => ({ id, name: dev.name, geraet: snapshotDevice(dev, P.vlans), angelegt: now, geaendert: now }))] }));
+    const entries = neu.map((d) => ({ id: bestandId(snapshotDevice(d, P.vlans, P.trunks)), dev: d }));
+    setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...entries.map(({ id, dev }) => ({ id, name: dev.name, geraet: snapshotDevice(dev, P.vlans, P.trunks), angelegt: now, geaendert: now }))] }));
     mutate((d) => { for (const e of entries) { const x = d.geraete.find((y) => y.id === e.dev.id); if (x) x.bestandId = e.id; } });
     neu.forEach(rememberIcon);
     notify(`${neu.length} Geräte in den Bestand übernommen.`);

@@ -79,11 +79,15 @@ export function Toggle({ checked, onChange, label, title, disabled }) {
   );
 }
 
-export function VlanSelect({ vlans, value, onChange, style, allowNone = true, noneLabel = "– kein VLAN –" }) {
+// trunks: zusätzlich die Trunks aus dem Setup anbieten (Wert „trunk:<id>“)
+export function VlanSelect({ vlans, value, onChange, style, allowNone = true, noneLabel = "– kein VLAN –", trunks }) {
   return (
     <select style={{ ...S.selectSm, ...style }} value={value || ""} onChange={(e) => onChange(e.target.value || null)}>
       {allowNone && <option value="">{noneLabel}</option>}
       {vlanBaum(vlans).map(({ v }) => <option key={v.id} value={v.id}>{vlanPfad(v, vlans)} · {v.name}</option>)}
+      {trunks?.length > 0 && <optgroup label="Trunks (mehrere VLANs, tagged)">
+        {trunks.map((t) => <option key={t.id} value={"trunk:" + t.id}>Trunk · {t.name || "ohne Name"}</option>)}
+      </optgroup>}
     </select>
   );
 }

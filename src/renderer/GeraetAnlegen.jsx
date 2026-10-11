@@ -32,7 +32,7 @@ export default function GeraetAnlegen({ P, ziel, onSave, onClose }) {
     });
   };
   const speichern = () => {
-    const g = snapshotDevice(dev, S0.vlans);
+    const g = snapshotDevice(dev, S0.vlans, S0.trunks);
     if (ziel === "vorlage") { g.ports.forEach((i) => { i.ip = ""; i.mac = ""; }); g.netzname = ""; (g.felder || []).forEach((f) => { f.wert = ""; }); }
     const now = new Date().toISOString();
     onSave({ id: uid(), name: dev.name, geraet: g, angelegt: now, geaendert: now });

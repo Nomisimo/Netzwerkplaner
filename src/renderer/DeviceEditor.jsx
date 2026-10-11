@@ -11,6 +11,7 @@ import StroemeEditor from "./StroemeEditor.jsx";
 import { KonfigKopieren, KonfigEinfuegen } from "./KonfigDialog.jsx";
 import { useZwischenablage } from "./zwischenablage.js";
 import { useVlanZuweisen, setVlanZuweisen } from "./vlanZuweisen.js";
+import { trunkVlanText } from "../shared/trunks.js";
 import { geraetKopie } from "../shared/konfig.js";
 import { newFeld } from "../shared/felder.js";
 import { X as XIcon, ChevronDown, RefreshCw, ArrowLeftRight, Plus, Trash2, Globe, Star, Download, Copy, CopyPlus, ClipboardPaste, Lock, Link } from "lucide-react";
@@ -87,6 +88,23 @@ function TrunkVlans({ vlans, value, onChange }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* VLANs eines Trunk-Ports: ein Trunk aus dem Setup oder eine eigene Auswahl */
+function PortTrunk({ P, p, setP }) {
+  const trunks = P.trunks || [];
+  const t = p.trunk && trunks.find((x) => x.id === p.trunk);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      {trunks.length > 0 && <select style={{ ...S.selectSm, padding: "3px 4px", ...(t ? { borderColor: t.farbe } : {}) }} value={t ? t.id : ""} title="Trunk aus dem Setup: der Port trägt dessen VLANs, Änderungen am Trunk gelten sofort"
+        onChange={(e) => setP((x) => { const n = trunks.find((y) => y.id === e.target.value); if (n) { x.trunk = n.id; x.vlans = [...n.vlans]; } else delete x.trunk; })}>
+        <option value="">eigene Auswahl</option>
+        {trunks.map((x) => <option key={x.id} value={x.id}>{x.name || "Trunk"}</option>)}
+      </select>}
+      {t ? <span style={{ fontSize: 10.5, color: MUTED }}>VLANs {trunkVlanText(t, P.vlans)}</span>
+        : <TrunkVlans vlans={P.vlans} value={p.vlans} onChange={(val) => setP((x) => { x.vlans = val; delete x.trunk; })} />}
     </div>
   );
 }
@@ -384,10 +402,13 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
                   <td style={{ ...S.td, minWidth: 92 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.typ} disabled={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select></td>
                   <td style={{ ...S.td, minWidth: 104 }}><SeiteSelect dev={dev} p={p} setP={setP} /></td>
                   {!unmanaged && <>
-                    <td style={{ ...S.td, width: 84 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.modus} onChange={(e) => setP((x) => (x.modus = e.target.value))}><option value="access">Access</option><option value="trunk">Trunk</option></select></td>
+                    <td style={{ ...S.td, width: 84 }}><select style={{ ...S.selectSm, padding: "3px 4px" }} value={p.modus} onChange={(e) => setP((x) => { x.modus = e.target.value; if (x.modus !== "trunk") delete x.trunk; })}><option value="access">Access</option><option value="trunk">Trunk</option></select></td>
                     <td style={{ ...S.td, minWidth: 120 }}>{p.modus === "trunk"
-                      ? <TrunkVlans vlans={P.vlans} value={p.vlans} onChange={(val) => setP((x) => (x.vlans = val))} />
-                      : <VlanSelect vlans={P.vlans} value={p.vlan} onChange={(val) => setP((x) => (x.vlan = val))} style={{ padding: "3px 4px" }} noneLabel="– default –" />}</td>
+                      ? <PortTrunk P={P} p={p} setP={setP} />
+                      : <VlanSelect vlans={P.vlans} trunks={P.trunks} value={p.vlan} onChange={(val) => setP((x) => {
+                        const t = (P.trunks || []).find((y) => "trunk:" + y.id === val);
+                        if (t) { x.modus = "trunk"; x.trunk = t.id; x.vlans = [...t.vlans]; } else x.vlan = val;
+                      })} style={{ padding: "3px 4px" }} noneLabel="– default –" />}</td>
                     <td style={S.td}><input type="checkbox" checked={!!p.poe} style={{ accentColor: ACCENT }} onChange={(e) => setP((x) => (x.poe = e.target.checked))} /></td>
                   </>}
                   <td style={S.td}><input type="checkbox" checked={!!p.p2p} disabled={fest} title={fest ? FEST_TIP : undefined} style={{ accentColor: ACCENT }} onChange={(e) => setP((x) => (x.p2p = e.target.checked))} /></td>
@@ -476,10 +497,10 @@ function VlanZuweisenLeiste({ P, dev, mutate }) {
     if (P.layout.ansicht !== "front") mutate((d) => { d.layout.ansicht = "front"; });
   };
   // Kachel anklicken = dieses VLAN zuweisen (Modus an); die aktive Kachel noch mal = Modus aus
-  const kachel = (v) => {
-    if (an && z?.vlan === v) { setVlanZuweisen(null); return; }
-    setVlan(v);
-    setVlanZuweisen({ vlan: v, dev: dev.id });
+  const kachel = (v, trunk = null) => {
+    if (an && (trunk ? z?.trunk === trunk : z?.vlan === v && !z?.trunk)) { setVlanZuweisen(null); return; }
+    if (v) setVlan(v);
+    setVlanZuweisen(trunk ? { trunk, dev: dev.id } : { vlan: v, dev: dev.id });
     if (P.layout.ansicht !== "front") mutate((d) => { d.layout.ansicht = "front"; });
   };
   return (
@@ -488,13 +509,24 @@ function VlanZuweisenLeiste({ P, dev, mutate }) {
       {an && <span>Jetzt in der Topologie auf die Ports klicken · Esc beendet</span>}
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap", width: "100%" }}>
         {[...P.vlans].sort((a, b) => a.vid - b.vid).map((v) => {
-          const aktiv = an && z?.vlan === v.id;
+          const aktiv = an && !z?.trunk && z?.vlan === v.id;
           return (
             <button key={v.id} onClick={() => kachel(v.id)} title={aktiv ? "Aktiv: Ports anklicken. Noch mal klicken beendet." : `VLAN ${v.vid} ${v.name} zuweisen`}
               style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 74, maxWidth: 120, padding: "4px 8px", borderRadius: 6, cursor: "pointer", textAlign: "left",
                 background: v.farbe + (aktiv ? "" : "33"), color: aktiv ? "#fff" : STRONG, border: `2px solid ${aktiv ? STRONG : v.farbe}`, boxShadow: aktiv ? `0 0 0 2px ${v.farbe}` : "none" }}>
               <span style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.1, textShadow: aktiv ? "0 1px 2px #0006" : "none" }}>{v.vid}</span>
               <span style={{ fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", textShadow: aktiv ? "0 1px 2px #0006" : "none" }}>{v.name || `VLAN ${v.vid}`}</span>
+            </button>
+          );
+        })}
+        {(P.trunks || []).map((t) => {
+          const aktiv = an && z?.trunk === t.id;
+          return (
+            <button key={t.id} onClick={() => kachel(null, t.id)} title={aktiv ? "Aktiv: Ports anklicken. Noch mal klicken beendet." : `Trunk „${t.name}“ (VLANs ${trunkVlanText(t, P.vlans)}) zuweisen`}
+              style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 74, maxWidth: 140, padding: "4px 8px", borderRadius: 6, cursor: "pointer", textAlign: "left",
+                background: aktiv ? t.farbe : `repeating-linear-gradient(135deg, ${t.farbe}33 0 5px, ${t.farbe}14 5px 10px)`, color: aktiv ? "#fff" : STRONG, border: `2px dashed ${aktiv ? STRONG : t.farbe}` }}>
+              <span style={{ fontSize: 12, fontWeight: 800, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{t.name || "Trunk"}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>Trunk {trunkVlanText(t, P.vlans)}</span>
             </button>
           );
         })}

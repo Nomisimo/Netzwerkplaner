@@ -23,18 +23,20 @@ export const endInfo = (c, end, X) => {
     ids = port.vlan ? [port.vlan] : [];
   }
   const vlans = ids.map((id) => X.vlanById.get(id)).filter(Boolean).sort((a, b) => a.vid - b.vid);
-  return { dev, port, sw: !!dev.isSwitch, managed: managedSw, kind, vlans, ifc: dev.isSwitch ? null : port };
+  const trunk = kind === "trunk" && port.trunk ? X.trunkById?.get(port.trunk) || null : null;
+  return { dev, port, sw: !!dev.isSwitch, managed: managedSw, kind, vlans, trunk, ifc: dev.isSwitch ? null : port };
 };
 
 export const vlanKurz = (info) => {
   if (!info) return "";
+  if (info.kind === "trunk" && info.trunk?.name) return info.trunk.name;
   if (info.kind === "trunk") return info.vlans.length > 4 ? `Trunk ${info.vlans.length} VLANs` : `Trunk ${info.vlans.map((v) => v.vid).join("·") || "–"}`;
   if (info.kind === "mehrere") return `VLAN ${info.vlans.map((v) => v.vid).join("+")}`;
   return info.vlans[0] ? `VLAN ${info.vlans[0].vid}` : "kein VLAN";
 };
 export const vlanLang = (info) => {
   if (!info) return "";
-  if (info.kind === "trunk") return `Trunk (tagged): ${info.vlans.map((v) => `${v.vid} ${v.name}`).join(", ") || "keine VLANs"}`;
+  if (info.kind === "trunk") return `${info.trunk?.name ? `Trunk „${info.trunk.name}“` : "Trunk"} (tagged): ${info.vlans.map((v) => `${v.vid} ${v.name}`).join(", ") || "keine VLANs"}`;
   if (info.kind === "mehrere") return `Unmanaged, mehrere VLANs gemischt: ${info.vlans.map((v) => `${v.vid} ${v.name}`).join(", ")}`;
   return info.vlans[0] ? `VLAN ${info.vlans[0].vid} ${info.vlans[0].name} (untagged)` : "kein VLAN";
 };
