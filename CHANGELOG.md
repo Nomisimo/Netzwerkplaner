@@ -3,6 +3,31 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [0.7.0-beta.19] – 2026-10-11
+
+- Speichern-Meldung unten ist grün mit Haken statt rot; Warnungen gelb, Fehler rot
+- „Neu“ legt ein leeres Projekt ohne Standard-VLANs an. Im leeren VLAN-Tab fügt „Standard-VLANs einfügen“ sie bei Bedarf ein
+- Pfeiltasten und Enter in allen Auswahllisten und Menüs (Standort, Geräte-Auswahl, zuletzt geöffnet, Kontextmenü)
+- Standort-Auswahl im Geräte-Editor und beim Bearbeiten mehrerer Geräte zeigt alle Standorte, auch die nur an Geräten eingetragenen; Scrollen in der Liste schließt sie nicht mehr
+- Patchliste bleibt nach dem Umschalten mittig, auch in schmalen Fenstern
+- Switches: die IP steht im Editor unter „Management-IP“ (Anschluss ohne Buchse), mit kurzer Erklärung
+- Suche mit * als Platzhalter in Katalog, Bestand, Vorlagen, Geräteliste und Topologie, z. B. „Cisco*1300*24“; mehrere Wörter müssen alle vorkommen
+- VLANs: „Ist ein Trunk“ legt ein Trunk-Profil an, das mehrere VLANs trägt. Ports lassen sich einem Trunk-Profil zuweisen (Editor, VLAN-Kacheln, Klick in der Topologie); ändert sich das Profil, ziehen alle Ports mit. Trunks und ihre VLANs kommen mit in Bestand und Vorlagen
+- Katalog: Geräte, die mit einer älteren Katalogversion angelegt wurden (z. B. MA3 mit 5 statt 3 Ports), werden gemeldet; „An Katalog anpassen“ übernimmt die aktuellen Ports
+- Bestand und eigene Vorlagen lassen sich bearbeiten
+- VLAN-Farben gehen durch durchgeschleifte Geräte (ohne eigene IP) bis zum nächsten Kabel weiter
+- Stapel mit nur noch einem Gerät lösen sich von selbst auf
+- „Modell zuweisen“ für mehrere ausgewählte Geräte auf einmal
+- Modell zuweisen übernimmt den Namen des Modells, solange der Name nicht von Hand geändert wurde
+- Aus dem Katalog mehrere Geräte auf einmal einfügen („Anzahl“), sie werden durchnummeriert. Kopien heißen „(Kopie)“, „(Kopie 2)“, „(Kopie 3)“ …
+- Anschlüsse: Kabel enden an der Buchse, in der sie stecken, auch auf den Karten der Endgeräte. Sie laufen rechtwinklig mit Abstand um andere Geräte herum
+- Anschlüsse: Kabelverlauf von Hand. Mittlere Strecken verschieben, Doppelklick aufs Kabel fügt zwei Ecken ein, Doppelklick auf einen Griff setzt zurück
+- Anschlüsse: „Hell“ für weißen Hintergrund (Druck und Bearbeiten), „Kabel vorne“ führt die Kabel sichtbar bis in die Buchse statt hinter das Gerät
+- Export der Topologie ohne Auswahl- und Fokusrahmen
+- Stapel können nebeneinander stehen (Stapel-Fenster › Anordnung)
+- Plott: Pfeile zeigen den Signalfluss. Einweg-Verbindungen (z. B. AES67- oder Dante-Sender zum Empfänger) haben nur am Empfänger einen Pfeil und einen in der Mitte. Die Richtung kommt aus den Datenströmen oder wird im Verbindungs-Editor unter „Signalfluss“ fest eingestellt
+- Plott: Geräte, Switches und Stacks lassen sich wie Standorte per Ziehen umstellen; „Anordnung automatisch“ setzt alles zurück
+
 ## [0.7.0-beta.18] – 2026-10-07
 
 - VLAN-Setup: der Haken heißt jetzt „EEE (802.3az) an“. Gesetzt = EEE an, raus = EEE aus (vorher andersherum)
