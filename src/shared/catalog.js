@@ -373,3 +373,32 @@ export const geraetUmbauen = (P, devId, neu, { ausBestand = false } = {}) => {
   if (!dev.bestandId) delete dev.bestandId;
   return dev;
 };
+
+/* Weicht ein Katalog-Gerät vom aktuellen Katalog ab? Geräte behalten ihre Ports aus der Katalog-Version,
+   mit der sie angelegt wurden (z. B. grandMA3 light früher mit 5 statt 3 etherCON). Ergebnis
+   { ist, soll } (Anzahl Buchsen) oder null. Verbundene Zusatz-Ports zählen nicht als Abweichung,
+   die bleiben beim Anpassen ohnehin. */
+const sollCache = new Map();
+export const katalogAbweichung = (dev) => {
+  if (!dev?.katalogId || dev.generisch) return null;
+  const k = KATALOG_GERAETE.find((x) => x.id === dev.katalogId);
+  if (!k) return null;
+  if (!sollCache.has(k.id)) sollCache.set(k.id, physPorts(createDevice({ katalogId: k.id })).map((p) => `${p.typ}|${!!p.p2p}`));
+  const soll = sollCache.get(k.id);
+  const ist = physPorts(dev).map((p) => `${p.typ}|${!!p.p2p}`);
+  if (soll.length === ist.length && soll.every((x, i) => x === ist[i])) return null;
+  return { ist: ist.length, soll: soll.length, modell: `${k.hersteller} ${k.modell}` };
+};
+
+// Ports eines Geräts auf den aktuellen Katalog bringen; Name, IPs, Felder und Verbindungen bleiben (wie „Modell zuweisen“)
+export const katalogAbgleichen = (P, devId) => {
+  const dev = P.geraete.find((g) => g.id === devId);
+  if (!dev?.katalogId) return null;
+  const { bestandId } = dev;
+  const neu = createDevice({ katalogId: dev.katalogId, vlans: P.vlans });
+  neu.icon = dev.icon; neu.kategorie = dev.kategorie; neu.webUi = { ...neu.webUi, ...(dev.webUi || {}), iface: null };
+  const r = geraetUmbauen(P, devId, neu);
+  if (r && bestandId) r.bestandId = bestandId;
+  if (r?.webUi && !r.webUi.iface) r.webUi.iface = ipPorts(r)[0]?.id || null;
+  return r;
+};

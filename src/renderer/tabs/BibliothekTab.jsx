@@ -8,7 +8,7 @@ import BestandView from "./BestandView.jsx";
 import { useEinstellungen, istFokus } from "../einstellungen.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
 import { newFeld, feldUmbenennen, feldEntfernen } from "../../shared/felder.js";
-import { Link, Check, X as XIcon, ChevronUp, ChevronDown } from "lucide-react";
+import { Link, Check, X as XIcon, ChevronUp, ChevronDown, Pencil } from "lucide-react";
 
 const FLAG_LABELS = [
   ["p2p", "Punkt-zu-Punkt, nicht über Switch", ERR],
@@ -61,6 +61,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
   const [nurFokus, setNurFokus] = useState(true);
   const [open, setOpen] = useState(null);
   const [neueVorlage, setNeueVorlage] = useState(false);
+  const [vorlageEdit, setVorlageEdit] = useState(null); // Vorlage im Editor
   const ql = q.toLowerCase();
 
   const protos = useMemo(() => PROTOKOLLE.filter((p) => (!kat || p.kategorie === kat) && (!ql || `${p.name} ${p.raw.Ports} ${p.raw["Hersteller / Gremium"]}`.toLowerCase().includes(ql))), [ql, kat]);
@@ -157,12 +158,15 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       {sub === "vorlagen" && (
         <Section title="Eigene Vorlagen" right={<button style={S.primaryBtn} onClick={() => setNeueVorlage(true)}>+ Neue Vorlage</button>} subtitle="Vorlagen sind Gerätetypen ohne Adressen (Ports, VLANs, Protokolle). Für konkrete Geräte mit IPs gibt es den Gerätebestand. Mit „+ Neue Vorlage“ anlegen oder im Geräte-Editor mit „Vorlage“ speichern. Vorlagen liegen im Katalog der App und stehen in jedem Projekt zur Verfügung.">
           {neueVorlage && <GeraetAnlegen P={P} ziel="vorlage" onClose={() => setNeueVorlage(false)} onSave={(v) => { setLibrary((l) => ({ ...l, vorlagen: [...(l.vorlagen || []), v] })); setNeueVorlage(false); notify(`Vorlage „${v.name}“ angelegt.`); }} />}
+          {vorlageEdit && <GeraetAnlegen key={vorlageEdit.id} P={P} ziel="vorlage" eintrag={vorlageEdit} onClose={() => setVorlageEdit(null)}
+            onSave={(v) => { setLibrary((l) => ({ ...l, vorlagen: (l.vorlagen || []).map((x) => (x.id === v.id ? v : x)) })); setVorlageEdit(null); notify(`Vorlage „${v.name}“ geändert.`); }} />}
           {!(library.vorlagen || []).length && <p style={S.empty}>Noch keine eigenen Vorlagen.</p>}
           {(library.vorlagen || []).map((v) => (
             <div key={v.id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px" }}>
               <IconView icon={v.geraet.icon} customIcons={allIcons} color={katColor(v.geraet.kategorie)} />
               <input style={{ ...S.inputSm, maxWidth: 300 }} value={v.name} onChange={(e) => setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.map((x) => (x.id === v.id ? { ...x, name: e.target.value } : x)) }))} />
               <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{v.geraet.hersteller} {v.geraet.modell} · {physPorts(v.geraet).length} Ports · {ipPorts(v.geraet).filter((i) => i.ip || i.dhcp || i.virtuell).length} mit IP</span>
+              <button style={S.smallBtn} onClick={() => setVorlageEdit(v)} title="Ports, Protokolle, Web-UI und Notizen der Vorlage ändern"><Pencil size={13} /> Bearbeiten</button>
               <button style={S.smallBtn} onClick={() => onAddDevice({ kind: "vorlage", key: v.id }, {})}>+ ins Projekt</button>
               <button style={S.dangerBtn} onClick={() => confirm(`Vorlage „${v.name}“ löschen?`) && setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.filter((x) => x.id !== v.id) }))}><XIcon size={14} /></button>
             </div>
