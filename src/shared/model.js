@@ -1,6 +1,6 @@
 import { doppelteBestandsgeraete } from "./bestandschluessel.js";
 import { STANDARD_VLANS, DEFAULT_BEREICHE, KABEL } from "./constants.js";
-import { uid, findProtokoll, migrateGeraet, physPorts, ipPorts } from "./catalog.js";
+import { uid, findProtokoll, migrateGeraet, physPorts, ipPorts, katalogAbweichung } from "./catalog.js";
 import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAULT_RANGES, isValidMac } from "./net.js";
 import { normMac, macHersteller, herstellerPasst } from "./mac.js";
 import { qinqIssues } from "./qinq.js";
@@ -346,6 +346,12 @@ export const validate = (P, X) => {
 
   // Dasselbe Bestandsgerät (Inventar-Nr., Seriennummer oder MAC) mehrfach im Plan
   for (const grp of doppelteBestandsgeraete(P)) add("warn", `Dasselbe Bestandsgerät steht ${grp.length}× im Plan: ${grp.map((d) => `„${d.name}“`).join(", ")}.`, { dev: grp[1].id });
+
+  // Geräte mit Ports aus einer älteren Katalog-Version
+  for (const d of P.geraete) {
+    const a = katalogAbweichung(d);
+    if (a) add("warn", `${d.name}: hat ${a.ist} Anschlüsse, laut Katalog hat ${a.modell} ${a.soll}. Im Geräte-Editor „An Katalog anpassen“.`, { dev: d.id });
+  }
 
   // VLANs
   // Doppelte IDs sind erlaubt, wenn QinQ (IEEE 802.1ad) sie trennt

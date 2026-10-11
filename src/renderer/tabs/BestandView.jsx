@@ -7,7 +7,7 @@ import { IconView } from "../icons.jsx";
 import { api } from "../api.js";
 import { bestandZuCsv, csvZuBestand } from "../../shared/bestandcsv.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
-import { Download, X as XIcon, Check } from "lucide-react";
+import { Download, X as XIcon, Check, Pencil } from "lucide-react";
 
 const datum = (iso) => (iso ? new Date(iso).toLocaleDateString("de-DE") : "");
 
@@ -17,6 +17,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [sel, setSel] = useState(() => new Set());
+  const [bearbeiten, setBearbeiten] = useState(null); // Bestandseintrag im Editor
   const [anlegen, setAnlegen] = useState(false);
   const fileRef = useRef(null);
   const bestand = library.bestand || [];
@@ -136,6 +137,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
                       {drin
                         ? <button style={{ ...S.smallBtn, borderColor: OK + "88", color: OK }} onClick={() => onSelectDevice(drin.id)} title="Ist bereits im Projekt – zum Gerät springen"><Check size={14} /> im Projekt</button>
                         : <button style={S.smallBtn} onClick={() => einfuegen([b.id])}>+ ins Projekt</button>}
+                      <button style={{ ...S.smallBtn, marginLeft: 6 }} onClick={() => setBearbeiten(b)} title="Ports, IPs, MACs, Felder, Protokolle und Notizen dieses Bestandsgeräts ändern"><Pencil size={13} /> Bearbeiten</button>
                       <button style={{ ...S.dangerBtn, marginLeft: 6, padding: "3px 8px" }} onClick={() => remove([b.id])}><XIcon size={12} /></button>
                     </td>
                   </tr>
@@ -145,6 +147,8 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
           </table>
         </div>
       )}
+      {bearbeiten && <GeraetAnlegen key={bearbeiten.id} P={P} ziel="bestand" eintrag={bearbeiten} onClose={() => setBearbeiten(null)}
+        onSave={(b) => { setLibrary((l) => ({ ...l, bestand: (l.bestand || []).map((x) => (x.id === b.id ? b : x)) })); setBearbeiten(null); notify(`„${b.name}“ im Bestand geändert.`); }} />}
       {anlegen && <GeraetAnlegen P={P} ziel="bestand" onClose={() => setAnlegen(false)} onSave={(b) => { setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), b] })); setAnlegen(false); notify(`„${b.name}“ im Gerätebestand angelegt.`); }} />}
     </Section>
   );

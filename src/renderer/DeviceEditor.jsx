@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, PANEL, katColor, TYPEN, KATEGORIEN, PORT_TYPEN, CARD, INPUT, LINK, TEXT2, STRONG } from "../shared/constants.js";
-import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid, hardwareFest } from "../shared/catalog.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, katColor, TYPEN, KATEGORIEN, PORT_TYPEN, CARD, INPUT, LINK, TEXT2, STRONG } from "../shared/constants.js";
+import { KATALOG_GERAETE, PROTOKOLLE, findProtokoll, newPort, ipPorts, physPorts, uid, hardwareFest, katalogAbweichung, katalogAbgleichen } from "../shared/catalog.js";
 import { portSeiten } from "../shared/anschluesse.js";
 import { otherEnd, suggestIp, webUrl, clone, vlanQuelle, standortListe } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
@@ -276,6 +276,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
   const k = dev.katalogId ? KATALOG_GERAETE.find((x) => x.id === dev.katalogId) : null;
   const url = webUrl(dev);
   const unmanaged = dev.typ === "switch_unmanaged";
+  const abweichung = katalogAbweichung(dev);
   const col = katColor(dev.kategorie);
   const isRoot = X && P.layout.rootId === dev.id;
   const fest = hardwareFest(dev);
@@ -325,6 +326,14 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
       {issues.length > 0 && (
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
           {issues.slice(0, 6).map((i, n) => <div key={n} style={{ fontSize: 11, lineHeight: 1.4, display: "flex", gap: 6, alignItems: "flex-start" }}><SevBadge sev={i.sev} /><span>{i.msg}</span></div>)}
+        </div>
+      )}
+
+      {abweichung && (
+        <div style={{ marginTop: 12, padding: "7px 10px", border: `1px solid ${WARN}`, borderRadius: 7, background: WARN + "14", fontSize: 11.5, color: TEXT2, lineHeight: 1.45, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ flex: 1, minWidth: 200 }}>Dieses Gerät hat {abweichung.ist} Anschlüsse aus einer älteren Katalog-Version. Laut aktuellem Katalog hat {abweichung.modell} {abweichung.soll}.</span>
+          <button style={S.smallBtn} title="Ports wie im aktuellen Katalog. Name, IPs, eigene Felder und Verbindungen bleiben; gesteckte Ports, die es im Katalog nicht gibt, bleiben angehängt."
+            onClick={() => mutate((d) => { katalogAbgleichen(d, dev.id); })}><RefreshCw size={14} /> An Katalog anpassen</button>
         </div>
       )}
 
