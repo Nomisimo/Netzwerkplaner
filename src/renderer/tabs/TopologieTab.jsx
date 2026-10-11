@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback, useLayoutEffect } from "react";
+import { setzeTrunk } from "../../shared/trunks.js";
 import { passtSuche } from "../../shared/suche.js";
 import { removeDevices } from "../../shared/invarianten.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor, BG, BTN, CANVAS, CARD, INPUT, LINE2, LINK, MID, TEXT, TEXT2, TRUNK, STRONG , HELL } from "../../shared/constants.js";
@@ -219,9 +220,13 @@ export default function TopologieTab(props) {
     const dev = X.devById.get(devId);
     if (zuweisen && dev?.isSwitch && dev.typ !== "switch_unmanaged") {
       e.stopPropagation();
-      const v = X.vlanById.get(zuweisen.vlan);
-      mutate((d) => { const p = d.geraete.find((g) => g.id === devId)?.ports.find((x) => x.id === port.id); if (p) { p.modus = "access"; p.vlan = zuweisen.vlan; } });
-      props.notify?.(`${dev.name} · Port ${port.name}: VLAN ${v ? `${v.vid} ${v.name}` : "zugewiesen"}`);
+      const v = X.vlanById.get(zuweisen.vlan), t = zuweisen.trunk && X.trunkById.get(zuweisen.trunk);
+      mutate((d) => {
+        const p = d.geraete.find((g) => g.id === devId)?.ports.find((x) => x.id === port.id);
+        if (!p) return;
+        if (t) setzeTrunk(p, t); else { p.modus = "access"; p.vlan = zuweisen.vlan; delete p.trunk; }
+      });
+      props.notify?.(`${dev.name} · Port ${port.name}: ${t ? `Trunk „${t.name}“` : `VLAN ${v ? `${v.vid} ${v.name}` : "zugewiesen"}`}`);
       return;
     }
     if (draw?.sticky) return; // Ziel eines laufenden Kabels: das erledigt onUp
@@ -955,11 +960,12 @@ export default function TopologieTab(props) {
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
           {zuweisen && (() => {
-            const v = X.vlanById.get(zuweisen.vlan);
+            const t = zuweisen.trunk && X.trunkById.get(zuweisen.trunk);
+            const v = t || X.vlanById.get(zuweisen.vlan);
             return (
-              <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", display: "flex", gap: 10, alignItems: "center", background: INPUT, border: `2px solid ${v?.farbe || ACCENT}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: TEXT, boxShadow: "0 4px 14px rgba(0,0,0,.25)", zIndex: 3 }}>
+              <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", display: "flex", gap: 10, alignItems: "center", background: INPUT, border: `2px ${t ? "dashed" : "solid"} ${v?.farbe || ACCENT}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: TEXT, boxShadow: "0 4px 14px rgba(0,0,0,.25)", zIndex: 3 }}>
                 <span style={{ width: 12, height: 12, borderRadius: 3, background: v?.farbe || ACCENT }} />
-                <span>VLAN-Zuweisung: Klick auf einen Switch-Port setzt <b>{v ? `VLAN ${v.vid} ${v.name}` : "das VLAN"}</b>{!front && " (in der Ansicht „Anschlüsse“)"}</span>
+                <span>VLAN-Zuweisung: Klick auf einen Switch-Port setzt <b>{t ? `Trunk „${t.name}“` : v ? `VLAN ${v.vid} ${v.name}` : "das VLAN"}</b>{!front && " (in der Ansicht „Anschlüsse“)"}</span>
                 {!front && <button style={S.smallBtn} onClick={() => setAnsicht("front")}>Zu „Anschlüsse“</button>}
                 <button style={S.smallBtn} onClick={() => setVlanZuweisen(null)}>Beenden</button>
               </div>
