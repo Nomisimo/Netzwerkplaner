@@ -110,3 +110,10 @@ test("Stapel nebeneinander: Geräte stehen rechts vom Anker, oben bündig", () =
   assert.equal(R.stapel[0].richtung, "h");
   assert.equal(R.stapel[0].w, 100 + 6 + 60 + 6 + 80 + 20);
 });
+
+test("Stapel mit nur einem Gerät lösen sich auf", async () => {
+  const { stapelBereinigen } = await import("../src/shared/anordnung.js");
+  const P = { geraete: [{ id: "a" }, { id: "b" }, { id: "c" }], layout: { stapel: [{ id: "s1", ids: ["a", "x"] }, { id: "s2", ids: ["b", "c"] }, { id: "s3", ids: ["c"] }] } };
+  stapelBereinigen(P);
+  assert.deepEqual(P.layout.stapel.map((s) => s.id), ["s2"]);
+});

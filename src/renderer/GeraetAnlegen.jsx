@@ -10,14 +10,17 @@ import { Plus } from "lucide-react";
    Der Geräte-Editor arbeitet dafür auf einem kleinen Übungsprojekt mit den
    VLANs des offenen Projekts. Ergebnis: Eintrag im Gerätebestand (mit IPs) oder
    eigene Vorlage (ohne Adressen). */
-export default function GeraetAnlegen({ P, ziel, onSave, onClose }) {
+// eintrag: vorhandener Bestandseintrag bzw. vorhandene Vorlage zum Bearbeiten (sonst neu anlegen)
+export default function GeraetAnlegen({ P, ziel, onSave, onClose, eintrag = null }) {
   const [typ, setTyp] = useState("sonstiges");
   const [S0, setS0] = useState(() => {
     const p = emptyProject();
     p.vlans = JSON.parse(JSON.stringify(P.vlans));
     p.icons = P.icons || [];
     p.feldKatalog = P.feldKatalog || [];
-    p.geraete = [createDevice({ typ: "sonstiges", vlans: p.vlans, name: "Neues Gerät" })];
+    p.geraete = [eintrag
+      ? { ...createDevice({ eigeneVorlage: eintrag, vlans: p.vlans, mitAdressen: ziel === "bestand", name: eintrag.geraet.name || eintrag.name }), netzname: eintrag.geraet.netzname || "" }
+      : createDevice({ typ: "sonstiges", vlans: p.vlans, name: "Neues Gerät" })];
     return p;
   });
   const X0 = useMemo(() => buildIndex(S0), [S0]);
@@ -32,22 +35,26 @@ export default function GeraetAnlegen({ P, ziel, onSave, onClose }) {
     });
   };
   const speichern = () => {
-    const g = snapshotDevice(dev, S0.vlans);
+    const g = snapshotDevice(dev, S0.vlans, S0.trunks);
     if (ziel === "vorlage") { g.ports.forEach((i) => { i.ip = ""; i.mac = ""; }); g.netzname = ""; (g.felder || []).forEach((f) => { f.wert = ""; }); }
     const now = new Date().toISOString();
-    onSave({ id: uid(), name: dev.name, geraet: g, angelegt: now, geaendert: now });
+    // Bearbeiten: gleiche ID, damit Geräte im Projekt mit diesem Bestandseintrag verknüpft bleiben
+    if (eintrag) onSave({ ...eintrag, name: ziel === "vorlage" ? eintrag.name : dev.name, geraet: g, geaendert: now });
+    else onSave({ id: uid(), name: dev.name, geraet: g, angelegt: now, geaendert: now });
   };
+  const titel = eintrag ? (ziel === "vorlage" ? `Vorlage „${eintrag.name}“ bearbeiten` : `„${eintrag.name}“ im Bestand bearbeiten`) : ziel === "vorlage" ? "Neue Vorlage anlegen" : "Neues Gerät im Bestand anlegen";
   return (
-    <Modal title={ziel === "vorlage" ? "Neue Vorlage anlegen" : "Neues Gerät im Bestand anlegen"} width={760} onClose={onClose}
+    <Modal title={titel} width={760} onClose={onClose}
       footer={<>
         <button style={S.ghostBtn} onClick={onClose}>Abbrechen</button>
-        <button style={S.primaryBtn} onClick={speichern}>{ziel === "vorlage" ? "Als Vorlage speichern" : "Im Bestand speichern"}</button>
+        <button style={S.primaryBtn} onClick={speichern}>{eintrag ? "Änderungen speichern" : ziel === "vorlage" ? "Als Vorlage speichern" : "Im Bestand speichern"}</button>
       </>}>
-      <Field label="Grundtyp" hint="Legt die Ports vor. Alles lässt sich danach im Editor ändern.">
+      {!eintrag && <Field label="Grundtyp" hint="Legt die Ports vor. Alles lässt sich danach im Editor ändern.">
         <select style={{ ...S.select, maxWidth: 320 }} value={typ} onChange={(e) => neuerTyp(e.target.value)}>
           {Object.entries(TYPEN).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
         </select>
-      </Field>
+      </Field>}
+      {eintrag && <div style={{ ...S.hint, marginTop: 0 }}>{ziel === "vorlage" ? "Änderungen gelten für künftig eingefügte Geräte. Geräte, die schon in Projekten stehen, bleiben, wie sie sind." : "Änderungen gelten für künftig eingefügte Geräte. Steht das Gerät schon im Projekt, bleibt es dort, wie es ist; mit „Bestand aktualisieren“ im Geräte-Editor geht es in die andere Richtung."}</div>}
       {dev.isSwitch && !TYPEN[dev.typ]?.unmanaged && <NeuesVlan key={typ} S0={S0} dev={dev} mutate={mutate} />}
       <div style={{ marginTop: 12 }}>
         <DeviceEditor P={S0} X={X0} dev={dev} mutate={mutate} compact={false} />

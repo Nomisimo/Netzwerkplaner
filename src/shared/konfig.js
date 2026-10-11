@@ -41,6 +41,7 @@ export const konfigAus = (dev, vlans, teile) => {
     name: p.name, typ: p.typ, modus: p.modus, poe: !!p.poe, p2p: !!p.p2p, virtuell: !!p.virtuell,
     // VLANs nur von Switch-Ports; Endgeräte bekommen ihr VLAN vom Switch
     vlan: dev.isSwitch ? vlanRef(p.vlan, vlans) : null, vlans: dev.isSwitch ? (p.vlans || []).map((id) => vlanRef(id, vlans)).filter(Boolean) : [],
+    trunk: dev.isSwitch ? p.trunk || null : null, // Trunk-ID des Projekts; fehlt er im Ziel, bleibt die VLAN-Liste
     prefix: p.prefix, gateway: p.gateway, dhcp: !!p.dhcp,
   }));
   if (teile.includes("protokolle")) d.protokolle = [...(dev.protokolle || [])];
@@ -92,6 +93,7 @@ export const konfigAnwenden = (ziel, clip, teile, vlans) => {
       const werte = { typ: s.virtuell || fest ? undefined : s.typ, modus: s.modus, poe: s.poe, p2p: fest ? undefined : s.p2p, prefix: s.prefix, gateway: s.gateway, dhcp: s.dhcp,
         ...(ziel.isSwitch ? { vlan: vlanAuf(s.vlan, vlans), vlans: s.vlans && s.vlans.map((r) => vlanAuf(r, vlans)).filter(Boolean) } : {}) };
       for (const [k, v] of Object.entries(werte)) if (v !== undefined) p[k] = v;
+      if (ziel.isSwitch && s.trunk) p.trunk = s.trunk; else delete p.trunk;
     });
     res.teile.push("ports");
   }
@@ -109,10 +111,21 @@ export const konfigAnwenden = (ziel, clip, teile, vlans) => {
   return res;
 };
 
-/* Gerät duplizieren: neue ids, IPs und MACs leer, kein Bestandsbezug */
-export const geraetKopie = (dev, name) => {
+/* Name für eine Kopie: „Name (Kopie)“, „Name (Kopie 2)“, „Name (Kopie 3)“ … – der erste, den es im Projekt
+   noch nicht gibt. Die Kopie einer Kopie zählt am Original weiter. belegt: optionale Menge schon vergebener Namen. */
+export const kopieName = (P, name, belegt = null) => {
+  const namen = belegt || new Set((P?.geraete || []).map((g) => g.name));
+  const basis = (name || "").replace(/\s*\(Kopie(?:\s+\d+)?\)\s*$/, "");
+  let n = 1, kandidat = `${basis} (Kopie)`;
+  while (namen.has(kandidat)) kandidat = `${basis} (Kopie ${++n})`;
+  namen.add(kandidat);
+  return kandidat;
+};
+
+/* Gerät duplizieren: neue ids, IPs und MACs leer, kein Bestandsbezug. P: Projekt für die Nummer der Kopie */
+export const geraetKopie = (dev, name, P = null) => {
   const c = clone(dev); const idMap = {};
-  c.id = uid(); c.name = name ?? dev.name + " (Kopie)";
+  c.id = uid(); c.name = name ?? kopieName(P, dev.name);
   c.ports.forEach((p) => { const n = uid(); idMap[p.id] = n; p.id = n; p.ip = ""; p.mac = ""; });
   if (c.webUi) c.webUi.iface = idMap[c.webUi.iface] || null;
   c.stroeme = (c.stroeme || []).map((s) => ({ ...s, id: uid(), ziele: [], iface: s.iface ? idMap[s.iface] || null : null }));
@@ -129,7 +142,7 @@ export const stapelAus = (P, stapelId) => {
   const di = new Map(devs.map((g, n) => [g.id, n]));
   const pi = (end) => devs[di.get(end.dev)].ports.findIndex((p) => p.id === end.port);
   const geraete = devs.map((g) => {
-    const c = snapshotDevice(g, P.vlans); // mit VLAN-IDs und VLAN-Daten, damit es auch in anderen Projekten passt
+    const c = snapshotDevice(g, P.vlans, P.trunks); // mit VLAN-IDs und VLAN-Daten, damit es auch in anderen Projekten passt
     for (const p of c.ports) { p.ip = ""; p.mac = ""; }
     return c;
   });
@@ -143,7 +156,8 @@ export const stapelAus = (P, stapelId) => {
 /* Stapel aus der Zwischenablage ins Projekt einfügen (ändert d).
    Ergebnis: { ids: neue Geräte, stapelId: neuer Stapel oder null } */
 export const stapelEinfuegen = (d, clip, { namensZusatz = " (Kopie)" } = {}) => {
-  const neu = clip.geraete.map((g) => createDevice({ eigeneVorlage: { geraet: g }, vlans: d.vlans, name: g.name + namensZusatz }));
+  const belegt = new Set(d.geraete.map((g) => g.name));
+  const neu = clip.geraete.map((g) => createDevice({ eigeneVorlage: { geraet: g }, vlans: d.vlans, trunks: (d.trunks ||= []), name: namensZusatz === " (Kopie)" ? kopieName(d, g.name, belegt) : g.name + namensZusatz }));
   d.geraete.push(...neu);
   for (const c of clip.verbindungen) {
     const pa = neu[c.a.g]?.ports[c.a.p], pb = neu[c.b.g]?.ports[c.b.p];
@@ -164,7 +178,7 @@ export const auswahlAus = (P, ids, pos = new Map()) => {
   const di = new Map(devs.map((g, n) => [g.id, n]));
   const pi = (end) => devs[di.get(end.dev)].ports.findIndex((p) => p.id === end.port);
   const geraete = devs.map((g) => {
-    const c = snapshotDevice(g, P.vlans);
+    const c = snapshotDevice(g, P.vlans, P.trunks);
     for (const p of c.ports) { p.ip = ""; p.mac = ""; }
     return c;
   });
@@ -182,7 +196,8 @@ export const auswahlAus = (P, ids, pos = new Map()) => {
 
 /* Geräte aus der Zwischenablage einfügen (⌘V, ändert d). at = Mitte der neuen Geräte auf der Fläche */
 export const auswahlEinfuegen = (d, clip, at = null) => {
-  const neu = clip.geraete.map((g) => createDevice({ eigeneVorlage: { geraet: g }, vlans: d.vlans, name: g.name + " (Kopie)" }));
+  const belegt = new Set(d.geraete.map((g) => g.name));
+  const neu = clip.geraete.map((g) => createDevice({ eigeneVorlage: { geraet: g }, vlans: d.vlans, trunks: (d.trunks ||= []), name: kopieName(d, g.name, belegt) }));
   d.geraete.push(...neu);
   for (const c of clip.verbindungen) {
     const pa = neu[c.a.g]?.ports[c.a.p], pb = neu[c.b.g]?.ports[c.b.p];

@@ -1,4 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback, useLayoutEffect } from "react";
+import { setzeTrunk } from "../../shared/trunks.js";
+import { passtSuche } from "../../shared/suche.js";
 import { removeDevices } from "../../shared/invarianten.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor, BG, BTN, CANVAS, CARD, INPUT, LINE2, LINK, MID, TEXT, TEXT2, TRUNK, STRONG , HELL } from "../../shared/constants.js";
 import { buildTree, subtreeIds, astKlappbar, aesteUmschalten, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts, unmanagedVlans } from "../../shared/model.js";
@@ -26,7 +28,7 @@ import { einrasten, mitlaeufer, gruppeBewegen } from "../../shared/einrasten.js"
 import { KonfigEinfuegen } from "../KonfigDialog.jsx";
 import Meldungen from "../Meldungen.jsx";
 import MehrfachBearbeiten from "../MehrfachBearbeiten.jsx";
-import { Network, Cable, FileText, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap } from "lucide-react";
+import { Network, Cable, FileText, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap, ArrowLeftRight } from "lucide-react";
 import CleanCatTab from "./CleanCatTab.jsx";
 import { useVlanZuweisen, setVlanZuweisen } from "../vlanZuweisen.js";
 
@@ -224,9 +226,13 @@ export default function TopologieTab(props) {
     const dev = X.devById.get(devId);
     if (zuweisen && dev?.isSwitch && dev.typ !== "switch_unmanaged") {
       e.stopPropagation();
-      const v = X.vlanById.get(zuweisen.vlan);
-      mutate((d) => { const p = d.geraete.find((g) => g.id === devId)?.ports.find((x) => x.id === port.id); if (p) { p.modus = "access"; p.vlan = zuweisen.vlan; } });
-      props.notify?.(`${dev.name} · Port ${port.name}: VLAN ${v ? `${v.vid} ${v.name}` : "zugewiesen"}`);
+      const v = X.vlanById.get(zuweisen.vlan), t = zuweisen.trunk && X.trunkById.get(zuweisen.trunk);
+      mutate((d) => {
+        const p = d.geraete.find((g) => g.id === devId)?.ports.find((x) => x.id === port.id);
+        if (!p) return;
+        if (t) setzeTrunk(p, t); else { p.modus = "access"; p.vlan = zuweisen.vlan; delete p.trunk; }
+      });
+      props.notify?.(`${dev.name} · Port ${port.name}: ${t ? `Trunk „${t.name}“` : `VLAN ${v ? `${v.vid} ${v.name}` : "zugewiesen"}`}`);
       return;
     }
     if (draw?.sticky) return; // Ziel eines laufenden Kabels: das erledigt onUp
@@ -467,7 +473,7 @@ export default function TopologieTab(props) {
       const inV = d.ports.some((p) => p.vlan === vlanFilter || (p.modus === "trunk" && (p.vlans || []).includes(vlanFilter)));
       if (!inV) return false;
     }
-    if (ql) return `${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.modell} ${d.hersteller} ${d.bereich} ${ipPorts(d).map((i) => i.ip).join(" ")}`.toLowerCase().includes(ql);
+    if (ql) return passtSuche(`${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.modell} ${d.hersteller} ${d.bereich} ${ipPorts(d).map((i) => i.ip).join(" ")}`, ql);
     return true;
   };
   const filtering = !!(katFilter || vlanFilter || ql);
@@ -1073,11 +1079,12 @@ export default function TopologieTab(props) {
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
           {zuweisen && (() => {
-            const v = X.vlanById.get(zuweisen.vlan);
+            const t = zuweisen.trunk && X.trunkById.get(zuweisen.trunk);
+            const v = t || X.vlanById.get(zuweisen.vlan);
             return (
-              <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", display: "flex", gap: 10, alignItems: "center", background: INPUT, border: `2px solid ${v?.farbe || ACCENT}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: TEXT, boxShadow: "0 4px 14px rgba(0,0,0,.25)", zIndex: 3 }}>
+              <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", display: "flex", gap: 10, alignItems: "center", background: INPUT, border: `2px ${t ? "dashed" : "solid"} ${v?.farbe || ACCENT}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: TEXT, boxShadow: "0 4px 14px rgba(0,0,0,.25)", zIndex: 3 }}>
                 <span style={{ width: 12, height: 12, borderRadius: 3, background: v?.farbe || ACCENT }} />
-                <span>VLAN-Zuweisung: Klick auf einen Switch-Port setzt <b>{v ? `VLAN ${v.vid} ${v.name}` : "das VLAN"}</b>{!front && " (in der Ansicht „Anschlüsse“)"}</span>
+                <span>VLAN-Zuweisung: Klick auf einen Switch-Port setzt <b>{t ? `Trunk „${t.name}“` : v ? `VLAN ${v.vid} ${v.name}` : "das VLAN"}</b>{!front && " (in der Ansicht „Anschlüsse“)"}</span>
                 {!front && <button style={S.smallBtn} onClick={() => setAnsicht("front")}>Zu „Anschlüsse“</button>}
                 <button style={S.smallBtn} onClick={() => setVlanZuweisen(null)}>Beenden</button>
               </div>
@@ -1114,7 +1121,7 @@ export default function TopologieTab(props) {
             issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />}
           {selStapel && <StapelEditor P={P} stapelId={selStapel.id} pinned={!!pins[selStapel.ids[0]]} onPin={() => togglePin(selStapel.ids[0])} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
           {selIds.length > 1 && <MehrfachAuswahl P={P} X={X} ids={selIds} stapel={stapel} pins={pins} mutate={mutate} onPin={() => allePinnen(selIds)} onDelete={() => mehrereLoeschen(selIds)}
-            onSelect={(ids) => waehle(ids)} />}
+            onSelect={(ids) => waehle(ids)} onUmbauen={onUmbauen ? () => onUmbauen(selIds) : null} />}
           {selConn && <ConnEditor P={P} X={X} conn={selConn} mutate={mutate} onDelete={onDeleteConn} issues={connIssues.get(selConn.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} />}
         </div>
       )}
@@ -1124,7 +1131,7 @@ export default function TopologieTab(props) {
 }
 
 /* Seitenleiste bei Mehrfachauswahl: Liste der Geräte und Aktionen für alle */
-function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onSelect }) {
+function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onSelect, onUmbauen }) {
   const konfigClip = useZwischenablage("konfig");
   const [konfig, setKonfig] = useState(false);
   const devs = ids.map((id) => X.devById.get(id)).filter(Boolean);
@@ -1143,6 +1150,7 @@ function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onS
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button style={{ ...S.smallBtn, ...(allePins ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={onPin} title="Taste P"><Pin size={12} />{allePins ? "Alle lösen" : "Alle anpinnen"}</button>
         <button style={S.smallBtn} onClick={alsStapel} title="Die gewählten Geräte in dieser Reihenfolge übereinander als Stapel (Rack, Tower)"><Layers size={12} />Als Stapel</button>
+        {onUmbauen && <button style={S.smallBtn} onClick={onUmbauen} title="Allen gewählten Geräten dasselbe Katalogmodell oder dieselbe Vorlage geben. Namen, IPs und Verbindungen bleiben; Namen, die noch nicht von Hand geändert wurden, kommen vom Modell."><ArrowLeftRight size={12} />Modell zuweisen</button>}
         {konfigClip && <button style={S.smallBtn} onClick={() => setKonfig(true)} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in alle gewählten Geräte einfügen`}><ClipboardPaste size={12} />Konfig einfügen</button>}
         <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={onDelete} title="Entf"><Trash2 size={12} />Alle löschen</button>
       </div>
