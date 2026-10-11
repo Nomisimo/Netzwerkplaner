@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback, useLayoutEffect } from "react";
+import { passtSuche } from "../../shared/suche.js";
 import { removeDevices } from "../../shared/invarianten.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGORIEN, TYPEN, katColor, BG, BTN, CANVAS, CARD, INPUT, LINE2, LINK, MID, TEXT, TEXT2, TRUNK, STRONG , HELL } from "../../shared/constants.js";
 import { buildTree, subtreeIds, astKlappbar, aesteUmschalten, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts, unmanagedVlans } from "../../shared/model.js";
@@ -453,7 +454,7 @@ export default function TopologieTab(props) {
       const inV = d.ports.some((p) => p.vlan === vlanFilter || (p.modus === "trunk" && (p.vlans || []).includes(vlanFilter)));
       if (!inV) return false;
     }
-    if (ql) return `${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.modell} ${d.hersteller} ${d.bereich} ${ipPorts(d).map((i) => i.ip).join(" ")}`.toLowerCase().includes(ql);
+    if (ql) return passtSuche(`${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.modell} ${d.hersteller} ${d.bereich} ${ipPorts(d).map((i) => i.ip).join(" ")}`, ql);
     return true;
   };
   const filtering = !!(katFilter || vlanFilter || ql);

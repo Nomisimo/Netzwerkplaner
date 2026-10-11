@@ -4,7 +4,7 @@ import { webUrl, mainIp } from "../shared/model.js";
 import { KERN_BY_ID, streamRate } from "../shared/kernprotokolle.js";
 import { fmtMbit } from "../shared/analyse.js";
 import { IconView } from "./icons.jsx";
-import { Dot } from "./ui.jsx";
+import { Dot, usePfeilNavigation } from "./ui.jsx";
 import { portLabel, portBelegung, vlanKurz, vlanLang } from "./portinfo.js";
 import { api } from "./api.js";
 import { ipPorts } from "../shared/catalog.js";
@@ -23,6 +23,7 @@ export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = []
   const ref = useRef(null);
   const [pos, setPos] = useState({ left: x, top: y });
   const [kopiert, setKopiert] = useState("");
+  usePfeilNavigation(ref);
 
   useEffect(() => {
     const el = ref.current;

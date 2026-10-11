@@ -4,6 +4,7 @@ import { KATALOG_GERAETE, ipPorts } from "../shared/catalog.js";
 import { IconView, ICON_GRUPPEN, ICON_LABEL } from "./icons.jsx";
 import { vlanBaum, vlanPfad } from "../shared/qinq.js";
 import { istFokus, einstellungen } from "./einstellungen.js";
+import { passtSuche } from "../shared/suche.js";
 import { X as XIcon, OctagonX, TriangleAlert, Info, ChevronDown } from "lucide-react";
 
 export function Section({ title, subtitle, right, children, style }) {
@@ -104,6 +105,8 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
   const [kat, setKat] = useState("");
   const [nurFokus, setNurFokus] = useState(true);
   const inp = useRef(null);
+  const listeRef = useRef(null);
+  const [aktiv, setAktiv] = useState(0); // per Pfeiltaste markierter Treffer
   useEffect(() => inp.current?.focus(), []);
   const ql = q.toLowerCase();
   const items = useMemo(() => {
@@ -111,25 +114,33 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
     const own = vorlagen.map((v) => ({ kind: "vorlage", key: v.id, title: v.name, sub: `Eigene Vorlage · ${v.geraet.hersteller || ""} ${v.geraet.modell || ""}`, icon: v.geraet.icon, kat: v.geraet.kategorie }));
     const kg = KATALOG_GERAETE.filter((g) => !nurFokus || istFokus(g)).map((g) => ({ kind: "katalog", key: g.id, title: `${g.hersteller} ${g.modell}`, sub: g.geraetetyp + (g.raw["Web-UI"] !== "Nein" ? " · Web-UI" : ""), icon: g.icon, kat: g.kategorie, search: `${g.raw.Protokolle} ${g.raw.Funktion}` }));
     const best = bestand.map((b) => ({ kind: "bestand", key: b.id, title: b.name, sub: ["Bestand", [b.geraet.hersteller, b.geraet.modell].filter(Boolean).join(" "), ipPorts(b.geraet).filter((i) => i.ip).map((i) => i.ip).join(", ")].filter(Boolean).join(" · "), icon: b.geraet.icon, kat: b.geraet.kategorie, search: `${b.geraet.netzname || ""} ${(b.geraet.felder || []).map((f) => f.wert).join(" ")}` }));
-    return [...best, ...own, ...kg, ...gen].filter((i) => (!kat || i.kat === kat) && (!ql || `${i.title} ${i.sub} ${i.search || ""}`.toLowerCase().includes(ql)));
+    return [...best, ...own, ...kg, ...gen].filter((i) => (!kat || i.kat === kat) && (!ql || passtSuche(`${i.title} ${i.sub} ${i.search || ""}`, ql)));
   }, [ql, kat, vorlagen, bestand, nurFokus]);
+  useEffect(() => setAktiv(0), [ql, kat, nurFokus]);
+  useEffect(() => { listeRef.current?.children[aktiv]?.scrollIntoView({ block: "nearest" }); }, [aktiv]);
+  const sichtbar = Math.min(items.length, 250);
+  const taste = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); if (sichtbar) setAktiv((a) => (a + 1) % sichtbar); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); if (sichtbar) setAktiv((a) => (a <= 0 ? sichtbar - 1 : a - 1)); }
+    else if (e.key === "Enter" && items[aktiv]) { e.preventDefault(); onPick(items[aktiv]); }
+  };
   return (
     <Modal title={title} onClose={onClose} width={720}>
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-        <input ref={inp} style={{ ...S.input, flex: 1 }} placeholder="Suchen: Hersteller, Modell, Typ oder Protokoll (z. B. „Dante“, „GigaCore“, „Node“)" value={q} onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && items[0] && onPick(items[0])} />
+        <input ref={inp} style={{ ...S.input, flex: 1 }} placeholder="Suchen: Hersteller, Modell, Typ oder Protokoll (z. B. „Dante“, „Cisco*1300*24“)" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen. Pfeiltasten wählen, Enter übernimmt." value={q} onChange={(e) => setQ(e.target.value)}
+          onKeyDown={taste} />
         <select style={S.select} value={kat} onChange={(e) => setKat(e.target.value)}>
           <option value="">Alle Bereiche</option>
           {Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>
         <Toggle checked={nurFokus} onChange={setNurFokus} label="nur Fokus" title={`Nur Modelle der Fokus-Hersteller anzeigen${Array.isArray(einstellungen().fokusHersteller) ? ` (${einstellungen().fokusHersteller.join(", ")})` : ""}. Welche das sind, stellst du in den Einstellungen ein.`} />
       </div>
-      <div style={{ maxHeight: "58vh", overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 8 }}>
-        {items.length === 0 && <div style={{ ...S.empty, padding: 16 }}>Nichts gefunden.</div>}
-        {items.slice(0, 250).map((i) => (
-          <button key={i.kind + i.key} onClick={() => onPick(i)}
-            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: `1px solid ${LINE2}`, padding: "8px 12px", cursor: "pointer", color: TEXT }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = LINE2)} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
+      {items.length === 0 && <div style={{ ...S.empty, padding: 16, border: `1px solid ${LINE}`, borderRadius: 8 }}>Nichts gefunden.</div>}
+      <div ref={listeRef} style={{ maxHeight: "58vh", overflowY: "auto", border: items.length ? `1px solid ${LINE}` : "none", borderRadius: 8 }}>
+        {items.slice(0, 250).map((i, n) => (
+          <button key={i.kind + i.key} onClick={() => onPick(i)} tabIndex={-1}
+            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: n === aktiv ? ACCENT + "26" : "none", border: "none", borderLeft: `3px solid ${n === aktiv ? ACCENT : "transparent"}`, borderBottom: `1px solid ${LINE2}`, padding: "8px 12px 8px 9px", cursor: "pointer", color: TEXT }}
+            onMouseMove={() => n !== aktiv && setAktiv(n)}>
             <IconView icon={i.icon} customIcons={customIcons} color={katColor(i.kat)} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 13 }}>{i.title}</div>
@@ -141,7 +152,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
           </button>
         ))}
       </div>
-      <p style={S.hint}>{items.length} Treffer · Enter übernimmt den ersten Treffer · Katalog: {KATALOG_GERAETE.length} Modelle</p>
+      <p style={S.hint}>{items.length} Treffer · ↑/↓ wählen, Enter übernimmt · Katalog: {KATALOG_GERAETE.length} Modelle</p>
     </Modal>
   );
 }
@@ -176,6 +187,30 @@ export function IconPicker({ value, onChange, customIcons, color }) {
   );
 }
 
+/* Menüs mit Knöpfen (Kontextmenü, „Zuletzt geöffnet“ …): ↑/↓ (auch ←/→) springen von Knopf zu Knopf,
+   Enter löst den markierten Knopf aus. ref zeigt auf den Menü-Container; aktiv schaltet die Tasten an. */
+export function usePfeilNavigation(ref, aktiv = true) {
+  useEffect(() => {
+    if (!aktiv) return;
+    const taste = (e) => {
+      if (!["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+      const el = ref.current;
+      if (!el) return;
+      const t = e.target;
+      if (t && ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)) return; // Eingabefelder behalten ihre Pfeiltasten
+      const knoepfe = [...el.querySelectorAll("button:not([disabled]), [data-nav]")];
+      if (!knoepfe.length) return;
+      e.preventDefault();
+      const i = knoepfe.indexOf(document.activeElement);
+      const vor = e.key === "ArrowDown" || e.key === "ArrowRight";
+      const n = i < 0 ? (vor ? 0 : knoepfe.length - 1) : (i + (vor ? 1 : -1) + knoepfe.length) % knoepfe.length;
+      knoepfe[n].focus();
+    };
+    window.addEventListener("keydown", taste);
+    return () => window.removeEventListener("keydown", taste);
+  }, [ref, aktiv]);
+}
+
 export const th = (extra) => ({ ...S.th, ...extra });
 export const td = (extra) => ({ ...S.td, ...extra });
 
@@ -206,31 +241,44 @@ export function EingabeHost() {
    Die Liste liegt „fixed“ über allem, damit sie in scrollenden Tabellen nicht abgeschnitten wird. */
 export function AuswahlFeld({ value, onChange, optionen, style, placeholder }) {
   const ref = useRef(null);
+  const listeRef = useRef(null);
   const [offen, setOffen] = useState(null); // { x, y, w, filter }
-  const zeige = (filter) => { const r = ref.current?.getBoundingClientRect(); if (r) setOffen({ x: r.left, y: r.bottom + 2, w: Math.max(r.width, 140), filter }); };
+  const [aktiv, setAktiv] = useState(-1); // per Pfeiltaste markierter Eintrag
+  const zeige = (filter) => { const r = ref.current?.getBoundingClientRect(); if (r) { setOffen({ x: r.left, y: r.bottom + 2, w: Math.max(r.width, 140), filter }); setAktiv(-1); } };
   const liste = useMemo(() => {
     if (!offen) return [];
-    const q = (offen.filter || "").trim().toLowerCase();
-    return optionen.filter((o) => !q || o.toLowerCase().includes(q));
+    return optionen.filter((o) => passtSuche(o, offen.filter || ""));
   }, [offen, optionen]);
   useEffect(() => {
     if (!offen) return;
-    const zu = () => setOffen(null);
+    // Scrollen in der Liste selbst schließt sie nicht (sonst sind lange Listen nicht ganz erreichbar)
+    const zu = (e) => { if (e?.target && listeRef.current?.contains(e.target)) return; setOffen(null); };
     window.addEventListener("scroll", zu, true); window.addEventListener("resize", zu);
     return () => { window.removeEventListener("scroll", zu, true); window.removeEventListener("resize", zu); };
   }, [offen]);
+  useEffect(() => { listeRef.current?.children[aktiv]?.scrollIntoView({ block: "nearest" }); }, [aktiv]);
+  const waehle = (o) => { onChange(o); setOffen(null); };
+  const taste = (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!offen) { zeige(""); return; }
+      const n = liste.length;
+      if (n) setAktiv((a) => (e.key === "ArrowDown" ? (a + 1) % n : (a <= 0 ? n - 1 : a - 1)));
+    } else if (e.key === "Enter") {
+      if (offen && liste[aktiv] != null) { e.preventDefault(); waehle(liste[aktiv]); } else setOffen(null);
+    } else if (e.key === "Escape") setOffen(null);
+  };
   return (
     <>
       <input ref={ref} style={style} value={value} placeholder={placeholder}
         onFocus={() => zeige("")} onClick={() => !offen && zeige("")} onBlur={() => setOffen(null)}
-        onKeyDown={(e) => { if (e.key === "Escape" || e.key === "Enter") setOffen(null); }}
+        onKeyDown={taste}
         onChange={(e) => { onChange(e.target.value); zeige(e.target.value); }} />
       {offen && liste.length > 0 && (
-        <div style={{ position: "fixed", left: offen.x, top: offen.y, minWidth: offen.w, maxHeight: 220, overflowY: "auto", zIndex: 2000, background: INPUT, border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 6px 18px #0004", padding: 2 }}>
-          {liste.map((o) => (
-            <div key={o} onMouseDown={(e) => { e.preventDefault(); onChange(o); setOffen(null); }}
-              style={{ padding: "4px 8px", fontSize: 12, cursor: "pointer", borderRadius: 4, color: TEXT, background: o === value ? ACCENT + "22" : undefined }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = ACCENT + "33"; }} onMouseLeave={(e) => { e.currentTarget.style.background = o === value ? ACCENT + "22" : ""; }}>{o}</div>
+        <div ref={listeRef} style={{ position: "fixed", left: offen.x, top: offen.y, minWidth: offen.w, maxHeight: 260, overflowY: "auto", zIndex: 2000, background: INPUT, border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 6px 18px #0004", padding: 2 }}>
+          {liste.map((o, n) => (
+            <div key={o} onMouseDown={(e) => { e.preventDefault(); waehle(o); }} onMouseEnter={() => setAktiv(n)}
+              style={{ padding: "4px 8px", fontSize: 12, cursor: "pointer", borderRadius: 4, color: TEXT, background: n === aktiv ? ACCENT + "33" : o === value ? ACCENT + "1a" : undefined }}>{o}</div>
           ))}
         </div>
       )}

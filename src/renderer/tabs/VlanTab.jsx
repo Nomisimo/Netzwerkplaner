@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, INFO, VLAN_FARBEN, STRONG } from "../../shared/constants.js";
-import { newVlan } from "../../shared/model.js";
+import { newVlan, standardVlans } from "../../shared/model.js";
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
 import { ipPorts } from "../../shared/catalog.js";
@@ -92,7 +92,10 @@ export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
             d.vlans.push(newVlan({ vid, name: `VLAN ${vid}`, farbe: VLAN_FARBEN[d.vlans.length % VLAN_FARBEN.length], subnetz: vid < 256 ? `10.10.${vid}.0/24` : "" }));
           })}>+ VLAN</button>
         </div>}>
-        {baum.length === 0 && <p style={S.empty}>Keine VLANs angelegt.</p>}
+        {baum.length === 0 && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <p style={{ ...S.empty, margin: 0 }}>Keine VLANs angelegt.</p>
+          <button style={S.smallBtn} title="Audio Primary/Secondary, Licht, Video, Intercom, Steuerung und Management (10, 11, 20, 30, 40, 50, 99)" onClick={() => mutate((d) => { d.vlans.push(...standardVlans()); })}>Standard-VLANs einfügen</button>
+        </div>}
         {baum.map(({ v, tiefe }) => <VlanRow key={v.id} v={v} tiefe={tiefe} P={P} mutate={mutate} issues={issues} count={counts[v.id]} />)}
       </Section>
 
