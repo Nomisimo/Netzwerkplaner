@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY, DARK, INPUT, LINE2, MID, OK, TEXT, TEXT2 } from "../shared/constants.js";
 import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl, vlansAbleiten } from "../shared/model.js";
-import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ipPorts } from "../shared/catalog.js";
+import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ipPorts, eindeutigerName, nummerierteNamen } from "../shared/catalog.js";
 import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
@@ -261,31 +261,36 @@ export default function App() {
   };
 
   /* ── Geräte & Verbindungen ──────────────────────────────────────────── */
-  const addDevice = useCallback((item, { connectTo, at, picker: usePicker } = {}) => {
+  // anzahl > 1: mehrere gleiche Geräte auf einmal, durchnummeriert („Rio 1“, „Rio 2“ …)
+  const addDevice = useCallback((item, { connectTo, at, picker: usePicker, anzahl = 1 } = {}) => {
     if (!item || usePicker) { setPicker({ connectTo }); return null; }
     const vorlage = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
       : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
+    const n = item.kind === "bestand" ? 1 : Math.max(1, Math.min(99, Math.floor(+anzahl) || 1)); // Bestandsgerät gibt es nur einmal
     if (sitzung.aktiv) { // In der Sitzung vergibt der Server Namen, Port und IDs
-      sitzung.intent("addDevice", { item: { kind: item.kind, key: item.key, objekt: vorlage }, connectTo, at }).then((r) => {
+      (async () => {
+        let r = null;
+        for (let i = 0; i < n; i++) r = await sitzung.intent("addDevice", { item: { kind: item.kind, key: item.key, objekt: vorlage }, connectTo, at: at && { x: at.x, y: at.y + i * 80 } });
         setSelection({ type: "dev", id: r.id });
         if (r.konflikte?.length) notify(`Gerät eingefügt. IP bereits belegt: ${r.konflikte.join(", ")} – siehe Prüfung.`, "err");
         else if (r.voll) notify(`Gerät hinzugefügt, aber nicht verbunden: „${r.voll}“ hat keinen freien Anschluss mehr.`, "warn");
-        else notify("Gerät hinzugefügt." + (r.neueVlans?.length ? ` Neues VLAN angelegt: ${r.neueVlans.join(", ")}.` : ""));
-      }).catch(() => {});
+        else notify((n > 1 ? `${n} Geräte hinzugefügt.` : "Gerät hinzugefügt.") + (r.neueVlans?.length ? ` Neues VLAN angelegt: ${r.neueVlans.join(", ")}.` : ""));
+      })().catch(() => {});
       return null;
     }
     let id = null, konflikte = [], neueVlans = [], voll = null;
     mutate((d) => {
       const vorher = new Set(d.vlans.map((v) => v.id));
+      const namen = n > 1 ? nummerierteNamen(d, createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: [], eigeneVorlage: vorlage }).name, n) : null;
+      for (let i = 0; i < n; i++) {
       const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
       if (item.kind === "bestand") {
         dev.bestandId = vorlage.id;
         const belegt = new Set(d.geraete.flatMap((g) => g.ports.map((i) => i.ip)).filter(Boolean));
         konflikte = dev.ports.filter((i) => i.ip && belegt.has(i.ip)).map((i) => i.ip);
       }
-      // eindeutiger Name
-      const names = new Set(d.geraete.map((g) => g.name));
-      if (names.has(dev.name)) { let n = 2; while (names.has(`${dev.name} ${n}`)) n++; dev.name = `${dev.name} ${n}`; }
+      // eindeutiger Name; mehrere: durchnummeriert
+      dev.name = namen ? namen[i] : eindeutigerName(d, dev.name);
       // Ist ein Endgerät ausgewählt, an dessen Switch anschließen
       let parent = connectTo && d.geraete.find((g) => g.id === connectTo);
       if (parent && !parent.isSwitch) {
@@ -297,37 +302,46 @@ export default function App() {
       id = dev.id;
       neueVlans = d.vlans.filter((v) => !vorher.has(v.id)).map((v) => `${v.vid} ${v.name}`);
       if (parent && !addConnection(d, parent.id, dev.id)) voll = parent.name;
-      else if (at) d.layout.pinned = { ...(d.layout.pinned || {}), [dev.id]: at };
+      else if (at) d.layout.pinned = { ...(d.layout.pinned || {}), [dev.id]: { x: at.x, y: at.y + i * 80 } };
+      }
     });
+    if (n > 1 && !konflikte.length && !voll) { notify(`${n} Geräte hinzugefügt, durchnummeriert.` + (neueVlans.length ? ` Neues VLAN angelegt: ${neueVlans.join(", ")}.` : "")); return id; }
     if (konflikte.length) notify(`Gerät eingefügt. IP bereits belegt: ${konflikte.join(", ")} – siehe Prüfung.`, "err");
     else if (voll) notify(`Gerät hinzugefügt, aber nicht verbunden: „${voll}“ hat keinen freien Anschluss mehr. Zum Ersetzen im Werkzeug „Verbinden“ ziehen.`, "warn");
     else notify((item.kind === "bestand" ? "Gerät aus dem Bestand eingefügt (mit IPs)." : "Gerät hinzugefügt.") + (neueVlans.length ? ` Neues VLAN angelegt: ${neueVlans.join(", ")}.` : ""));
     return id;
   }, [library, mutate]);
 
-  // Gerät nachträglich auf ein Katalogmodell, eine Vorlage oder einen Bestandseintrag umbauen
-  const umbauen = useCallback((devId, item) => {
+  // Gerät(e) nachträglich auf ein Katalogmodell, eine Vorlage oder einen Bestandseintrag umbauen.
+  // devIds: eine ID oder mehrere (Mehrfachauswahl; Bestand nur für ein Gerät, der hat feste IPs)
+  const umbauen = useCallback((devIds, item) => {
+    const ids = [].concat(devIds);
     const quelle = item.kind === "vorlage" ? (library.vorlagen || []).find((v) => v.id === item.key)
       : item.kind === "bestand" ? (library.bestand || []).find((v) => v.id === item.key) : null;
     const ausBestand = item.kind === "bestand" && !!quelle;
+    if (ausBestand && ids.length > 1) { notify("Ein Bestandsgerät lässt sich nur einem Gerät zuweisen.", "warn"); return; }
+    const mehr = ids.length > 1 ? `${ids.length} Geräte umgestellt. ` : "";
     if (sitzung.aktiv) {
-      sitzung.intent("umbauen", { dev: devId, item: { kind: item.kind, key: item.key, objekt: quelle } }).then((r) => {
-        notify(r.konflikte?.length ? `Übernommen. IP bereits vergeben: ${r.konflikte.join(", ")}` : "Modell übernommen. Name, IPs und Verbindungen sind geblieben.", r.konflikte?.length ? "warn" : "ok");
+      Promise.all(ids.map((dev) => sitzung.intent("umbauen", { dev, item: { kind: item.kind, key: item.key, objekt: quelle } }))).then((rs) => {
+        const k = rs.flatMap((r) => r?.konflikte || []);
+        notify(k.length ? `Übernommen. IP bereits vergeben: ${k.join(", ")}` : mehr + "Modell übernommen. IPs und Verbindungen sind geblieben.", k.length ? "warn" : "ok");
       }).catch(() => {});
       return;
     }
     let konflikte = [];
     mutate((d) => {
-      const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: quelle, mitAdressen: ausBestand });
-      if (ausBestand) {
-        neu.bestandId = quelle.id;
-        const belegt = new Set(d.geraete.filter((g) => g.id !== devId).flatMap((g) => g.ports.map((i) => i.ip)).filter(Boolean));
-        konflikte = neu.ports.filter((i) => i.ip && belegt.has(i.ip)).map((i) => i.ip);
+      for (const devId of ids) {
+        const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: quelle, mitAdressen: ausBestand });
+        if (ausBestand) {
+          neu.bestandId = quelle.id;
+          const belegt = new Set(d.geraete.filter((g) => g.id !== devId).flatMap((g) => g.ports.map((i) => i.ip)).filter(Boolean));
+          konflikte = neu.ports.filter((i) => i.ip && belegt.has(i.ip)).map((i) => i.ip);
+        }
+        geraetUmbauen(d, devId, neu, { ausBestand });
       }
-      geraetUmbauen(d, devId, neu, { ausBestand });
     });
     if (konflikte.length) notify(`Gerät aus dem Bestand übernommen. IP bereits vergeben: ${konflikte.join(", ")}`, "warn");
-    else notify(ausBestand ? "Gerät aus dem Bestand übernommen, mit seinen festen IPs. Die Verbindungen sind geblieben." : item.kind === "typ" ? "Leeres Gerät angelegt. Name, IPs und Verbindungen sind geblieben." : "Modell übernommen. Name, IPs und Verbindungen sind geblieben.");
+    else notify(mehr + (ausBestand ? "Gerät aus dem Bestand übernommen, mit seinen festen IPs. Die Verbindungen sind geblieben." : item.kind === "typ" ? "Leeres Gerät angelegt. IPs und Verbindungen sind geblieben." : "Modell übernommen. IPs und Verbindungen sind geblieben, nicht von Hand geänderte Namen kommen vom Modell."));
   }, [library, mutate]);
 
   const deleteDevice = useCallback((id) => {
@@ -567,8 +581,8 @@ export default function App() {
         </main></div>
       )}
 
-      {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={library.bestand || []} customIcons={allIcons} title={picker.umbauFor ? `Modell für „${X.devById.get(picker.umbauFor)?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
-        onClose={() => setPicker(null)} onPick={(item) => { if (picker.umbauFor) { umbauen(picker.umbauFor, item); setPicker(null); return; } const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
+      {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={Array.isArray(picker.umbauFor) && picker.umbauFor.length > 1 ? [] : library.bestand || []} customIcons={allIcons} title={Array.isArray(picker.umbauFor) && picker.umbauFor.length > 1 ? `Modell für ${picker.umbauFor.length} Geräte wählen` : picker.umbauFor ? `Modell für „${X.devById.get([].concat(picker.umbauFor)[0])?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
+        mitAnzahl={!picker.umbauFor} onClose={() => setPicker(null)} onPick={(item, anzahl = 1) => { if (picker.umbauFor) { umbauen(picker.umbauFor, item); setPicker(null); return; } const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo, anzahl }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
       <EingabeHost />
       {showExport && <ExportDialog onClose={() => setShowExport(false)} onExport={doExport} planPfad={filePath} aktuelleAnsicht={ansichtVon(P)} />}
       {protoModal && <Modal title="Protokoll" width={860} onClose={() => setProtoModal(null)}

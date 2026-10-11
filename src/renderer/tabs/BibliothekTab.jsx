@@ -61,6 +61,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
   const [nurFokus, setNurFokus] = useState(true);
   const [open, setOpen] = useState(null);
   const [neueVorlage, setNeueVorlage] = useState(false);
+  const [anzahl, setAnzahl] = useState(1); // „+ ins Projekt“ fügt so viele gleiche Geräte ein
   const ql = q.toLowerCase();
 
   const protos = useMemo(() => PROTOKOLLE.filter((p) => (!kat || p.kategorie === kat) && (!ql || `${p.name} ${p.raw.Ports} ${p.raw["Hersteller / Gremium"]}`.toLowerCase().includes(ql))), [ql, kat]);
@@ -119,6 +120,9 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
             <select style={{ ...S.selectSm, width: "auto" }} value={herst} onChange={(e) => setHerst(e.target.value)}><option value="">Alle Hersteller</option>{hersteller.map((h) => <option key={h}>{h}</option>)}</select>
             <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}><option value="">Alle Bereiche</option>{["Ton", "Licht", "Bild", "Netzwerk", "Bühne", "Intercom"].map((k) => <option key={k}>{k}</option>)}</select>
             <Toggle checked={nurFokus} onChange={(c) => { setNurFokus(c); setHerst(""); }} label="nur Fokus-Hersteller" />
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="So viele gleiche Geräte fügt „+ ins Projekt“ ein. Ab 2 werden sie durchnummeriert (Name 1, Name 2 …).">
+              Anzahl<input type="number" min="1" max="99" style={{ ...S.inputSm, width: 60 }} value={anzahl} onChange={(e) => setAnzahl(e.target.value)} onFocus={(e) => e.target.select()} />
+            </label>
           </div>
           <table style={S.table}>
             <thead><tr><th style={S.th}></th><th style={S.th}>Hersteller / Modell</th><th style={S.th}>Typ</th><th style={S.th}>Ports</th><th style={S.th}>Web-UI</th><th style={S.th}></th></tr></thead>
@@ -131,7 +135,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
                     <td style={{ ...S.td, fontSize: 12 }}>{g.geraetetyp}</td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.raw["Netzwerkports (Anzahl)"]}</td>
                     <td style={{ ...S.td, fontSize: 12 }}>{g.raw["Web-UI"]}</td>
-                    <td style={S.td}><button style={S.smallBtn} onClick={(e) => { e.stopPropagation(); onAddDevice({ kind: "katalog", key: g.id }, {}); }}>+ ins Projekt</button></td>
+                    <td style={S.td}><button style={S.smallBtn} onClick={(e) => { e.stopPropagation(); onAddDevice({ kind: "katalog", key: g.id }, { anzahl }); }}>+ {+anzahl > 1 ? `${Math.min(99, Math.floor(+anzahl))}× ` : ""}ins Projekt</button></td>
                   </tr>
                   {open === g.id && (
                     <tr><td colSpan="6" style={{ ...S.td, background: INPUT }}>
@@ -163,7 +167,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
               <IconView icon={v.geraet.icon} customIcons={allIcons} color={katColor(v.geraet.kategorie)} />
               <input style={{ ...S.inputSm, maxWidth: 300 }} value={v.name} onChange={(e) => setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.map((x) => (x.id === v.id ? { ...x, name: e.target.value } : x)) }))} />
               <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{v.geraet.hersteller} {v.geraet.modell} · {physPorts(v.geraet).length} Ports · {ipPorts(v.geraet).filter((i) => i.ip || i.dhcp || i.virtuell).length} mit IP</span>
-              <button style={S.smallBtn} onClick={() => onAddDevice({ kind: "vorlage", key: v.id }, {})}>+ ins Projekt</button>
+              <button style={S.smallBtn} onClick={() => onAddDevice({ kind: "vorlage", key: v.id }, { anzahl })}>+ {+anzahl > 1 ? `${Math.min(99, Math.floor(+anzahl))}× ` : ""}ins Projekt</button>
               <button style={S.dangerBtn} onClick={() => confirm(`Vorlage „${v.name}“ löschen?`) && setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.filter((x) => x.id !== v.id) }))}><XIcon size={14} /></button>
             </div>
           ))}

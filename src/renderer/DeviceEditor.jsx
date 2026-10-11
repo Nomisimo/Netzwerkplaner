@@ -218,7 +218,7 @@ function GenerischeMaske({ dev, status, upd, onUmbauen, onTypWaehlen, onDelete, 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <input style={{ ...S.input, flex: 1, fontWeight: 700, fontSize: 15, minWidth: 0 }} value={dev.name} onChange={(e) => upd((g) => (g.name = e.target.value))} />
+        <input style={{ ...S.input, flex: 1, fontWeight: 700, fontSize: 15, minWidth: 0 }} value={dev.name} onChange={(e) => upd((g) => { g.name = e.target.value; g.nameManuell = true; })} />
         <StatusDot st={status} size={11} />
       </div>
       <div style={{ marginTop: 10, padding: "8px 10px", border: `1px dashed ${LINE}`, borderRadius: 8 }}>
@@ -277,7 +277,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
       {/* Kopf: bleibt beim Scrollen oben stehen (Icon, Name, Status, Schließen) */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, position: "sticky", top: -kopfAbstand, zIndex: 4, background: PANEL, padding: `${kopfAbstand}px 0 8px`, marginTop: -kopfAbstand, borderBottom: `1px solid ${LINE}`, boxShadow: "0 6px 8px -6px #0008" }}>
         <IconPicker value={dev.icon} onChange={(v) => upd((g) => (g.icon = v))} customIcons={P.icons} color={col} />
-        <input style={{ ...S.input, flex: 1, fontWeight: 700, fontSize: 15, minWidth: 0 }} value={dev.name} onChange={(e) => upd((g) => (g.name = e.target.value))} />
+        <input style={{ ...S.input, flex: 1, fontWeight: 700, fontSize: 15, minWidth: 0 }} value={dev.name} onChange={(e) => upd((g) => { g.name = e.target.value; g.nameManuell = true; })} />
         <StatusDot st={status} size={11} />
         {onClose && <button style={{ ...S.ghostBtn, padding: "4px 7px", flexShrink: 0 }} onClick={onClose} title="Schließen"><XIcon size={15} /></button>}
       </div>
@@ -296,7 +296,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
           return <button style={{ ...S.smallBtn, ...(inB ? { borderColor: "#2ecc7188" } : {}) }} onClick={() => onSaveBestand(dev)}
             title={inB ? "Den Eintrag im Gerätebestand mit dem aktuellen Stand (Name, IPs, Ports …) überschreiben" : "Dieses konkrete Gerät mit Name, IPs, MACs und Ports im Gerätebestand speichern"}>{inB ? <><RefreshCw size={14} /> Bestand aktualisieren</> : <><Download size={14} /> In Bestand</>}</button>;
         })()}
-        <button style={S.smallBtn} title="Gerät mit allen Einstellungen kopieren (ohne IP- und MAC-Adressen)" onClick={() => mutate((d) => { d.geraete.push(geraetKopie(dev)); })}><CopyPlus size={14} /> Duplizieren</button>
+        <button style={S.smallBtn} title="Gerät mit allen Einstellungen kopieren (ohne IP- und MAC-Adressen)" onClick={() => mutate((d) => { d.geraete.push(geraetKopie(dev, undefined, d)); })}><CopyPlus size={14} /> Duplizieren</button>
         <button style={S.smallBtn} title="Einstellungen dieses Geräts kopieren, um sie in andere Geräte einzufügen. Im Dialog wählst du, welche Daten." onClick={() => setKonfigDlg("kopieren")}><Copy size={14} /> Konfig kopieren</button>
         {konfigClip && <button style={S.smallBtn} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in dieses und weitere Geräte einfügen`} onClick={() => setKonfigDlg("einfuegen")}><ClipboardPaste size={14} /> Konfig einfügen</button>}
         <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={() => onDelete && onDelete(dev.id)}><Trash2 size={14} /> Löschen</button>

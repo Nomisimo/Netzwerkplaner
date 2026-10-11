@@ -39,6 +39,16 @@ export const obenAufStapel = (stapel = [], gezogen, ziel, neueId) => {
   else out = [...out, { id: neueId, name: "", ids: [gezogen, ziel] }];
   return out.filter((x) => x.ids.length > 1);
 };
+/* Stapel aufräumen: gelöschte Geräte raus, Stapel mit nur noch einem Gerät lösen sich auf.
+   Läuft nach jeder Änderung (App) und beim Laden (migrateProject). Ändert P.layout. */
+export const stapelBereinigen = (P) => {
+  const L = P.layout;
+  if (!L?.stapel?.length) return P;
+  const da = new Set((P.geraete || []).map((d) => d.id));
+  const neu = L.stapel.map((s) => ({ ...s, ids: [...new Set(s.ids.filter((id) => da.has(id)))] })).filter((s) => s.ids.length > 1);
+  if (neu.length !== L.stapel.length || neu.some((s, i) => s.ids.length !== L.stapel[i].ids.length)) L.stapel = neu;
+  return P;
+};
 export const entstapeln = (stapel = [], id) =>
   stapel.map((s) => ({ ...s, ids: s.ids.filter((x) => x !== id) })).filter((s) => s.ids.length > 1);
 

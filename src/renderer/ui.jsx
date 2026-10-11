@@ -99,8 +99,11 @@ export const KatChip = ({ k }) => (
 );
 
 /* ── Geräteauswahl: Katalogmodelle, eigene Vorlagen, generische Typen ──── */
-export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], title = "Gerät hinzufügen", customIcons }) {
+// mitAnzahl: Feld „Anzahl“ – so viele gleiche Geräte einfügen (onPick(item, anzahl))
+export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], title = "Gerät hinzufügen", customIcons, mitAnzahl = false }) {
   const [q, setQ] = useState("");
+  const [anzahl, setAnzahl] = useState(1);
+  const pick = (i) => onPick(i, mitAnzahl ? Math.max(1, Math.min(99, Math.floor(+anzahl) || 1)) : 1);
   const [kat, setKat] = useState("");
   const [nurFokus, setNurFokus] = useState(true);
   const inp = useRef(null);
@@ -117,7 +120,10 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
     <Modal title={title} onClose={onClose} width={720}>
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         <input ref={inp} style={{ ...S.input, flex: 1 }} placeholder="Suchen: Hersteller, Modell, Typ oder Protokoll (z. B. „Dante“, „GigaCore“, „Node“)" value={q} onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && items[0] && onPick(items[0])} />
+          onKeyDown={(e) => e.key === "Enter" && items[0] && pick(items[0])} />
+        {mitAnzahl && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="So viele gleiche Geräte einfügen. Ab 2 werden sie durchnummeriert (Name 1, Name 2 …).">
+          Anzahl<input type="number" min="1" max="99" style={{ ...S.input, width: 64 }} value={anzahl} onChange={(e) => setAnzahl(e.target.value)} onFocus={(e) => e.target.select()} />
+        </label>}
         <select style={S.select} value={kat} onChange={(e) => setKat(e.target.value)}>
           <option value="">Alle Bereiche</option>
           {Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
@@ -127,7 +133,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
       <div style={{ maxHeight: "58vh", overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 8 }}>
         {items.length === 0 && <div style={{ ...S.empty, padding: 16 }}>Nichts gefunden.</div>}
         {items.slice(0, 250).map((i) => (
-          <button key={i.kind + i.key} onClick={() => onPick(i)}
+          <button key={i.kind + i.key} onClick={() => pick(i)}
             style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: `1px solid ${LINE2}`, padding: "8px 12px", cursor: "pointer", color: TEXT }}
             onMouseEnter={(e) => (e.currentTarget.style.background = LINE2)} onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
             <IconView icon={i.icon} customIcons={customIcons} color={katColor(i.kat)} />
@@ -135,7 +141,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
               <div style={{ fontWeight: 600, fontSize: 13 }}>{i.title}</div>
               <div style={{ fontSize: 11, color: SUB }}>{i.sub}</div>
             </div>
-            {i.kind === "bestand" && <span style={{ ...S.badge, background: OK, color: "#10261a" }}>Bestand</span>}
+            {i.kind === "bestand" && <span style={{ ...S.badge, background: OK, color: "#10261a" }} title={mitAnzahl && +anzahl > 1 ? "Bestandsgeräte gibt es nur einmal: es wird eins eingefügt" : undefined}>Bestand</span>}
             {i.kind === "vorlage" && <span style={{ ...S.badge, background: ACCENT, color: "#fff" }}>Vorlage</span>}
             {i.kind === "typ" && <span style={{ ...S.badge, border: `1px solid ${LINE}`, color: SUB }}>generisch</span>}
           </button>

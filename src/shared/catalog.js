@@ -338,6 +338,30 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
    Modell nicht hat, werden angehängt statt gelöscht. */
 // ausBestand: Gerät aus dem eigenen Gerätebestand – dessen feste IPs, Name, Netzwerkname
 // und eigene Felder gelten, vom alten Gerät bleiben nur Position und Verbindungen.
+// Standardname eines Geräts: Typ-Name oder Modell, ggf. mit Nummer („Lichtpult 2“, „grandMA3 light 3“)
+const ohneNummer = (n) => (n || "").trim().replace(/\s+\d+$/, "");
+export const nameAutomatisch = (dev) => {
+  if (!dev || dev.nameManuell) return false;
+  const basis = ohneNummer(dev.name);
+  return !basis || basis === TYPEN[dev.typ]?.label || (!!dev.modell && basis === dev.modell);
+};
+// Name, den noch kein anderes Gerät trägt: „Name“, „Name 2“, „Name 3“ …
+export const eindeutigerName = (P, name, ausser = null) => {
+  const namen = new Set((P.geraete || []).filter((g) => g.id !== ausser).map((g) => g.name));
+  if (!namen.has(name)) return name;
+  let n = 2;
+  while (namen.has(`${name} ${n}`)) n++;
+  return `${name} ${n}`;
+};
+
+// n freie, durchnummerierte Namen „Name 1“ … „Name n“ (belegte Nummern werden übersprungen)
+export const nummerierteNamen = (P, name, n) => {
+  const namen = new Set((P.geraete || []).map((g) => g.name));
+  const out = [];
+  for (let k = 1; out.length < n; k++) if (!namen.has(`${name} ${k}`)) out.push(`${name} ${k}`);
+  return out;
+};
+
 export const geraetUmbauen = (P, devId, neu, { ausBestand = false } = {}) => {
   const dev = P.geraete.find((g) => g.id === devId);
   if (!dev) return null;
@@ -365,9 +389,11 @@ export const geraetUmbauen = (P, devId, neu, { ausBestand = false } = {}) => {
   for (const c of P.verbindungen) for (const e of [c.a, c.b]) if (e.dev === devId && portMap[e.port]) e.port = portMap[e.port];
   // Bei generischen Funden (Discovery) die erkannten Protokolle behalten
   if (dev.generisch) neu.protokolle = [...new Set([...(neu.protokolle || []), ...(dev.protokolle || [])])];
+  // Name noch nicht von Hand geändert (Typ-Name wie „Lichtpult 2“ oder der Name des alten Modells): Name vom neuen Modell
+  const name = !ausBestand && nameAutomatisch(dev) ? eindeutigerName(P, neu.name, dev.id) : dev.name;
   const bleibt = ausBestand
     ? { id: dev.id, bereich: neu.bereich || dev.bereich, stroeme: [] }
-    : { id: dev.id, name: dev.name, netzname: dev.netzname || "", felder: dev.felder || [], bestandId: dev.bestandId, bereich: dev.bereich, notizen: dev.notizen, stroeme: [] };
+    : { id: dev.id, name, netzname: dev.netzname || "", felder: dev.felder || [], bestandId: dev.bestandId, bereich: dev.bereich, notizen: dev.notizen, stroeme: [] };
   for (const k of Object.keys(dev)) delete dev[k];
   Object.assign(dev, neu, bleibt);
   if (!dev.bestandId) delete dev.bestandId;
