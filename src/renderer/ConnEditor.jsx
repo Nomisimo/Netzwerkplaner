@@ -4,10 +4,13 @@ import { connVlan, isP2PConn } from "../shared/model.js";
 import { physPorts } from "../shared/catalog.js";
 import { Field, VlanChip, SevBadge } from "./ui.jsx";
 import { ArrowUpDown, Link, Trash2 } from "lucide-react";
+import { FLUSS, flussRichtungen, flussText } from "../shared/fluss.js";
 
 export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevice, issues = [] }) {
   const upd = (fn) => mutate((d) => fn(d.verbindungen.find((c) => c.id === conn.id)));
   const cv = connVlan(conn, X);
+  const nameA = X.devById.get(conn.a.dev)?.name || "A", nameB = X.devById.get(conn.b.dev)?.name || "B";
+  const fluss = React.useMemo(() => flussRichtungen({ ...P, verbindungen: P.verbindungen.map((c) => (c.id === conn.id ? { ...c, fluss: undefined } : c)) }, X).get(conn.id), [P, X, conn.id]);
   const End = ({ end, k }) => {
     const dev = X.devById.get(end.dev);
     if (!dev) return <div style={{ color: ERR }}>Gerät fehlt</div>;
@@ -49,6 +52,11 @@ export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevic
         </Field>
         <Field label="Kabelbezeichnung" style={{ gridColumn: "1 / -1" }}><input style={S.inputSm} value={conn.label} placeholder="z. B. NET-FOH-01" onChange={(e) => upd((c) => (c.label = e.target.value))} /></Field>
         <Field label="Notiz" style={{ gridColumn: "1 / -1" }}><input style={S.inputSm} value={conn.notiz || ""} onChange={(e) => upd((c) => (c.notiz = e.target.value))} /></Field>
+        <Field label="Signalfluss" style={{ gridColumn: "1 / -1" }} hint={!conn.fluss ? `Aus den Datenströmen: ${flussText(fluss, nameA, nameB)}` : "Im Plott zeigen Pfeile, wohin das Signal läuft"}>
+          <select style={S.selectSm} value={conn.fluss || ""} onChange={(e) => upd((c) => { if (e.target.value) c.fluss = e.target.value; else delete c.fluss; })}>
+            {Object.entries(FLUSS).map(([k, t]) => <option key={k} value={k}>{k === "ab" ? `Nur ${nameA} → ${nameB}` : k === "ba" ? `Nur ${nameB} → ${nameA}` : t}</option>)}
+          </select>
+        </Field>
       </div>
       <div style={{ marginTop: 12, fontSize: 12, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{ color: MUTED }}>{cv.kind === "trunk" ? "Trunk:" : "VLAN:"}</span>
