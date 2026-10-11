@@ -1,7 +1,7 @@
-import React from "react";
+import React, { createContext, useContext } from "react";
 import { ACCENT, OK, ERR, MUTED, TYPEN, katColor } from "../shared/constants.js";
 import { mainIp, unmanagedVlans } from "../shared/model.js";
-import { CARD_W, CARD_H, TAB_H, CARD_PORT_Y, plattenGeometrie } from "../shared/frontplatte.js";
+import { CARD_W, CARD_H, TAB_H, plattenGeometrie, kartenSlots } from "../shared/frontplatte.js";
 import { STECKER, STECKER_KATEGORIEN, SEITEN, portSeiten, steckerTyp, geraeteAnschluesse, anschlussText } from "../shared/anschluesse.js";
 import { SvgIcon } from "./icons.jsx";
 import { Zap, TriangleAlert, Globe } from "lucide-react";
@@ -12,6 +12,13 @@ import { feldZeilen } from "../shared/felder.js";
 /* Darstellung für die Anschluss-Ansicht (früher „Frontplatten“, Stil Luminex Araneo) */
 
 export const FP_BG = "#0e1430";
+/* Farben der Anschluss-Ansicht: dunkel (wie Araneo) oder hell zum Drucken. Die Wahl
+   steht im Projekt (layout.fpHell) und gilt auch für den Export. */
+export const FP_FARBEN = {
+  dunkel: { bg: FP_BG, raster: "#1c2552", karte: "#161c38", text: "#fff", text2: "#c8d0ff", label: "#dfe4ff", leer: "#0e1430", leerRand: "#3a4466", leerText: "#8f9bd0", kabelText: "#e6eaff", treffer: "#fff", trunk: "#d8dde3" },
+  hell: { bg: "#ffffff", raster: "#e9ecf3", karte: "#ffffff", text: "#141824", text2: "#3a4466", label: "#141824", leer: "#f3f5fa", leerRand: "#a9b1c9", leerText: "#5b6684", kabelText: "#141824", treffer: "#141824", trunk: "#4a5568" },
+};
+export const FpFarben = createContext(FP_FARBEN.dunkel);
 const TRUNK = "#d8dde3";
 
 // Plattenfarbe nach Hersteller, damit Switches auf einen Blick unterscheidbar sind
@@ -113,9 +120,10 @@ export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, wo
   const x0 = p.x - p.w / 2, y0 = p.y - p.h / 2;
   const name = geraeteTitel(d, titel);
   const label = [name, ip || (d.typ === "switch_unmanaged" ? "unmanaged" : "keine IP"), d.modell].filter(Boolean).join(" · ");
+  const F = useContext(FpFarben);
   return (
     <g opacity={dim ? 0.2 : 1} onMouseDown={onDown} onContextMenu={onContextMenu} style={{ cursor: tool === "connect" ? "crosshair" : "pointer" }}>
-      {(sel || hover || hit) && <rect x={x0 - 5} y={y0 - 5} width={p.w + 10} height={p.h + 10} rx="7" fill="none" stroke={sel ? ACCENT : hover ? OK : "#fff"} strokeWidth="2" />}
+      {(sel || hover || hit) && <rect className="np-ui" x={x0 - 5} y={y0 - 5} width={p.w + 10} height={p.h + 10} rx="7" fill="none" stroke={sel ? ACCENT : hover ? OK : F.treffer} strokeWidth="2" />}
       <rect x={x0} y={y0} width={p.w} height={p.h} rx="4" fill={pf.fill} stroke={worst || pf.stroke} strokeWidth={worst ? 1.6 : 1} />
       <rect x={x0 + 4} y={y0 + 4} width="36" height={p.h - 8} rx="2" fill="#00000030" />
       <SvgIcon icon={d.icon} customIcons={P.icons} x={x0 + 13} y={y0 + p.h / 2 - 13} size={18} color="#ffffffcc" />
@@ -140,7 +148,7 @@ export function FrontPlate({ d, p, P, slots, X, sel, hover, hit, dim, status, wo
           <title>Web-UI öffnen: {url}</title>
         </g>
       )}
-      <text x={x0} y={y0 + p.h + 13} fontSize="10.5" fontWeight="600" fill="#dfe4ff" stroke={FP_BG} strokeWidth="3" paintOrder="stroke">{label}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, ...feldZeilen(d), d.hersteller && `${d.hersteller} ${d.modell || ""}`].filter(Boolean).join("\n")}</title></text>
+      <text x={x0} y={y0 + p.h + 13} fontSize="10.5" fontWeight="600" fill={F.label} stroke={F.bg} strokeWidth="3" paintOrder="stroke">{label}<title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, ...feldZeilen(d), d.hersteller && `${d.hersteller} ${d.modell || ""}`].filter(Boolean).join("\n")}</title></text>
       {canCollapse && (
         <g className="np-ui" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggle(); }} style={{ cursor: "pointer" }}>
           <circle cx={x0 + p.w + 12} cy={p.y} r="8" fill={collapsed ? ACCENT : "#2c343e"} stroke={collapsed ? ACCENT : "#56606c"} />
@@ -161,25 +169,26 @@ export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status
   const zeile2 = [ip || (ipPorts(d).some((i) => i.dhcp) ? "DHCP" : ""), d.modell || TYPEN[d.typ]?.label].filter(Boolean).join(" · ");
   const tabW = tab ? Math.max(46, tab.length * 5.6 + 14) : 0;
   const max2 = Math.floor((CARD_W - 46 - 8) / 6);
+  const F = useContext(FpFarben);
   return (
     <g opacity={dim ? 0.2 : 1} onMouseDown={onDown} onContextMenu={onContextMenu} style={{ cursor: tool === "connect" ? "crosshair" : "pointer" }}>
-      {(sel || hover || hit) && <rect x={x0 - 5} y={y0 - TAB_H - 5} width={CARD_W + 10} height={CARD_H + TAB_H + 10} rx="7" fill="none" stroke={sel ? ACCENT : hover ? OK : "#fff"} strokeWidth="2" />}
+      {(sel || hover || hit) && <rect className="np-ui" x={x0 - 5} y={y0 - TAB_H - 5} width={CARD_W + 10} height={CARD_H + TAB_H + 10} rx="7" fill="none" stroke={sel ? ACCENT : hover ? OK : F.treffer} strokeWidth="2" />}
       {tab && <>
-        <rect x={p.x - tabW / 2} y={y0 - TAB_H} width={tabW} height={TAB_H + 2} rx="3" fill="#161c38" stroke={farbe} strokeWidth="1.4" />
-        <text x={p.x} y={y0 - 4} fontSize="9.5" fontWeight="700" fill="#fff" textAnchor="middle">{tab}</text>
+        <rect x={p.x - tabW / 2} y={y0 - TAB_H} width={tabW} height={TAB_H + 2} rx="3" fill={F.karte} stroke={farbe} strokeWidth="1.4" />
+        <text x={p.x} y={y0 - 4} fontSize="9.5" fontWeight="700" fill={F.text} textAnchor="middle">{tab}</text>
       </>}
-      <rect x={x0} y={y0} width={CARD_W} height={CARD_H} rx="3" fill="#161c38" stroke={worst || farbe} strokeWidth="1.6" />
+      <rect x={x0} y={y0} width={CARD_W} height={CARD_H} rx="3" fill={F.karte} stroke={worst || farbe} strokeWidth="1.6" />
       <rect x={x0 + 6} y={y0 + 8} width="32" height="32" rx="5" fill={col + "22"} />
       <SvgIcon icon={d.icon} customIcons={P.icons} x={x0 + 10} y={y0 + 12} size={24} color={col} />
-      <text x={x0 + 46} y={y0 + 20} fontSize="12" fontWeight="700" fill="#fff">{name.length > 20 ? name.slice(0, 19) + "…" : name}
+      <text x={x0 + 46} y={y0 + 20} fontSize="12" fontWeight="700" fill={F.text}>{name.length > 20 ? name.slice(0, 19) + "…" : name}
         <title>{[d.name, d.netzname && `Netzwerkname: ${d.netzname}`, ...feldZeilen(d), d.hersteller && `${d.hersteller} ${d.modell || ""}`].filter(Boolean).join("\n")}</title>
       </text>
-      <text x={x0 + 46} y={y0 + 36} fontSize="10" fill={ip ? "#c8d0ff" : MUTED} fontFamily="Consolas,monospace">{zeile2.length > max2 ? zeile2.slice(0, max2 - 1) + "…" : zeile2 || "keine IP"}<title>{zeile2}</title></text>
+      <text x={x0 + 46} y={y0 + 36} fontSize="10" fill={ip ? F.text2 : MUTED} fontFamily="Consolas,monospace">{zeile2.length > max2 ? zeile2.slice(0, max2 - 1) + "…" : zeile2 || "keine IP"}<title>{zeile2}</title></text>
       <circle cx={x0 + CARD_W - 10} cy={y0 + 10} r="4" fill={!status || status.ok == null ? "#4a535e" : status.ok ? OK : ERR} stroke="#0b0f1f" strokeWidth="1.2">
         <title>{!status ? "Status unbekannt" : status.ok ? `erreichbar (${status.method}, ${status.ms} ms)` : status.ok === false ? `nicht erreichbar (${status.method})` : status.method}</title>
       </circle>
       {worst && <g><TriangleAlert x={x0 + CARD_W - 30} y={y0 + 4} size={11} color={worst} strokeWidth={2.2} /><rect x={x0 + CARD_W - 30} y={y0 + 4} width="11" height="11" fill="transparent"><title>{iss.map((i) => i.msg).join("\n")}</title></rect></g>}
-      <PortLeiste d={d} X={X} x0={x0 + 6} y0={y0 + CARD_PORT_Y} w={CARD_W - 12} h={CARD_H - CARD_PORT_Y - 5} onPortDown={onPortDown} markPort={markPort} />
+      <PortLeiste d={d} X={X} cx={p.x} cy={p.y} onPortDown={onPortDown} markPort={markPort} />
       {canCollapse && ( // Ast einklappen wie bei Switches
         <g className="np-ui" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onToggle(); }} style={{ cursor: "pointer" }}>
           <circle cx={x0 + CARD_W + 12} cy={p.y} r="8" fill={collapsed ? ACCENT : "#2c343e"} stroke={collapsed ? ACCENT : "#56606c"} />
@@ -194,19 +203,17 @@ export function FrontCard({ d, p, P, X, farbe, tab, sel, hover, hit, dim, status
 /* Anschlüsse eines Endgeräts als Leiste unten auf der Karte: Buchse und Name (bis 10 Zeichen),
    Farbe nach VLAN, belegte hell. Anklicken startet ein Kabel genau von diesem Port bzw. steckt es dort ein.
    Bis 3 Ports eine Reihe, darüber zwei. Bei sehr vielen Ports bleibt es bei den kleinen Buchsensymbolen. */
-function PortLeiste({ d, X, x0, y0, w, h, onPortDown, markPort }) {
+function PortLeiste({ d, X, cx, cy, onPortDown, markPort }) {
   const ports = (d.ports || []).filter((p) => !p.virtuell && steckerTyp(p));
   if (!ports.length) return null;
-  // Immer drei gleich große Felder pro Zeile, egal wie viele Ports das Gerät hat
-  const gap = 3, n = ports.length, proReihe = 3, reihen = Math.ceil(n / proReihe);
-  const bw = (w - gap * (proReihe - 1)) / proReihe;
-  const CARD_PORT_H = Math.min(24, (h - gap * (reihen - 1)) / reihen);
-  const icon = Math.max(MINI, Math.min(18, CARD_PORT_H - 5)); // Stecker-Symbol gut erkennbar
-  const oben = y0 + (h - (reihen * CARD_PORT_H + (reihen - 1) * gap)) / 2;
-  if (CARD_PORT_H < 11) return <Buchsenleiste d={d} X={X} x1={x0 + w} y={y0 + h - MINI - 2} />;
+  const slots = kartenSlots(d); // gleiche Geometrie wie die Kabelenden im Layout
+  if (!slots) return <Buchsenleiste d={d} X={X} x1={cx + CARD_W / 2 - 6} y={cy + CARD_H / 2 - 5 - MINI - 2} />;
   const seite = portSeiten(d);
-  return ports.map((port, i) => {
-    const x = x0 + (i % proReihe) * (bw + gap), y = oben + Math.floor(i / proReihe) * (CARD_PORT_H + gap);
+  const F = useContext(FpFarben);
+  return ports.map((port) => {
+    const s = slots.get(port.id);
+    const bw = s.w, CARD_PORT_H = s.h, x = cx + s.x - bw / 2, y = cy + s.y - CARD_PORT_H / 2;
+    const icon = Math.max(MINI, Math.min(18, CARD_PORT_H - 5)); // Stecker-Symbol gut erkennbar
     const c = (X.connsByPort.get(`${d.id}:${port.id}`) || [])[0] || null;
     const st = steckerTyp(port);
     const v = X.vlanById.get(port.vlan);
@@ -220,9 +227,9 @@ function PortLeiste({ d, X, x0, y0, w, h, onPortDown, markPort }) {
       <g key={port.id} data-dev={d.id} data-port={port.id} style={{ cursor: "pointer" }}
         onMouseDown={(e) => onPortDown?.(e, c, port, { ax: x + bw / 2, ay: y + CARD_PORT_H / 2, w: bw, h: CARD_PORT_H })}>
         <title>{[`${port.name} · ${STECKER[st]?.name || port.typ}${s0 ? " · " + SEITEN[s0] : ""}`, v ? `VLAN ${v.vid} ${v.name}` : null, gegen ? `→ ${gegen.dev.name} · ${gegen.port.name}` : "frei · anklicken zum Verbinden"].filter(Boolean).join("\n")}</title>
-        <rect x={x} y={y} width={bw} height={CARD_PORT_H} rx="3" fill={c ? (v?.farbe || "#5a6a9a") + "40" : "#0e1430"} stroke={markPort === port.id ? ACCENT : c ? v?.farbe || "#c8d0ff" : "#3a4466"} strokeWidth={markPort === port.id ? 2 : 1} />
+        <rect x={x} y={y} width={bw} height={CARD_PORT_H} rx="3" fill={c ? (v?.farbe || "#5a6a9a") + "40" : F.leer} stroke={markPort === port.id ? ACCENT : c ? v?.farbe || "#8f9bd0" : F.leerRand} strokeWidth={markPort === port.id ? 2 : 1} />
         <Buchse x={x + 3} y={y + (CARD_PORT_H - icon) / 2} stecker={st} aktiv={!!c} farbe={v?.farbe} groesse={icon} />
-        <text x={x + icon + 7} y={y + CARD_PORT_H / 2 + 3} fontSize="8.5" fontWeight="600" fill={c ? "#fff" : "#8f9bd0"}>{text}</text>
+        <text x={x + icon + 7} y={y + CARD_PORT_H / 2 + 3} fontSize="8.5" fontWeight="600" fill={c ? F.text : F.leerText}>{text}</text>
       </g>
     );
   });
