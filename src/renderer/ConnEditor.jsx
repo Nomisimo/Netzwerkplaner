@@ -2,7 +2,7 @@ import React from "react";
 import { S, KABEL, MUTED, ERR, CARD, LINE } from "../shared/constants.js";
 import { connVlan, isP2PConn } from "../shared/model.js";
 import { physPorts } from "../shared/catalog.js";
-import { Field, VlanChip, SevBadge } from "./ui.jsx";
+import { Field, VlanChip, SevBadge, uiConfirm } from "./ui.jsx";
 import { ArrowUpDown, Link, Trash2 } from "lucide-react";
 import { FLUSS, flussRichtungen, flussText } from "../shared/fluss.js";
 
@@ -20,11 +20,11 @@ export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevic
         <a style={{ fontWeight: 700, cursor: "pointer" }} onClick={() => onSelectDevice && onSelectDevice(dev.id)}>{dev.name}</a>
         <div style={{ fontSize: 11, color: MUTED, marginBottom: 6 }}>{dev.hersteller} {dev.modell}</div>
         <Field label="Port">
-          <select style={S.selectSm} value={end.port} onChange={(e) => {
+          <select style={S.selectSm} value={end.port} onChange={async (e) => {
             const pid = e.target.value;
             if (!usedHere(pid)) return upd((c) => (c[k].port = pid));
             // Belegter Anschluss: nur nach Rückfrage, die alte Verbindung dort fällt weg
-            if (!confirm(`${dev.name} [${dev.ports.find((p) => p.id === pid)?.name}] ist schon belegt. Die Verbindung dort ersetzen?`)) return;
+            if (!await uiConfirm(`${dev.name} [${dev.ports.find((p) => p.id === pid)?.name}] ist schon belegt. Die Verbindung dort ersetzen?`)) return;
             mutate((d) => {
               d.verbindungen = d.verbindungen.filter((c) => c.id === conn.id || !((c.a.dev === dev.id && c.a.port === pid) || (c.b.dev === dev.id && c.b.port === pid)));
               const c = d.verbindungen.find((x) => x.id === conn.id); if (c) c[k].port = pid;
