@@ -5,6 +5,7 @@ import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAUL
 import { normMac, macHersteller, herstellerPasst } from "./mac.js";
 import { qinqIssues } from "./qinq.js";
 import { migrateFelder } from "./felder.js";
+import { trunksAbgleichen } from "./trunks.js";
 
 export const clone = (x) => JSON.parse(JSON.stringify(x));
 
@@ -15,19 +16,24 @@ export const newVlan = (o = {}) => ({
 
 export const standardVlans = () => STANDARD_VLANS.map((v) => newVlan(clone(v)));
 
-export const emptyProject = () => ({
+// mitVlans: false legt das Projekt ohne die Standard-VLANs an („Neu“ in der App)
+export const emptyProject = ({ mitVlans = true } = {}) => ({
   format: "netzwerkplaner",
   version: 1,
   meta: { veranstaltung: "Veranstaltung 2026", ort: "", ersteller: "", datum: new Date().toISOString().slice(0, 10), version: "1", notiz: "" },
   bereiche: [...DEFAULT_BEREICHE],
   standortInfo: {}, // Standortname → { anmerkung }: erscheint nur in der Clean-Cat-Ansicht
-  vlans: standardVlans(),
+  vlans: mitVlans ? standardVlans() : [],
+  trunks: [], // benannte VLAN-Bündel für Switch-Ports (shared/trunks.js)
   geraete: [],
   verbindungen: [],
   layout: { rootId: null, offsets: {}, collapsed: {} },
   icons: [],
   vlanVomSwitch: true, // VLANs nur an Switches (seit 0.7.0-beta.8)
 });
+
+// Alle Standorte für Auswahllisten: die des Projekts und alle, die an Geräten stehen
+export const standortListe = (P) => [...new Set([...(P.bereiche || []), ...(P.geraete || []).map((d) => (d.bereich || "").trim()).filter(Boolean)])];
 
 // Ältere oder unvollständige Projektdateien auf den aktuellen Stand bringen
 export const migrateProject = (p) => {
@@ -44,6 +50,7 @@ export const migrateProject = (p) => {
   out.bereiche = p.bereiche || e.bereiche;
   out.standortInfo = p.standortInfo && typeof p.standortInfo === "object" ? p.standortInfo : {};
   out.icons = p.icons || [];
+  out.trunks = Array.isArray(p.trunks) ? p.trunks.map((t) => ({ name: "", farbe: "#8a94a0", vlans: [], notiz: "", ...t })) : [];
   out.vlanVomSwitch = !!p.vlanVomSwitch;
   return vlansAbleiten(out);
 };
@@ -82,6 +89,7 @@ export const vlanQuelle = (P, X, dev, port) => {
 
 /* Setzt das VLAN aller Endgeräte-Ports nach den Switches (in place, gibt P zurück) */
 export const vlansAbleiten = (P) => {
+  trunksAbgleichen(P); // Trunk-Ports tragen die VLANs ihres Trunks
   const X = buildIndex(P);
   // Einmalig für ältere Projekte: VLAN des Endgeräts auf den leeren Access-Port des Switches übernehmen
   if (!P.vlanVomSwitch) {
@@ -126,7 +134,8 @@ export const buildIndex = (P) => {
       connsByDev.get(end.dev).push(c);
     }
   }
-  return { devById, vlanById, portRef, connsByPort, connsByDev };
+  const trunkById = new Map((P.trunks || []).map((t) => [t.id, t]));
+  return { devById, vlanById, trunkById, portRef, connsByPort, connsByDev };
 };
 
 export const otherEnd = (c, devId) => (c.a.dev === devId ? c.b : c.a);

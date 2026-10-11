@@ -248,12 +248,16 @@ export const migrateBestand = (liste) => (liste || []).map(bibEintrag);
 /* Gerät für Bibliothek (Vorlage oder Bestand) sichern. VLANs gibt es nur an Switch-Ports;
    sie werden über ihre VLAN-ID (vid) gemerkt, weil die internen IDs in jedem Projekt
    anders sind. Endgeräte werden ohne VLAN gesichert, ihr VLAN kommt im Projekt vom Switch. */
-export const snapshotDevice = (dev, vlans = []) => {
+export const snapshotDevice = (dev, vlans = [], trunks = []) => {
   const g = JSON.parse(JSON.stringify(dev));
   const vid = (id) => vlans.find((v) => v.id === id)?.vid ?? null;
   for (const p of g.ports) {
-    if (!dev.isSwitch) { p.vlan = null; p.vlans = []; p.vid = null; p.vids = []; continue; }
+    if (!dev.isSwitch) { p.vlan = null; p.vlans = []; p.vid = null; p.vids = []; delete p.trunk; continue; }
     p.vid = vid(p.vlan); p.vids = (p.vlans || []).map(vid).filter((x) => x != null);
+    // Trunk mit Namen, Farbe und VLAN-IDs mitsichern; beim Einfügen wird er im Projekt gefunden oder angelegt
+    const t = p.trunk && trunks.find((x) => x.id === p.trunk);
+    if (t) p.trunkDef = { name: t.name, farbe: t.farbe, vids: (t.vlans || []).map(vid).filter((x) => x != null) };
+    delete p.trunk;
   }
   for (const s of g.stroeme || []) s.ziele = [];
   delete g.bestandId;
@@ -265,7 +269,8 @@ export const snapshotDevice = (dev, vlans = []) => {
 
 // Neue Geräte bekommen kein VLAN. VLANs werden nur an Switch-Ports gesetzt; Endgeräte
 // übernehmen das VLAN im Projekt vom Switch-Port, an dem sie stecken (vlansAbleiten).
-export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, mitAdressen = false }) => {
+// trunks: Trunks des Projekts (wird ergänzt, wenn eine Vorlage einen Trunk mitbringt, den es noch nicht gibt)
+export const createDevice = ({ katalogId, typ, vlans = [], trunks = null, name, eigeneVorlage, mitAdressen = false }) => {
   const k = katalogId ? KATALOG_GERAETE.find((x) => x.id === katalogId) : null;
   const src = eigeneVorlage || null;
   if (src) {
@@ -285,11 +290,22 @@ export const createDevice = ({ katalogId, typ, vlans = [], name, eigeneVorlage, 
     // VLAN über die VLAN-ID zuordnen; ältere Vorlagen ohne vid behalten die ID, falls sie existiert
     const map = (oldId, vid) => (!d.isSwitch ? null : vid != null ? vlanNachVid(vlans, vid)?.id || anlegen(vid) : vlans.some((v) => v.id === oldId) ? oldId : null);
     migrateGeraet(d); // ältere Vorlagen mit getrennten Interfaces
+    // Trunk aus der Vorlage: im Projekt gleichnamigen Trunk nehmen oder mit den gesicherten VLANs anlegen
+    const trunkFuer = (def) => {
+      if (!def || !trunks || !d.isSwitch) return null;
+      const name = (def.name || "").trim();
+      const da = trunks.find((t) => (t.name || "").trim().toLowerCase() === name.toLowerCase());
+      if (da) return da.id;
+      const t = { id: uid(), name: name || "Trunk", farbe: def.farbe || "#8a94a0", vlans: (def.vids || []).map((x) => map(null, x)).filter(Boolean), notiz: "" };
+      trunks.push(t);
+      return t.id;
+    };
     d.ports = d.ports.map((p) => {
-      const { vid, vids, ...rest } = p;
+      const { vid, vids, trunkDef, trunk, ...rest } = p;
       const nid = uid(); idMap[p.id] = nid;
+      const tid = trunkDef ? trunkFuer(trunkDef) : trunks && trunks.some((t) => t.id === trunk) ? trunk : null; // Kopie im selben Projekt behält ihren Trunk
       return { ...rest, id: nid, vlan: map(p.vlan, vid), vlans: !d.isSwitch ? [] : vids ? vids.map((x) => map(null, x)).filter(Boolean) : (p.vlans || []).filter((id) => vlans.some((v) => v.id === id)),
-        ip: mitAdressen ? p.ip || "" : "", mac: mitAdressen ? p.mac || "" : "" };
+        ...(tid ? { trunk: tid } : {}), ip: mitAdressen ? p.ip || "" : "", mac: mitAdressen ? p.mac || "" : "" };
     });
     if (d.webUi) d.webUi.iface = d.webUi.iface ? idMap[d.webUi.iface] || null : null;
     d.stroeme = (d.stroeme || []).map((s) => ({ ...s, id: uid(), ziele: [], iface: s.iface ? idMap[s.iface] || null : null }));
@@ -358,7 +374,7 @@ export const geraetUmbauen = (P, devId, neu, { ausBestand = false } = {}) => {
     const np = neuPhys[n];
     if (np) {
       portMap[p.id] = np.id;
-      if (dev.isSwitch && neu.isSwitch) Object.assign(np, { modus: p.modus, vlan: p.vlan, vlans: p.vlans, poe: p.poe ?? np.poe });
+      if (dev.isSwitch && neu.isSwitch) { Object.assign(np, { modus: p.modus, vlan: p.vlan, vlans: p.vlans, poe: p.poe ?? np.poe }); if (p.trunk) np.trunk = p.trunk; else delete np.trunk; }
     } else if (belegt.has(p.id)) { neu.ports.push({ ...p }); portMap[p.id] = p.id; }
   });
   for (const o of uebrig) if (!portMap[o.id]) neu.ports.push({ ...o, typ: "", virtuell: true });

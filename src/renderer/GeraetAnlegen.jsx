@@ -35,7 +35,7 @@ export default function GeraetAnlegen({ P, ziel, onSave, onClose, eintrag = null
     });
   };
   const speichern = () => {
-    const g = snapshotDevice(dev, S0.vlans);
+    const g = snapshotDevice(dev, S0.vlans, S0.trunks);
     if (ziel === "vorlage") { g.ports.forEach((i) => { i.ip = ""; i.mac = ""; }); g.netzname = ""; (g.felder || []).forEach((f) => { f.wert = ""; }); }
     const now = new Date().toISOString();
     // Bearbeiten: gleiche ID, damit Geräte im Projekt mit diesem Bestandseintrag verknüpft bleiben
