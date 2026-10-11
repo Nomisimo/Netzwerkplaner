@@ -1,6 +1,7 @@
 import React from "react";
 import { S, KATEGORIEN, MUTED } from "../shared/constants.js";
-import { Field } from "./ui.jsx";
+import { Field, AuswahlFeld } from "./ui.jsx";
+import { standortListe } from "../shared/model.js";
 
 /* Gemeinsame Felder mehrerer Geräte auf einmal bearbeiten: Bereich, Standort, PoE-Bedarf,
    eigene Felder und Notizen. Sind die Werte verschieden, steht „verschieden“ im Feld;
@@ -19,8 +20,10 @@ export default function MehrfachBearbeiten({ P, devs, mutate }) {
     const w = gemeinsam(get);
     return (
       <Field label={label}>
-        <input style={S.inputSm} list={opts.list} value={w === VERSCHIEDEN ? "" : w || ""} placeholder={w === VERSCHIEDEN ? "verschieden" : opts.placeholder || ""}
-          onChange={(e) => { const v = e.target.value; alle((g) => set(g, v)); }} />
+        {opts.optionen
+          ? <AuswahlFeld style={S.inputSm} optionen={opts.optionen} value={w === VERSCHIEDEN ? "" : w || ""} placeholder={w === VERSCHIEDEN ? "verschieden" : opts.placeholder || ""} onChange={(v) => alle((g) => set(g, v))} />
+          : <input style={S.inputSm} value={w === VERSCHIEDEN ? "" : w || ""} placeholder={w === VERSCHIEDEN ? "verschieden" : opts.placeholder || ""}
+            onChange={(e) => { const v = e.target.value; alle((g) => set(g, v)); }} />}
       </Field>
     );
   };
@@ -37,14 +40,13 @@ export default function MehrfachBearbeiten({ P, devs, mutate }) {
               {Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
             </select>); })()}
         </Field>
-        {text("Standort / Ast", (g) => g.bereich || "", (g, v) => { g.bereich = v; }, { list: "np-bereiche-multi", placeholder: "z. B. FOH" })}
+        {text("Standort / Ast", (g) => g.bereich || "", (g, v) => { g.bereich = v; }, { optionen: standortListe(P), placeholder: "z. B. FOH" })}
         {endgeraete.length > 0 && (() => { const w = gemeinsam((g) => (g.isSwitch ? null : g.poeBedarf || 0)); return (
           <Field label={`PoE-Bedarf (W)${endgeraete.length < devs.length ? " · nur Endgeräte" : ""}`}>
             <input type="number" min="0" style={S.inputSm} value={w === VERSCHIEDEN ? "" : w ?? ""} placeholder={w === VERSCHIEDEN ? "verschieden" : ""}
               onChange={(e) => { const v = +e.target.value || 0; alle((g) => { if (!g.isSwitch) g.poeBedarf = v; }); }} />
           </Field>); })()}
       </div>
-      <datalist id="np-bereiche-multi">{P.bereiche.map((b) => <option key={b} value={b} />)}</datalist>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "14px 0 6px" }}>
         <span style={{ fontSize: 12, fontWeight: 700, flex: 1 }}>Eigene Felder</span>

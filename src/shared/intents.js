@@ -15,7 +15,7 @@ export const addDevice = (P, { item, connectTo = null, at = null }) => {
   const vorlage = itemQuelle(item);
   if ((item.kind === "vorlage" || item.kind === "bestand") && !vorlage) return { fehler: "Vorlage fehlt" };
   const vorher = new Set(P.vlans.map((v) => v.id));
-  const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: P.vlans, eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
+  const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: P.vlans, trunks: (P.trunks ||= []), eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
   let konflikte = [];
   if (item.kind === "bestand") {
     dev.bestandId = vorlage.id;
@@ -61,7 +61,7 @@ export const umbauen = (P, { dev, item }) => {
   if (!P.geraete.some((g) => g.id === dev)) return { fehler: "Gerät wurde inzwischen gelöscht" };
   const quelle = itemQuelle(item);
   const ausBestand = item.kind === "bestand" && !!quelle;
-  const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: P.vlans, eigeneVorlage: quelle, mitAdressen: ausBestand });
+  const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: P.vlans, trunks: (P.trunks ||= []), eigeneVorlage: quelle, mitAdressen: ausBestand });
   let konflikte = [];
   if (ausBestand) {
     neu.bestandId = quelle.id;

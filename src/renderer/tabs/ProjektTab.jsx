@@ -33,7 +33,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
             <button style={S.primaryBtn} onClick={() => goTab("topologie")}>Leeres Projekt: zur Topologie</button>
             <button style={S.secondaryBtn} onClick={loadDemo}>Beispielprojekt laden</button>
           </div>
-          <p style={S.hint}>Standard-VLANs aus der Protokollrecherche sind bereits angelegt (10 Audio Primary, 11 Audio Secondary, 20 Licht, 30 Video, 40 Intercom, 50 Steuerung, 99 Management). Gerätekatalog: {KATALOG.geraete.length} Modelle, Protokollreferenz: {KATALOG.protokolle.length} Protokolle (Stand {KATALOG.stand}).</p>
+          <p style={S.hint}>{P.vlans.length ? `${P.vlans.length} VLANs angelegt.` : "Noch keine VLANs: unten unter „VLANs“ anlegen oder die Standard-VLANs einfügen (10 Audio Primary, 11 Audio Secondary, 20 Licht, 30 Video, 40 Intercom, 50 Steuerung, 99 Management)."} Gerätekatalog: {KATALOG.geraete.length} Modelle, Protokollreferenz: {KATALOG.protokolle.length} Protokolle (Stand {KATALOG.stand}).</p>
         </Section>
       )}
       <Section title="Setup" subtitle="Projektangaben, Übersicht mit Prüfung, Standorte und VLANs. Die Angaben erscheinen im Kopf der App und in den Exporten.">

@@ -58,7 +58,7 @@ const KAPITEL = [
       "„Einrasten“ an: Beim Ziehen rastet ein Gerät im Raster ein und richtet sich an Kanten und Mitten benachbarter Geräte aus (gestrichelte Hilfslinie). Alt gedrückt halten = frei ziehen. Der Schalter gilt für das ganze Projekt.",
       "„Auto-Anordnen“ aus: alle Geräte und Leitungen bleiben, wo sie sind, auch die nicht angepinnten. Ziehen verschiebt dann nur das eine Gerät. Wieder an: die automatische Anordnung gilt wieder, Pins bleiben. Wurde das Layout von Hand angepasst, fragt die App vorher nach, ebenso bei „Auto-Layout“.",
       "„Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Zieht man es auf ein Gerät in einem Stapel oder auf den Stapelrahmen, kommt es oben in diesen Stapel. Der Stapel bleibt dabei an seinem Platz. Das ist keine Netzwerkverbindung. Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
-      "Klick auf Rahmen oder Namen eines Stapels öffnet „Stapel bearbeiten“: Name, Reihenfolge (Pfeile hoch/runter), Geräte hinzufügen oder lösen. „Duplizieren“ legt alle Geräte mit ihren Einstellungen und Verbindungen untereinander als neuen Stapel an (ohne IP- und MAC-Adressen). „Kopieren“ legt den Stapel in die Zwischenablage, „Stapel einfügen“ in der Werkzeugleiste fügt ihn ein, auch in einem anderen Projekt.",
+      "Klick auf Rahmen oder Namen eines Stapels öffnet „Stapel bearbeiten“: Name, Anordnung (untereinander wie im Rack oder nebeneinander), Reihenfolge (Pfeile), Geräte hinzufügen oder lösen. „Duplizieren“ legt alle Geräte mit ihren Einstellungen und Verbindungen untereinander als neuen Stapel an (ohne IP- und MAC-Adressen). „Kopieren“ legt den Stapel in die Zwischenablage, „Stapel einfügen“ in der Werkzeugleiste fügt ihn ein, auch in einem anderen Projekt.",
       "Ein Stapel lässt sich als Ganzes anpinnen: „Anpinnen“ im Stapel-Fenster, Taste P bei ausgewähltem Stapel oder Rechtsklick auf eines seiner Geräte. Vor dem Namen steht dann eine Nadel.",
       "Ein Gerät bekommt nur so viele Kabel, wie es Anschlüsse hat. Sind alle belegt, fragt „Verbinden“, welchen Anschluss du ersetzen willst; die alte Verbindung dort fällt weg. Mehr Ports gibt es nur im Editor mit „+ Port“.",
       "Verbindungen aufräumen: Im Werkzeug „Bewegen“ eine Linie einfach greifen und ziehen, das verschiebt ihren Verlauf. Ist sie ausgewählt, setzt ein Doppelklick auf den roten Punkt in der Mitte sie zurück.",
@@ -74,8 +74,11 @@ const KAPITEL = [
       "Ein unmanaged Switch trennt keine VLANs: Kommen an ihm mehrere VLANs an (auch über weitere unmanaged Switches), tragen alle seine Ports alle diese Farben, seine Kabel sind in den VLAN-Farben gestreift.",
       "Vorder- und Rückseite: Hat ein Switch Buchsen auf beiden Seiten (z. B. GigaCore 16Xt: 10 vorne, 2 hinten), stehen auf der Platte links „VORNE“ und rechts „HINTEN“, getrennt durch eine gestrichelte Linie. Die Seiten stammen aus den Herstellerhandbüchern.",
       "Steckertypen: RJ45 eckig mit Rastnase, etherCON rund, opticalCON rund mit türkisem Glasfaser-Ring und Faserpunkten, SFP/SFP+ eckig mit türkisem Rahmen (SFP+ mit kräftigerem Einsatz).",
-      "Endgeräte zeigen unten rechts auf der Karte ihre Netzwerkbuchsen als kleine Symbole, mit V (vorne) bzw. H (hinten) davor. Belegte Buchsen sind hell. Der Tooltip nennt alle Anschlüsse des Modells laut Hersteller.",
+      "Endgeräte zeigen unten auf der Karte ihre Netzwerkbuchsen mit Namen in der VLAN-Farbe (bei sehr vielen Buchsen nur als kleine Symbole mit V für vorne und H für hinten). Belegte Buchsen sind hell. Der Tooltip nennt alle Anschlüsse des Modells laut Hersteller.",
       "Stimmt eine Seite nicht, im Geräte-Editor bei den Ports unter „Seite“ vorne oder hinten fest einstellen. „auto“ nimmt die Herstellerangabe.",
+      "Kabel enden an der Buchse, in die sie gesteckt sind, auch bei den Karten der Endgeräte. Sie laufen rechtwinklig mit etwas Abstand um andere Geräte herum, damit sie sichtbar bleiben.",
+      "Kabelverlauf von Hand: Kabel anklicken, dann die mittleren Strecken an der Linie oder an den roten Griffen verschieben. Doppelklick auf das Kabel fügt dort zwei Ecken ein, die sich wieder einzeln verschieben lassen. Doppelklick auf einen Griff setzt den Verlauf zurück, „Auto-Layout“ setzt alle zurück.",
+      "„Kabel vorne“: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante. „Hell“: weißer Hintergrund, z. B. zum Drucken; gilt auch beim Bearbeiten und für den Export. Auswahl- und Fokusrahmen kommen nicht mit in den Export.",
     ]} />
     <H>Darstellung</H>
     <Bild id="topologie-eckig" text="Linien eckig, Farbe nach VLAN, Port & VLAN an jeder Verbindung" />
@@ -83,7 +86,7 @@ const KAPITEL = [
       "„Farbe“: Verbindungen nach VLAN, Bereich oder Kabeltyp einfärben.",
       "„Linien: rund / eckig / direkt“: geschwungene, rechtwinklige oder gerade Verbindungslinien (direkt = kürzester Weg von Port zu Port). Mehrere Kabel zwischen denselben Geräten liegen nebeneinander, in der Ansicht Anschlüsse bekommt jedes Kabel eine eigene Bahn.",
       "„Kabel bündeln“ (nur bei eckigen Linien): an = Kabel teilen sich den Weg, parallele Kabel werden eine Linie mit Anzahl (z. B. 2×). Aus = jedes Kabel läuft einzeln auf eigener Spur.",
-      "In der Ansicht Anschlüsse fasst „Kabel bündeln“ alle Kabel eines Switches, die in dieselbe Richtung laufen, in einem gemeinsamen Kanal direkt am Switch zusammen. Ohne Bündeln läuft jedes Kabel auf eigener Bahn mit gut sichtbarem Abstand. Kabel zwischen Geräten im selben Stapel erscheinen als Klammer seitlich am Stapel und bleiben innerhalb seines Rahmens.",
+      "In der Ansicht Anschlüsse fasst „Kabel bündeln“ alle Kabel eines Switches, die in dieselbe Richtung laufen, in einem gemeinsamen Kanal direkt am Switch zusammen. Ohne Bündeln läuft jedes Kabel auf eigener Bahn mit gut sichtbarem Abstand. Kabel zwischen Geräten im selben Stapel erscheinen als Klammer seitlich am Stapel (bei nebeneinander gestapelten Geräten darunter) und bleiben innerhalb seines Rahmens.",
       "„Titel“: in den Kästen den Gerätenamen, den Netzwerknamen (Hostname), den Typ bzw. das Modell oder den Wert eines eigenen Felds (z. B. Inventar-Nr.) zeigen. Ohne Netzwerknamen steht dort der Typ.",
       "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports untereinander am Gerät, auch bei gebündelten Kabeln. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
       "Kabelbezeichnungen (z. B. „FIB-FOH-01“) stehen direkt auf dem Kabel und wandern mit, wenn Geräte verschoben werden. Text greifen und ziehen schiebt ihn am Kabel entlang; Doppelklick setzt ihn wieder in die Mitte.",
@@ -143,7 +146,7 @@ const KAPITEL = [
   { id: "vlans", titel: "VLANs", tab: ["vlans", "Setup"], inhalt: () => <>
     <Bild id="vlans" text="VLAN mit Zweck und Switch-Schaltern" />
     <Liste items={[
-      "Die VLANs stehen unten im Tab „Setup“. Die Standard-VLANs 10, 11, 20, 30, 40, 50 und 99 sind schon angelegt. „+ VLAN“ legt ein neues an.",
+      "Die VLANs stehen unten im Tab „Setup“. Ein neues Projekt („Neu“) beginnt ohne VLANs; „Standard-VLANs einfügen“ legt 10, 11, 20, 30, 40, 50 und 99 an, „+ VLAN“ ein einzelnes.",
       "Je VLAN: ID, Name, Farbe, Zweck und Notiz sowie die Schalter IGMP-Snooping, EEE aus, QoS/DSCP und DHCP.",
       "Die Schalter fließen in die Prüfung ein: Multicast-Protokolle verlangen IGMP, Audio over IP und MA-Net3 verlangen EEE aus.",
       "VLAN in VLAN (QinQ, IEEE 802.1ad): Unter „Äußeres VLAN“ ein S-VLAN wählen, dann läuft das VLAN als inneres C-VLAN darin und steht eingerückt darunter. Innere VLANs verschiedener S-VLANs dürfen dieselbe ID haben. Die Prüfung warnt dann und nennt die trennenden S-VLANs; gleiche IDs in derselben Ebene bleiben ein Fehler, ebenso ein Trunk-Port, der dieselbe ID zweimal führt, bekommt eine Warnung.",

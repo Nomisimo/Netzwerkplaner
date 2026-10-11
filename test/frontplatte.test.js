@@ -63,3 +63,19 @@ test("Äste: Mindmap und Anschlüsse klappen gleich ein, auch Endgeräte mit Kin
   assert.equal(F.hidden.get(ast), weg.length);
   assert.equal(astVersteckt(T, { [T.roots[0]]: true }).size, 0, "Hauptswitch lässt sich nicht einklappen");
 });
+
+test("Karten: jede Buchse hat ein Feld, Kabel enden an der Kartenkante über der Buchse", async () => {
+  const { kartenSlots, anker, CARD_H, TAB_H } = await import("../src/shared/frontplatte.js");
+  const dev = { ports: [{ id: "a", name: "Primary", typ: "RJ45" }, { id: "b", name: "Secondary", typ: "RJ45" }, { id: "m", name: "mgmt", virtuell: true }] };
+  const s = kartenSlots(dev);
+  assert.equal(s.size, 2);
+  assert.ok(s.get("b").x > s.get("a").x);
+  const p = { x: 100, y: 200, w: 204, h: CARD_H, kind: "card" };
+  const sb = { ...s.get("b"), ax: p.x + s.get("b").x, ay: p.y + s.get("b").y };
+  const oben = anker(p, sb, { x: 0, y: 0 });
+  assert.equal(oben.x, sb.ax);
+  assert.equal(oben.y, p.y - CARD_H / 2 - TAB_H);
+  assert.equal(oben.stich.y, sb.ay - sb.h / 2);
+  const unten = anker(p, sb, { x: 0, y: 900 });
+  assert.equal(unten.y, p.y + CARD_H / 2);
+});
