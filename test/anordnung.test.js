@@ -99,3 +99,10 @@ test("Frontplatten: parallele Kabel bekommen eigene Bahnen, gebündelt teilen si
   assert.ok(e.get("y") < e.get("x"));
   assert.equal(knickPfad(0, 0, 10, 10, { x: 5, y: 2 }, "h", "direkt"), "M0,0 L5,2 L10,10");
 });
+
+test("Stapel mit nur einem Gerät lösen sich auf", async () => {
+  const { stapelBereinigen } = await import("../src/shared/anordnung.js");
+  const P = { geraete: [{ id: "a" }, { id: "b" }, { id: "c" }], layout: { stapel: [{ id: "s1", ids: ["a", "x"] }, { id: "s2", ids: ["b", "c"] }, { id: "s3", ids: ["c"] }] } };
+  stapelBereinigen(P);
+  assert.deepEqual(P.layout.stapel.map((s) => s.id), ["s2"]);
+});

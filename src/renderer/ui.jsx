@@ -104,8 +104,11 @@ export const KatChip = ({ k }) => (
 );
 
 /* ── Geräteauswahl: Katalogmodelle, eigene Vorlagen, generische Typen ──── */
-export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], title = "Gerät hinzufügen", customIcons }) {
+// mitAnzahl: Feld „Anzahl“ – so viele gleiche Geräte einfügen (onPick(item, anzahl))
+export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], title = "Gerät hinzufügen", customIcons, mitAnzahl = false }) {
   const [q, setQ] = useState("");
+  const [anzahl, setAnzahl] = useState(1);
+  const pick = (i) => onPick(i, mitAnzahl ? Math.max(1, Math.min(99, Math.floor(+anzahl) || 1)) : 1);
   const [kat, setKat] = useState("");
   const [nurFokus, setNurFokus] = useState(true);
   const inp = useRef(null);
@@ -126,13 +129,16 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
   const taste = (e) => {
     if (e.key === "ArrowDown") { e.preventDefault(); if (sichtbar) setAktiv((a) => (a + 1) % sichtbar); }
     else if (e.key === "ArrowUp") { e.preventDefault(); if (sichtbar) setAktiv((a) => (a <= 0 ? sichtbar - 1 : a - 1)); }
-    else if (e.key === "Enter" && items[aktiv]) { e.preventDefault(); onPick(items[aktiv]); }
+    else if (e.key === "Enter" && items[aktiv]) { e.preventDefault(); pick(items[aktiv]); }
   };
   return (
     <Modal title={title} onClose={onClose} width={720}>
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         <input ref={inp} style={{ ...S.input, flex: 1 }} placeholder="Suchen: Hersteller, Modell, Typ oder Protokoll (z. B. „Dante“, „Cisco*1300*24“)" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen. Pfeiltasten wählen, Enter übernimmt." value={q} onChange={(e) => setQ(e.target.value)}
           onKeyDown={taste} />
+        {mitAnzahl && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="So viele gleiche Geräte einfügen. Ab 2 werden sie durchnummeriert (Name 1, Name 2 …).">
+          Anzahl<input type="number" min="1" max="99" style={{ ...S.input, width: 64 }} value={anzahl} onChange={(e) => setAnzahl(e.target.value)} onFocus={(e) => e.target.select()} />
+        </label>}
         <select style={S.select} value={kat} onChange={(e) => setKat(e.target.value)}>
           <option value="">Alle Bereiche</option>
           {Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
@@ -142,7 +148,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
       {items.length === 0 && <div style={{ ...S.empty, padding: 16, border: `1px solid ${LINE}`, borderRadius: 8 }}>Nichts gefunden.</div>}
       <div ref={listeRef} style={{ maxHeight: "58vh", overflowY: "auto", border: items.length ? `1px solid ${LINE}` : "none", borderRadius: 8 }}>
         {items.slice(0, 250).map((i, n) => (
-          <button key={i.kind + i.key} onClick={() => onPick(i)} tabIndex={-1}
+          <button key={i.kind + i.key} onClick={() => pick(i)} tabIndex={-1}
             style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: n === aktiv ? ACCENT + "26" : "none", border: "none", borderLeft: `3px solid ${n === aktiv ? ACCENT : "transparent"}`, borderBottom: `1px solid ${LINE2}`, padding: "8px 12px 8px 9px", cursor: "pointer", color: TEXT }}
             onMouseMove={() => n !== aktiv && setAktiv(n)}>
             <IconView icon={i.icon} customIcons={customIcons} color={katColor(i.kat)} />
@@ -150,7 +156,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
               <div style={{ fontWeight: 600, fontSize: 13 }}>{i.title}</div>
               <div style={{ fontSize: 11, color: SUB }}>{i.sub}</div>
             </div>
-            {i.kind === "bestand" && <span style={{ ...S.badge, background: OK, color: "#10261a" }}>Bestand</span>}
+            {i.kind === "bestand" && <span style={{ ...S.badge, background: OK, color: "#10261a" }} title={mitAnzahl && +anzahl > 1 ? "Bestandsgeräte gibt es nur einmal: es wird eins eingefügt" : undefined}>Bestand</span>}
             {i.kind === "vorlage" && <span style={{ ...S.badge, background: ACCENT, color: "#fff" }}>Vorlage</span>}
             {i.kind === "typ" && <span style={{ ...S.badge, border: `1px solid ${LINE}`, color: SUB }}>generisch</span>}
           </button>

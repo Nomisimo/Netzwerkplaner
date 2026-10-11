@@ -5,6 +5,7 @@ import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAUL
 import { normMac, macHersteller, herstellerPasst } from "./mac.js";
 import { qinqIssues } from "./qinq.js";
 import { migrateFelder } from "./felder.js";
+import { stapelBereinigen } from "./anordnung.js";
 import { trunksAbgleichen } from "./trunks.js";
 
 export const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -60,10 +61,17 @@ export const migrateProject = (p) => {
    vom Access-Port des Switches, an dem er steckt (auch über unmanaged Switches hinweg).
    Steckt er nirgends oder an einem Trunk, gilt das VLAN, in dessen Subnetz seine IP liegt. */
 const managedSw = (d) => d?.isSwitch && d.typ !== "switch_unmanaged";
+/* Durchgeschliffen: ein Ethernet-Port eines Endgeräts ohne eigene IP und ohne DHCP (z. B. „LAN 2“
+   einer LumiNode oder eines Daisy-Chain-Lautsprechers). Über ihn reicht das Gerät das VLAN weiter. */
+const durchschleifPort = (d, p) => !d.isSwitch && !p.p2p && !p.virtuell && !p.ip && !p.dhcp;
+const andereEnden = (X, d, ohne) => physPorts(d).filter((q) => q.id !== ohne && !q.p2p)
+  .flatMap((q) => (X.connsByPort.get(`${d.id}:${q.id}`) || []).map((c) => otherEnd(c, d.id)));
 export const vlanQuelle = (P, X, dev, port) => {
   if (!dev || dev.isSwitch || port.p2p) return null;
   const besucht = new Set([dev.id]);
   let ends = (X.connsByPort.get(`${dev.id}:${port.id}`) || []).map((c) => otherEnd(c, dev.id));
+  // Gesteckter eigener Durchschleif-Port: das VLAN kommt über die anderen Ports des Geräts
+  if (ends.length && durchschleifPort(dev, port)) ends = [...ends, ...andereEnden(X, dev, port.id)];
   let trunk = null;
   while (ends.length) {
     const next = [];
@@ -77,6 +85,8 @@ export const vlanQuelle = (P, X, dev, port) => {
         return { vlan: null, art: "switch-ohne", sw: r.dev, swPort: r.port };
       }
       if (r.dev.isSwitch) for (const p of physPorts(r.dev)) for (const c of X.connsByPort.get(`${r.dev.id}:${p.id}`) || []) next.push(otherEnd(c, r.dev.id));
+      // Endgerät, an dessen Durchschleif-Port wir hängen: weiter über seine anderen Ports
+      else if (durchschleifPort(r.dev, r.port)) next.push(...andereEnden(X, r.dev, r.port.id));
     }
     ends = next;
   }
@@ -89,6 +99,7 @@ export const vlanQuelle = (P, X, dev, port) => {
 
 /* Setzt das VLAN aller Endgeräte-Ports nach den Switches (in place, gibt P zurück) */
 export const vlansAbleiten = (P) => {
+  stapelBereinigen(P); // Stapel mit nur einem Gerät lösen sich auf
   trunksAbgleichen(P); // Trunk-Ports tragen die VLANs ihres Trunks
   const X = buildIndex(P);
   // Einmalig für ältere Projekte: VLAN des Endgeräts auf den leeren Access-Port des Switches übernehmen

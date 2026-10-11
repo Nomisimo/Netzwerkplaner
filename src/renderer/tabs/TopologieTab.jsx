@@ -27,7 +27,7 @@ import { einrasten, mitlaeufer, gruppeBewegen } from "../../shared/einrasten.js"
 import { KonfigEinfuegen } from "../KonfigDialog.jsx";
 import Meldungen from "../Meldungen.jsx";
 import MehrfachBearbeiten from "../MehrfachBearbeiten.jsx";
-import { Network, Cable, FileText, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap } from "lucide-react";
+import { Network, Cable, FileText, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap, ArrowLeftRight } from "lucide-react";
 import CleanCatTab from "./CleanCatTab.jsx";
 import { useVlanZuweisen, setVlanZuweisen } from "../vlanZuweisen.js";
 
@@ -1002,7 +1002,7 @@ export default function TopologieTab(props) {
             issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />}
           {selStapel && <StapelEditor P={P} stapelId={selStapel.id} pinned={!!pins[selStapel.ids[0]]} onPin={() => togglePin(selStapel.ids[0])} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
           {selIds.length > 1 && <MehrfachAuswahl P={P} X={X} ids={selIds} stapel={stapel} pins={pins} mutate={mutate} onPin={() => allePinnen(selIds)} onDelete={() => mehrereLoeschen(selIds)}
-            onSelect={(ids) => waehle(ids)} />}
+            onSelect={(ids) => waehle(ids)} onUmbauen={onUmbauen ? () => onUmbauen(selIds) : null} />}
           {selConn && <ConnEditor P={P} X={X} conn={selConn} mutate={mutate} onDelete={onDeleteConn} issues={connIssues.get(selConn.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} />}
         </div>
       )}
@@ -1012,7 +1012,7 @@ export default function TopologieTab(props) {
 }
 
 /* Seitenleiste bei Mehrfachauswahl: Liste der Geräte und Aktionen für alle */
-function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onSelect }) {
+function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onSelect, onUmbauen }) {
   const konfigClip = useZwischenablage("konfig");
   const [konfig, setKonfig] = useState(false);
   const devs = ids.map((id) => X.devById.get(id)).filter(Boolean);
@@ -1031,6 +1031,7 @@ function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onS
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button style={{ ...S.smallBtn, ...(allePins ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={onPin} title="Taste P"><Pin size={12} />{allePins ? "Alle lösen" : "Alle anpinnen"}</button>
         <button style={S.smallBtn} onClick={alsStapel} title="Die gewählten Geräte in dieser Reihenfolge übereinander als Stapel (Rack, Tower)"><Layers size={12} />Als Stapel</button>
+        {onUmbauen && <button style={S.smallBtn} onClick={onUmbauen} title="Allen gewählten Geräten dasselbe Katalogmodell oder dieselbe Vorlage geben. Namen, IPs und Verbindungen bleiben; Namen, die noch nicht von Hand geändert wurden, kommen vom Modell."><ArrowLeftRight size={12} />Modell zuweisen</button>}
         {konfigClip && <button style={S.smallBtn} onClick={() => setKonfig(true)} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in alle gewählten Geräte einfügen`}><ClipboardPaste size={12} />Konfig einfügen</button>}
         <button style={{ ...S.dangerBtn, marginLeft: "auto" }} onClick={onDelete} title="Entf"><Trash2 size={12} />Alle löschen</button>
       </div>
