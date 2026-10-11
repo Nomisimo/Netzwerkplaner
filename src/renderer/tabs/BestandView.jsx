@@ -8,6 +8,7 @@ import { api } from "../api.js";
 import { bestandZuCsv, csvZuBestand } from "../../shared/bestandcsv.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
 import { Download, X as XIcon, Check, Pencil } from "lucide-react";
+import { uiConfirm } from "../dialoge.jsx";
 
 const datum = (iso) => (iso ? new Date(iso).toLocaleDateString("de-DE") : "");
 
@@ -36,8 +37,8 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   }).sort((a, b) => a.name.localeCompare(b.name, "de", { numeric: true })), [bestand, ql, kat]);
 
   const setName = (id, name) => setLibrary((l) => ({ ...l, bestand: l.bestand.map((b) => (b.id === id ? { ...b, name, geraet: { ...b.geraet, name } } : b)) }));
-  const remove = (ids) => {
-    if (!confirm(ids.length > 1 ? `${ids.length} Geräte aus dem Bestand löschen?` : `„${bestand.find((b) => b.id === ids[0])?.name}“ aus dem Bestand löschen?`)) return;
+  const remove = async (ids) => {
+    if (!await uiConfirm(ids.length > 1 ? `${ids.length} Geräte aus dem Bestand löschen?` : `„${bestand.find((b) => b.id === ids[0])?.name}“ aus dem Bestand löschen?`)) return;
     setLibrary((l) => ({ ...l, bestand: l.bestand.filter((b) => !ids.includes(b.id)) }));
     setSel(new Set());
   };

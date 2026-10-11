@@ -31,6 +31,7 @@ import MehrfachBearbeiten from "../MehrfachBearbeiten.jsx";
 import { Network, Cable, FileText, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap, ArrowLeftRight } from "lucide-react";
 import CleanCatTab from "./CleanCatTab.jsx";
 import { useVlanZuweisen, setVlanZuweisen } from "../vlanZuweisen.js";
+import { uiConfirm } from "../dialoge.jsx";
 
 const KABEL_FARBEN = { cat5e: SUB, cat6: "#4ea1ff", ethercon: "#39d0c8", fiber_sm: "#f5d023", fiber_mm: "#ff8c42", opticalcon: "#ffb347", dac: "#b37dff", wlan: SUB, p2p: "#e74c3c" };
 const HW = NODE_W / 2, HH = NODE_H / 2;
@@ -165,8 +166,8 @@ export default function TopologieTab(props) {
     }
     d.layout[pinKey] = m;
   });
-  const mehrereLoeschen = (ids) => {
-    if (!ids.length || !confirm(`${ids.length} Geräte und ihre Verbindungen löschen?`)) return;
+  const mehrereLoeschen = async (ids) => {
+    if (!ids.length || !await uiConfirm(`${ids.length} Geräte und ihre Verbindungen löschen?`)) return;
     const weg = new Set(ids);
     mutate((d) => removeDevices(d, weg)); // gemeinsame Kaskade: Verbindungen, Layout, Knicke, Stapel, Stromziele
     setSelection(null);

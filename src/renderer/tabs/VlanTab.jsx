@@ -6,6 +6,7 @@ import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
 import { ipPorts } from "../../shared/catalog.js";
 import { CornerDownRight, TriangleAlert, ChevronUp, ChevronDown, Trash2, Layers } from "lucide-react";
+import { uiConfirm } from "../dialoge.jsx";
 
 function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, onNeu }) {
   const [open, setOpen] = useState(startOffen);
@@ -46,10 +47,10 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, o
         <div style={S.cardBody}>
           <div style={{ marginBottom: 10 }}>
             <Toggle checked={false} label="Ist ein Trunk" title="Macht aus diesem Eintrag einen Trunk: ein Bündel mehrerer VLANs (tagged), das an Switch-Ports gewählt wird. Ports mit diesem VLAN werden Trunk-Ports."
-              onChange={(c) => {
+              onChange={async (c) => {
                 if (!c) return;
                 const genutzt = P.geraete.some((g) => g.ports.some((p) => p.vlan === v.id || (p.vlans || []).includes(v.id)));
-                if (genutzt && !confirm(`VLAN ${v.vid} ist an Ports eingetragen. Als Trunk werden diese Ports Trunk-Ports mit „${v.name || v.vid}“, aus anderen Trunks fällt VLAN ${v.vid} heraus. Fortfahren?`)) return;
+                if (genutzt && !await uiConfirm(`VLAN ${v.vid} ist an Ports eingetragen. Als Trunk werden diese Ports Trunk-Ports mit „${v.name || v.vid}“, aus anderen Trunks fällt VLAN ${v.vid} heraus. Fortfahren?`)) return;
                 onNeu?.(v.id); // gleiche ID: der Trunk geht aufgeklappt auf
                 mutate((d) => { vlanZuTrunk(d, v.id); });
               }} />
@@ -75,8 +76,8 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, o
           </div>
           <Field label="Notiz" style={{ marginTop: 10 }}><input style={S.inputSm} value={v.notiz} onChange={(e) => upd((x) => (x.notiz = e.target.value))} /></Field>
           {iss.map((i, n) => <div key={n} style={{ fontSize: 11, marginTop: 6, display: "flex", gap: 6 }}><SevBadge sev={i.sev} /><span>{i.msg}</span></div>)}
-          <button style={{ ...S.dangerBtnWide, marginTop: 12, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => {
-            if (!confirm(`VLAN ${v.vid} löschen? Ports verlieren die Zuordnung.`)) return;
+          <button style={{ ...S.dangerBtnWide, marginTop: 12, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={async () => {
+            if (!await uiConfirm(`VLAN ${v.vid} löschen? Ports verlieren die Zuordnung.`)) return;
             mutate((d) => {
               d.vlans = d.vlans.filter((x) => x.id !== v.id);
               d.vlans.forEach((x) => { if (x.svlan === v.id) x.svlan = null; });
@@ -143,8 +144,8 @@ function TrunkRow({ t, P, mutate, startOffen = false, onNeu }) {
             {ports.length ? <>Genutzt an: {ports.map(({ dev, port }) => `${dev.name} · ${port.name}`).join(", ")}</> : "Noch an keinem Port. Im Switch-Editor beim Port unter VLAN den Trunk wählen oder die Trunk-Kachel anklicken und in der Topologie Ports anklicken."}
             {" "}Änderungen an den VLANs gelten sofort für alle Ports mit diesem Trunk. Gerätevorlagen und Bestand speichern den Trunk mit Namen und VLAN-IDs.
           </div>
-          <button style={{ ...S.dangerBtnWide, marginTop: 12, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => {
-            if (!confirm(`Trunk „${t.name}“ löschen? Ports behalten ihre VLAN-Liste als eigene Auswahl.`)) return;
+          <button style={{ ...S.dangerBtnWide, marginTop: 12, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={async () => {
+            if (!await uiConfirm(`Trunk „${t.name}“ löschen? Ports behalten ihre VLAN-Liste als eigene Auswahl.`)) return;
             mutate((d) => { d.trunks = d.trunks.filter((x) => x.id !== t.id); });
           }}><Trash2 size={14} /> Trunk löschen</button>
         </div>
