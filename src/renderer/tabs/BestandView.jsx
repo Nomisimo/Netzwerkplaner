@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from "react";
+import { passtSuche } from "../../shared/suche.js";
 import { S, LINE, SUB, MUTED, OK, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
 import { uid, migrateBestand } from "../../shared/catalog.js";
 import { Section } from "../ui.jsx";
@@ -6,7 +7,7 @@ import { IconView } from "../icons.jsx";
 import { api } from "../api.js";
 import { bestandZuCsv, csvZuBestand } from "../../shared/bestandcsv.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
-import { Download, X as XIcon, Check } from "lucide-react";
+import { Download, X as XIcon, Check, Pencil } from "lucide-react";
 
 const datum = (iso) => (iso ? new Date(iso).toLocaleDateString("de-DE") : "");
 
@@ -16,6 +17,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   const [q, setQ] = useState("");
   const [kat, setKat] = useState("");
   const [sel, setSel] = useState(() => new Set());
+  const [bearbeiten, setBearbeiten] = useState(null); // Bestandseintrag im Editor
   const [anlegen, setAnlegen] = useState(false);
   const fileRef = useRef(null);
   const bestand = library.bestand || [];
@@ -30,7 +32,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   const list = useMemo(() => bestand.filter((b) => {
     const g = b.geraet;
     if (kat && g.kategorie !== kat) return false;
-    return !ql || `${b.name} ${g.netzname || ""} ${g.hersteller} ${g.modell} ${g.ports.map((i) => (i.ip || "") + " " + (i.mac || "")).join(" ")} ${(g.felder || []).map((f) => f.wert).join(" ")}`.toLowerCase().includes(ql);
+    return !ql || passtSuche(`${b.name} ${g.netzname || ""} ${g.hersteller} ${g.modell} ${g.ports.map((i) => (i.ip || "") + " " + (i.mac || "")).join(" ")} ${(g.felder || []).map((f) => f.wert).join(" ")}`, ql);
   }).sort((a, b) => a.name.localeCompare(b.name, "de", { numeric: true })), [bestand, ql, kat]);
 
   const setName = (id, name) => setLibrary((l) => ({ ...l, bestand: l.bestand.map((b) => (b.id === id ? { ...b, name, geraet: { ...b.geraet, name } } : b)) }));
@@ -93,7 +95,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
         <input ref={fileRef} type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv" style={{ display: "none" }} onChange={importDatei} />
       </div>}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="Name, IP, MAC, Modell, eigene Felder" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="Name, IP, MAC, Modell, eigene Felder · * als Platzhalter" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
         <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}>
           <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>
@@ -135,6 +137,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
                       {drin
                         ? <button style={{ ...S.smallBtn, borderColor: OK + "88", color: OK }} onClick={() => onSelectDevice(drin.id)} title="Ist bereits im Projekt – zum Gerät springen"><Check size={14} /> im Projekt</button>
                         : <button style={S.smallBtn} onClick={() => einfuegen([b.id])}>+ ins Projekt</button>}
+                      <button style={{ ...S.smallBtn, marginLeft: 6 }} onClick={() => setBearbeiten(b)} title="Ports, IPs, MACs, Felder, Protokolle und Notizen dieses Bestandsgeräts ändern"><Pencil size={13} /> Bearbeiten</button>
                       <button style={{ ...S.dangerBtn, marginLeft: 6, padding: "3px 8px" }} onClick={() => remove([b.id])}><XIcon size={12} /></button>
                     </td>
                   </tr>
@@ -144,6 +147,8 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
           </table>
         </div>
       )}
+      {bearbeiten && <GeraetAnlegen key={bearbeiten.id} P={P} ziel="bestand" eintrag={bearbeiten} onClose={() => setBearbeiten(null)}
+        onSave={(b) => { setLibrary((l) => ({ ...l, bestand: (l.bestand || []).map((x) => (x.id === b.id ? b : x)) })); setBearbeiten(null); notify(`„${b.name}“ im Bestand geändert.`); }} />}
       {anlegen && <GeraetAnlegen P={P} ziel="bestand" onClose={() => setAnlegen(false)} onSave={(b) => { setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), b] })); setAnlegen(false); notify(`„${b.name}“ im Gerätebestand angelegt.`); }} />}
     </Section>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { passtSuche } from "../../shared/suche.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor, DARK, INPUT, TEXT } from "../../shared/constants.js";
 import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid, ipPorts, physPorts } from "../../shared/catalog.js";
 import { Section, KatChip, Toggle } from "../ui.jsx";
@@ -8,7 +9,7 @@ import BestandView from "./BestandView.jsx";
 import { useEinstellungen, istFokus } from "../einstellungen.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
 import { newFeld, feldUmbenennen, feldEntfernen } from "../../shared/felder.js";
-import { Link, Check, X as XIcon, ChevronUp, ChevronDown } from "lucide-react";
+import { Link, Check, X as XIcon, ChevronUp, ChevronDown, Pencil } from "lucide-react";
 
 const FLAG_LABELS = [
   ["p2p", "Punkt-zu-Punkt, nicht über Switch", ERR],
@@ -62,11 +63,12 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
   const [open, setOpen] = useState(null);
   const [neueVorlage, setNeueVorlage] = useState(false);
   const [anzahl, setAnzahl] = useState(1); // „+ ins Projekt“ fügt so viele gleiche Geräte ein
+  const [vorlageEdit, setVorlageEdit] = useState(null); // Vorlage im Editor
   const ql = q.toLowerCase();
 
-  const protos = useMemo(() => PROTOKOLLE.filter((p) => (!kat || p.kategorie === kat) && (!ql || `${p.name} ${p.raw.Ports} ${p.raw["Hersteller / Gremium"]}`.toLowerCase().includes(ql))), [ql, kat]);
+  const protos = useMemo(() => PROTOKOLLE.filter((p) => (!kat || p.kategorie === kat) && (!ql || passtSuche(`${p.name} ${p.raw.Ports} ${p.raw["Hersteller / Gremium"]}`, ql))), [ql, kat]);
   const einst = useEinstellungen();
-  const geraete = useMemo(() => KATALOG_GERAETE.filter((g) => (!nurFokus || istFokus(g, einst)) && (!herst || g.hersteller === herst) && (!kat || g.kategorie === kat) && (!ql || `${g.hersteller} ${g.modell} ${g.geraetetyp} ${g.raw.Protokolle}`.toLowerCase().includes(ql))), [ql, herst, kat, nurFokus, einst]);
+  const geraete = useMemo(() => KATALOG_GERAETE.filter((g) => (!nurFokus || istFokus(g, einst)) && (!herst || g.hersteller === herst) && (!kat || g.kategorie === kat) && (!ql || passtSuche(`${g.hersteller} ${g.modell} ${g.geraetetyp} ${g.raw.Protokolle}`, ql))), [ql, herst, kat, nurFokus, einst]);
   const cur = PROTOKOLLE.find((p) => p.id === protoId) || protos[0];
   const hersteller = [...new Set(KATALOG_GERAETE.filter((g) => !nurFokus || istFokus(g, einst)).map((g) => g.hersteller))].sort((a, b) => a.localeCompare(b, "de"));
 
@@ -116,7 +118,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       {sub === "katalog" && (
         <Section title="Herstellergeräte" subtitle={`Stand ${KATALOG.stand} · ${geraete.length} Modelle. Recherchierte Fokus-Hersteller (${(KATALOG.fokus || []).join(", ")}) sind gegen Herstellerdoku geprüft; welche Hersteller der Filter „nur Fokus“ zeigt, stellst du in den Einstellungen ein; der Datenstand steht je Modell in den Details.`}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="Hersteller, Modell, Typ, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="Hersteller, Modell, Typ, Protokoll · * als Platzhalter, z. B. Cisco*1300*24" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
             <select style={{ ...S.selectSm, width: "auto" }} value={herst} onChange={(e) => setHerst(e.target.value)}><option value="">Alle Hersteller</option>{hersteller.map((h) => <option key={h}>{h}</option>)}</select>
             <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}><option value="">Alle Bereiche</option>{["Ton", "Licht", "Bild", "Netzwerk", "Bühne", "Intercom"].map((k) => <option key={k}>{k}</option>)}</select>
             <Toggle checked={nurFokus} onChange={(c) => { setNurFokus(c); setHerst(""); }} label="nur Fokus-Hersteller" />
@@ -161,12 +163,15 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       {sub === "vorlagen" && (
         <Section title="Eigene Vorlagen" right={<button style={S.primaryBtn} onClick={() => setNeueVorlage(true)}>+ Neue Vorlage</button>} subtitle="Vorlagen sind Gerätetypen ohne Adressen (Ports, VLANs, Protokolle). Für konkrete Geräte mit IPs gibt es den Gerätebestand. Mit „+ Neue Vorlage“ anlegen oder im Geräte-Editor mit „Vorlage“ speichern. Vorlagen liegen im Katalog der App und stehen in jedem Projekt zur Verfügung.">
           {neueVorlage && <GeraetAnlegen P={P} ziel="vorlage" onClose={() => setNeueVorlage(false)} onSave={(v) => { setLibrary((l) => ({ ...l, vorlagen: [...(l.vorlagen || []), v] })); setNeueVorlage(false); notify(`Vorlage „${v.name}“ angelegt.`); }} />}
+          {vorlageEdit && <GeraetAnlegen key={vorlageEdit.id} P={P} ziel="vorlage" eintrag={vorlageEdit} onClose={() => setVorlageEdit(null)}
+            onSave={(v) => { setLibrary((l) => ({ ...l, vorlagen: (l.vorlagen || []).map((x) => (x.id === v.id ? v : x)) })); setVorlageEdit(null); notify(`Vorlage „${v.name}“ geändert.`); }} />}
           {!(library.vorlagen || []).length && <p style={S.empty}>Noch keine eigenen Vorlagen.</p>}
           {(library.vorlagen || []).map((v) => (
             <div key={v.id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px" }}>
               <IconView icon={v.geraet.icon} customIcons={allIcons} color={katColor(v.geraet.kategorie)} />
               <input style={{ ...S.inputSm, maxWidth: 300 }} value={v.name} onChange={(e) => setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.map((x) => (x.id === v.id ? { ...x, name: e.target.value } : x)) }))} />
               <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{v.geraet.hersteller} {v.geraet.modell} · {physPorts(v.geraet).length} Ports · {ipPorts(v.geraet).filter((i) => i.ip || i.dhcp || i.virtuell).length} mit IP</span>
+              <button style={S.smallBtn} onClick={() => setVorlageEdit(v)} title="Ports, Protokolle, Web-UI und Notizen der Vorlage ändern"><Pencil size={13} /> Bearbeiten</button>
               <button style={S.smallBtn} onClick={() => onAddDevice({ kind: "vorlage", key: v.id }, { anzahl })}>+ {+anzahl > 1 ? `${Math.min(99, Math.floor(+anzahl))}× ` : ""}ins Projekt</button>
               <button style={S.dangerBtn} onClick={() => confirm(`Vorlage „${v.name}“ löschen?`) && setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.filter((x) => x.id !== v.id) }))}><XIcon size={14} /></button>
             </div>

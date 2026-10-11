@@ -5,7 +5,7 @@ import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ip
 import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
-import { DevicePicker, Modal, EingabeHost, frageText } from "./ui.jsx";
+import { DevicePicker, Modal, EingabeHost, frageText, usePfeilNavigation } from "./ui.jsx";
 import { topologySvg, svgToPngBase64, buildXlsxBase64, buildIpCsv, buildPdfHtml, buildPatchCsv, fileBase } from "./exports.js";
 import { formatName } from "../shared/cleancat.js";
 import ExportDialog from "./ExportDialog.jsx";
@@ -31,7 +31,7 @@ import { useSitzung } from "./sync.js";
 import { diff, apply, invert, valueAt, pathKey } from "../shared/ops.js";
 import { removeDevice } from "../shared/invarianten.js";
 import { bestandSchluessel } from "../shared/bestandschluessel.js";
-import { Pencil, Plus, X as XIcon, ArrowUpCircle, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, ScrollText, Download, Power, Settings } from "lucide-react";
+import { Pencil, Plus, X as XIcon, ArrowUpCircle, CheckCircle2, XCircle, TriangleAlert, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, ScrollText, Download, Power, Settings } from "lucide-react";
 
 
 // VLANs und Prüfung stecken im Setup; alte Sprungziele („vlans“, „pruefung“) führen dorthin
@@ -58,6 +58,8 @@ export default function App() {
   const [filePath, setFilePath] = useState(() => localStorage.getItem("netzwerkplaner_file") || null);
   const [recents, setRecents] = useState([]);
   const [showRecents, setShowRecents] = useState(false);
+  const recentsRef = useRef(null);
+  usePfeilNavigation(recentsRef, showRecents);
   const [showExport, setShowExport] = useState(false);
   const [protoModal, setProtoModal] = useState(null);
   const [protoId, setProtoId] = useState(null);
@@ -283,7 +285,7 @@ export default function App() {
       const vorher = new Set(d.vlans.map((v) => v.id));
       const namen = n > 1 ? nummerierteNamen(d, createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: [], eigeneVorlage: vorlage }).name, n) : null;
       for (let i = 0; i < n; i++) {
-      const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
+      const dev = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, trunks: (d.trunks ||= []), eigeneVorlage: vorlage, mitAdressen: item.kind === "bestand" });
       if (item.kind === "bestand") {
         dev.bestandId = vorlage.id;
         const belegt = new Set(d.geraete.flatMap((g) => g.ports.map((i) => i.ip)).filter(Boolean));
@@ -331,7 +333,7 @@ export default function App() {
     let konflikte = [];
     mutate((d) => {
       for (const devId of ids) {
-        const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, eigeneVorlage: quelle, mitAdressen: ausBestand });
+        const neu = createDevice({ katalogId: item.kind === "katalog" ? item.key : null, typ: item.kind === "typ" ? item.key : null, vlans: d.vlans, trunks: (d.trunks ||= []), eigeneVorlage: quelle, mitAdressen: ausBestand });
         if (ausBestand) {
           neu.bestandId = quelle.id;
           const belegt = new Set(d.geraete.filter((g) => g.id !== devId).flatMap((g) => g.ports.map((i) => i.ip)).filter(Boolean));
@@ -359,7 +361,7 @@ export default function App() {
   const saveVorlage = async (dev) => {
     const name = await frageText("Name der Vorlage:", [dev.hersteller, dev.modell].filter(Boolean).join(" ") || dev.name, "Als Vorlage speichern");
     if (!name) return;
-    const g = snapshotDevice(dev, P.vlans);
+    const g = snapshotDevice(dev, P.vlans, P.trunks);
     g.ports.forEach((i) => { i.ip = ""; i.mac = ""; });
     g.notizen = ""; g.netzname = ""; (g.felder || []).forEach((f) => { f.wert = ""; }); // Vorlage behält die Felder, ohne Werte
     setLibrary((l) => ({ ...l, vorlagen: [...(l.vorlagen || []), { id: uid(), name, geraet: g }] }));
@@ -376,7 +378,7 @@ export default function App() {
   // Feste ID aus Inventar-Nr., Seriennummer oder MAC: derselbe Bestand auf zwei Rechnern hat dieselben IDs
   const bestandId = (g) => { const k = bestandSchluessel(g); return k && !(library.bestand || []).some((b) => b.id === k) ? k : uid(); };
   const saveBestand = (dev) => {
-    const g = snapshotDevice(dev, P.vlans);
+    const g = snapshotDevice(dev, P.vlans, P.trunks);
     const now = new Date().toISOString();
     const vorhanden = dev.bestandId && (library.bestand || []).some((b) => b.id === dev.bestandId);
     if (vorhanden) {
@@ -395,8 +397,8 @@ export default function App() {
     if (!neu.length) return notify("Alle Projektgeräte sind schon im Bestand.");
     if (!confirm(`${neu.length} Geräte aus diesem Projekt in den Bestand übernehmen?`)) return;
     const now = new Date().toISOString();
-    const entries = neu.map((d) => ({ id: bestandId(snapshotDevice(d, P.vlans)), dev: d }));
-    setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...entries.map(({ id, dev }) => ({ id, name: dev.name, geraet: snapshotDevice(dev, P.vlans), angelegt: now, geaendert: now }))] }));
+    const entries = neu.map((d) => ({ id: bestandId(snapshotDevice(d, P.vlans, P.trunks)), dev: d }));
+    setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...entries.map(({ id, dev }) => ({ id, name: dev.name, geraet: snapshotDevice(dev, P.vlans, P.trunks), angelegt: now, geaendert: now }))] }));
     mutate((d) => { for (const e of entries) { const x = d.geraete.find((y) => y.id === e.dev.id); if (x) x.bestandId = e.id; } });
     neu.forEach(rememberIcon);
     notify(`${neu.length} Geräte in den Bestand übernommen.`);
@@ -437,7 +439,7 @@ export default function App() {
     const r = await api.saveProject(json, fileBase(Pref.current), saveAs ? null : filePath);
     if (r) { setFilePath(r.filePath || null); if (r.recents) setRecents(r.recents); notify(`Gespeichert${r.filePath ? ": " + r.filePath : ""}`); }
   };
-  const newProject = () => { if (sitzungVerlassenOk() && confirm("Neues leeres Projekt beginnen? Nicht gespeicherte Änderungen gehen verloren.")) { replaceProject(emptyProject()); setFilePath(null); setTab("projekt"); } };
+  const newProject = () => { if (sitzungVerlassenOk() && confirm("Neues leeres Projekt beginnen? Nicht gespeicherte Änderungen gehen verloren.")) { replaceProject(emptyProject({ mitVlans: false })); setFilePath(null); setTab("projekt"); } };
   const loadDemo = () => { if (!sitzungVerlassenOk()) return; if (P.geraete.length && !confirm("Aktuelles Projekt durch das Beispielprojekt ersetzen?")) return; replaceProject(demoProject()); setFilePath(null); setTab("topologie"); };
 
   /* ── Exporte ────────────────────────────────────────────────────────── */
@@ -538,7 +540,7 @@ export default function App() {
         <button style={S.ghostBtn} onClick={openProject}><FolderOpen size={14} /> Öffnen</button>
         {isElectron && <div style={{ position: "relative" }}>
           <button style={{ ...S.ghostBtn, padding: "4px 5px" }} title="Zuletzt geöffnet" onClick={() => setShowRecents((v) => !v)}><History size={14} /></button>
-          {showRecents && <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: INPUT, border: `1px solid ${LINE2}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 280, maxWidth: 380, marginTop: 4 }} onMouseLeave={() => setShowRecents(false)}>
+          {showRecents && <div ref={recentsRef} onKeyDown={(e) => e.key === "Escape" && setShowRecents(false)} style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: INPUT, border: `1px solid ${LINE2}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 280, maxWidth: 380, marginTop: 4 }} onMouseLeave={() => setShowRecents(false)}>
             <div style={{ padding: "6px 10px", fontSize: 10, color: MUTED, borderBottom: `1px solid ${LINE2}`, letterSpacing: 0.5, textTransform: "uppercase" }}>Zuletzt geöffnet</div>
             {recents.length === 0 ? <div style={{ padding: "10px 12px", fontSize: 11, color: MUTED, fontStyle: "italic" }}>Noch keine Dateien geöffnet.</div>
               : recents.map((r, i) => <button key={i} onClick={() => openRecent(r.filePath)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "7px 12px", cursor: "pointer", color: TEXT2, fontSize: 11, borderBottom: `1px solid ${LINE2}` }}>
@@ -603,7 +605,13 @@ export default function App() {
       </Modal>}
       {showEinst && <Einstellungen onClose={() => setShowEinst(false)} onTopoAnwenden={() => { const t = einstellungen().topo; mutate((d) => { d.layout.ansicht = t.ansicht; d.layout.linien = t.linien; d.layout.titel = t.titel; d.layout.einrasten = t.einrasten; d.layout.kabelBuendel = t.kabelBuendel; }); notify("Standard-Anzeige auf das Projekt angewendet"); }} inSitzung={!!sitzung.zustand && !sitzung.zustand.veraltet} vorReload={() => { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) { console.error(e); } }} />}
       {showSitzung && <SitzungDialog sitzung={sitzung} version={version} projektName={P.meta.veranstaltung} onClose={() => setShowSitzung(false)} onKopieSpeichern={() => save(true)} />}
-      {toast && <div style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", background: INPUT, border: `1px solid ${toast.kind === "err" ? ERR : toast.kind === "warn" ? WARN : ACCENT}`, color: TEXT, padding: "9px 16px", borderRadius: 8, fontSize: 13, zIndex: 2000, boxShadow: "0 8px 24px rgba(0,0,0,.5)", maxWidth: "80vw" }}>{toast.msg}</div>}
+      {toast && (() => {
+        // Meldung unten: Erfolg grün mit Haken, Warnung gelb, Fehler rot
+        const farbe = toast.kind === "err" ? ERR : toast.kind === "warn" ? WARN : OK;
+        const Icon = toast.kind === "err" ? XCircle : toast.kind === "warn" ? TriangleAlert : CheckCircle2;
+        return <div role="status" style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", background: `linear-gradient(${farbe}22, ${farbe}22), ${INPUT}`, border: `1px solid ${farbe}`, borderLeft: `4px solid ${farbe}`, color: TEXT, padding: "9px 16px 9px 12px", borderRadius: 8, fontSize: 13, zIndex: 2000, boxShadow: "0 8px 24px rgba(0,0,0,.35)", maxWidth: "80vw", display: "flex", alignItems: "center", gap: 8, animation: "npFade .18s ease" }}>
+          <Icon size={16} color={farbe} style={{ flexShrink: 0 }} />{toast.msg}</div>;
+      })()}
     </div>
   );
 }
