@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { passtSuche } from "../../shared/suche.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
 import { mainIp, webUrl, suggestIp } from "../../shared/model.js";
 import { ipSort } from "../../shared/net.js";
@@ -31,7 +32,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
   const list = useMemo(() => {
     const ql = q.toLowerCase();
     const l = P.geraete.filter((d) => (!kat || d.kategorie === kat) && (!vlan || ipPorts(d).some((i) => i.vlan === vlan))
-      && (!ql || `${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.hersteller} ${d.modell} ${d.bereich} ${ipPorts(d).map((i) => i.ip + " " + i.mac).join(" ")} ${(d.protokolle || []).join(" ")}`.toLowerCase().includes(ql)));
+      && (!ql || passtSuche(`${d.name} ${d.netzname || ""} ${(d.felder || []).map((f) => f.wert).join(" ")} ${d.hersteller} ${d.modell} ${d.bereich} ${ipPorts(d).map((i) => i.ip + " " + i.mac).join(" ")} ${(d.protokolle || []).join(" ")}`, ql)));
     const key = { name: (a, b) => a.name.localeCompare(b.name, "de", { numeric: true }), ip: (a, b) => ipSort(mainIp(a), mainIp(b)), kat: (a, b) => a.kategorie.localeCompare(b.kategorie) || a.name.localeCompare(b.name, "de", { numeric: true }), bereich: (a, b) => (a.bereich || "~").localeCompare(b.bereich || "~") || a.name.localeCompare(b.name, "de") }[sort];
     return [...l].sort(key);
   }, [P.geraete, q, kat, vlan, sort]);
@@ -62,15 +63,16 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
   const TH = ({ k, children, style }) => <th style={{ ...S.th, cursor: k ? "pointer" : "default", color: sort === k ? ACCENT : S.th.color, ...style }} onClick={() => k && setSort(k)}>{children}</th>;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: !sel ? "1fr" : ansicht === "patch" ? "minmax(640px,1.7fr) minmax(460px,1fr)" : "minmax(420px,1fr) minmax(520px,1.25fr)", gap: 20, alignItems: "start" }}>
-      <Section title={`Geräte (${P.geraete.length})`} right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+    <div style={{ display: "grid", gridTemplateColumns: !sel ? "minmax(0,1fr)" : ansicht === "patch" ? "minmax(0,1.7fr) minmax(460px,1fr)" : "minmax(0,1fr) minmax(520px,1.25fr)", gap: 20, alignItems: "start" }}>
+      {/* minmax(0, …): breite Tabellen scrollen in ihrer Spalte, statt das Raster nach rechts aus der Mitte zu schieben */}
+      <Section style={{ minWidth: 0 }} title={`Geräte (${P.geraete.length})`} right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
         {umschalter}
         {ansicht === "patch" && <PatchKnoepfe P={P} mutate={mutate} onExport={onExport} />}
         <button style={S.secondaryBtn} onClick={autoIps} title="Freie IPs automatisch vergeben"><RefreshCw size={14} /> IPs vergeben</button>
         <button style={S.primaryBtn} onClick={() => onAddDevice(null, { picker: true })}>+ Gerät</button>
       </div>}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <input style={{ ...S.inputSm, flex: 1, minWidth: 160 }} placeholder="Name, IP, MAC, Modell, Protokoll" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input style={{ ...S.inputSm, flex: 1, minWidth: 160 }} placeholder="Name, IP, MAC, Modell, Protokoll · * als Platzhalter" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
           <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}>
             <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
           </select>

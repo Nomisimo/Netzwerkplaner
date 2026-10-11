@@ -281,3 +281,23 @@ test("Unmanaged Switch: alle VLANs, die ankommen, liegen auf jedem Port", () => 
   assert.deepEqual(unmanagedVlans(X, um2), [v10.id, v20.id]);
   assert.deepEqual(unmanagedVlans(X, sw1), []);
 });
+
+test("VLAN-Farbe über durchgeschliffene Geräte (Daisy-Chain)", async () => {
+  const { emptyProject, buildIndex, connVlan, addConnection, vlansAbleiten } = await import("../src/shared/model.js");
+  const { createDevice, physPorts } = await import("../src/shared/catalog.js");
+  const P = emptyProject();
+  const v20 = P.vlans.find((v) => v.vid === 20);
+  const sw = createDevice({ typ: "switch_managed", vlans: P.vlans, name: "SW" });
+  const mk = (name) => { const d = createDevice({ typ: "sonstiges", vlans: P.vlans, name }); d.ports = [d.ports[0], { ...d.ports[0], id: d.ports[0].id + "b", name: "LAN 2" }]; return d; };
+  const n1 = mk("Node 1"), n2 = mk("Node 2"), n3 = mk("Node 3");
+  P.geraete.push(sw, n1, n2, n3);
+  sw.ports[0].vlan = v20.id;
+  physPorts(n1)[0].ip = "10.10.20.11"; physPorts(n2)[0].ip = ""; physPorts(n3)[0].ip = "";
+  addConnection(P, sw.id, n1.id, { portIdA: sw.ports[0].id, portIdB: physPorts(n1)[0].id });
+  addConnection(P, n1.id, n2.id, { portIdA: physPorts(n1)[1].id, portIdB: physPorts(n2)[0].id });
+  addConnection(P, n2.id, n3.id, { portIdA: physPorts(n2)[1].id, portIdB: physPorts(n3)[0].id });
+  vlansAbleiten(P);
+  const X = buildIndex(P);
+  for (const c of P.verbindungen) assert.deepEqual(connVlan(c, X).vlans, [v20.id]);
+  assert.equal(physPorts(n3)[0].vlan, v20.id);
+});

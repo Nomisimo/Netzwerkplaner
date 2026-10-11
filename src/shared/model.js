@@ -1,10 +1,12 @@
 import { doppelteBestandsgeraete } from "./bestandschluessel.js";
 import { STANDARD_VLANS, DEFAULT_BEREICHE, KABEL } from "./constants.js";
-import { uid, findProtokoll, migrateGeraet, physPorts, ipPorts } from "./catalog.js";
+import { uid, findProtokoll, migrateGeraet, physPorts, ipPorts, katalogAbweichung } from "./catalog.js";
 import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAULT_RANGES, isValidMac } from "./net.js";
 import { normMac, macHersteller, herstellerPasst } from "./mac.js";
 import { qinqIssues } from "./qinq.js";
 import { migrateFelder } from "./felder.js";
+import { stapelBereinigen } from "./anordnung.js";
+import { trunksAbgleichen } from "./trunks.js";
 
 export const clone = (x) => JSON.parse(JSON.stringify(x));
 
@@ -15,19 +17,24 @@ export const newVlan = (o = {}) => ({
 
 export const standardVlans = () => STANDARD_VLANS.map((v) => newVlan(clone(v)));
 
-export const emptyProject = () => ({
+// mitVlans: false legt das Projekt ohne die Standard-VLANs an („Neu“ in der App)
+export const emptyProject = ({ mitVlans = true } = {}) => ({
   format: "netzwerkplaner",
   version: 1,
   meta: { veranstaltung: "Veranstaltung 2026", ort: "", ersteller: "", datum: new Date().toISOString().slice(0, 10), version: "1", notiz: "" },
   bereiche: [...DEFAULT_BEREICHE],
   standortInfo: {}, // Standortname → { anmerkung }: erscheint nur in der Clean-Cat-Ansicht
-  vlans: standardVlans(),
+  vlans: mitVlans ? standardVlans() : [],
+  trunks: [], // benannte VLAN-Bündel für Switch-Ports (shared/trunks.js)
   geraete: [],
   verbindungen: [],
   layout: { rootId: null, offsets: {}, collapsed: {} },
   icons: [],
   vlanVomSwitch: true, // VLANs nur an Switches (seit 0.7.0-beta.8)
 });
+
+// Alle Standorte für Auswahllisten: die des Projekts und alle, die an Geräten stehen
+export const standortListe = (P) => [...new Set([...(P.bereiche || []), ...(P.geraete || []).map((d) => (d.bereich || "").trim()).filter(Boolean)])];
 
 // Ältere oder unvollständige Projektdateien auf den aktuellen Stand bringen
 export const migrateProject = (p) => {
@@ -44,6 +51,7 @@ export const migrateProject = (p) => {
   out.bereiche = p.bereiche || e.bereiche;
   out.standortInfo = p.standortInfo && typeof p.standortInfo === "object" ? p.standortInfo : {};
   out.icons = p.icons || [];
+  out.trunks = Array.isArray(p.trunks) ? p.trunks.map((t) => ({ name: "", farbe: "#8a94a0", vlans: [], notiz: "", ...t })) : [];
   out.vlanVomSwitch = !!p.vlanVomSwitch;
   return vlansAbleiten(out);
 };
@@ -53,10 +61,17 @@ export const migrateProject = (p) => {
    vom Access-Port des Switches, an dem er steckt (auch über unmanaged Switches hinweg).
    Steckt er nirgends oder an einem Trunk, gilt das VLAN, in dessen Subnetz seine IP liegt. */
 const managedSw = (d) => d?.isSwitch && d.typ !== "switch_unmanaged";
+/* Durchgeschliffen: ein Ethernet-Port eines Endgeräts ohne eigene IP und ohne DHCP (z. B. „LAN 2“
+   einer LumiNode oder eines Daisy-Chain-Lautsprechers). Über ihn reicht das Gerät das VLAN weiter. */
+const durchschleifPort = (d, p) => !d.isSwitch && !p.p2p && !p.virtuell && !p.ip && !p.dhcp;
+const andereEnden = (X, d, ohne) => physPorts(d).filter((q) => q.id !== ohne && !q.p2p)
+  .flatMap((q) => (X.connsByPort.get(`${d.id}:${q.id}`) || []).map((c) => otherEnd(c, d.id)));
 export const vlanQuelle = (P, X, dev, port) => {
   if (!dev || dev.isSwitch || port.p2p) return null;
   const besucht = new Set([dev.id]);
   let ends = (X.connsByPort.get(`${dev.id}:${port.id}`) || []).map((c) => otherEnd(c, dev.id));
+  // Gesteckter eigener Durchschleif-Port: das VLAN kommt über die anderen Ports des Geräts
+  if (ends.length && durchschleifPort(dev, port)) ends = [...ends, ...andereEnden(X, dev, port.id)];
   let trunk = null;
   while (ends.length) {
     const next = [];
@@ -70,6 +85,8 @@ export const vlanQuelle = (P, X, dev, port) => {
         return { vlan: null, art: "switch-ohne", sw: r.dev, swPort: r.port };
       }
       if (r.dev.isSwitch) for (const p of physPorts(r.dev)) for (const c of X.connsByPort.get(`${r.dev.id}:${p.id}`) || []) next.push(otherEnd(c, r.dev.id));
+      // Endgerät, an dessen Durchschleif-Port wir hängen: weiter über seine anderen Ports
+      else if (durchschleifPort(r.dev, r.port)) next.push(...andereEnden(X, r.dev, r.port.id));
     }
     ends = next;
   }
@@ -82,6 +99,8 @@ export const vlanQuelle = (P, X, dev, port) => {
 
 /* Setzt das VLAN aller Endgeräte-Ports nach den Switches (in place, gibt P zurück) */
 export const vlansAbleiten = (P) => {
+  stapelBereinigen(P); // Stapel mit nur einem Gerät lösen sich auf
+  trunksAbgleichen(P); // Trunk-Ports tragen die VLANs ihres Trunks
   const X = buildIndex(P);
   // Einmalig für ältere Projekte: VLAN des Endgeräts auf den leeren Access-Port des Switches übernehmen
   if (!P.vlanVomSwitch) {
@@ -126,7 +145,8 @@ export const buildIndex = (P) => {
       connsByDev.get(end.dev).push(c);
     }
   }
-  return { devById, vlanById, portRef, connsByPort, connsByDev };
+  const trunkById = new Map((P.trunks || []).map((t) => [t.id, t]));
+  return { devById, vlanById, trunkById, portRef, connsByPort, connsByDev };
 };
 
 export const otherEnd = (c, devId) => (c.a.dev === devId ? c.b : c.a);
@@ -337,6 +357,12 @@ export const validate = (P, X) => {
 
   // Dasselbe Bestandsgerät (Inventar-Nr., Seriennummer oder MAC) mehrfach im Plan
   for (const grp of doppelteBestandsgeraete(P)) add("warn", `Dasselbe Bestandsgerät steht ${grp.length}× im Plan: ${grp.map((d) => `„${d.name}“`).join(", ")}.`, { dev: grp[1].id });
+
+  // Geräte mit Ports aus einer älteren Katalog-Version
+  for (const d of P.geraete) {
+    const a = katalogAbweichung(d);
+    if (a) add("warn", `${d.name}: hat ${a.ist} Anschlüsse, laut Katalog hat ${a.modell} ${a.soll}. Im Geräte-Editor „An Katalog anpassen“.`, { dev: d.id });
+  }
 
   // VLANs
   // Doppelte IDs sind erlaubt, wenn QinQ (IEEE 802.1ad) sie trennt

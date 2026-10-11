@@ -4,6 +4,7 @@ import { patchZeilen, steckZiele, steckeUm, setzeFeld } from "../../shared/patch
 import { feldSpalten, feldWert } from "../../shared/felder.js";
 import { ip2int } from "../../shared/net.js";
 import { StatusDot, AuswahlFeld } from "../ui.jsx";
+import { standortListe } from "../../shared/model.js";
 import { IconView } from "../icons.jsx";
 import { GripVertical, ChevronUp, ChevronDown, RotateCcw, Printer, FileSpreadsheet, TriangleAlert, Cable } from "lucide-react";
 
@@ -20,7 +21,7 @@ export default function PatchTabelle({ P, X, mutate, onSelectDevice, notify, sic
   const alle = useMemo(() => patchZeilen(P, X), [P, X]);
   const zeilen = useMemo(() => (sichtbar ? alle.filter((z) => sichtbar.has(z.id)) : alle), [alle, sichtbar]);
   const felder = useMemo(() => feldSpalten(P.geraete, P.feldKatalog), [P.geraete, P.feldKatalog]);
-  const standorte = useMemo(() => [...new Set([...(P.bereiche || []), ...P.geraete.map((d) => (d.bereich || "").trim()).filter(Boolean)])], [P.bereiche, P.geraete]);
+  const standorte = useMemo(() => standortListe(P), [P.bereiche, P.geraete]);
   const manuell = (P.patchliste?.reihenfolge || []).length > 0;
   const [zieht, setZieht] = useState(null); // id der gezogenen Zeile
   const [ueber, setUeber] = useState(null);

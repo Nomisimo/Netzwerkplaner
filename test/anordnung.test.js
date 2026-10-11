@@ -99,3 +99,21 @@ test("Frontplatten: parallele Kabel bekommen eigene Bahnen, gebündelt teilen si
   assert.ok(e.get("y") < e.get("x"));
   assert.equal(knickPfad(0, 0, 10, 10, { x: 5, y: 2 }, "h", "direkt"), "M0,0 L5,2 L10,10");
 });
+
+test("Stapel nebeneinander: Geräte stehen rechts vom Anker, oben bündig", () => {
+  const L0 = { pos: new Map([["a", { x: 0, y: 0, w: 100, h: 40 }], ["b", { x: 500, y: 300, w: 60, h: 20 }], ["c", { x: -300, y: 50, w: 80, h: 40 }]]), bounds: {} };
+  const R = anordnen(L0, { stapel: [{ id: "s", ids: ["a", "b", "c"], richtung: "h" }] });
+  const b = R.pos.get("b"), c = R.pos.get("c");
+  assert.equal(b.x - b.w / 2, 50 + 6);
+  assert.equal(b.y - b.h / 2, -20);
+  assert.equal(c.x - c.w / 2, 50 + 6 + 60 + 6);
+  assert.equal(R.stapel[0].richtung, "h");
+  assert.equal(R.stapel[0].w, 100 + 6 + 60 + 6 + 80 + 20);
+});
+
+test("Stapel mit nur einem Gerät lösen sich auf", async () => {
+  const { stapelBereinigen } = await import("../src/shared/anordnung.js");
+  const P = { geraete: [{ id: "a" }, { id: "b" }, { id: "c" }], layout: { stapel: [{ id: "s1", ids: ["a", "x"] }, { id: "s2", ids: ["b", "c"] }, { id: "s3", ids: ["c"] }] } };
+  stapelBereinigen(P);
+  assert.deepEqual(P.layout.stapel.map((s) => s.id), ["s2"]);
+});

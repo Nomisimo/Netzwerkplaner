@@ -5,7 +5,7 @@
 // Layout-Maps, deren Schlüssel Geräte-IDs sind (Mindmap und Frontplatte)
 const GERAETE_MAPS = ["offsets", "fpOffsets", "pins", "fpPins", "pinned", "fix", "fpFix"];
 // Layout-Maps, deren Schlüssel Verbindungs-IDs sind
-const VERBINDUNGS_MAPS = ["knicke", "fpKnicke"];
+const VERBINDUNGS_MAPS = ["knicke", "fpKnicke", "fpWege"];
 
 export const removeConns = (P, ids) => {
   const weg = ids instanceof Set ? ids : new Set(ids);

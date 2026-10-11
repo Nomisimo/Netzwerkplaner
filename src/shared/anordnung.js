@@ -4,7 +4,7 @@
      ausgeschaltetem Auto-Anordnen). Nicht fixierte Geräte wandern mit dem
      nächsten fixierten Vorfahren mit, damit Äste zusammenbleiben.
    - Stapel: rein grafische Gruppen (Rack, Tower). Das erste Gerät ist der
-     Anker, die übrigen stehen lückenlos darunter.
+     Anker, die übrigen stehen lückenlos darunter oder (richtung "h") rechts daneben.
    Port-Slots der Frontplatten verschieben sich mit ihrem Gerät. */
 import { NODE_W, NODE_H } from "./layout.js";
 
@@ -38,6 +38,16 @@ export const obenAufStapel = (stapel = [], gezogen, ziel, neueId) => {
   if (s) s.ids = [gezogen, ...s.ids];
   else out = [...out, { id: neueId, name: "", ids: [gezogen, ziel] }];
   return out.filter((x) => x.ids.length > 1);
+};
+/* Stapel aufräumen: gelöschte Geräte raus, Stapel mit nur noch einem Gerät lösen sich auf.
+   Läuft nach jeder Änderung (App) und beim Laden (migrateProject). Ändert P.layout. */
+export const stapelBereinigen = (P) => {
+  const L = P.layout;
+  if (!L?.stapel?.length) return P;
+  const da = new Set((P.geraete || []).map((d) => d.id));
+  const neu = L.stapel.map((s) => ({ ...s, ids: [...new Set(s.ids.filter((id) => da.has(id)))] })).filter((s) => s.ids.length > 1);
+  if (neu.length !== L.stapel.length || neu.some((s, i) => s.ids.length !== L.stapel[i].ids.length)) L.stapel = neu;
+  return P;
 };
 export const entstapeln = (stapel = [], id) =>
   stapel.map((s) => ({ ...s, ids: s.ids.filter((x) => x !== id) })).filter((s) => s.ids.length > 1);
@@ -74,13 +84,26 @@ export const anordnen = (L, { ziele = {}, eltern = new Map(), stapel = [], tab =
     if (d) schiebe(id, d.dx, d.dy);
   }
 
-  // 3. Stapel: Anker bleibt, die übrigen stehen darunter
+  // 3. Stapel: Anker bleibt, die übrigen stehen darunter (richtung "h": rechts daneben, oben bündig)
   const boxen = [];
   for (const s of stapel) {
     const ids = s.ids.filter((id) => pos.has(id));
     if (ids.length < 2) continue;
     const a = pos.get(ids[0]);
-    let y = oben(a, tab) + hoehe(a, tab);
+    const top = oben(a, tab);
+    if (s.richtung === "h") {
+      let x = a.x + (a.w || NODE_W) / 2;
+      for (const id of ids.slice(1)) {
+        const p = pos.get(id), w = p.w || NODE_W;
+        schiebe(id, x + STAPEL_GAP + w / 2 - p.x, top - oben(p, tab));
+        x += STAPEL_GAP + w;
+      }
+      const h = Math.max(...ids.map((id) => hoehe(pos.get(id), tab)));
+      const x0 = a.x - (a.w || NODE_W) / 2;
+      boxen.push({ id: s.id, name: s.name, ids, richtung: "h", x: x0 - STAPEL_PAD, y: top - STAPEL_PAD - kopf, w: x - x0 + STAPEL_PAD * 2, h: h + STAPEL_PAD * 2 + kopf });
+      continue;
+    }
+    let y = top + hoehe(a, tab);
     for (const id of ids.slice(1)) {
       const p = pos.get(id);
       const soll = y + STAPEL_GAP + hoehe(p, tab) - (p.h || NODE_H) / 2;
@@ -88,7 +111,6 @@ export const anordnen = (L, { ziele = {}, eltern = new Map(), stapel = [], tab =
       y += STAPEL_GAP + hoehe(p, tab);
     }
     const w = Math.max(...ids.map((id) => pos.get(id).w || NODE_W));
-    const top = oben(a, tab);
     boxen.push({ id: s.id, name: s.name, ids, x: a.x - w / 2 - STAPEL_PAD, y: top - STAPEL_PAD - kopf, w: w + STAPEL_PAD * 2, h: y - top + STAPEL_PAD * 2 + kopf });
   }
 

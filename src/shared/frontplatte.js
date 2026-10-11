@@ -71,6 +71,27 @@ export const plattenGeometrie = (dev) => {
   return { w, h, rows, slots, seiten };
 };
 
+/* Anschlussfelder auf einer Endgeräte-Karte (Leiste ab CARD_PORT_Y), relativ zur
+   Kartenmitte. Immer drei gleich große Felder pro Zeile. Bei so vielen Ports, dass
+   die Felder zu klein würden, null (dann zeigt die Karte nur Buchsensymbole). */
+export const KARTE_PORT_GAP = 3;
+export const kartenSlots = (dev) => {
+  const ports = (dev.ports || []).filter((p) => !p.virtuell && steckerTyp(p));
+  if (!ports.length) return null;
+  const x0 = -CARD_W / 2 + 6, y0 = -CARD_H / 2 + CARD_PORT_Y, w = CARD_W - 12, h = CARD_H - CARD_PORT_Y - 5;
+  const gap = KARTE_PORT_GAP, proReihe = 3, reihen = Math.ceil(ports.length / proReihe);
+  const bw = (w - gap * (proReihe - 1)) / proReihe;
+  const ph = Math.min(24, (h - gap * (reihen - 1)) / reihen);
+  if (ph < 11) return null;
+  const oben = y0 + (h - (reihen * ph + (reihen - 1) * gap)) / 2;
+  const m = new Map();
+  ports.forEach((p, i) => {
+    const x = x0 + (i % proReihe) * (bw + gap), y = oben + Math.floor(i / proReihe) * (ph + gap);
+    m.set(p.id, { x: x + bw / 2, y: y + ph / 2, w: bw, h: ph, karte: true });
+  });
+  return m;
+};
+
 /* Layout: liefert pos (Mittelpunkt, Breite, Höhe je Gerät), Slot-Positionen je Switch und Bounds */
 export const layoutFrontplatten = (P, T, X) => {
   const collapsed = P.layout.collapsed || {};
@@ -207,6 +228,13 @@ export const layoutFrontplatten = (P, T, X) => {
     }
   }
 
+  // Anschlussfelder der Karten: Kabel enden an der Buchse, nicht irgendwo an der Karte
+  for (const [id, p] of pos) {
+    if (p.kind !== "card") continue;
+    const ks = kartenSlots(X.devById.get(id) || {});
+    if (ks) slotsAbs.set(id, new Map([...ks].map(([pid, s]) => [pid, { ...s, ax: p.x + s.x, ay: p.y + s.y }])));
+  }
+
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of pos.values()) {
     minX = Math.min(minX, p.x - p.w / 2); maxX = Math.max(maxX, p.x + p.w / 2);
@@ -218,7 +246,15 @@ export const layoutFrontplatten = (P, T, X) => {
 };
 
 // Ankerpunkt einer Verbindung: p = Geräteposition, s = absoluter Port-Slot (oder null), toward = Gegenstelle
+/* Bei Karten liegt der Anker auf der Kartenkante über bzw. unter der Buchse; ein
+   kurzes Stück (stich) führt weiter bis an die Buchse (sichtbar, wenn die Kabel vor
+   den Geräten liegen). */
 export const anker = (p, s, toward) => {
+  if (s?.karte) {
+    const oben = toward ? toward.y < p.y : true;
+    const y = oben ? p.y - p.h / 2 - TAB_H : p.y + p.h / 2;
+    return { x: s.ax, y, dir: oben ? -1 : 1, stich: { x: s.ax, y: oben ? s.ay - s.h / 2 : s.ay + s.h / 2 } };
+  }
   if (s) {
     const unten = toward ? toward.y > s.ay : true;
     return { x: s.ax, y: unten ? s.ay + s.h / 2 : s.ay - s.h / 2, dir: unten ? 1 : -1 };
