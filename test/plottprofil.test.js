@@ -93,11 +93,14 @@ test("Detailstufen: Felder je Stufe, einzelne Schalter gehen vor", () => {
   const s3ohneModell = plan(P, { profil: mitProfil((p) => { p.inhalt.felder = { modell: false }; }) });
   assert.ok(s3ohneModell.boxen.every((b) => !b.tSub));
   assert.ok(s3ohneModell.boxen.some((b) => b.tIp));
-  // Patch: Port-Namen auch am Endgerät
+  // Patch: Ports als farbige Kästchen an beiden Enden, auch am Endgerät
   const s4 = plan(P, { profil: eingebautesProfil("patchplan") });
   const X = buildIndex(P);
-  const anEndgeraet = s4.linien.flatMap((l) => l.labels).filter((t) => t.an && !X.devById.get(t.an)?.isSwitch);
-  assert.ok(anEndgeraet.length > 0);
+  assert.ok(s4.ports.some((p) => !X.devById.get(p.an)?.isSwitch));
+  assert.ok(s4.ports.length >= 2 * s4.linien.length - 2);
+  // Ohne Kästchen: Port-Namen am Endgerät als Text
+  const s4text = plan(P, { profil: mitProfil((p) => { p.inhalt.stufe = 4; p.inhalt.felder = { portKaesten: false }; }) });
+  assert.ok(s4text.linien.flatMap((l) => l.labels).some((t) => t.an && !X.devById.get(t.an)?.isSwitch));
   const s3 = plan(P, { profil: STANDARD_PROFIL });
   assert.equal(s3.linien.flatMap((l) => l.labels).filter((t) => t.an && !X.devById.get(t.an)?.isSwitch).length, 0);
 });
@@ -150,4 +153,61 @@ test("Projekt: Profil wird beim Laden geprüft, alte Projekte bleiben ohne Profi
   assert.ok(!("unsinn" in neu.planProfil));
   // Gespeichertes Profil schlägt die Einstellungen des Rechners
   assert.equal(projektProfil(neu, { farbe: "vlan" }).kabel.farbe, "dante");
+});
+
+const orthogonal = (pts) => pts.every((p, i) => i === 0 || p[0] === pts[i - 1][0] || p[1] === pts[i - 1][1] || Math.abs(p[0] - pts[i - 1][0]) < 0.01 || Math.abs(p[1] - pts[i - 1][1]) < 0.01);
+
+test("Editor: verschobener Kasten, Kabel folgen rechtwinklig und bleiben angeschlossen", () => {
+  const P = demoProject();
+  const vorher = plan(P, { profil: STANDARD_PROFIL });
+  const l0 = vorher.linien.find((l) => !P.geraete.find((d) => d.id === l.von)?.isSwitch || !P.geraete.find((d) => d.id === l.bis)?.isSwitch);
+  const id = P.geraete.find((d) => d.id === l0.bis && !d.isSwitch) ? l0.bis : l0.von;
+  const b0 = vorher.boxen.find((b) => b.id === id);
+  P.layout = { ...P.layout, plottPos: { [id]: { dx: 85, dy: -40 } } };
+  const nach = plan(P, { profil: STANDARD_PROFIL });
+  const b1 = nach.boxen.find((b) => b.id === id);
+  assert.equal(b1.x, b0.x + 85);
+  assert.equal(b1.y, b0.y - 40);
+  for (const l of nach.linien.filter((x) => x.von === id || x.bis === id)) {
+    assert.ok(orthogonal(l.pts), `rechtwinklig ${l.id}`);
+    const ende = l.von === id ? l.pts[0] : l.pts[l.pts.length - 1];
+    assert.ok(ende[0] >= b1.x - 0.5 && ende[0] <= b1.x + b1.w + 0.5, "Ende waagrecht am Kasten");
+    assert.ok(Math.abs(ende[1] - b1.y) < 0.5 || Math.abs(ende[1] - (b1.y + b1.h)) < 0.5, "Ende oben oder unten am Kasten");
+  }
+  // Das Blatt wächst mit, wenn ein Kasten weit hinaus geschoben wird
+  P.layout.plottPos[id] = { dx: 4000, dy: 0 };
+  const weit = plan(P, { profil: STANDARD_PROFIL });
+  assert.ok(weit.w > vorher.w);
+});
+
+test("Editor: gezogener Kabelverlauf, eigene Farben je Kasten und Kabel", () => {
+  const P = demoProject();
+  const vorher = plan(P, { profil: STANDARD_PROFIL });
+  const l0 = vorher.linien.find((l) => l.pts.length >= 4);
+  const innen = l0.pts.slice(1, -1).map(([x, y]) => [x, y + 20]);
+  const box = vorher.boxen[0];
+  P.layout = { ...P.layout, plottKabel: { [l0.id]: innen }, plottFarben: { [l0.id]: "#123456", [box.id]: "#abcdef" } };
+  const nach = plan(P, { profil: STANDARD_PROFIL });
+  const l1 = nach.linien.find((l) => l.id === l0.id);
+  assert.ok(l1.hand);
+  assert.ok(orthogonal(l1.pts));
+  for (const p of innen) assert.ok(l1.pts.some((q) => Math.abs(q[0] - p[0]) < 0.01 && Math.abs(q[1] - p[1]) < 0.01));
+  assert.deepEqual(l1.pts[0], l0.pts[0]);
+  assert.deepEqual(l1.pts[l1.pts.length - 1], l0.pts[l0.pts.length - 1]);
+  assert.equal(l1.col, "#123456");
+  assert.equal(nach.boxen.find((b) => b.id === box.id).fill, "#abcdef");
+});
+
+test("Design: Abstände ändern den Plan, Kategoriefarben werden geprüft", () => {
+  const P = demoProject();
+  const std = plan(P, { profil: STANDARD_PROFIL });
+  const weit = plan(P, { profil: mitProfil((p) => { p.anordnung.raumAbstand = 200; p.anordnung.kastenAbstand = 80; }) });
+  assert.notEqual(fingerabdruck(weit), fingerabdruck(std));
+  const { profil } = profilPruefen({ anordnung: { raumAbstand: 9999, kastenAbstand: -5 }, design: { kategorieFarben: { Ton: "#3b82f6", Quatsch: "#ffffff", Licht: "rot" } } });
+  assert.ok(profil.anordnung.raumAbstand <= 300);
+  assert.ok(profil.anordnung.kastenAbstand >= 10);
+  assert.deepEqual(profil.design.kategorieFarben, { Ton: "#3b82f6" });
+  const ton = plan(P, { profil: mitProfil((p) => { p.design.kategorieFarben = { Ton: "#3b82f6" }; }) });
+  const tonGeraet = P.geraete.find((d) => d.kategorie === "Ton" && !d.isSwitch);
+  assert.notEqual(ton.boxen.find((b) => b.id === tonGeraet.id).fill, std.boxen.find((b) => b.id === tonGeraet.id).fill);
 });

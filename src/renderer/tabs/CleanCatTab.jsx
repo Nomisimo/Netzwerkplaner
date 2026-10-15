@@ -1,13 +1,13 @@
 import React, { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, PANEL } from "../../shared/constants.js";
-import { STANDARD_PROFIL, EINGEBAUTE_PROFILE, eingebautesProfil, projektProfil, profilFelder, profilVergleich, profilDatei, profilLesen, STUFEN, FELDER, GEWERKE, PROFIL_ENDUNG } from "../../shared/plottprofil.js";
+import { S, ACCENT, LINE, SUB, MUTED, PANEL, KATEGORIEN } from "../../shared/constants.js";
+import { STANDARD_PROFIL, EINGEBAUTE_PROFILE, eingebautesProfil, projektProfil, profilFelder, profilVergleich, profilDatei, profilLesen, STUFEN, FELDER, GEWERKE, PROFIL_ENDUNG, katGrundfarbe } from "../../shared/plottprofil.js";
 import { uid } from "../../shared/catalog.js";
 import { frageText } from "../ui.jsx";
 import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat, PLOTT_GROESSEN, plottGroesse, kabelLabelAn, anteilAufPfad } from "../../shared/cleancat.js";
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
-import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText, RotateCcw, SlidersHorizontal, Palette, X as Schliessen } from "lucide-react";
 
 /* Plott: Signalfluss-Plan als Blatt (A3/A4, quer oder hoch) wie eine Visio-Zeichnung.
    Räume = Standorte, Geräte als gleich große Blöcke, Leitungen rechtwinklig,
@@ -115,7 +115,7 @@ function FlussPfeil({ pts, rueck, col }) {
   return <path d="M4 0 L-4 -3.6 L-4 3.6 z" fill={col} transform={`translate(${(a[0] + b[0]) / 2},${(a[1] + b[1]) / 2}) rotate(${w})`} />;
 }
 
-export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLabelDown, onLabelReset, onBoxDown, onStapelDown, boxZieh }) {
+export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zieh, onLabelDown, onLabelReset, onBoxDown, onStapelDown, boxZieh, onLineDown, onLineReset, onBoxDouble, sel }) {
   const D = L.design || STANDARD_PROFIL.design;
   const mid = (c) => "cc-" + c.replace("#", "");
   const farben = [...new Set(L.linien.map((l) => l.col))];
@@ -164,6 +164,16 @@ export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zie
             <polyline points={l.pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={l.col} strokeWidth={D.linienBreite} strokeDasharray={l.dash || undefined}
               markerStart={l.pfeil?.start !== false ? `url(#${mid(l.col)})` : undefined} markerEnd={l.pfeil?.ende !== false ? `url(#${mid(l.col)})` : undefined} strokeLinejoin="round" />
             {l.einweg && <FlussPfeil pts={l.pts} rueck={!l.pfeil.ende} col={l.col} />}
+            {sel?.art === "linie" && sel.id === l.id && <polyline points={l.pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#2c3b93" strokeOpacity="0.35" strokeWidth={D.linienBreite + 5} strokeLinejoin="round" pointerEvents="none" />}
+            {onLineDown && l.pts.slice(1).map((b, k) => {
+              // Unsichtbare, breite Griffe je Strecke: mittlere Strecken lassen sich quer verschieben
+              const a = l.pts[k], innen = k > 0 && k < l.pts.length - 2, waag = Math.abs(a[1] - b[1]) < 0.01;
+              return <line key={"h" + k} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="transparent" strokeWidth="8"
+                style={{ cursor: innen ? (waag ? "ns-resize" : "ew-resize") : "pointer" }}
+                onMouseDown={(e) => onLineDown(e, l.id, innen ? k : null)} onDoubleClick={(e) => { e.stopPropagation(); onLineReset?.(l.id); }}>
+                <title>{innen ? "Ziehen = Strecke verschieben · Klick = auswählen · Doppelklick = Verlauf automatisch" : "Klick = auswählen · Doppelklick = Verlauf automatisch"}</title>
+              </line>;
+            })}
             {l.labels.map((t, k) => {
               // Kabelbeschriftung: auf der Leitung verschiebbar, Doppelklick = wieder automatisch
               const zug = t.kabel && onLabelDown ? { onMouseDown: (e) => onLabelDown(e, l.id), onDoubleClick: (e) => { e.stopPropagation(); onLabelReset?.(l.id); }, style: { cursor: "grab" } } : {};
@@ -183,7 +193,8 @@ export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zie
           return (
             <g key={b.id} transform={`translate(${b.x},${b.y})${s !== 1 ? ` scale(${s})` : ""}`} style={{ cursor: onBoxDown ? "move" : onBox ? "pointer" : "default" }}
               opacity={boxZieh?.art === "box" && boxZieh.id === b.id && boxZieh.bewegt ? 0.45 : b.blass ? 0.25 : 1}
-              onMouseDown={onBoxDown ? (e) => onBoxDown(e, b.id) : undefined} onClick={!onBoxDown && onBox ? () => onBox(b.id) : undefined}>
+              onMouseDown={onBoxDown ? (e) => onBoxDown(e, b.id) : undefined} onClick={!onBoxDown && onBox ? () => onBox(b.id) : undefined}
+              onDoubleClick={onBoxDouble ? (e) => { e.stopPropagation(); onBoxDouble(b.id); } : undefined}>
               {b.sammel && <rect x={4} y={-4} width={bw} height={bh} fill={b.fill} stroke={D.boxRand} strokeWidth={1} />}
               <rect width={bw} height={bh} fill={b.fill} stroke={D.boxRand} strokeWidth={1} />
               {b.sammel && <title>{b.sammelNamen.join("\n")}</title>}
@@ -197,9 +208,17 @@ export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zie
                   <title>{b.notizVoll}</title>
                 </>
               )}
+              {sel?.art === "box" && sel.id === b.id && <rect x={-3} y={-3} width={bw + 6} height={bh + 6} fill="none" stroke="#2c3b93" strokeWidth="2" strokeDasharray="5 3" rx="2" pointerEvents="none" />}
             </g>
           );
         })}
+        {(L.ports || []).map((p, i) => (
+          // Ports als farbige Kästchen in VLAN-Farbe, Name darin
+          <g key={"p" + i} opacity={L.boxen.find((b) => b.id === p.an)?.blass ? 0.25 : undefined} pointerEvents="none">
+            <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={p.fill} stroke={D.boxRand} strokeWidth="0.8" rx="1.5" />
+            <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 2.3} fontSize={p.t.fs} textAnchor="middle" fill={p.hell ? "#111" : "#fff"} fontWeight="600">{p.t.t}</text>
+          </g>
+        ))}
         {boxZieh?.bewegt && (() => {
           // Kasten oder Stack ziehen: Vorschau und Einfügemarke neben dem Ziel
           const liste = boxZieh.art === "box" ? L.boxen : L.stapel || [];
@@ -256,6 +275,17 @@ const tief = (x) => JSON.parse(JSON.stringify(x));
 // Einstellungen dieses Rechners aus der Zeit vor den Profilen: gelten für Projekte ohne eigenes Profil
 const lokaleVorgaben = () => { try { return { farbe: localStorage.getItem("np_cc_farbe") || "dante", zeigeIp: localStorage.getItem("np_cc_ip") !== "0" }; } catch { return {}; } };
 
+// <input type="color"> braucht #rrggbb
+const hex6 = (c) => { const m = /^#([0-9a-f]{3})$/i.exec(c || ""); return m ? "#" + m[1].split("").map((x) => x + x).join("") : /^#[0-9a-f]{6}$/i.test(c || "") ? c : "#000000"; };
+const SCHRIFTEN = [["'Segoe UI',system-ui,sans-serif", "Segoe UI"], ["Arial,Helvetica,sans-serif", "Arial"], ["Calibri,'Segoe UI',sans-serif", "Calibri"], ["Verdana,sans-serif", "Verdana"], ["'Courier New',monospace", "Courier New"], ["Georgia,serif", "Georgia"]];
+const DESIGN_FARBEN = [
+  ["design.farben.primary", "Dante Primary"], ["design.farben.secondary", "Dante Secondary"], ["design.farben.glas", "Glasfaser"], ["design.farben.trunk", "Trunk"], ["design.farben.sonst", "Sonstige Kabel"],
+  ["design.switchFuellung", "Switch-Füllung"], ["design.boxRand", "Kastenrand"], ["design.text", "Text"], ["design.papier", "Papier"],
+  ["design.raum.fuellung", "Standort Fläche"], ["design.raum.kopf", "Standort Kopf"], ["design.raum.rand", "Standort Rand"],
+];
+const ABSTAENDE = [["kastenAbstand", "Kästen nebeneinander", 10, 120], ["reihenAbstand", "Reihen", 10, 120], ["gruppeAbstand", "Gruppen", 10, 200], ["raumAbstand", "Standorte", 20, 300], ["maxSpalten", "Kästen je Reihe höchstens", 1, 12]];
+const wertVon = (o, pfad) => pfad.split(".").reduce((a, k) => a?.[k], o);
+
 export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf, svgRef: fremdRef, planProfile = [], setPlanProfile }) {
   /* Plan-Profil: steht als Kopie im Projekt (P.planProfil). Ohne Bearbeitungsrecht
      bleiben Änderungen in dieser Ansicht (lokal). */
@@ -276,8 +306,14 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   const { ordnung } = useMemo(() => cleanCatOptimieren(P, X, { profil, format, groesse }), [P.geraete, P.verbindungen, P.layout.stapel, P.layout.cleancatStandorte, P.layout.cleancatOrdnung, P.bereiche, P.standortInfo, anordKey, format, groesse]); // eslint-disable-line react-hooks/exhaustive-deps
   const L0 = useMemo(() => cleanCatLayout(P, X, { profil, ordnung, format, groesse }), [P, X, profil, ordnung, format, groesse]);
   const [labZieh, setLabZieh] = useState(null); // Kabelbeschriftung ziehen: { id, f, bewegt }
-  const L = useMemo(() => (!labZieh ? L0 : { ...L0, linien: L0.linien.map((l) => l.id !== labZieh.id ? l
-    : { ...l, labels: [kabelLabelAn(l.pts, labZieh.f, l.kabelText || l.kabelVoll), ...l.labels.filter((t) => !t.kabel)] }) }), [L0, labZieh]);
+  const [kabZieh, setKabZieh] = useState(null); // Kabelstrecke ziehen: { id, i, waag, pts, sx, sy, bewegt }
+  const [sel, setSel] = useState(null); // Auswahl: { art: "box" | "linie", id }
+  const L = useMemo(() => {
+    let linien = L0.linien;
+    if (labZieh) linien = linien.map((l) => l.id !== labZieh.id ? l : { ...l, labels: [kabelLabelAn(l.pts, labZieh.f, l.kabelText || l.kabelVoll), ...l.labels.filter((t) => !t.kabel)] });
+    if (kabZieh?.bewegt) linien = linien.map((l) => l.id !== kabZieh.id ? l : { ...l, pts: kabZieh.pts, labels: l.labels.filter((t) => !t.kabel) });
+    return linien === L0.linien ? L0 : { ...L0, linien };
+  }, [L0, labZieh, kabZieh]);
   const [zieh, setZieh] = useState(null); // Standort ziehen: { name, sx, sy, dx, dy, bewegt, ziel }
   const B = useMemo(() => ccBlatt(L0, format), [L0, format]);
   const [view, setView] = useState({ x: 20, y: 20, k: 0.6 });
@@ -436,10 +472,12 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     for (const art2 of ["oben", "gruppen"]) for (const [key, l] of Object.entries(o[art2] || {})) if (l.includes(id)) return { art2, key, liste: l };
     return null;
   };
+  // Kasten ziehen = frei verschieben; mit gedrückter Umschalttaste in seiner Reihe umstellen
   const boxDown = (e, id) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    setBoxZieh({ art: "box", id, ...(listeVon(id) || {}), sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, bewegt: false, ziel: null });
+    const frei = !e.shiftKey && !gefiltert;
+    setBoxZieh({ art: "box", id, frei, ...(frei ? {} : listeVon(id) || {}), sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, bewegt: false, ziel: null });
   };
   const stapelDown = (e, id) => {
     if (e.button !== 0) return;
@@ -453,7 +491,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     const f = view.k * B.k, dx = (e.clientX - boxZieh.sx) / f, dy = (e.clientY - boxZieh.sy) / f;
     const bewegt = boxZieh.bewegt || Math.abs(e.clientX - boxZieh.sx) + Math.abs(e.clientY - boxZieh.sy) > 4;
     let ziel = null;
-    if (bewegt && boxZieh.liste?.length > 1) {
+    if (bewegt && !boxZieh.frei && boxZieh.liste?.length > 1) {
       const alle = boxZieh.art === "box" ? L0.boxen : L0.stapel || [];
       const r = alle.find((x) => x.id === boxZieh.id);
       ziel = r && standortZiel({ raeume: alle.filter((x) => boxZieh.liste.includes(x.id)).map((x) => ({ ...x, name: x.id })) }, boxZieh.id, dx, dy);
@@ -463,9 +501,16 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   };
   const boxEnde = () => {
     if (!boxZieh) return false;
-    const { art, id, art2, key, liste, bewegt, ziel } = boxZieh;
+    const { art, id, art2, key, liste, bewegt, ziel, frei, dx, dy } = boxZieh;
     setBoxZieh(null);
-    if (!bewegt) { if (art === "box") onSelectDevice?.(id); return true; }
+    if (!bewegt) { if (art === "box") setSel({ art: "box", id }); return true; }
+    if (frei) { // auf 5er-Raster einrasten
+      const alt = P.layout.plottPos?.[id] || { dx: 0, dy: 0 };
+      const nx = Math.round(((+alt.dx || 0) + dx) / 5) * 5, ny = Math.round(((+alt.dy || 0) + dy) / 5) * 5;
+      mutate((d) => { const p = { ...(d.layout.plottPos || {}) }; if (nx || ny) p[id] = { dx: nx, dy: ny }; else delete p[id]; d.layout.plottPos = p; });
+      setSel({ art: "box", id });
+      return true;
+    }
     if (!ziel || !liste) return true;
     const neu = standortVerschieben(liste, id, ziel);
     if (neu.join("\u0001") === liste.join("\u0001")) return true;
@@ -484,8 +529,56 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     });
     return true;
   };
-  const vonHand = (P.layout.cleancatStandorte || []).length > 0 || Object.keys(P.layout.cleancatOrdnung || {}).length > 0;
+  /* Kabel: mittlere Strecke quer ziehen (waagrechte nach oben/unten, senkrechte nach links/rechts).
+     Gespeichert werden die inneren Punkte in P.layout.plottKabel[id]; Doppelklick = wieder automatisch. */
+  const lineDown = (e, id, i) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const l = L0.linien.find((x) => x.id === id);
+    if (!l) return;
+    const waag = i != null && Math.abs(l.pts[i][1] - l.pts[i + 1][1]) < 0.01;
+    setKabZieh({ id, i, waag, start: l.pts, pts: l.pts, sx: e.clientX, sy: e.clientY, bewegt: false });
+  };
+  const lineBewegen = (e) => {
+    if (!kabZieh) return false;
+    if (kabZieh.i == null || !mutate) return true;
+    const f = view.k * B.k, d = kabZieh.waag ? (e.clientY - kabZieh.sy) / f : (e.clientX - kabZieh.sx) / f;
+    const bewegt = kabZieh.bewegt || Math.abs(e.clientX - kabZieh.sx) + Math.abs(e.clientY - kabZieh.sy) > 3;
+    const pts = kabZieh.start.map((p) => [...p]), k = kabZieh.waag ? 1 : 0;
+    const neu = Math.round((pts[kabZieh.i][k] + d) / 2) * 2;
+    pts[kabZieh.i][k] = neu; pts[kabZieh.i + 1][k] = neu;
+    setKabZieh({ ...kabZieh, pts, bewegt });
+    return true;
+  };
+  const lineEnde = () => {
+    if (!kabZieh) return false;
+    const { id, pts, bewegt } = kabZieh;
+    setKabZieh(null);
+    if (!bewegt) { setSel({ art: "linie", id }); return true; }
+    mutate((d) => { d.layout.plottKabel = { ...(d.layout.plottKabel || {}), [id]: pts.slice(1, -1).map((p) => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]) }; });
+    setSel({ art: "linie", id });
+    return true;
+  };
+  const ohneSchluessel = (obj, k) => { const o = { ...(obj || {}) }; delete o[k]; return Object.keys(o).length ? o : undefined; };
+  const setzeLayout = (feld, k, wert) => mutate?.((d) => { const o = wert === undefined ? ohneSchluessel(d.layout[feld], k) : { ...(d.layout[feld] || {}), [k]: wert }; if (o) d.layout[feld] = o; else delete d.layout[feld]; });
+  const lineReset = (id) => setzeLayout("plottKabel", id, undefined);
+  const selBox = sel?.art === "box" ? L0.boxen.find((b) => b.id === sel.id) : null;
+  const selLinie = sel?.art === "linie" ? L0.linien.find((l) => l.id === sel.id) : null;
+  useEffect(() => { if (sel && !selBox && !selLinie) setSel(null); }, [sel, selBox, selLinie]);
+  useEffect(() => {
+    const taste = (e) => { if (e.key === "Escape") setSel(null); };
+    window.addEventListener("keydown", taste);
+    return () => window.removeEventListener("keydown", taste);
+  }, []);
+  const designAendern = (pfad, wert) => profilAendern((p) => { const teile = pfad.split("."); let o = p; for (const t of teile.slice(0, -1)) o = o[t]; o[teile[teile.length - 1]] = wert; });
+  const [designOffen, setDesignOffen] = useState(false);
+  const vonHand = (P.layout.cleancatStandorte || []).length > 0 || Object.keys(P.layout.cleancatOrdnung || {}).length > 0
+    || Object.keys(P.layout.plottPos || {}).length > 0 || Object.keys(P.layout.plottKabel || {}).length > 0;
   const knopf = { ...S.ghostBtn, whiteSpace: "nowrap" };
+  const zeile = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "2px 0" };
+  const farbFeld = { width: 26, height: 20, padding: 0, border: `1px solid ${LINE}`, borderRadius: 4, background: "none", cursor: "pointer" };
+  const selName = selBox ? selBox.name : selLinie ? `Kabel ${P.geraete.find((d) => d.id === selLinie.von)?.name || "?"} – ${P.geraete.find((d) => d.id === selLinie.bis)?.name || "?"}` : "";
+  const selFarbe = sel && (P.layout.plottFarben || {})[sel.id];
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap", flexShrink: 0 }}>
@@ -539,10 +632,57 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
             </div>
           )}
         </div>
+        <div style={{ position: "relative" }}>
+          <button style={{ ...knopf, ...(designOffen ? { background: "#2c3b93", color: "#fff" } : {}) }} onClick={() => setDesignOffen(!designOffen)} title="Abstände, Linien, Schrift und Farben des Plans. Wird im Profil gespeichert."><Palette size={14} /> Design</button>
+          {designOffen && (
+            <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: 12, width: 360, maxHeight: "70vh", overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.25)", fontSize: 12, color: SUB }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Linien und Schrift</div>
+              <label style={zeile}>Schrift
+                <select style={{ ...S.selectSm, width: 150 }} value={profil.design.schrift} onChange={(e) => designAendern("design.schrift", e.target.value)}>
+                  {!SCHRIFTEN.some(([k]) => k === profil.design.schrift) && <option value={profil.design.schrift}>{profil.design.schrift}</option>}
+                  {SCHRIFTEN.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+                </select>
+              </label>
+              <label style={zeile}>Linienbreite {profil.design.linienBreite}
+                <input type="range" min={0.5} max={4} step={0.1} value={profil.design.linienBreite} onChange={(e) => designAendern("design.linienBreite", +e.target.value)} style={{ width: 150 }} />
+              </label>
+              <label style={zeile}>Abstand paralleler Kabel {profil.kabel.spur}
+                <input type="range" min={3} max={20} step={1} value={profil.kabel.spur} onChange={(e) => designAendern("kabel.spur", +e.target.value)} style={{ width: 150 }} />
+              </label>
+              <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>Abstände</div>
+              {ABSTAENDE.map(([k, n, min, max]) => (
+                <label key={k} style={zeile}>{n} {profil.anordnung[k]}
+                  <input type="range" min={min} max={max} step={1} value={profil.anordnung[k]} onChange={(e) => designAendern(`anordnung.${k}`, +e.target.value)} style={{ width: 150 }} />
+                </label>
+              ))}
+              <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>Farben</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px" }}>
+                {DESIGN_FARBEN.map(([pfad, n]) => (
+                  <label key={pfad} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input type="color" value={hex6(wertVon(profil, pfad))} onChange={(e) => designAendern(pfad, e.target.value)} style={farbFeld} /> {n}
+                  </label>
+                ))}
+              </div>
+              <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>Gerätekästen je Kategorie</div>
+              <label style={zeile}>Aufhellen {Math.round(profil.design.kategorieAufhellen * 100)} %
+                <input type="range" min={0} max={0.95} step={0.01} value={profil.design.kategorieAufhellen} onChange={(e) => designAendern("design.kategorieAufhellen", +e.target.value)} style={{ width: 150 }} />
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px" }}>
+                {Object.keys(KATEGORIEN).map((kat) => (
+                  <label key={kat} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input type="color" value={hex6(katGrundfarbe(profil.design, kat))} onChange={(e) => designAendern("design.kategorieFarben", { ...profil.design.kategorieFarben, [kat]: e.target.value })} style={farbFeld} /> {kat}
+                  </label>
+                ))}
+              </div>
+              {Object.keys(profil.design.kategorieFarben || {}).length > 0 && <button style={{ ...knopf, marginTop: 6 }} onClick={() => designAendern("design.kategorieFarben", {})}><RotateCcw size={14} /> Kategoriefarben zurücksetzen</button>}
+              {quelle && angepasst && <button style={{ ...knopf, marginTop: 6 }} onClick={() => waehlen(quelle.id)} title={`Alle Änderungen verwerfen und „${quelle.name}“ wieder so nehmen, wie es gespeichert ist`}><RotateCcw size={14} /> Profil zurücksetzen</button>}
+            </div>
+          )}
+        </div>
         <button style={knopf} onClick={() => zoom(1 / 1.25)} title="Verkleinern"><ZoomOut size={14} /></button>
         <button style={knopf} onClick={() => zoom(1.25)} title="Vergrößern"><ZoomIn size={14} /></button>
         <button style={knopf} onClick={einpassen} title="Ganzes Blatt zeigen"><Maximize2 size={14} /> Einpassen</button>
-        {mutate && <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; delete d.layout.cleancatOrdnung; })} title="Von Hand gesetzte Reihenfolge der Standorte und Kästen verwerfen. Der Plan ordnet sie wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Anordnung automatisch</button>}
+        {mutate && <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; delete d.layout.cleancatOrdnung; delete d.layout.plottPos; delete d.layout.plottKabel; })} title="Von Hand verschobene Kästen, gezogene Kabel und die Reihenfolge der Standorte verwerfen. Der Plan ordnet alles wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Anordnung automatisch</button>}
         {mutate && <button style={knopf} disabled={!labelsVonHand} onClick={() => mutate((d) => { delete d.layout.plottBeschriftung; })} title="Von Hand verschobene Kabelbeschriftungen wieder automatisch setzen"><RotateCcw size={14} /> Beschriftungen automatisch</button>}
         <select style={{ ...S.selectSm, width: "auto" }} value={format} title="Blattformat des Plans (gilt auch für den Export)"
           onChange={(e) => { const v = e.target.value; mutate?.((d) => { if (v === "A3-quer") delete d.layout.plottFormat; else d.layout.plottFormat = v; }); }} disabled={!mutate}>
@@ -559,14 +699,28 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
       </div>
       <div ref={wrap} style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative", background: "#d9dde1", cursor: drag.current ? "grabbing" : "grab" }}
         onMouseDown={(e) => { if (e.button !== 0 && e.button !== 1) return; drag.current = { sx: e.clientX, sy: e.clientY, v: view, bewegt: false }; }}
-        onMouseMove={(e) => { if (labelBewegen(e) || boxBewegen(e) || raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
-        onMouseUp={() => { if (labelEnde() || boxEnde() || raumEnde()) return; setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { labelEnde(); setBoxZieh(null); raumEnde(); drag.current = null; }}>
+        onMouseMove={(e) => { if (labelBewegen(e) || lineBewegen(e) || boxBewegen(e) || raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
+        onMouseUp={() => { if (labelEnde() || lineEnde() || boxEnde() || raumEnde()) return; if (drag.current && !drag.current.bewegt) setSel(null); setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { labelEnde(); setKabZieh(null); setBoxZieh(null); raumEnde(); drag.current = null; }}>
         {!P.geraete.length && <div style={{ ...S.empty, padding: 30, color: MUTED }}>Noch keine Geräte im Projekt.</div>}
         {P.geraete.length > 0 && <div style={{ position: "absolute", left: 0, top: 0, transform: `translate(${view.x}px,${view.y}px) scale(${view.k})`, transformOrigin: "0 0", boxShadow: "0 4px 24px rgba(0,0,0,.25)" }}>
           <Zeichnung L={L} B={B} P={P} stand={stand} logo={logo} svgRef={svgRef} onBox={(id) => { if (!drag.current?.bewegt) onSelectDevice?.(id); }} onRaumDown={mutate && !gefiltert ? raumDown : null} zieh={zieh} onLabelDown={mutate ? labelDown : null} onLabelReset={labelReset}
-            onBoxDown={mutate && !gefiltert ? boxDown : null} onStapelDown={mutate && !gefiltert ? stapelDown : null} boxZieh={boxZieh} />
+            onBoxDown={mutate ? boxDown : null} onStapelDown={mutate && !gefiltert ? stapelDown : null} boxZieh={boxZieh}
+            onLineDown={mutate ? lineDown : null} onLineReset={lineReset} onBoxDouble={(id) => onSelectDevice?.(id)} sel={sel} />
         </div>}
-        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Ziehen = verschieben · Standort, Gerät oder Stack ziehen = an andere Stelle setzen · Kabeltext ziehen = auf dem Kabel verschieben · Klick auf ein Gerät = bearbeiten</div>
+        {(selBox || selLinie) && (
+          <div onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()}
+            style={{ position: "absolute", left: 12, top: 10, display: "flex", alignItems: "center", gap: 8, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 10px", boxShadow: "0 4px 14px rgba(0,0,0,.2)", fontSize: 12, color: SUB }}>
+            <b style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selName}</b>
+            {mutate && <label style={{ display: "inline-flex", alignItems: "center", gap: 5 }} title="Eigene Farbe nur für dieses Element">Farbe
+              <input type="color" value={hex6(selFarbe || (selBox ? selBox.fill : selLinie.col))} onChange={(e) => setzeLayout("plottFarben", sel.id, e.target.value)} style={farbFeld} /></label>}
+            {mutate && selFarbe && <button style={knopf} onClick={() => setzeLayout("plottFarben", sel.id, undefined)}><RotateCcw size={14} /> Farbe</button>}
+            {mutate && selBox && (P.layout.plottPos || {})[selBox.id] && <button style={knopf} onClick={() => setzeLayout("plottPos", selBox.id, undefined)}><RotateCcw size={14} /> Position</button>}
+            {mutate && selLinie && (P.layout.plottKabel || {})[selLinie.id] && <button style={knopf} onClick={() => lineReset(selLinie.id)}><RotateCcw size={14} /> Verlauf automatisch</button>}
+            {selBox && !selBox.sammel && onSelectDevice && <button style={knopf} onClick={() => onSelectDevice(selBox.id)}>Bearbeiten</button>}
+            <button style={{ ...knopf, padding: "4px 6px" }} onClick={() => setSel(null)} title="Auswahl aufheben (Esc)"><Schliessen size={14} /></button>
+          </div>
+        )}
+        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Gerät ziehen = frei verschieben · mit Shift = in der Reihe umsetzen · Kabelstrecke ziehen = Verlauf ändern · Klick = auswählen und umfärben · Doppelklick = Gerät bearbeiten bzw. Kabel zurücksetzen</div>
       </div>
     </div>
   );

@@ -19,18 +19,27 @@ icons     [ { id, name, data (Data-URL) } ]
 
 ```
 planProfil { format: "netzwerkplaner-planprofil", version: 1, id, name, basiertAuf,
-  design   { schrift, papier, rahmen, text, textNeben, linienBreite, boxRand, switchFuellung, kategorieAufhellen,
+  design   { schrift, papier, rahmen, text, textNeben, linienBreite, boxRand, switchFuellung, kategorieAufhellen, kategorieFarben { Kategorie: "#rrggbb" },
              farben { primary, secondary, glas, trunk, sonst },
              raum { fuellung, rand, kopf, kopfLinie, strich }, stack { fuellung, rand, kopf, kopfLinie } },
-  inhalt   { stufe: 1–4, felder { modell, ip, notiz, anmerkung, kabeltext, switchPorts, geraetPorts, kabelDetails },
+  inhalt   { stufe: 1–4, felder { modell, ip, notiz, anmerkung, kabeltext, switchPorts, geraetPorts, portKaesten, kabelDetails },
              gewerke: [] | ["Licht", "Ton", "Video"], fremde: "blass" | "aus" },
   kabel    { farbe: "dante" | "vlan", spur },
-  anordnung{ maxSpalten } }
+  anordnung{ maxSpalten, kastenAbstand, reihenAbstand, gruppeAbstand, raumAbstand } }
 ```
 
 - `basiertAuf` nennt die Vorlage oder das eigene Profil, aus dem alles kommt, was das Profil nicht selbst setzt.
 - Beim Laden werden unbekannte Angaben ignoriert; falsche Typen, ungültige Farben und Werte außerhalb der Grenzen fallen auf die Basis zurück.
-- `inhalt.felder` überschreibt einzelne Felder der Stufe. Leere `gewerke` heißt: alle Gewerke.
+- `inhalt.felder` überschreibt einzelne Felder der Stufe. Leere `gewerke` heißt: alle Gewerke. `portKaesten` zeigt Ports als Kästchen in VLAN- bzw. Trunk-Farbe (an in Stufe 4).
+- `anordnung`: Abstände in Punkten (Standard 30 / 26 / 46 / 70) mit Grenzen 10–120, 10–120, 10–200, 20–300.
+
+Von Hand im Plott-Editor geändert (im Projekt-`layout`, nicht im Profil):
+
+```
+layout.plottPos    { devId: { dx, dy } }        Kasten frei verschoben, Versatz zur automatischen Lage
+layout.plottKabel  { connId: [[x, y], …] }      gezogener Kabelverlauf, innere Knickpunkte; Enden schließen rechtwinklig an
+layout.plottFarben { devId | connId: "#hex" }   eigene Farbe für einen Kasten oder ein Kabel
+```
 
 - Interfaces tragen die IP-Konfiguration, Ports sind die physischen Buchsen. Ein Endgerät-Port zeigt über `iface` auf sein Interface (Dante Primary/Secondary = zwei Interfaces).
 - Das VLAN einer Verbindung ergibt sich aus dem Switch-Port (Access/Trunk) bzw. dem Interface des Endgeräts.
