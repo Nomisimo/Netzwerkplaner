@@ -1,7 +1,7 @@
 # Datenmodell (.netplan)
 
 ```
-Projekt   { format: "netzwerkplaner", version: 1, meta, bereiche[], vlans[], geraete[], verbindungen[], layout, icons[] }
+Projekt   { format: "netzwerkplaner", version: 1, meta, bereiche[], vlans[], geraete[], verbindungen[], layout, icons[], planProfil? }
 meta      { veranstaltung, ort, ersteller, datum, version, notiz }
 VLAN      { id, vid, name, farbe, subnetz (CIDR), gateway, zweck, igmp, querier, eeeAus, qos, dhcp { aktiv, von, bis }, notiz }
 Gerät     { id, name, typ, kategorie, hersteller, modell, katalogId, icon, bereich, isSwitch, poeBudget, poeBedarf,
@@ -12,6 +12,25 @@ Verbindung{ id, a { dev, port }, b { dev, port }, kabel, laenge, label, notiz }
 layout    { rootId, offsets { devId: { dx, dy } }, pinned { devId: { x, y } }, collapsed { devId: true } }
 icons     [ { id, name, data (Data-URL) } ]
 ```
+
+### Plan-Profil (Plott)
+
+`planProfil` ist eine Kopie des Profils, mit dem der Plott-Plan gezeichnet wird. Fehlt es (ältere Projekte), gilt „Standard“ mit den bisherigen Einstellungen dieses Rechners (Farbe, IP-Adressen). Dieselbe Form hat eine `.npprofil`-Datei und ein eigenes Profil in der Bibliothek (`library.planProfile[]`). Code: `src/shared/plottprofil.js`.
+
+```
+planProfil { format: "netzwerkplaner-planprofil", version: 1, id, name, basiertAuf,
+  design   { schrift, papier, rahmen, text, textNeben, linienBreite, boxRand, switchFuellung, kategorieAufhellen,
+             farben { primary, secondary, glas, trunk, sonst },
+             raum { fuellung, rand, kopf, kopfLinie, strich }, stack { fuellung, rand, kopf, kopfLinie } },
+  inhalt   { stufe: 1–4, felder { modell, ip, notiz, anmerkung, kabeltext, switchPorts, geraetPorts, kabelDetails },
+             gewerke: [] | ["Licht", "Ton", "Video"], fremde: "blass" | "aus" },
+  kabel    { farbe: "dante" | "vlan", spur },
+  anordnung{ maxSpalten } }
+```
+
+- `basiertAuf` nennt die Vorlage oder das eigene Profil, aus dem alles kommt, was das Profil nicht selbst setzt.
+- Beim Laden werden unbekannte Angaben ignoriert; falsche Typen, ungültige Farben und Werte außerhalb der Grenzen fallen auf die Basis zurück.
+- `inhalt.felder` überschreibt einzelne Felder der Stufe. Leere `gewerke` heißt: alle Gewerke.
 
 - Interfaces tragen die IP-Konfiguration, Ports sind die physischen Buchsen. Ein Endgerät-Port zeigt über `iface` auf sein Interface (Dante Primary/Secondary = zwei Interfaces).
 - Das VLAN einer Verbindung ergibt sich aus dem Switch-Port (Access/Trunk) bzw. dem Interface des Endgeräts.

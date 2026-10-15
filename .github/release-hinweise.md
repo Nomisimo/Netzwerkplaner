@@ -10,9 +10,6 @@
 | macOS Apple Silicon (M1–M4) | `Netzwerkplaner-…-mac-arm64.dmg` |
 | macOS Intel | `Netzwerkplaner-…-mac-x64.dmg` |
 
-**Hinweis:** Die Installer sind nicht mit einem Entwicklerzertifikat signiert.
-
-- **Windows:** SmartScreen meldet „Unbekannter Herausgeber“ → „Weitere Informationen“ → „Trotzdem ausführen“.
-- **macOS:** Beim ersten Start die App im Finder mit Rechtsklick → „Öffnen“ starten. Meldet macOS „beschädigt“, einmal im Terminal ausführen: `xattr -cr /Applications/Netzwerkplaner.app`
+**Windows:** Der Installer ist nicht mit einem Entwicklerzertifikat signiert. SmartScreen meldet „Unbekannter Herausgeber“ → „Weitere Informationen“ → „Trotzdem ausführen“.
 
 Die App prüft beim Start, ob hier eine neuere Version liegt, und zeigt dann oben einen Hinweis.

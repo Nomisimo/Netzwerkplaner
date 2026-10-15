@@ -21,6 +21,9 @@ jobs:
   build:
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    env:
+      # 1, wenn das Apple-Zertifikat als Secret hinterlegt ist
+      MAC_SIGNIERT: ${{ secrets.MAC_CERT_P12_BASE64 != '' && '1' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -62,10 +65,40 @@ jobs:
       - name: App bauen
         run: npm run build
 
+      # Mac signieren und beglaubigen, sobald die Secrets gesetzt sind (siehe docs/mac-signierung.md).
+      # Ohne Secrets bleibt es beim ad-hoc signierten Build wie bisher.
+      - name: Mac-Signierung einstellen
+        if: runner.os == 'macOS' && env.MAC_SIGNIERT == '1'
+        run: node scripts/mac-signieren.js
+        env:
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
       - name: Installer bauen
         run: npx electron-builder ${{ matrix.args }} --publish never
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # Das Apple-Zertifikat nur an die Mac-Jobs geben
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CERT_P12_BASE64 || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CERT_PASSWORD || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ runner.os == 'macOS' && env.MAC_SIGNIERT == '1' && 'true' || 'false' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Mac-Signatur prüfen
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          APP=$(ls -d dist/mac*/Netzwerkplaner.app | head -1)
+          codesign -dv --verbose=2 "$APP" 2>&1 | grep -E "Authority|Signature|TeamIdentifier" || true
+          if [ "$MAC_SIGNIERT" = "1" ]; then
+            codesign --verify --deep --strict "$APP"
+            xcrun stapler validate "$APP"
+            spctl --assess --type execute -v "$APP"
+          fi
 
       # Jeder Mac-Job darf genau ein DMG liefern, sonst überschreiben sich gleichnamige
       # Dateien beim Zusammenführen der Artefakte und das DMG ist kaputt (Fehler 3840).
@@ -96,6 +129,8 @@ jobs:
     name: GitHub-Release
     needs: build
     runs-on: ubuntu-latest
+    env:
+      MAC_SIGNIERT: ${{ secrets.MAC_CERT_P12_BASE64 != '' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -118,6 +153,7 @@ jobs:
             console.log(m ? m.split("\n").slice(1).join("\n").trim() : "");
           ' "$V" > notes.md
           cat .github/release-hinweise.md >> notes.md
+          if [ "$MAC_SIGNIERT" != "1" ]; then cat .github/release-hinweise-mac-unsigniert.md >> notes.md; fi
           echo "prerelease=$([[ "$TAG" == *-* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 

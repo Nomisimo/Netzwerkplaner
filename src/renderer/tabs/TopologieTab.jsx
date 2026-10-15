@@ -755,7 +755,7 @@ export default function TopologieTab(props) {
   );
   // Plott: eigenes Blatt statt Zeichenfläche; Klick auf ein Gerät öffnet den Geräte-Editor
   if (aktAnsicht === "cleancat") {
-    return <CleanCatTab P={P} X={X} mutate={mutate} svgRef={svgRef} notify={props.notify} kopf={ansichtWahl}
+    return <CleanCatTab P={P} X={X} mutate={mutate} svgRef={svgRef} notify={props.notify} kopf={ansichtWahl} planProfile={props.planProfile} setPlanProfile={props.setPlanProfile}
       onSelectDevice={(id) => { setSelection({ type: "dev", id }); goTab("geraete"); }} />;
   }
 
