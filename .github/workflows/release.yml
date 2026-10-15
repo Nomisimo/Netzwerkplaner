@@ -78,11 +78,17 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Installer bauen
-        run: npx electron-builder ${{ matrix.args }} --publish never
+        shell: bash
+        run: |
+          # Das Apple-Zertifikat nur an signierende Mac-Jobs geben. Ein leeres CSC_LINK
+          # würde electron-builder als Pfad lesen, darum ganz weglassen.
+          if [ "$MAC_SIGNIERT" = "1" ] && [ "$RUNNER_OS" = "macOS" ]; then
+            export CSC_LINK="$MAC_CERT_P12_BASE64" CSC_KEY_PASSWORD="$MAC_CERT_PASSWORD"
+          fi
+          npx electron-builder ${{ matrix.args }} --publish never
         env:
-          # Das Apple-Zertifikat nur an die Mac-Jobs geben
-          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CERT_P12_BASE64 || '' }}
-          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CERT_PASSWORD || '' }}
+          MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ runner.os == 'macOS' && env.MAC_SIGNIERT == '1' && 'true' || 'false' }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
