@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { S, SUB, MUTED, ACCENT, ERR, WARN, LINE2, OK } from "../shared/constants.js";
 import { Modal, Field } from "./ui.jsx";
+import { uiAlert, uiConfirm } from "./dialoge.jsx";
 import { serverApi, ladeEinstellungen, speichereEinstellungen, beitrittMoeglich } from "./sync.js";
 import { Lock, Save, RefreshCw } from "lucide-react";
 
@@ -42,11 +43,11 @@ function Verbinden({ sitzung, version, projektName, onClose }) {
     setAbfrage(null);
     return zweck === "beitreten" ? beitreten(s, code || "") : extern(s, code || "");
   };
-  const beitreten = (s, code) => {
+  const beitreten = async (s, code) => {
     const b = beitrittMoeglich(s, version);
     if (!b.ok) return;
-    if (b.umstellen && !confirm(b.grund + " Weiter?")) return;
-    if (!confirm("Beim Beitreten wird dein aktuelles Projekt durch den Stand der Sitzung ersetzt. Vorher speichern, falls nötig. Weiter?")) return;
+    if (b.umstellen && !await uiConfirm(b.grund + " Weiter?")) return;
+    if (!await uiConfirm("Beim Beitreten wird dein aktuelles Projekt durch den Stand der Sitzung ersetzt. Vorher speichern, falls nötig. Weiter?")) return;
     merken();
     sitzung.verbinden({ server: e.server, token: e.token, session: s.id, code, name: e.name.trim(), info: s });
     onClose();
@@ -58,7 +59,7 @@ function Verbinden({ sitzung, version, projektName, onClose }) {
   };
   // Seit 72 h leere Sitzung von außen beenden, ohne beizutreten (mit Sitzungscode, falls gesetzt)
   const extern = async (s, code) => {
-    if (!confirm(`Sitzung „${s.name}“ endgültig beenden? Sie ist seit ${dauer(s.leerSeit)} ohne Teilnehmer. Der Stand auf dem Server wird gelöscht; wer eine Kopie gespeichert hat, behält sie.`)) return;
+    if (!await uiConfirm(`Sitzung „${s.name}“ endgültig beenden? Sie ist seit ${dauer(s.leerSeit)} ohne Teilnehmer. Der Stand auf dem Server wird gelöscht; wer eine Kopie gespeichert hat, behält sie.`)) return;
     setFehler("");
     try { await serverApi(e.server, e.token).loeschen(s.id, code); await laden(); }
     catch (x) { setFehler(`Sitzung konnte nicht beendet werden: ${x.message}`); }
@@ -143,7 +144,7 @@ function InSitzung({ sitzung, onKopieSpeichern }) {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button style={S.secondaryBtn} onClick={() => sitzung.verlassen()}>Nur ich verlasse die Sitzung</button>
               <button style={S.dangerBtnWide} disabled={z.status !== "online"} title={z.status !== "online" ? "Nur mit Verbindung zum Server möglich" : ""}
-                onClick={async () => { if (andere && !confirm(`${andere === 1 ? "1 Person ist" : `${andere} Personen sind`} noch in der Sitzung. Sie bekommen den Hinweis, dass die Sitzung beendet ist, und behalten eine veraltete Kopie. Wirklich für alle beenden?`)) return; try { await sitzung.beenden(); } catch (x) { alert(`Beenden fehlgeschlagen: ${x.message}`); } }}>
+                onClick={async () => { if (andere && !await uiConfirm(`${andere === 1 ? "1 Person ist" : `${andere} Personen sind`} noch in der Sitzung. Sie bekommen den Hinweis, dass die Sitzung beendet ist, und behalten eine veraltete Kopie. Wirklich für alle beenden?`)) return; try { await sitzung.beenden(); } catch (x) { await uiAlert(`Beenden fehlgeschlagen: ${x.message}`); } }}>
                 Sitzung für alle beenden{andere ? ` (${andere} weitere online)` : ""}</button>
               <button style={S.ghostBtn} onClick={() => setGehen(false)}>Abbrechen</button>
             </div>
