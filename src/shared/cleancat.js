@@ -6,20 +6,18 @@
    Switch, Geräte an Switches in anderen Räumen) läuft unter dem Raum entlang;
    Verbindungen zwischen Räumen über eine gemeinsame Trasse unter allen Räumen.
    Ergebnis in Weltkoordinaten: { w, h, raeume, boxen, linien }. */
-import { KATEGORIEN, KABEL } from "./constants.js";
+import { KABEL } from "./constants.js";
 import { physPorts, ipPorts } from "./catalog.js";
 import { flussRichtungen } from "./fluss.js";
+import { buildIndex } from "./model.js";
+import { STANDARD_PROFIL, profilFelder, katFuellung, gewerkVon } from "./plottprofil.js";
 
-export const CC_FARBEN = { primary: "#e53935", secondary: "#2e9e44", glas: "#c05bd6", trunk: "#3a3f45", sonst: "#55595f" };
-export const CC_SWITCH_FILL = "#fff176";
-export const ccKatFill = (kat) => mische((KATEGORIEN[kat] || KATEGORIEN.Sonstiges).color, 0.5);
-const SPUR = 7, MAX_SPALTEN = 6, RAUM_KOPF = 34, RAUM_RAND = 22, GRUPPE_ABSTAND = 46, RAUM_ABSTAND = 70;
-
-const mische = (hex, anteil = 0.55) => {
-  const n = parseInt(hex.slice(1), 16);
-  const k = (v) => Math.round(v + (255 - v) * anteil);
-  return "#" + [n >> 16, (n >> 8) & 255, n & 255].map((v) => k(v).toString(16).padStart(2, "0")).join("");
-};
+/* Farben und Abstände kommen aus dem Plan-Profil (plottprofil.js); die Werte von
+   Standard bleiben hier als Namen für Tests und ältere Aufrufer. */
+export const CC_FARBEN = STANDARD_PROFIL.design.farben;
+export const CC_SWITCH_FILL = STANDARD_PROFIL.design.switchFuellung;
+export const ccKatFill = (kat) => katFuellung(STANDARD_PROFIL.design, kat);
+const RAUM_KOPF = 34, RAUM_RAND = 22, GRUPPE_ABSTAND = 46, RAUM_ABSTAND = 70;
 const textB = (s, px, mono = false) => String(s || "").length * px * (mono ? 0.62 : 0.56);
 
 /* Text passend für eine Breite: erst kleiner (bis minPx), dann mit „…“ kürzen.
@@ -60,6 +58,7 @@ export const ccBoxBreite = (d) => (d.isSwitch ? Math.max(170, Math.min(340, phys
 const INNEN = 10; // Textabstand links und rechts in der Box
 // Zeichenfläche des Blatts (siehe ccBlatt), nach ihr richtet sich die Reihenaufteilung
 const istGlas = (c) => /fiber|opticalcon/.test(c.kabel || "");
+const kabelDetail = (c) => [KABEL[c.kabel]?.label, c.laenge ? `${c.laenge} m` : ""].filter(Boolean).join(" ");
 
 /* ── Kabelbeschriftung: sitzt immer auf der Leitung ────────────────────────────
    Die Stelle ist ein Anteil f (0…1) der Leitungslänge. Ohne Vorgabe sucht der Plan
@@ -239,13 +238,79 @@ const NOTIZ_PX = 8.5, NOTIZ_ZEILE = 10.5, ANM_PX = 10, ANM_ZEILE = 12.5;
    Platz zwischen den Einträgen, größere füllen das Blatt. Das Blatt wird danach wie immer eingepasst. */
 export const PLOTT_GROESSEN = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5];
 export const plottGroesse = (P) => { const g = +P?.layout?.plottGroesse; return PLOTT_GROESSEN.includes(g) ? g : 1; };
-export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung = null, format = "A3-quer", groesse = 1 } = {}) => {
+
+/* Was der Plan zeigt: Gewerke-Filter und Sammelkästen (Stufe 1) wirken auf eine
+   abgeleitete Kopie von Projekt und Index. Ohne Filter und Sammeln bleiben P und X
+   unverändert. Ergebnis je Projekt und Einstellung zwischengespeichert, weil
+   cleanCatOptimieren den Plan viele Male rechnet. */
+const datenCache = new WeakMap();
+export const plottDaten = (P, X, profil) => {
+  const felder = profilFelder(profil), { gewerke, fremde } = profil.inhalt;
+  const filtern = gewerke.length > 0 && gewerke.length < 3;
+  if (!filtern && !felder.sammeln) return { P, X, blass: null, sammel: null };
+  const key = JSON.stringify([gewerke, fremde, felder.sammeln]);
+  const c = datenCache.get(P);
+  if (c && c.X === X && c.key === key) return c.wert;
+  const sichtbar = (d) => { const g = gewerkVon(d); return !filtern || !g || gewerke.includes(g); };
+  let geraete = P.geraete, verbindungen = P.verbindungen;
+  let blass = null;
+  if (filtern && fremde === "aus") {
+    const weg = new Set(geraete.filter((d) => !sichtbar(d)).map((d) => d.id));
+    geraete = geraete.filter((d) => !weg.has(d.id));
+    verbindungen = verbindungen.filter((v) => !weg.has(v.a.dev) && !weg.has(v.b.dev));
+  } else if (filtern) blass = new Set(geraete.filter((d) => !sichtbar(d)).map((d) => d.id));
+  let sammel = null;
+  if (felder.sammeln) {
+    // Gleiche Endgeräte (Kategorie, Standort, Stack, dieselben Switches) zu einem Kasten
+    const stackVon = new Map();
+    for (const st of P.layout?.stapel || []) for (const id of st.ids) stackVon.set(id, st.id);
+    const byId = new Map(geraete.map((d) => [d.id, d]));
+    const nachbarn = new Map();
+    for (const v of verbindungen) for (const [e, o] of [[v.a, v.b], [v.b, v.a]]) {
+      if (!nachbarn.has(e.dev)) nachbarn.set(e.dev, []);
+      nachbarn.get(e.dev).push(o.dev);
+    }
+    const gruppen = new Map();
+    for (const d of geraete) {
+      if (d.isSwitch) continue;
+      const nb = nachbarn.get(d.id) || [];
+      if (!nb.length || nb.some((id) => !byId.get(id)?.isSwitch)) continue;
+      const k = [d.kategorie || "", (d.bereich || "").trim(), stackVon.get(d.id) || "", blass?.has(d.id) ? 1 : 0, [...new Set(nb)].sort().join(",")].join("\u0001");
+      if (!gruppen.has(k)) gruppen.set(k, []);
+      gruppen.get(k).push(d);
+    }
+    sammel = new Map();
+    const weg = new Set();
+    for (const g of gruppen.values()) {
+      if (g.length < 2) continue;
+      const [erster, ...rest] = g;
+      const gleich = g.every((d) => d.hersteller === erster.hersteller && d.modell === erster.modell) && erster.modell;
+      sammel.set(erster.id, { name: `${g.length}× ${gleich ? erster.modell : erster.kategorie || "Geräte"}`, ids: g.map((d) => d.id), namen: g.map((d) => d.name) });
+      for (const d of rest) weg.add(d.id);
+    }
+    geraete = geraete.filter((d) => !weg.has(d.id)).map((d) => (sammel.has(d.id) ? { ...d, name: sammel.get(d.id).name, notizen: "" } : d));
+    verbindungen = verbindungen.filter((v) => !weg.has(v.a.dev) && !weg.has(v.b.dev));
+  }
+  const P2 = { ...P, geraete, verbindungen };
+  const wert = { P: P2, X: buildIndex(P2), blass, sammel };
+  datenCache.set(P, { X, key, wert });
+  return wert;
+};
+
+export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung = null, format = "A3-quer", groesse = 1 } = {}) => {
+  // Profil: ausdrücklich übergeben oder Standard; farbe/zeigeIp überschreiben es (ältere Aufrufer)
+  const pr = profil || STANDARD_PROFIL;
+  const felder = profilFelder(pr);
+  if (zeigeIp != null) felder.ip = !!zeigeIp;
+  const farbModus = farbe || pr.kabel.farbe;
+  const D = pr.design, SPUR = pr.kabel.spur, MAX_SPALTEN = pr.anordnung.maxSpalten;
+  const { P, X, blass, sammel } = plottDaten(P0, X0, pr);
   const s = groesse > 0 ? groesse : 1;
   const flaeche = ccMasse(format).flaeche;
   const genutzt = { standorte: [], gruppen: {}, oben: {} };
   // Alle Boxen gleich hoch: gibt es irgendwo eine Notiz, bekommen alle Platz für zwei Notizzeilen
-  const BASIS_H = zeigeIp ? 52 : 40;
-  const mitNotiz = P.geraete.some((d) => String(d.notizen || "").trim());
+  const BASIS_H = felder.ip ? 52 : felder.modell ? 40 : 30;
+  const mitNotiz = felder.notiz && P.geraete.some((d) => String(d.notizen || "").trim());
   const BOX_H = (BASIS_H + (mitNotiz ? 2 * NOTIZ_ZEILE + 5 : 0)) * s;
   /* Räume: je Standort, darin je Stack ein eigener Unterraum. Schlüssel eines
      Stack-Raums = Standort + \u0001 + Stack-ID; alles andere liegt im Standort selbst. */
@@ -260,12 +325,13 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     if (!raumInfo.has(k)) raumInfo.set(k, { standort: standortVon(d), stapel: x ? x.st.name || `Stack ${x.nr}` : null, rang: x ? x.nr : 0 });
   }
   const box = (d) => {
-    const sub = [d.hersteller, d.modell].filter(Boolean).join(" ") || "";
-    const ip = zeigeIp ? ipPorts(d).map((p) => p.ip).filter(Boolean).slice(0, 2).join(" · ") : "";
+    const sub = felder.modell ? [d.hersteller, d.modell].filter(Boolean).join(" ") || "" : "";
+    const ip = felder.ip ? ipPorts(d).map((p) => p.ip).filter(Boolean).slice(0, 2).join(" · ") : "";
     const w0 = ccBoxBreite(d), w = w0 * s, frei = w0 - INNEN * 2; // Text in ungezoomten Maßen, gezeichnet mit scale(s)
-    const fill = d.isSwitch ? CC_SWITCH_FILL : ccKatFill(d.kategorie);
-    const notiz = String(d.notizen || "").trim();
-    return { id: d.id, name: d.name, sub, ip, w, h: BOX_H, basisH: BASIS_H * s, s, fill, isSwitch: !!d.isSwitch, kategorie: d.kategorie,
+    const fill = d.isSwitch ? D.switchFuellung : katFuellung(D, d.kategorie);
+    const notiz = felder.notiz ? String(d.notizen || "").trim() : "";
+    const sm = sammel?.get(d.id);
+    return { id: d.id, name: d.name, ...(sm ? { sammel: sm.ids, sammelNamen: sm.namen } : {}), ...(blass?.has(d.id) ? { blass: true } : {}), sub, ip, w, h: BOX_H, basisH: BASIS_H * s, s, fill, isSwitch: !!d.isSwitch, kategorie: d.kategorie,
       notiz: notiz ? umbrechen(notiz, NOTIZ_PX, frei, 2) : null, notizVoll: notiz || null,
       tName: passeText(d.name, 12.5, frei, 9.5), tSub: sub ? passeText(sub, 9.5, frei, 8) : null, tIp: ip ? passeText(ip, 9.5, frei, 7.5, true) : null };
   };
@@ -308,8 +374,9 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     const A = X.devById.get(c.a.dev), B = X.devById.get(c.b.dev);
     const end = !A.isSwitch ? c.a : !B.isSwitch ? c.b : null;
     const rolle = end ? ccRolle(portVon(end)) : null;
+    const CC_FARBEN = D.farben;
     let col = CC_FARBEN.sonst, text = "", leg = "Sonstige Verbindung";
-    if (farbe === "vlan") {
+    if (farbModus === "vlan") {
       const p = end ? portVon(end) : null;
       const v = p && X.vlanById.get(p.vlan);
       col = v ? v.farbe : A.isSwitch && B.isSwitch ? CC_FARBEN.trunk : CC_FARBEN.sonst;
@@ -449,10 +516,13 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
       const st = stil(p.w.c);
       const swPort = portVon(eigenes(p.w.c, g.sw.id));
       const nz = String(p.w.c.notiz || "").trim();
-      const tl = kabelText([st.text, nz].filter(Boolean).join(" · "), nz && st.text ? [st.text] : []);
+      const det = felder.kabelDetails ? kabelDetail(p.w.c) : "";
+      const tl = felder.kabeltext ? kabelText([st.text, det, nz].filter(Boolean).join(" · "), nz && st.text ? [[st.text, det].filter(Boolean).join(" · ")] : []) : null;
+      const gPort = felder.geraetPorts && portVon(eigenes(p.w.c, p.w.z.d.id));
       linien.push({ id: p.w.c.id, raum: r.name, von: p.w.z.d.id, bis: g.sw.id, pts: p.pts, ...st, labels: [
         tl,
-        swPort && { x: xs - 2, y: sb.y - 3, t: swPort.name, rot: true, an: g.sw.id },
+        felder.switchPorts && swPort && { x: xs - 2, y: sb.y - 3, t: swPort.name, rot: true, an: g.sw.id },
+        gPort && { x: p.pts[0][0] + 3, y: p.pts[0][1] + 10, t: gPort.name, anchor: "start", an: p.w.z.d.id },
       ].filter(Boolean) });
     });
   }
@@ -500,14 +570,15 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
       const y = A.r.trunkY + raumSpur.get(i) * SPUR;
       const ax = A.pts[A.pts.length - 1][0], bx = B.pts[B.pts.length - 1][0];
       const pts = [...A.pts, [ax, y], [bx, y], ...[...B.pts].reverse()];
-      const kab = [c.label || (istGlas(c) ? KABEL[c.kabel]?.label : ""), String(c.notiz || "").trim()].filter(Boolean).join(" · ");
-      const kt = kabelText(kab || st.text);
+      const kab = [c.label || (istGlas(c) && !felder.kabelDetails ? KABEL[c.kabel]?.label : ""), felder.kabelDetails ? kabelDetail(c) : "", String(c.notiz || "").trim()].filter(Boolean).join(" · ");
+      const kt = felder.kabeltext ? kabelText(kab || st.text) : null;
       if (kt) labels.push(kt);
       linien.push({ id: c.id, raum: A.r.name, von: c.a.dev, bis: c.b.dev, pts, ...st, labels: [...labels, ...endLabels(A, portA, dev(c.a.dev)), ...endLabels(B, portB, dev(c.b.dev))] });
     }
   });
   function endLabels(E, port, d) {
-    if (!port || !d || !d.isSwitch) return []; // nur Switch-Ports beschriften, Endgeräte tragen Dante Primary/Secondary an der Linie
+    // Switch-Ports beschriften; Endgeräte tragen Dante Primary/Secondary an der Linie, Port-Namen nur im Patchplan
+    if (!port || !d || !(d.isSwitch ? felder.switchPorts : felder.geraetPorts)) return [];
     const [x, y] = E.pts[0];
     return [{ x: x + 3, y: y + 10, t: port.name, anchor: "start", an: d.id }];
   }
@@ -537,7 +608,7 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     b.subH = Math.max(...b.subs.map((r) => r.h));
     b.innenSpuren = busLinien.filter((bl) => innen(bl) && blockVon.get(bl.A.r.name) === b).length;
     const trasseH = b.innenSpuren ? 10 + b.innenSpuren * SPUR + 4 : 0;
-    const anm = ccAnmerkung(P, b.standort);
+    const anm = felder.anmerkung ? ccAnmerkung(P, b.standort) : "";
     b.anmerkung = anm ? umbrechen(anm, ANM_PX, b.w - 16, 3) : null;
     b.anmH = b.anmerkung ? b.anmerkung.length * ANM_ZEILE + 6 : 0;
     b.kopf = (b.rahmen ? BLOCK_KOPF : 0) + b.anmH;
@@ -647,9 +718,9 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
       pts = [...aPts, [ax, yA], [xs, yA], [xs, yB], [bx, yB], ...[...bPts].reverse()];
     }
     const kab = [c.label, KABEL[c.kabel]?.label, c.laenge ? `${c.laenge} m` : "", String(c.notiz || "").trim()].filter(Boolean).join(" · ");
-    const umf = farbe === "dante" && !st.text;
-    linien.push({ id: c.id, von: c.a.dev, bis: c.b.dev, pts, ...st, col: umf ? (istGlas(c) ? CC_FARBEN.glas : CC_FARBEN.trunk) : st.col, leg: umf ? (istGlas(c) ? "Glasfaser" : "Switch zu Switch") : st.leg,
-      labels: [kabelText(kab), ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))] });
+    const umf = farbModus === "dante" && !st.text;
+    linien.push({ id: c.id, von: c.a.dev, bis: c.b.dev, pts, ...st, col: umf ? (istGlas(c) ? D.farben.glas : D.farben.trunk) : st.col, leg: umf ? (istGlas(c) ? "Glasfaser" : "Switch zu Switch") : st.leg,
+      labels: [felder.kabeltext ? kabelText(kab) : null, ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))].filter(Boolean) });
   });
   // Leitungen glätten: doppelte Punkte und Punkte mitten auf einer Geraden entfernen (keine Schein-Ecken)
   for (const l of linien) l.pts = glaetten(l.pts);
@@ -676,13 +747,15 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
   for (const l of linien) if (!legL.has(l.col + l.leg)) legL.set(l.col + l.leg, { col: l.col, t: l.leg });
   const reihenfolge = ["Dante Primary", "Dante Secondary", "Glasfaser", "Switch zu Switch", "Trunk (Switch zu Switch)"];
   const legLinien = [...legL.values()].sort((a, b) => ((reihenfolge.indexOf(a.t) + 1 || 99) - (reihenfolge.indexOf(b.t) + 1 || 99)) || a.t.localeCompare(b.t, "de", { numeric: true }));
-  if (conns.some((c) => c.kabel === "wlan")) legLinien.push({ col: CC_FARBEN.sonst, t: "WLAN", dash: "4 4" });
-  if (conns.some((c) => c.kabel === "p2p")) legLinien.push({ col: CC_FARBEN.sonst, t: "Punkt-zu-Punkt", dash: "8 3 2 3" });
+  if (conns.some((c) => c.kabel === "wlan")) legLinien.push({ col: D.farben.sonst, t: "WLAN", dash: "4 4" });
+  if (conns.some((c) => c.kabel === "p2p")) legLinien.push({ col: D.farben.sonst, t: "Punkt-zu-Punkt", dash: "8 3 2 3" });
+  // Leitungen zu ausgeblendeten Gewerken blass
+  if (blass) for (const l of linien) if (blass.has(l.von) || blass.has(l.bis)) l.blass = true;
   const legBoxen = [];
-  if (P.geraete.some((d) => d.isSwitch)) legBoxen.push({ fill: CC_SWITCH_FILL, t: "Switch" });
+  if (P.geraete.some((d) => d.isSwitch)) legBoxen.push({ fill: D.switchFuellung, t: "Switch" });
   const mitStapel = raeume.some((r) => r.stapel);
   for (const k of [...new Set(P.geraete.filter((d) => !d.isSwitch).map((d) => d.kategorie || "Sonstiges"))].sort((a, b) => a.localeCompare(b, "de")))
-    legBoxen.push({ fill: ccKatFill(k), t: k });
+    legBoxen.push({ fill: katFuellung(D, k), t: k });
   return {
     w, h,
     // Standort-Rahmen (mit Stacks: um alle Unterräume) und Stack-Rahmen darin
@@ -690,8 +763,9 @@ export const cleanCatLayout = (P, X, { farbe = "dante", zeigeIp = true, ordnung 
     stapel: raeume.filter((r) => r.stapel).map(({ name: key, stapel: name, standort, x, y, w: rw, h: rh }) => ({ id: key.split("\u0001")[1], name, standort, x, y, w: rw, h: rh })),
     boxen: [...boxen.entries()].map(([id, b]) => ({ ...b, id })),
     linien,
-    legende: { linien: legLinien, boxen: legBoxen, stapel: mitStapel, fluss: linien.some((l) => l.einweg) },
+    legende: { linien: legLinien, boxen: legBoxen, stapel: mitStapel, fluss: linien.some((l) => l.einweg), ...(sammel?.size ? { sammel: true } : {}) },
     ordnung: genutzt,
+    design: D,
   };
 };
 

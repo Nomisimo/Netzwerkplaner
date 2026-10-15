@@ -7,6 +7,7 @@ import { qinqIssues } from "./qinq.js";
 import { migrateFelder } from "./felder.js";
 import { stapelBereinigen } from "./anordnung.js";
 import { trunksAbgleichen } from "./trunks.js";
+import { profilPruefen } from "./plottprofil.js";
 
 export const clone = (x) => JSON.parse(JSON.stringify(x));
 
@@ -53,6 +54,9 @@ export const migrateProject = (p) => {
   out.icons = p.icons || [];
   out.trunks = Array.isArray(p.trunks) ? p.trunks.map((t) => ({ name: "", farbe: "#8a94a0", vlans: [], notiz: "", ...t })) : [];
   out.vlanVomSwitch = !!p.vlanVomSwitch;
+  // Plan-Profil für Plott (Kopie im Projekt): prüfen, Unbekanntes ignorieren; ohne Profil gilt Standard
+  if (p.planProfil) out.planProfil = profilPruefen(p.planProfil).profil;
+  else delete out.planProfil;
   return vlansAbleiten(out);
 };
 

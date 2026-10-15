@@ -1,0 +1,153 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createHash } from "crypto";
+import { cleanCatLayout, cleanCatOptimieren } from "../src/shared/cleancat.js";
+import { STANDARD_PROFIL, EINGEBAUTE_PROFILE, eingebautesProfil, profilPruefen, projektProfil, profilFelder, profilDatei, profilLesen, gewerkVon, PROFIL_FORMAT } from "../src/shared/plottprofil.js";
+import { demoProject } from "../src/shared/demo.js";
+import { buildIndex, migrateProject } from "../src/shared/model.js";
+
+// Fingerabdruck der Zeichnung: Lage und Inhalt aller Räume, Kästen, Leitungen und der Legende
+const r = (v) => Math.round(v * 100) / 100;
+const fingerabdruck = (L) => createHash("sha256").update(JSON.stringify({
+  w: r(L.w), h: r(L.h),
+  raeume: L.raeume.map((x) => [x.name, r(x.x), r(x.y), r(x.w), r(x.h)]),
+  boxen: L.boxen.map((b) => [b.name, r(b.x), r(b.y), r(b.w), r(b.h), b.fill, b.tName?.t, b.tSub?.t, b.tIp?.t]),
+  linien: L.linien.map((l) => [l.pts.map((p) => p.map(r)), l.col, l.dash, l.labels.map((t) => [t.t, r(t.x), r(t.y)])]),
+  legende: L.legende,
+})).digest("hex").slice(0, 16);
+const plan = (P, opts) => {
+  const X = buildIndex(P);
+  const { ordnung } = cleanCatOptimieren(P, X, opts);
+  return cleanCatLayout(P, X, { ...opts, ordnung });
+};
+const mitProfil = (aend) => { const p = JSON.parse(JSON.stringify(STANDARD_PROFIL)); aend(p); return p; };
+
+test("Profil Standard: Demo-Plan genau wie vor den Profilen", () => {
+  // Werte aus dem Stand vor den Plan-Profilen (0.7.0-beta.19)
+  const P = demoProject();
+  assert.equal(fingerabdruck(plan(P, { profil: projektProfil(P, { farbe: "dante", zeigeIp: true }) })), "1786484d82a4bb76");
+  assert.equal(fingerabdruck(plan(P, { profil: projektProfil(P, { farbe: "vlan", zeigeIp: false }), format: "A4-hoch", groesse: 0.8 })), "e41aa12d4500f742");
+  // Ohne Profil (ältere Aufrufer) dasselbe
+  assert.equal(fingerabdruck(plan(P, { zeigeIp: true })), "1786484d82a4bb76");
+});
+
+test("Profil: drei Vorlagen, gültig und unterschiedlich", () => {
+  assert.deepEqual(EINGEBAUTE_PROFILE.map((p) => p.name), ["Standard", "Druck A3 hell", "Patchplan"]);
+  for (const p of EINGEBAUTE_PROFILE) {
+    const { profil, warnungen } = profilPruefen(p);
+    assert.deepEqual(warnungen, [], p.name);
+    assert.ok(profil.eingebaut, p.name);
+  }
+  const P = demoProject();
+  const hell = plan(P, { profil: eingebautesProfil("druck-a3-hell") });
+  const std = plan(P, { profil: STANDARD_PROFIL });
+  assert.notEqual(hell.design.raum.fuellung, std.design.raum.fuellung);
+  assert.notEqual(hell.boxen[0].fill, std.boxen[0].fill);
+  assert.equal(profilFelder(eingebautesProfil("patchplan")).geraetPorts, true);
+});
+
+test("Profil prüfen: Unbekanntes ignoriert, falsche Werte aus der Basis, basiertAuf erbt", () => {
+  const { profil, warnungen } = profilPruefen({
+    name: "Test", basiertAuf: "druck-a3-hell", quatsch: 1,
+    design: { linienBreite: "dick", raum: { fuellung: "rot" }, boxRand: "#123456", neu: true },
+    inhalt: { stufe: 9, felder: { ip: false, foo: true }, gewerke: ["Licht", "Catering"] },
+    kabel: { farbe: "regenbogen" },
+  });
+  assert.ok(warnungen.length >= 5);
+  const hell = eingebautesProfil("druck-a3-hell");
+  assert.equal(profil.design.linienBreite, hell.design.linienBreite); // falscher Typ → Basis
+  assert.equal(profil.design.raum.fuellung, hell.design.raum.fuellung); // keine Farbe → Basis
+  assert.equal(profil.design.raum.kopf, hell.design.raum.kopf); // geerbt
+  assert.equal(profil.design.boxRand, "#123456");
+  assert.equal(profil.inhalt.stufe, 3);
+  assert.deepEqual(profil.inhalt.felder, { ip: false });
+  assert.deepEqual(profil.inhalt.gewerke, ["Licht"]);
+  assert.equal(profil.kabel.farbe, "dante");
+  assert.ok(!("quatsch" in profil) && !("neu" in profil.design));
+  assert.equal(profil.eingebaut, false);
+  // Kreis in basiertAuf hängt nicht
+  const a = { id: "a", basiertAuf: "b" }, b = { id: "b", basiertAuf: "a" };
+  assert.ok(profilPruefen({ basiertAuf: "a" }, [a, b]).profil.design);
+  // Unbekannte Basis → Standard
+  assert.equal(profilPruefen({ basiertAuf: "gibtsnicht" }).profil.design.raum.fuellung, STANDARD_PROFIL.design.raum.fuellung);
+});
+
+test("Profil-Datei: speichern und wieder lesen", () => {
+  const p = profilPruefen({ ...JSON.parse(JSON.stringify(eingebautesProfil("patchplan"))), id: "eigen-x", name: "Mein Patch", inhalt: { stufe: 4, gewerke: ["Ton"] } }).profil;
+  const text = profilDatei(p);
+  assert.equal(JSON.parse(text).format, PROFIL_FORMAT);
+  assert.ok(!("eingebaut" in JSON.parse(text)));
+  const zurueck = profilLesen(text);
+  assert.deepEqual(zurueck.warnungen, []);
+  assert.equal(zurueck.profil.name, "Mein Patch");
+  assert.deepEqual(zurueck.profil.inhalt.gewerke, ["Ton"]);
+  assert.ok(profilLesen("kein json").fehler);
+  assert.ok(profilLesen("{\"a\":1}").fehler);
+});
+
+test("Detailstufen: Felder je Stufe, einzelne Schalter gehen vor", () => {
+  const P = demoProject();
+  const s2 = plan(P, { profil: mitProfil((p) => { p.inhalt.stufe = 2; }) });
+  assert.ok(s2.boxen.every((b) => !b.tIp));
+  assert.ok(s2.boxen.some((b) => b.tSub));
+  const s3ohneModell = plan(P, { profil: mitProfil((p) => { p.inhalt.felder = { modell: false }; }) });
+  assert.ok(s3ohneModell.boxen.every((b) => !b.tSub));
+  assert.ok(s3ohneModell.boxen.some((b) => b.tIp));
+  // Patch: Port-Namen auch am Endgerät
+  const s4 = plan(P, { profil: eingebautesProfil("patchplan") });
+  const X = buildIndex(P);
+  const anEndgeraet = s4.linien.flatMap((l) => l.labels).filter((t) => t.an && !X.devById.get(t.an)?.isSwitch);
+  assert.ok(anEndgeraet.length > 0);
+  const s3 = plan(P, { profil: STANDARD_PROFIL });
+  assert.equal(s3.linien.flatMap((l) => l.labels).filter((t) => t.an && !X.devById.get(t.an)?.isSwitch).length, 0);
+});
+
+test("Stufe 1: gleiche Endgeräte am selben Switch als Sammelkasten", () => {
+  const P = demoProject();
+  const L = plan(P, { profil: mitProfil((p) => { p.inhalt.stufe = 1; }) });
+  const sammel = L.boxen.filter((b) => b.sammel);
+  assert.ok(sammel.length > 0, "mindestens ein Sammelkasten");
+  assert.ok(L.boxen.length < P.geraete.length);
+  for (const b of sammel) {
+    assert.match(b.name, new RegExp(`^${b.sammel.length}× `));
+    assert.ok(b.sammel.length >= 2);
+  }
+  // Jedes Gerät steckt genau einmal im Plan (allein oder in einem Sammelkasten)
+  const drin = L.boxen.flatMap((b) => b.sammel || [b.id]).sort();
+  assert.deepEqual(drin, P.geraete.map((d) => d.id).sort());
+  assert.ok(L.legende.sammel);
+  // Ohne Namen-Zusätze: nur der Name im Kasten
+  assert.ok(L.boxen.every((b) => !b.tSub && !b.tIp && !b.notiz));
+});
+
+test("Gewerke-Filter: andere Gewerke blass oder aus, Switches bleiben", () => {
+  const P = demoProject();
+  const licht = P.geraete.filter((d) => gewerkVon(d) === "Licht");
+  const ton = P.geraete.filter((d) => gewerkVon(d) === "Ton");
+  assert.ok(licht.length && ton.length);
+  const blass = plan(P, { profil: mitProfil((p) => { p.inhalt.gewerke = ["Licht"]; }) });
+  assert.equal(blass.boxen.length, P.geraete.length);
+  for (const d of ton) assert.ok(blass.boxen.find((b) => b.id === d.id).blass, d.name);
+  for (const d of licht) assert.ok(!blass.boxen.find((b) => b.id === d.id).blass, d.name);
+  assert.ok(blass.linien.some((l) => l.blass));
+  const aus = plan(P, { profil: mitProfil((p) => { p.inhalt.gewerke = ["Licht"]; p.inhalt.fremde = "aus"; }) });
+  const ids = new Set(aus.boxen.map((b) => b.id));
+  for (const d of ton) assert.ok(!ids.has(d.id), d.name);
+  for (const d of P.geraete.filter((x) => x.isSwitch || !gewerkVon(x))) assert.ok(ids.has(d.id), d.name);
+  for (const l of aus.linien) assert.ok(ids.has(l.von) && ids.has(l.bis));
+  // Alle drei Gewerke an = kein Filter
+  assert.equal(fingerabdruck(plan(P, { profil: mitProfil((p) => { p.inhalt.gewerke = ["Licht", "Ton", "Video"]; }) })), fingerabdruck(plan(P, { profil: STANDARD_PROFIL })));
+});
+
+test("Projekt: Profil wird beim Laden geprüft, alte Projekte bleiben ohne Profil", () => {
+  const alt = migrateProject({ ...demoProject() });
+  assert.ok(!("planProfil" in alt));
+  assert.equal(projektProfil(alt).id, "standard");
+  assert.equal(projektProfil(alt, { farbe: "vlan", zeigeIp: false }).kabel.farbe, "vlan");
+  const neu = migrateProject({ ...demoProject(), planProfil: { id: "eigen-1", name: "X", basiertAuf: "patchplan", design: { papier: "kaputt" }, unsinn: 1 } });
+  assert.equal(neu.planProfil.design.papier, STANDARD_PROFIL.design.papier);
+  assert.equal(neu.planProfil.inhalt.stufe, 4);
+  assert.ok(!("unsinn" in neu.planProfil));
+  // Gespeichertes Profil schlägt die Einstellungen des Rechners
+  assert.equal(projektProfil(neu, { farbe: "vlan" }).kabel.farbe, "dante");
+});

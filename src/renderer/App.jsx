@@ -12,6 +12,7 @@ import ExportDialog from "./ExportDialog.jsx";
 import { ProtokollDetail } from "./tabs/BibliothekTab.jsx";
 import { PROTOKOLLE } from "../shared/catalog.js";
 import ProjektTab from "./tabs/ProjektTab.jsx";
+import { profilPruefen } from "../shared/plottprofil.js";
 import TopologieTab from "./tabs/TopologieTab.jsx";
 import GeraeteTab, { ANSICHT_KEY } from "./tabs/GeraeteTab.jsx";
 import BibliothekTab from "./tabs/BibliothekTab.jsx";
@@ -42,6 +43,9 @@ const loadAutosave = () => {
   try { const s = localStorage.getItem(LS_KEY); if (s) return migrateProject(JSON.parse(s)); } catch (e) { console.error(e); }
   return emptyProject();
 };
+
+// Eigene Plan-Profile aus der Bibliothek prüfen: Unbekanntes fällt weg, Kaputtes wird ergänzt
+const eigeneProfilePruefen = (l) => (Array.isArray(l.planProfile) ? { ...l, planProfile: l.planProfile.filter((p) => p && typeof p.id === "string").map((p) => ({ ...profilPruefen(p).profil, eingebaut: false })) } : l);
 
 export default function App() {
   const [P, setP] = useState(loadAutosave);
@@ -156,7 +160,7 @@ export default function App() {
 
   // Bibliothek (eigene Vorlagen + Icons) aus dem App-Datenordner
   useEffect(() => {
-    api.loadLibrary().then((l) => { if (l) setLibrary(migrateBibliothek(migrateLibrary(l))); setLibLoaded(true); });
+    api.loadLibrary().then((l) => { if (l) setLibrary(eigeneProfilePruefen(migrateBibliothek(migrateLibrary(l)))); setLibLoaded(true); });
     api.getRecents().then(setRecents);
     api.appVersion().then(setVersion);
     api.onOpenFile((r) => r && loadFromFile(r));
@@ -191,6 +195,8 @@ export default function App() {
     if (add.length) setLibrary((l) => ({ ...l, felder: [...(l.felder || []), ...add] }));
   }, [P.geraete, libLoaded, library]);
 
+  // Eigene Plan-Profile (Plott) liegen in der Bibliothek auf diesem Rechner
+  const setPlanProfile = useCallback((fn) => setLibrary((l) => ({ ...l, planProfile: fn(l.planProfile || []) })), []);
   const Pv = useMemo(() => ({ ...P, icons: allIcons, feldKatalog: library.felder || [] }), [P, allIcons, library.felder]);
 
   /* ── Erreichbarkeit ─────────────────────────────────────────────────── */
@@ -569,7 +575,7 @@ export default function App() {
       </nav>
 
       {tab === "topologie" ? (
-        <TopologieTab {...shared} notify={notify} svgRef={svgRef} autoStatus={autoStatus} setAutoStatus={setAutoStatus} />
+        <TopologieTab {...shared} notify={notify} svgRef={svgRef} autoStatus={autoStatus} setAutoStatus={setAutoStatus} planProfile={library.planProfile || []} setPlanProfile={setPlanProfile} />
       ) : (
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} key={tab}><main style={S.main}>
           <div style={{ animation: "npFade .18s ease" }}>
