@@ -7,7 +7,7 @@ import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, 
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
-import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText, RotateCcw, SlidersHorizontal, Palette, X as Schliessen } from "lucide-react";
+import { Maximize2, ZoomIn, ZoomOut, FileImage, FileCode, FileText, RotateCcw, SlidersHorizontal } from "lucide-react";
 
 /* Plott: Signalfluss-Plan als Blatt (A3/A4, quer oder hoch) wie eine Visio-Zeichnung.
    Räume = Standorte, Geräte als gleich große Blöcke, Leitungen rechtwinklig,
@@ -284,6 +284,18 @@ const DESIGN_FARBEN = [
   ["design.raum.fuellung", "Standort Fläche"], ["design.raum.kopf", "Standort Kopf"], ["design.raum.rand", "Standort Rand"],
 ];
 const ABSTAENDE = [["kastenAbstand", "Kästen nebeneinander", 10, 120], ["reihenAbstand", "Reihen", 10, 120], ["gruppeAbstand", "Gruppen", 10, 200], ["raumAbstand", "Standorte", 20, 300], ["maxSpalten", "Kästen je Reihe höchstens", 1, 12]];
+// Einklappbarer Abschnitt im Bearbeiten-Fenster
+function Abschnitt({ titel, children }) {
+  const [offen, setOffen] = useState(true);
+  return (
+    <div style={{ borderBottom: `1px solid ${LINE}` }}>
+      <button onClick={() => setOffen(!offen)} style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", padding: "9px 12px", fontWeight: 700, fontSize: 12, color: SUB, cursor: "pointer" }}>
+        {titel}<span style={{ color: MUTED }}>{offen ? "▾" : "▸"}</span>
+      </button>
+      {offen && <div style={{ padding: "0 12px 10px" }}>{children}</div>}
+    </div>
+  );
+}
 const wertVon = (o, pfad) => pfad.split(".").reduce((a, k) => a?.[k], o);
 
 export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf, svgRef: fremdRef, planProfile = [], setPlanProfile }) {
@@ -321,7 +333,8 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   const svgRef = fremdRef || eigenRef;
   const logo = ladeLogo();
   const stand = exportStand();
-  const [panel, setPanel] = useState(false);
+  const [panel, setPanelRoh] = useState(() => { try { return localStorage.getItem("np_cc_bearbeiten") !== "0"; } catch { return true; } });
+  const setPanel = (v) => { setPanelRoh(v); try { localStorage.setItem("np_cc_bearbeiten", v ? "1" : "0"); } catch { /* egal */ } };
   const dateiRef = useRef(null);
 
   // Profil wählen, speichern, weitergeben
@@ -376,7 +389,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     const k = Math.min(1.5, Math.max(0.1, Math.min((el.clientWidth - 40) / B.w, (el.clientHeight - 40) / B.h)));
     setView({ k, x: (el.clientWidth - B.w * k) / 2, y: (el.clientHeight - B.h * k) / 2 });
   }, [B.w, B.h]);
-  useEffect(() => { einpassen(); }, [format]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { einpassen(); }, [format, panel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const el = wrap.current; if (!el) return;
@@ -571,7 +584,6 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     return () => window.removeEventListener("keydown", taste);
   }, []);
   const designAendern = (pfad, wert) => profilAendern((p) => { const teile = pfad.split("."); let o = p; for (const t of teile.slice(0, -1)) o = o[t]; o[teile[teile.length - 1]] = wert; });
-  const [designOffen, setDesignOffen] = useState(false);
   const vonHand = (P.layout.cleancatStandorte || []).length > 0 || Object.keys(P.layout.cleancatOrdnung || {}).length > 0
     || Object.keys(P.layout.plottPos || {}).length > 0 || Object.keys(P.layout.plottKabel || {}).length > 0;
   const knopf = { ...S.ghostBtn, whiteSpace: "nowrap" };
@@ -579,6 +591,8 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   const farbFeld = { width: 26, height: 20, padding: 0, border: `1px solid ${LINE}`, borderRadius: 4, background: "none", cursor: "pointer" };
   const selName = selBox ? selBox.name : selLinie ? `Kabel ${P.geraete.find((d) => d.id === selLinie.von)?.name || "?"} – ${P.geraete.find((d) => d.id === selLinie.bis)?.name || "?"}` : "";
   const selFarbe = sel && (P.layout.plottFarben || {})[sel.id];
+  const bereich = (r) => <input type="range" {...r} style={{ width: 140 }} />;
+  const auswahl = selBox || selLinie;
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap", flexShrink: 0 }}>
@@ -599,105 +613,17 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
             return <button key={g} onClick={() => gewerkUmschalten(g)} style={{ ...knopf, border: "none", borderRadius: 0, padding: "5px 9px", ...(an ? { background: "#2c3b93", color: "#fff" } : {}) }}>{g}</button>;
           })}
         </div>
-        <select style={{ ...S.selectSm, width: "auto" }} value={profil.kabel.farbe} onChange={(e) => { const v = e.target.value; profilAendern((p) => { p.kabel.farbe = v; }); }} title="Farbe der Leitungen">
-          <option value="dante">Farbe: Dante Primary / Secondary</option>
-          <option value="vlan">Farbe: VLAN</option>
-        </select>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: SUB }}><input type="checkbox" checked={felder.ip} onChange={(e) => { const v = e.target.checked; profilAendern((p) => { p.inhalt.felder = { ...p.inhalt.felder, ip: v }; }); }} style={{ accentColor: ACCENT }} /> IP-Adressen</label>
-        <div style={{ position: "relative" }}>
-          <button style={{ ...knopf, ...(panel ? { background: "#2c3b93", color: "#fff" } : {}) }} onClick={() => setPanel(!panel)} title="Felder einzeln schalten, Profil speichern, exportieren oder importieren"><SlidersHorizontal size={14} /> Profil</button>
-          {panel && (
-            <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 20, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: 12, width: 290, boxShadow: "0 8px 24px rgba(0,0,0,.25)", fontSize: 12, color: SUB }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Im Plan zeigen</div>
-              {FELDER.map((f) => (
-                <label key={f.k} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
-                  <input type="checkbox" checked={!!felder[f.k]} style={{ accentColor: ACCENT }} onChange={(e) => { const v = e.target.checked; profilAendern((p) => { p.inhalt.felder = { ...p.inhalt.felder, [f.k]: v }; }); }} /> {f.name}
-                </label>
-              ))}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>Andere Gewerke
-                <select style={{ ...S.selectSm, width: "auto" }} value={profil.inhalt.fremde} onChange={(e) => { const v = e.target.value; profilAendern((p) => { p.inhalt.fremde = v; }); }}>
-                  <option value="blass">blass zeigen</option>
-                  <option value="aus">ausblenden</option>
-                </select>
-              </label>
-              <div style={{ borderTop: `1px solid ${LINE}`, margin: "10px 0 8px" }} />
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {setPlanProfile && <button style={knopf} onClick={alsEigenes} title="Aktuelle Einstellungen als eigenes Profil auf diesem Rechner speichern">Als eigenes speichern</button>}
-                <button style={knopf} onClick={exportProfil} title={`Profil als .${PROFIL_ENDUNG}-Datei speichern, z. B. zum Weitergeben`}>Exportieren</button>
-                {setPlanProfile && <button style={knopf} onClick={() => dateiRef.current?.click()} title={`.${PROFIL_ENDUNG}-Datei laden und übernehmen`}>Importieren</button>}
-                {quelle && angepasst && <button style={knopf} onClick={() => waehlen(quelle.id)} title={`Änderungen verwerfen und „${quelle.name}“ wieder so nehmen, wie es gespeichert ist`}><RotateCcw size={14} /> Zurücksetzen</button>}
-                {setPlanProfile && planProfile.some((x) => x.id === profil.id) && <button style={knopf} onClick={eigenesLoeschen}>Löschen</button>}
-              </div>
-              <input ref={dateiRef} type="file" accept={`.${PROFIL_ENDUNG},.json`} style={{ display: "none" }} onChange={(e) => { importProfil(e.target.files?.[0]); e.target.value = ""; }} />
-            </div>
-          )}
-        </div>
-        <div style={{ position: "relative" }}>
-          <button style={{ ...knopf, ...(designOffen ? { background: "#2c3b93", color: "#fff" } : {}) }} onClick={() => setDesignOffen(!designOffen)} title="Abstände, Linien, Schrift und Farben des Plans. Wird im Profil gespeichert."><Palette size={14} /> Design</button>
-          {designOffen && (
-            <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: 12, width: 360, maxHeight: "70vh", overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.25)", fontSize: 12, color: SUB }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Linien und Schrift</div>
-              <label style={zeile}>Schrift
-                <select style={{ ...S.selectSm, width: 150 }} value={profil.design.schrift} onChange={(e) => designAendern("design.schrift", e.target.value)}>
-                  {!SCHRIFTEN.some(([k]) => k === profil.design.schrift) && <option value={profil.design.schrift}>{profil.design.schrift}</option>}
-                  {SCHRIFTEN.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
-                </select>
-              </label>
-              <label style={zeile}>Linienbreite {profil.design.linienBreite}
-                <input type="range" min={0.5} max={4} step={0.1} value={profil.design.linienBreite} onChange={(e) => designAendern("design.linienBreite", +e.target.value)} style={{ width: 150 }} />
-              </label>
-              <label style={zeile}>Abstand paralleler Kabel {profil.kabel.spur}
-                <input type="range" min={3} max={20} step={1} value={profil.kabel.spur} onChange={(e) => designAendern("kabel.spur", +e.target.value)} style={{ width: 150 }} />
-              </label>
-              <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>Abstände</div>
-              {ABSTAENDE.map(([k, n, min, max]) => (
-                <label key={k} style={zeile}>{n} {profil.anordnung[k]}
-                  <input type="range" min={min} max={max} step={1} value={profil.anordnung[k]} onChange={(e) => designAendern(`anordnung.${k}`, +e.target.value)} style={{ width: 150 }} />
-                </label>
-              ))}
-              <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>Farben</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px" }}>
-                {DESIGN_FARBEN.map(([pfad, n]) => (
-                  <label key={pfad} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="color" value={hex6(wertVon(profil, pfad))} onChange={(e) => designAendern(pfad, e.target.value)} style={farbFeld} /> {n}
-                  </label>
-                ))}
-              </div>
-              <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>Gerätekästen je Kategorie</div>
-              <label style={zeile}>Aufhellen {Math.round(profil.design.kategorieAufhellen * 100)} %
-                <input type="range" min={0} max={0.95} step={0.01} value={profil.design.kategorieAufhellen} onChange={(e) => designAendern("design.kategorieAufhellen", +e.target.value)} style={{ width: 150 }} />
-              </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px" }}>
-                {Object.keys(KATEGORIEN).map((kat) => (
-                  <label key={kat} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="color" value={hex6(katGrundfarbe(profil.design, kat))} onChange={(e) => designAendern("design.kategorieFarben", { ...profil.design.kategorieFarben, [kat]: e.target.value })} style={farbFeld} /> {kat}
-                  </label>
-                ))}
-              </div>
-              {Object.keys(profil.design.kategorieFarben || {}).length > 0 && <button style={{ ...knopf, marginTop: 6 }} onClick={() => designAendern("design.kategorieFarben", {})}><RotateCcw size={14} /> Kategoriefarben zurücksetzen</button>}
-              {quelle && angepasst && <button style={{ ...knopf, marginTop: 6 }} onClick={() => waehlen(quelle.id)} title={`Alle Änderungen verwerfen und „${quelle.name}“ wieder so nehmen, wie es gespeichert ist`}><RotateCcw size={14} /> Profil zurücksetzen</button>}
-            </div>
-          )}
-        </div>
         <button style={knopf} onClick={() => zoom(1 / 1.25)} title="Verkleinern"><ZoomOut size={14} /></button>
         <button style={knopf} onClick={() => zoom(1.25)} title="Vergrößern"><ZoomIn size={14} /></button>
         <button style={knopf} onClick={einpassen} title="Ganzes Blatt zeigen"><Maximize2 size={14} /> Einpassen</button>
-        {mutate && <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; delete d.layout.cleancatOrdnung; delete d.layout.plottPos; delete d.layout.plottKabel; })} title="Von Hand verschobene Kästen, gezogene Kabel und die Reihenfolge der Standorte verwerfen. Der Plan ordnet alles wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Anordnung automatisch</button>}
-        {mutate && <button style={knopf} disabled={!labelsVonHand} onClick={() => mutate((d) => { delete d.layout.plottBeschriftung; })} title="Von Hand verschobene Kabelbeschriftungen wieder automatisch setzen"><RotateCcw size={14} /> Beschriftungen automatisch</button>}
-        <select style={{ ...S.selectSm, width: "auto" }} value={format} title="Blattformat des Plans (gilt auch für den Export)"
-          onChange={(e) => { const v = e.target.value; mutate?.((d) => { if (v === "A3-quer") delete d.layout.plottFormat; else d.layout.plottFormat = v; }); }} disabled={!mutate}>
-          {Object.entries(BLATT_FORMATE).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
-        </select>
-        <select style={{ ...S.selectSm, width: "auto" }} value={groesse} title="Größe der Geräte-Kästen. Kleiner lässt mehr Platz zwischen den Einträgen, größer füllt das Blatt. Gilt auch für den Export."
-          onChange={(e) => { const v = +e.target.value; mutate?.((d) => { if (v === 1) delete d.layout.plottGroesse; else d.layout.plottGroesse = v; }); }} disabled={!mutate}>
-          {PLOTT_GROESSEN.map((g) => <option key={g} value={g}>Kästen {Math.round(g * 100)} %</option>)}
-        </select>
         <span style={{ flex: 1 }} />
         <button style={knopf} onClick={() => exportieren("pdf")} title={`Als PDF im Format ${B.label} speichern`}><FileText size={14} /> PDF {B.seite}</button>
         <button style={knopf} onClick={() => exportieren("svg")} title="Als SVG speichern (z. B. für Visio, Illustrator)"><FileCode size={14} /> SVG</button>
         <button style={knopf} onClick={() => exportieren("png")} title="Als PNG speichern"><FileImage size={14} /> PNG</button>
+        <button style={{ ...knopf, ...(panel ? { background: "#2c3b93", color: "#fff" } : {}) }} onClick={() => setPanel(!panel)} title="Bearbeiten-Fenster rechts ein- oder ausblenden"><SlidersHorizontal size={14} /> Bearbeiten</button>
       </div>
-      <div ref={wrap} style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative", background: "#d9dde1", cursor: drag.current ? "grabbing" : "grab" }}
+      <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+      <div ref={wrap} style={{ flex: 1, minWidth: 0, overflow: "hidden", position: "relative", background: "#d9dde1", cursor: drag.current ? "grabbing" : "grab" }}
         onMouseDown={(e) => { if (e.button !== 0 && e.button !== 1) return; drag.current = { sx: e.clientX, sy: e.clientY, v: view, bewegt: false }; }}
         onMouseMove={(e) => { if (labelBewegen(e) || lineBewegen(e) || boxBewegen(e) || raumBewegen(e)) return; const d = drag.current; if (!d) return; const dx = e.clientX - d.sx, dy = e.clientY - d.sy; if (Math.abs(dx) + Math.abs(dy) > 3) d.bewegt = true; setView({ ...d.v, x: d.v.x + dx, y: d.v.y + dy }); }}
         onMouseUp={() => { if (labelEnde() || lineEnde() || boxEnde() || raumEnde()) return; if (drag.current && !drag.current.bewegt) setSel(null); setTimeout(() => { drag.current = null; }, 0); }} onMouseLeave={() => { labelEnde(); setKabZieh(null); setBoxZieh(null); raumEnde(); drag.current = null; }}>
@@ -707,20 +633,110 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
             onBoxDown={mutate ? boxDown : null} onStapelDown={mutate && !gefiltert ? stapelDown : null} boxZieh={boxZieh}
             onLineDown={mutate ? lineDown : null} onLineReset={lineReset} onBoxDouble={(id) => onSelectDevice?.(id)} sel={sel} />
         </div>}
-        {(selBox || selLinie) && (
-          <div onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()}
-            style={{ position: "absolute", left: 12, top: 10, display: "flex", alignItems: "center", gap: 8, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 10px", boxShadow: "0 4px 14px rgba(0,0,0,.2)", fontSize: 12, color: SUB }}>
-            <b style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selName}</b>
-            {mutate && <label style={{ display: "inline-flex", alignItems: "center", gap: 5 }} title="Eigene Farbe nur für dieses Element">Farbe
-              <input type="color" value={hex6(selFarbe || (selBox ? selBox.fill : selLinie.col))} onChange={(e) => setzeLayout("plottFarben", sel.id, e.target.value)} style={farbFeld} /></label>}
-            {mutate && selFarbe && <button style={knopf} onClick={() => setzeLayout("plottFarben", sel.id, undefined)}><RotateCcw size={14} /> Farbe</button>}
-            {mutate && selBox && (P.layout.plottPos || {})[selBox.id] && <button style={knopf} onClick={() => setzeLayout("plottPos", selBox.id, undefined)}><RotateCcw size={14} /> Position</button>}
-            {mutate && selLinie && (P.layout.plottKabel || {})[selLinie.id] && <button style={knopf} onClick={() => lineReset(selLinie.id)}><RotateCcw size={14} /> Verlauf automatisch</button>}
-            {selBox && !selBox.sammel && onSelectDevice && <button style={knopf} onClick={() => onSelectDevice(selBox.id)}>Bearbeiten</button>}
-            <button style={{ ...knopf, padding: "4px 6px" }} onClick={() => setSel(null)} title="Auswahl aufheben (Esc)"><Schliessen size={14} /></button>
-          </div>
-        )}
-        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Gerät ziehen = frei verschieben · mit Shift = in der Reihe umsetzen · Kabelstrecke ziehen = Verlauf ändern · Klick = auswählen und umfärben · Doppelklick = Gerät bearbeiten bzw. Kabel zurücksetzen</div>
+        <div style={{ position: "absolute", left: 12, bottom: 8, fontSize: 11, color: "#4b525a" }}>{Math.round(view.k * 100)} % · {B.label} · Mausrad = Zoom · Gerät ziehen = frei verschieben · mit Shift = in der Reihe umsetzen · Kabelstrecke ziehen = Verlauf ändern · Klick = auswählen · Doppelklick = Gerät bearbeiten bzw. Kabel zurücksetzen</div>
+      </div>
+      {panel && (
+        <div style={{ width: 330, flexShrink: 0, overflowY: "auto", background: PANEL, borderLeft: `1px solid ${LINE}`, fontSize: 12, color: SUB }}>
+          <Abschnitt titel={auswahl ? (selBox ? "Gerät" : "Kabel") : "Auswahl"}>
+            {!auswahl && <div style={{ color: MUTED }}>Klick auf ein Gerät oder Kabel im Plan, um es hier zu bearbeiten.</div>}
+            {auswahl && <>
+              <div style={{ fontWeight: 700, marginBottom: 6, wordBreak: "break-word" }}>{selName}</div>
+              {mutate && <label style={zeile} title="Eigene Farbe nur für dieses Element">Eigene Farbe
+                <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                  <input type="color" value={hex6(selFarbe || (selBox ? selBox.fill : selLinie.col))} onChange={(e) => setzeLayout("plottFarben", sel.id, e.target.value)} style={farbFeld} />
+                  {selFarbe && <button style={{ ...knopf, padding: "3px 6px" }} onClick={() => setzeLayout("plottFarben", sel.id, undefined)} title="Farbe zurücksetzen"><RotateCcw size={13} /></button>}
+                </span></label>}
+              {selBox && mutate && <div style={zeile}>Position {(P.layout.plottPos || {})[selBox.id] ? "von Hand" : "automatisch"}
+                {(P.layout.plottPos || {})[selBox.id] && <button style={knopf} onClick={() => setzeLayout("plottPos", selBox.id, undefined)}><RotateCcw size={14} /> Zurücksetzen</button>}</div>}
+              {selLinie && mutate && <div style={zeile}>Verlauf {(P.layout.plottKabel || {})[selLinie.id] ? "von Hand" : "automatisch"}
+                {(P.layout.plottKabel || {})[selLinie.id] && <button style={knopf} onClick={() => lineReset(selLinie.id)}><RotateCcw size={14} /> Zurücksetzen</button>}</div>}
+              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                {selBox && !selBox.sammel && onSelectDevice && <button style={knopf} onClick={() => onSelectDevice(selBox.id)}>Gerät bearbeiten</button>}
+                <button style={knopf} onClick={() => setSel(null)}>Auswahl aufheben</button>
+              </div>
+            </>}
+          </Abschnitt>
+          <Abschnitt titel="Inhalt">
+            <label style={zeile}>Kabelfarbe
+              <select style={{ ...S.selectSm, width: 170 }} value={profil.kabel.farbe} onChange={(e) => designAendern("kabel.farbe", e.target.value)}>
+                <option value="dante">Dante Primary / Secondary</option>
+                <option value="vlan">VLAN</option>
+              </select></label>
+            {FELDER.map((f) => (
+              <label key={f.k} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
+                <input type="checkbox" checked={!!felder[f.k]} style={{ accentColor: ACCENT }} onChange={(e) => { const v = e.target.checked; profilAendern((p) => { p.inhalt.felder = { ...p.inhalt.felder, [f.k]: v }; }); }} /> {f.name}
+              </label>
+            ))}
+            <label style={zeile}>Andere Gewerke
+              <select style={{ ...S.selectSm, width: 130 }} value={profil.inhalt.fremde} onChange={(e) => designAendern("inhalt.fremde", e.target.value)}>
+                <option value="blass">blass zeigen</option>
+                <option value="aus">ausblenden</option>
+              </select></label>
+          </Abschnitt>
+          <Abschnitt titel="Linien und Schrift">
+            <label style={zeile}>Schrift
+              <select style={{ ...S.selectSm, width: 150 }} value={profil.design.schrift} onChange={(e) => designAendern("design.schrift", e.target.value)}>
+                {!SCHRIFTEN.some(([k]) => k === profil.design.schrift) && <option value={profil.design.schrift}>{profil.design.schrift}</option>}
+                {SCHRIFTEN.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+              </select></label>
+            <label style={zeile}>Linienbreite {profil.design.linienBreite}{bereich({ min: 0.5, max: 4, step: 0.1, value: profil.design.linienBreite, onChange: (e) => designAendern("design.linienBreite", +e.target.value) })}</label>
+            <label style={zeile}>Abstand paralleler Kabel {profil.kabel.spur}{bereich({ min: 3, max: 20, step: 1, value: profil.kabel.spur, onChange: (e) => designAendern("kabel.spur", +e.target.value) })}</label>
+          </Abschnitt>
+          <Abschnitt titel="Abstände">
+            {ABSTAENDE.map(([k, n, min, max]) => (
+              <label key={k} style={zeile}>{n} {profil.anordnung[k]}{bereich({ min, max, step: 1, value: profil.anordnung[k], onChange: (e) => designAendern(`anordnung.${k}`, +e.target.value) })}</label>
+            ))}
+          </Abschnitt>
+          <Abschnitt titel="Farben">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px" }}>
+              {DESIGN_FARBEN.map(([pfad, n]) => (
+                <label key={pfad} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input type="color" value={hex6(wertVon(profil, pfad))} onChange={(e) => designAendern(pfad, e.target.value)} style={farbFeld} /> {n}
+                </label>
+              ))}
+            </div>
+          </Abschnitt>
+          <Abschnitt titel="Gerätekästen je Kategorie">
+            <label style={zeile}>Aufhellen {Math.round(profil.design.kategorieAufhellen * 100)} %{bereich({ min: 0, max: 0.95, step: 0.01, value: profil.design.kategorieAufhellen, onChange: (e) => designAendern("design.kategorieAufhellen", +e.target.value) })}</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px" }}>
+              {Object.keys(KATEGORIEN).map((kat) => (
+                <label key={kat} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input type="color" value={hex6(katGrundfarbe(profil.design, kat))} onChange={(e) => designAendern("design.kategorieFarben", { ...profil.design.kategorieFarben, [kat]: e.target.value })} style={farbFeld} /> {kat}
+                </label>
+              ))}
+            </div>
+            {Object.keys(profil.design.kategorieFarben || {}).length > 0 && <button style={{ ...knopf, marginTop: 6 }} onClick={() => designAendern("design.kategorieFarben", {})}><RotateCcw size={14} /> Kategoriefarben zurücksetzen</button>}
+          </Abschnitt>
+          <Abschnitt titel="Blatt und Anordnung">
+            <label style={zeile}>Format
+              <select style={{ ...S.selectSm, width: 150 }} value={format} disabled={!mutate}
+                onChange={(e) => { const v = e.target.value; mutate?.((d) => { if (v === "A3-quer") delete d.layout.plottFormat; else d.layout.plottFormat = v; }); }}>
+                {Object.entries(BLATT_FORMATE).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
+              </select></label>
+            <label style={zeile} title="Größe der Geräte-Kästen. Gilt auch für den Export.">Kastengröße
+              <select style={{ ...S.selectSm, width: 150 }} value={groesse} disabled={!mutate}
+                onChange={(e) => { const v = +e.target.value; mutate?.((d) => { if (v === 1) delete d.layout.plottGroesse; else d.layout.plottGroesse = v; }); }}>
+                {PLOTT_GROESSEN.map((g) => <option key={g} value={g}>{Math.round(g * 100)} %</option>)}
+              </select></label>
+            {mutate && <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+              <button style={knopf} disabled={!vonHand} onClick={() => mutate((d) => { delete d.layout.cleancatStandorte; delete d.layout.cleancatOrdnung; delete d.layout.plottPos; delete d.layout.plottKabel; })} title="Von Hand verschobene Kästen, gezogene Kabel und die Reihenfolge der Standorte verwerfen. Der Plan ordnet alles wieder selbst, mit möglichst kurzen Kabelwegen und wenig Kreuzungen."><RotateCcw size={14} /> Anordnung automatisch</button>
+              <button style={knopf} disabled={!labelsVonHand} onClick={() => mutate((d) => { delete d.layout.plottBeschriftung; })} title="Von Hand verschobene Kabelbeschriftungen wieder automatisch setzen"><RotateCcw size={14} /> Beschriftungen automatisch</button>
+              <button style={knopf} disabled={!Object.keys(P.layout.plottFarben || {}).length} onClick={() => mutate((d) => { delete d.layout.plottFarben; })} title="Alle eigenen Farben einzelner Geräte und Kabel entfernen"><RotateCcw size={14} /> Eigene Farben entfernen</button>
+            </div>}
+          </Abschnitt>
+          <Abschnitt titel="Profil">
+            <div style={{ marginBottom: 6 }}>{profil.name}{angepasst ? " (angepasst)" : ""}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {setPlanProfile && <button style={knopf} onClick={alsEigenes} title="Aktuelle Einstellungen als eigenes Profil auf diesem Rechner speichern">Als eigenes speichern</button>}
+              <button style={knopf} onClick={exportProfil} title={`Profil als .${PROFIL_ENDUNG}-Datei speichern, z. B. zum Weitergeben`}>Exportieren</button>
+              {setPlanProfile && <button style={knopf} onClick={() => dateiRef.current?.click()} title={`.${PROFIL_ENDUNG}-Datei laden und übernehmen`}>Importieren</button>}
+              {quelle && angepasst && <button style={knopf} onClick={() => waehlen(quelle.id)} title={`Änderungen verwerfen und „${quelle.name}“ wieder so nehmen, wie es gespeichert ist`}><RotateCcw size={14} /> Zurücksetzen</button>}
+              {setPlanProfile && planProfile.some((x) => x.id === profil.id) && <button style={knopf} onClick={eigenesLoeschen}>Löschen</button>}
+            </div>
+            <input ref={dateiRef} type="file" accept={`.${PROFIL_ENDUNG},.json`} style={{ display: "none" }} onChange={(e) => { importProfil(e.target.files?.[0]); e.target.value = ""; }} />
+          </Abschnitt>
+        </div>
+      )}
       </div>
     </div>
   );
