@@ -3,12 +3,13 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [Unveröffentlicht]
+## [0.7.0-beta.20] – 2026-10-15
 
 - Plott: Plan-Profile. Aussehen und Inhalt des Plans stecken in einem Profil, das mit dem Projekt gespeichert wird. Drei Vorlagen: „Standard“ (wie bisher), „Druck A3 hell“ (heller, sparsam für den Drucker) und „Patchplan“ (Ports an beiden Enden, Kabeltyp und Länge)
 - Plott: Detailstufen 1 Übersicht, 2 Netz, 3 Adressen, 4 Patch. In der Übersicht werden gleiche Endgeräte am selben Switch zu einem Sammelkasten („3× Ton“). Unter „Profil“ lassen sich einzelne Felder an- und ausschalten
 - Plott: Gewerke-Filter Licht, Ton, Video. Andere Gewerke werden blass gezeigt oder ausgeblendet; Switches und Geräte ohne Gewerk bleiben immer sichtbar
 - Plott: Eigene Profile auf dem Rechner speichern, als .npprofil-Datei exportieren und importieren
+- macOS: Die Installer werden mit dem Apple-Entwicklerzertifikat signiert und von Apple beglaubigt; die App startet dann ohne Warnung
 
 ## [0.7.0-beta.19] – 2026-10-11
 
