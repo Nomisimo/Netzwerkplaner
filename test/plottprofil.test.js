@@ -264,3 +264,25 @@ test("Schriftgrößen: Titel, Beschreibung und Ports einzeln, Grenzen 50–200 %
   const { profil } = profilPruefen({ design: { schriftGroesse: { titel: 5, beschreibung: 0.1, ports: "x" } } });
   assert.deepEqual(profil.design.schriftGroesse, { titel: 2, beschreibung: 0.5, ports: 1 });
 });
+
+test("Plott: Kabel ohne kleine Versätze und nie übereinander (nicht gebündelt)", () => {
+  const segs = (l) => l.pts.slice(1).map((p, i) => [l.pts[i], p]);
+  for (const profil of [STANDARD_PROFIL, eingebautesProfil("patchplan"), mitProfil((p) => { p.inhalt.stufe = 2; p.inhalt.felder = { portKaesten: true }; })]) {
+    const L = plan(demoProject(), { profil });
+    for (const l of L.linien) for (const [a, b] of segs(l)) {
+      const d = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+      assert.ok(d < 0.01 || d >= 4, `Versatz ${d} in ${l.id}`);
+    }
+    const S = L.linien.flatMap((l) => segs(l).map((s) => ({ l: l.id, s })));
+    for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) {
+      if (S[i].l === S[j].l) continue;
+      const [a, b] = S[i].s, [c, d] = S[j].s;
+      for (const ax of [0, 1]) {
+        const o = 1 - ax;
+        if (Math.abs(a[ax] - b[ax]) > 0.01 || Math.abs(c[ax] - d[ax]) > 0.01 || Math.abs(a[ax] - c[ax]) >= 1) continue;
+        const lo = Math.max(Math.min(a[o], b[o]), Math.min(c[o], d[o])), hi = Math.min(Math.max(a[o], b[o]), Math.max(c[o], d[o]));
+        assert.ok(hi - lo <= 2, `${S[i].l} und ${S[j].l} liegen übereinander`);
+      }
+    }
+  }
+});

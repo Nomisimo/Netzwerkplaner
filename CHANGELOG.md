@@ -3,6 +3,12 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [Unveröffentlicht]
+
+- Plott: Kabel schließen schon beim Verlegen genau an ihrem Port in der Port-Leiste an. Keine kleinen Versätze mehr kurz vor dem Kasten, und kein Kabel liegt auf einem anderen
+- Plott: Kabel ohne eindeutige Signalrichtung bekommen keine Doppelpfeile mehr; Pfeile nur noch bei Signal in eine Richtung
+- Anschlüsse: Mit „Kabel bündeln“ laufen auch Kabel, die um Geräte herum geführt werden, gemeinsam im Bündel statt nebeneinander
+
 ## [0.7.0-beta.21] – 2026-10-16
 
 - Plott-Editor: Geräte frei verschieben, die Kabel folgen rechtwinklig. Mit Shift wie bisher in der Reihe umsetzen
