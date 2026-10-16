@@ -34,12 +34,13 @@ export const FELDER = [
   { k: "switchPorts", name: "Port-Namen am Switch" },
   { k: "geraetPorts", name: "Port-Namen am Endgerät" },
   { k: "kabelDetails", name: "Kabeltyp und Länge an jedem Kabel" },
+  { k: "portKaesten", name: "Ports als farbige Kästchen (VLAN-Farbe)" },
 ];
 const STUFEN_FELDER = {
-  1: { modell: false, ip: false, notiz: false, anmerkung: false, kabeltext: false, switchPorts: false, geraetPorts: false, kabelDetails: false },
-  2: { modell: true, ip: false, notiz: false, anmerkung: true, kabeltext: true, switchPorts: true, geraetPorts: false, kabelDetails: false },
-  3: { modell: true, ip: true, notiz: true, anmerkung: true, kabeltext: true, switchPorts: true, geraetPorts: false, kabelDetails: false },
-  4: { modell: true, ip: true, notiz: true, anmerkung: true, kabeltext: true, switchPorts: true, geraetPorts: true, kabelDetails: true },
+  1: { modell: false, ip: false, notiz: false, anmerkung: false, kabeltext: false, switchPorts: false, geraetPorts: false, kabelDetails: false, portKaesten: false },
+  2: { modell: true, ip: false, notiz: false, anmerkung: true, kabeltext: true, switchPorts: true, geraetPorts: false, kabelDetails: false, portKaesten: false },
+  3: { modell: true, ip: true, notiz: true, anmerkung: true, kabeltext: true, switchPorts: true, geraetPorts: false, kabelDetails: false, portKaesten: false },
+  4: { modell: true, ip: true, notiz: true, anmerkung: true, kabeltext: true, switchPorts: true, geraetPorts: true, kabelDetails: true, portKaesten: true },
 };
 
 /* Gewerke-Filter: Kategorie eines Geräts → Gewerk. Switches und Geräte ohne Gewerk
@@ -63,13 +64,15 @@ export const STANDARD_PROFIL = Object.freeze({
     farben: { primary: "#e53935", secondary: "#2e9e44", glas: "#c05bd6", trunk: "#3a3f45", sonst: "#55595f" },
     switchFuellung: "#fff176",
     kategorieAufhellen: 0.5,
+    kategorieFarben: {}, // eigene Grundfarbe je Kategorie, z. B. { Ton: "#3b82f6" }
+    schriftGroesse: { titel: 1, beschreibung: 1, ports: 1 }, // Faktor je Textart (0,5–2)
     boxRand: "#3b3f45",
     raum: { fuellung: "#f6f7f8", rand: "#8a8f96", kopf: "#dfeefb", kopfLinie: "#b9cfe3", strich: "6 4" },
     stack: { fuellung: "#ffffff", rand: "#6f7680", kopf: "#eceef1", kopfLinie: "#c3c8ce" },
   },
   inhalt: { stufe: 3, felder: {}, gewerke: [], fremde: "blass" },
   kabel: { farbe: "dante", spur: 7 },
-  anordnung: { maxSpalten: 6 },
+  anordnung: { maxSpalten: 6, kastenAbstand: 30, reihenAbstand: 26, gruppeAbstand: 46, raumAbstand: 70 },
 });
 
 const tief = (x) => JSON.parse(JSON.stringify(x));
@@ -108,6 +111,13 @@ const uebernehmen = (vorlage, roh, pfad, warn) => {
     if (!(k in vorlage)) { warn.push(`Unbekannte Angabe „${p}“ ignoriert`); continue; }
     const soll = vorlage[k];
     if (soll && typeof soll === "object" && !Array.isArray(soll)) {
+      if (p === "design.kategorieFarben") { // nur bekannte Kategorien mit gültiger Farbe
+        for (const [kat, farbe] of Object.entries(v && typeof v === "object" ? v : {})) {
+          if (KATEGORIEN[kat] && typeof farbe === "string" && FARBE.test(farbe)) out.kategorieFarben[kat] = farbe;
+          else warn.push(`Kategorie-Farbe „${kat}“ ignoriert`);
+        }
+        continue;
+      }
       if (p === "inhalt.felder") { // nur bekannte Felder mit wahr/falsch
         for (const [f, an] of Object.entries(v || {})) {
           if (FELDER.some((x) => x.k === f) && typeof an === "boolean") out.felder[f] = an;
@@ -155,8 +165,14 @@ export const profilPruefen = (roh, eigene = []) => {
   if (!["blass", "aus"].includes(i.fremde)) i.fremde = "blass";
   if (!["dante", "vlan"].includes(profil.kabel.farbe)) profil.kabel.farbe = "dante";
   profil.kabel.spur = Math.max(4, Math.min(16, profil.kabel.spur));
-  profil.anordnung.maxSpalten = Math.max(1, Math.min(12, Math.round(profil.anordnung.maxSpalten)));
+  const a = profil.anordnung, grenze = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
+  a.maxSpalten = grenze(a.maxSpalten, 1, 12);
+  a.kastenAbstand = grenze(a.kastenAbstand, 10, 120);
+  a.reihenAbstand = grenze(a.reihenAbstand, 10, 120);
+  a.gruppeAbstand = grenze(a.gruppeAbstand, 10, 200);
+  a.raumAbstand = grenze(a.raumAbstand, 20, 300);
   profil.design.linienBreite = Math.max(0.5, Math.min(4, profil.design.linienBreite));
+  for (const [k, v] of Object.entries(profil.design.schriftGroesse)) profil.design.schriftGroesse[k] = Math.max(0.5, Math.min(2, Math.round(v * 100) / 100));
   profil.design.kategorieAufhellen = Math.max(0, Math.min(0.95, profil.design.kategorieAufhellen));
   profil.format = PROFIL_FORMAT; profil.version = PROFIL_VERSION;
   profil.eingebaut = !!eingebautesProfil(profil.id) && JSON.stringify(profilVergleich(profil)) === JSON.stringify(profilVergleich(eingebautesProfil(profil.id)));
@@ -188,7 +204,8 @@ const mische = (hex, anteil) => {
   const k = (v) => Math.round(v + (255 - v) * anteil);
   return "#" + [n >> 16, (n >> 8) & 255, n & 255].map((v) => k(v).toString(16).padStart(2, "0")).join("");
 };
-export const katFuellung = (design, kat) => mische((KATEGORIEN[kat] || KATEGORIEN.Sonstiges).color, design.kategorieAufhellen);
+export const katGrundfarbe = (design, kat) => design.kategorieFarben?.[kat] || (KATEGORIEN[kat] || KATEGORIEN.Sonstiges).color;
+export const katFuellung = (design, kat) => mische(katGrundfarbe(design, kat), design.kategorieAufhellen);
 
 /* Datei zum Weitergeben: ohne „eingebaut“, mit Format und Version */
 export const profilDatei = (profil) => {
