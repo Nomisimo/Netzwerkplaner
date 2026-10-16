@@ -19,7 +19,7 @@ icons     [ { id, name, data (Data-URL) } ]
 
 ```
 planProfil { format: "netzwerkplaner-planprofil", version: 1, id, name, basiertAuf,
-  design   { schrift, papier, rahmen, text, textNeben, linienBreite, boxRand, switchFuellung, kategorieAufhellen, kategorieFarben { Kategorie: "#rrggbb" },
+  design   { schrift, papier, rahmen, text, textNeben, linienBreite, boxRand, switchFuellung, kategorieAufhellen, kategorieFarben { Kategorie: "#rrggbb" }, schriftGroesse { titel, beschreibung, ports } (Faktor 0,5–2),
              farben { primary, secondary, glas, trunk, sonst },
              raum { fuellung, rand, kopf, kopfLinie, strich }, stack { fuellung, rand, kopf, kopfLinie } },
   inhalt   { stufe: 1–4, felder { modell, ip, notiz, anmerkung, kabeltext, switchPorts, geraetPorts, portKaesten, kabelDetails },
