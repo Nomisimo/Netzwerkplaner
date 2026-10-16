@@ -30,7 +30,7 @@ planProfil { format: "netzwerkplaner-planprofil", version: 1, id, name, basiertA
 
 - `basiertAuf` nennt die Vorlage oder das eigene Profil, aus dem alles kommt, was das Profil nicht selbst setzt.
 - Beim Laden werden unbekannte Angaben ignoriert; falsche Typen, ungültige Farben und Werte außerhalb der Grenzen fallen auf die Basis zurück.
-- `inhalt.felder` überschreibt einzelne Felder der Stufe. Leere `gewerke` heißt: alle Gewerke. `portKaesten` zeigt alle Ports als Kästchen (an in Stufe 4), unbelegte gestrichelt. Farbe: `port.farbe`, sonst Trunk- bzw. VLAN-Farbe des Ports oder des angeschlossenen Kabels.
+- `inhalt.felder` überschreibt einzelne Felder der Stufe. Leere `gewerke` heißt: alle Gewerke. `portKaesten` zeigt alle Ports als Leiste im Gerätekasten (an in Stufe 4); Kabel docken an ihrem Port an, unbelegte Ports blasser. Farbe: `port.farbe`, sonst Trunk- bzw. VLAN-Farbe des Ports oder des angeschlossenen Kabels.
 - `anordnung`: Abstände in Punkten (Standard 30 / 26 / 46 / 70) mit Grenzen 10–120, 10–120, 10–200, 20–300.
 
 Von Hand im Plott-Editor geändert (im Projekt-`layout`, nicht im Profil):

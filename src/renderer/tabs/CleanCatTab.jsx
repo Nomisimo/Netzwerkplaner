@@ -3,7 +3,7 @@ import { S, ACCENT, LINE, SUB, MUTED, PANEL, KATEGORIEN } from "../../shared/con
 import { STANDARD_PROFIL, EINGEBAUTE_PROFILE, eingebautesProfil, projektProfil, profilFelder, profilVergleich, profilDatei, profilLesen, STUFEN, FELDER, GEWERKE, PROFIL_ENDUNG, katGrundfarbe } from "../../shared/plottprofil.js";
 import { uid } from "../../shared/catalog.js";
 import { frageText } from "../ui.jsx";
-import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat, PLOTT_GROESSEN, plottGroesse, kabelLabelAn, anteilAufPfad } from "../../shared/cleancat.js";
+import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat, PLOTT_GROESSEN, plottGroesse, kabelLabelAn, anteilAufPfad, PORT_LEISTE } from "../../shared/cleancat.js";
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
 import { ladeLogo } from "../logo.js";
@@ -198,6 +198,7 @@ export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zie
               {b.sammel && <rect x={4} y={-4} width={bw} height={bh} fill={b.fill} stroke={D.boxRand} strokeWidth={1} />}
               <rect width={bw} height={bh} fill={b.fill} stroke={D.boxRand} strokeWidth={1} />
               {b.sammel && <title>{b.sammelNamen.join("\n")}</title>}
+              <g transform={b.leisteOben ? `translate(0,${PORT_LEISTE})` : undefined}>
               <T x={bw / 2} y={yName} max={frei} fit={b.tName} anchor="middle" weight={600} fill={D.text} />
               {b.tSub && <T x={bw / 2} y={zeilen === 3 ? 30 : 34} max={frei} fit={b.tSub} anchor="middle" fill={D.textNeben} />}
               {b.tIp && <T x={bw / 2} y={b.tSub ? 43 : 34} max={frei} fit={b.tIp} anchor="middle" fill={D.textNeben} mono />}
@@ -208,15 +209,16 @@ export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zie
                   <title>{b.notizVoll}</title>
                 </>
               )}
+              </g>
               {sel?.art === "box" && sel.id === b.id && <rect x={-3} y={-3} width={bw + 6} height={bh + 6} fill="none" stroke="#2c3b93" strokeWidth="2" strokeDasharray="5 3" rx="2" pointerEvents="none" />}
             </g>
           );
         })}
         {(L.ports || []).map((p, i) => (
-          // Ports als farbige Kästchen in VLAN-Farbe, Name darin; unbelegte gestrichelt umrandet
+          // Port-Leiste im Kasten: Zellen in VLAN- bzw. eigener Farbe, Name darin; unbelegte blasser
           <g key={"p" + i} opacity={L.boxen.find((b) => b.id === p.an)?.blass ? 0.25 : undefined} pointerEvents="none">
-            <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={p.fill} stroke={D.boxRand} strokeWidth="0.8" strokeDasharray={p.frei ? "1.6 1.2" : undefined} rx="1.5" />
-            <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 2.3} fontSize={p.t.fs} textAnchor="middle" fill={p.hell ? "#111" : "#fff"} fontWeight="600">{p.t.t}</text>
+            <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={p.fill} fillOpacity={p.frei ? 0.45 : 1} stroke={D.boxRand} strokeWidth="0.8" />
+            <text x={p.x + p.w / 2} y={p.y + p.h / 2 + p.t.fs * 0.36} fontSize={p.t.fs} textAnchor="middle" fill={p.hell ? "#111" : "#fff"} fontWeight="600">{p.t.t}</text>
           </g>
         ))}
         {boxZieh?.bewegt && (() => {

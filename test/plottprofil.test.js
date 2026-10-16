@@ -222,7 +222,21 @@ test("Port-Kästchen: alle Ports, auch unbelegte; eigene Port-Farbe vor VLAN-Far
   }
   const frei = L.ports.filter((p) => p.frei);
   assert.ok(frei.length > 0);
-  // Unbelegte Kästchen liegen nicht auf Kabel-Kästchen desselben Geräts
+  // Leiste im Kasten, ohne Abstand; jedes Kabel endet mitten an seiner Port-Zelle
+  for (const b of L.boxen.filter((x) => !x.sammel)) {
+    const z = L.ports.filter((p) => p.an === b.id);
+    z.forEach((p, i) => { assert.ok(p.x >= b.x - 0.01 && p.x + p.w <= b.x + b.w + 0.01 && p.y >= b.y - 0.01 && p.y + p.h <= b.y + b.h + 0.01, `${b.name} im Kasten`); if (i) assert.ok(Math.abs(p.x - z[i - 1].x - z[i - 1].w) < 0.01, `${b.name} ohne Abstand`); });
+  }
+  const X = buildIndex(P);
+  for (const l of L.linien) {
+    const c = P.verbindungen.find((v) => v.id === l.id);
+    for (const [e, pt] of [[c.a.dev === l.von ? c.a : c.b, l.pts[0]], [c.a.dev === l.von ? c.b : c.a, l.pts[l.pts.length - 1]]]) {
+      const z = L.ports.find((p) => p.an === e.dev && p.port === e.port);
+      if (z && X.portRef.get(`${e.dev}:${e.port}`)) assert.ok(Math.abs(pt[0] - (z.x + z.w / 2)) < 0.01, `${l.id} an Port ${e.port}`);
+    }
+    assert.ok(orthogonal(l.pts), `${l.id} rechtwinklig`);
+  }
+  // Unbelegte Zellen liegen nicht auf belegten desselben Geräts
   for (const f of frei) for (const k of L.ports.filter((p) => !p.frei && p.an === f.an)) {
     assert.ok(f.x >= k.x + k.w - 0.01 || f.x + f.w <= k.x + 0.01 || f.y >= k.y + k.h - 0.01 || f.y + f.h <= k.y + 0.01, `${f.an} ${f.port}`);
   }
