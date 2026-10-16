@@ -6,7 +6,7 @@ meta      { veranstaltung, ort, ersteller, datum, version, notiz }
 VLAN      { id, vid, name, farbe, subnetz (CIDR), gateway, zweck, igmp, querier, eeeAus, qos, dhcp { aktiv, von, bis }, notiz }
 Gerät     { id, name, typ, kategorie, hersteller, modell, katalogId, icon, bereich, isSwitch, poeBudget, poeBedarf,
             interfaces[ { id, name, ip, prefix, gateway, vlan, mac, dhcp } ],
-            ports[ { id, name, typ, iface, modus: access|trunk, vlan, vlans[], poe, p2p } ],
+            ports[ { id, name, typ, iface, modus: access|trunk, vlan, vlans[], poe, p2p, farbe? } ],
             webUi { vorhanden, url ("http://{ip}"), iface }, protokolle[], notizen }
 Verbindung{ id, a { dev, port }, b { dev, port }, kabel, laenge, label, notiz }
 layout    { rootId, offsets { devId: { dx, dy } }, pinned { devId: { x, y } }, collapsed { devId: true } }
@@ -30,7 +30,7 @@ planProfil { format: "netzwerkplaner-planprofil", version: 1, id, name, basiertA
 
 - `basiertAuf` nennt die Vorlage oder das eigene Profil, aus dem alles kommt, was das Profil nicht selbst setzt.
 - Beim Laden werden unbekannte Angaben ignoriert; falsche Typen, ungültige Farben und Werte außerhalb der Grenzen fallen auf die Basis zurück.
-- `inhalt.felder` überschreibt einzelne Felder der Stufe. Leere `gewerke` heißt: alle Gewerke. `portKaesten` zeigt Ports als Kästchen in VLAN- bzw. Trunk-Farbe (an in Stufe 4).
+- `inhalt.felder` überschreibt einzelne Felder der Stufe. Leere `gewerke` heißt: alle Gewerke. `portKaesten` zeigt alle Ports als Kästchen (an in Stufe 4), unbelegte gestrichelt. Farbe: `port.farbe`, sonst Trunk- bzw. VLAN-Farbe des Ports oder des angeschlossenen Kabels.
 - `anordnung`: Abstände in Punkten (Standard 30 / 26 / 46 / 70) mit Grenzen 10–120, 10–120, 10–200, 20–300.
 
 Von Hand im Plott-Editor geändert (im Projekt-`layout`, nicht im Profil):

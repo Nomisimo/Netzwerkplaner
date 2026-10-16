@@ -213,9 +213,9 @@ export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zie
           );
         })}
         {(L.ports || []).map((p, i) => (
-          // Ports als farbige Kästchen in VLAN-Farbe, Name darin
+          // Ports als farbige Kästchen in VLAN-Farbe, Name darin; unbelegte gestrichelt umrandet
           <g key={"p" + i} opacity={L.boxen.find((b) => b.id === p.an)?.blass ? 0.25 : undefined} pointerEvents="none">
-            <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={p.fill} stroke={D.boxRand} strokeWidth="0.8" rx="1.5" />
+            <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={p.fill} stroke={D.boxRand} strokeWidth="0.8" strokeDasharray={p.frei ? "1.6 1.2" : undefined} rx="1.5" />
             <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 2.3} fontSize={p.t.fs} textAnchor="middle" fill={p.hell ? "#111" : "#fff"} fontWeight="600">{p.t.t}</text>
           </g>
         ))}
@@ -593,6 +593,13 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
   const selFarbe = sel && (P.layout.plottFarben || {})[sel.id];
   const bereich = (r) => <input type="range" {...r} style={{ width: 140 }} />;
   const auswahl = selBox || selLinie;
+  const selDev = selBox && !selBox.sammel ? P.geraete.find((d) => d.id === selBox.id) : null;
+  // Eigene Farbe eines Ports (am Gerät gespeichert); undefined = wieder VLAN-Farbe
+  const portFarbe = (portId, farbe) => mutate?.((d) => {
+    const p = d.geraete.find((g) => g.id === selDev.id)?.ports.find((x) => x.id === portId);
+    if (!p) return;
+    if (farbe) p.farbe = farbe; else delete p.farbe;
+  });
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap", flexShrink: 0 }}>
@@ -650,6 +657,24 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
                 {(P.layout.plottPos || {})[selBox.id] && <button style={knopf} onClick={() => setzeLayout("plottPos", selBox.id, undefined)}><RotateCcw size={14} /> Zurücksetzen</button>}</div>}
               {selLinie && mutate && <div style={zeile}>Verlauf {(P.layout.plottKabel || {})[selLinie.id] ? "von Hand" : "automatisch"}
                 {(P.layout.plottKabel || {})[selLinie.id] && <button style={knopf} onClick={() => lineReset(selLinie.id)}><RotateCcw size={14} /> Zurücksetzen</button>}</div>}
+              {selDev && selDev.ports.some((p) => !p.virtuell) && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>Port-Farben</div>
+                  <div style={{ color: MUTED, marginBottom: 4 }}>Ohne eigene Farbe gilt die Farbe des VLANs.{!felder.portKaesten && " Sichtbar mit „Ports als farbige Kästchen“ unter Inhalt."}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 10px" }}>
+                    {selDev.ports.filter((p) => !p.virtuell).map((p) => {
+                      const k = (L.ports || []).find((x) => x.an === selDev.id && x.port === p.id);
+                      return (
+                        <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }} title={p.farbe ? "Eigene Farbe" : "Farbe des VLANs"}>
+                          <input type="color" disabled={!mutate} value={hex6(p.farbe || k?.fill || "#ffffff")} onChange={(e) => portFarbe(p.id, e.target.value)} style={farbFeld} />
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: p.farbe ? 700 : 400 }}>{p.name}</span>
+                          {p.farbe && mutate && <button style={{ ...knopf, padding: "1px 4px" }} onClick={(e) => { e.preventDefault(); portFarbe(p.id, undefined); }} title="Wieder Farbe des VLANs"><RotateCcw size={11} /></button>}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                 {selBox && !selBox.sammel && onSelectDevice && <button style={knopf} onClick={() => onSelectDevice(selBox.id)}>Gerät bearbeiten</button>}
                 <button style={knopf} onClick={() => setSel(null)}>Auswahl aufheben</button>

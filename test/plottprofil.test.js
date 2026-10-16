@@ -211,3 +211,28 @@ test("Design: Abstände ändern den Plan, Kategoriefarben werden geprüft", () =
   const tonGeraet = P.geraete.find((d) => d.kategorie === "Ton" && !d.isSwitch);
   assert.notEqual(ton.boxen.find((b) => b.id === tonGeraet.id).fill, std.boxen.find((b) => b.id === tonGeraet.id).fill);
 });
+
+test("Port-Kästchen: alle Ports, auch unbelegte; eigene Port-Farbe vor VLAN-Farbe", () => {
+  const P = demoProject();
+  const L = plan(P, { profil: eingebautesProfil("patchplan") });
+  for (const b of L.boxen.filter((x) => !x.sammel)) {
+    const d = P.geraete.find((g) => g.id === b.id);
+    const ids = new Set(L.ports.filter((p) => p.an === d.id).map((p) => p.port));
+    for (const p of d.ports.filter((x) => !x.virtuell)) assert.ok(ids.has(p.id), `${d.name} ${p.name}`);
+  }
+  const frei = L.ports.filter((p) => p.frei);
+  assert.ok(frei.length > 0);
+  // Unbelegte Kästchen liegen nicht auf Kabel-Kästchen desselben Geräts
+  for (const f of frei) for (const k of L.ports.filter((p) => !p.frei && p.an === f.an)) {
+    assert.ok(f.x >= k.x + k.w - 0.01 || f.x + f.w <= k.x + 0.01 || f.y >= k.y + k.h - 0.01 || f.y + f.h <= k.y + 0.01, `${f.an} ${f.port}`);
+  }
+  // Eigene Farbe am Port schlägt die VLAN-Farbe, belegt wie unbelegt
+  const k = L.ports.find((p) => !p.frei), f = frei[0];
+  for (const x of [k, f]) P.geraete.find((g) => g.id === x.an).ports.find((p) => p.id === x.port).farbe = "#ff00aa";
+  const L2 = plan(P, { profil: eingebautesProfil("patchplan") });
+  for (const x of [k, f]) assert.equal(L2.ports.find((p) => p.an === x.an && p.port === x.port).fill, "#ff00aa");
+  // Ohne eigene Farbe: VLAN-Farbe des Ports
+  const mitVlan = L.ports.find((p) => { const q = P.geraete.find((g) => g.id === p.an).ports.find((x) => x.id === p.port); return !q.farbe && q.vlan && P.vlans.find((v) => v.id === q.vlan)?.farbe && q.modus !== "trunk" && !q.trunk; });
+  const q = P.geraete.find((g) => g.id === mitVlan.an).ports.find((x) => x.id === mitVlan.port);
+  assert.equal(mitVlan.fill, P.vlans.find((v) => v.id === q.vlan).farbe);
+});
