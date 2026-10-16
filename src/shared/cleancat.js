@@ -58,7 +58,7 @@ export const ccBoxBreite = (d) => (d.isSwitch ? Math.max(170, Math.min(340, phys
 const INNEN = 10; // Textabstand links und rechts in der Box
 // Port-Leiste im Kasten (Ports als farbige Kästchen): Höhe und Breite einer Port-Zelle
 export const PORT_LEISTE = 14;
-const portZelle = (d) => Math.max(22, Math.min(52, Math.max(0, ...physPorts(d).map((p) => textB(p.name, 7.5))) + 8));
+const portZelle = (d, g = 1) => Math.max(22 * g, Math.min(52 * g, Math.max(0, ...physPorts(d).map((p) => textB(p.name, 7.5 * g))) + 8 * g));
 // Zeichenfläche des Blatts (siehe ccBlatt), nach ihr richtet sich die Reihenaufteilung
 const istGlas = (c) => /fiber|opticalcon/.test(c.kabel || "");
 const hell = (hex) => { const n = parseInt(String(hex).slice(1, 7), 16); return ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000 > 150; };
@@ -362,9 +362,12 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
   const flaeche = ccMasse(format).flaeche;
   const genutzt = { standorte: [], gruppen: {}, oben: {} };
   // Alle Boxen gleich hoch: gibt es irgendwo eine Notiz, bekommen alle Platz für zwei Notizzeilen
-  const BASIS_H = felder.ip ? 52 : felder.modell ? 40 : 30;
+  // Schriftgrößen je Textart; Standard 1 = wie bisher. Größere Schrift macht die Kästen höher.
+  const SG = { titel: 1, beschreibung: 1, ports: 1, ...D.schriftGroesse };
+  const dT = 12.5 * (SG.titel - 1), dB = 9.5 * (SG.beschreibung - 1), LEISTE_H = PORT_LEISTE * SG.ports;
+  const BASIS_H = (felder.ip ? 52 + 2 * dB : felder.modell ? 40 + dB : 30) + dT;
   const mitNotiz = felder.notiz && P.geraete.some((d) => String(d.notizen || "").trim());
-  const BOX_H = (BASIS_H + (mitNotiz ? 2 * NOTIZ_ZEILE + 5 : 0) + (felder.portKaesten ? PORT_LEISTE : 0)) * s;
+  const BOX_H = (BASIS_H + (mitNotiz ? 2 * NOTIZ_ZEILE + 5 : 0) + (felder.portKaesten ? LEISTE_H : 0)) * s;
   /* Räume: je Standort, darin je Stack ein eigener Unterraum. Schlüssel eines
      Stack-Raums = Standort + \u0001 + Stack-ID; alles andere liegt im Standort selbst. */
   const standortVon = (d) => (d.bereich || "").trim() || "Ohne Standort";
@@ -380,13 +383,13 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
   const box = (d) => {
     const sub = felder.modell ? [d.hersteller, d.modell].filter(Boolean).join(" ") || "" : "";
     const ip = felder.ip ? ipPorts(d).map((p) => p.ip).filter(Boolean).slice(0, 2).join(" · ") : "";
-    const w0 = felder.portKaesten && !sammel?.get(d.id) ? Math.max(ccBoxBreite(d), physPorts(d).length * portZelle(d) + 8) : ccBoxBreite(d), w = w0 * s, frei = w0 - INNEN * 2; // Text in ungezoomten Maßen, gezeichnet mit scale(s)
+    const w0 = felder.portKaesten && !sammel?.get(d.id) ? Math.max(ccBoxBreite(d), physPorts(d).length * portZelle(d, SG.ports) + 8) : ccBoxBreite(d), w = w0 * s, frei = w0 - INNEN * 2; // Text in ungezoomten Maßen, gezeichnet mit scale(s)
     const fill = d.isSwitch ? D.switchFuellung : katFuellung(D, d.kategorie);
     const notiz = felder.notiz ? String(d.notizen || "").trim() : "";
     const sm = sammel?.get(d.id);
-    return { id: d.id, name: d.name, ...(sm ? { sammel: sm.ids, sammelNamen: sm.namen } : {}), ...(blass?.has(d.id) ? { blass: true } : {}), sub, ip, w, h: BOX_H, basisH: BASIS_H * s, s, fill, isSwitch: !!d.isSwitch, kategorie: d.kategorie,
+    return { id: d.id, name: d.name, ...(sm ? { sammel: sm.ids, sammelNamen: sm.namen } : {}), ...(blass?.has(d.id) ? { blass: true } : {}), sub, ip, w, h: BOX_H, basisH: BASIS_H * s, s, ...(dT || dB ? { dT, dB, gT: SG.titel } : {}), fill, isSwitch: !!d.isSwitch, kategorie: d.kategorie,
       notiz: notiz ? umbrechen(notiz, NOTIZ_PX, frei, 2) : null, notizVoll: notiz || null,
-      tName: passeText(d.name, 12.5, frei, 9.5), tSub: sub ? passeText(sub, 9.5, frei, 8) : null, tIp: ip ? passeText(ip, 9.5, frei, 7.5, true) : null };
+      tName: passeText(d.name, 12.5 * SG.titel, frei, 9.5 * SG.titel), tSub: sub ? passeText(sub, 9.5 * SG.beschreibung, frei, 8 * SG.beschreibung) : null, tIp: ip ? passeText(ip, 9.5 * SG.beschreibung, frei, 7.5 * SG.beschreibung, true) : null };
   };
 
   // Verbindungen je Gerät
@@ -816,14 +819,15 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
       if (!d) continue;
       const liste = physPorts(d);
       if (!liste.length) continue;
-      const s = b.s || 1, cw = portZelle(d) * s, ph = PORT_LEISTE * s;
+      const s = b.s || 1, cw = portZelle(d, SG.ports) * s, ph = LEISTE_H * s;
+      b.leisteH = LEISTE_H;
       const o = oben.get(id) || [0, 0];
       b.leisteOben = o[0] > o[1];
       const y = b.leisteOben ? b.y : b.y + b.h - ph;
       let x = b.x + (b.w - liste.length * cw) / 2;
       for (const p of liste) {
         const an = enden.get(`${id}:${p.id}`) || [];
-        const fill = farbeVon(p, an[0]?.c), t = passeText(p.name, 7.5, portZelle(d) - 4, 5);
+        const fill = farbeVon(p, an[0]?.c), t = passeText(p.name, 7.5 * SG.ports, portZelle(d, SG.ports) - 4 * SG.ports, 5 * SG.ports);
         ports.push({ x, y, w: cw, h: ph, fill, t: { ...t, fs: t.fs * s }, an: id, port: p.id, ...(an.length ? {} : { frei: true }), hell: hell(fill) });
         // Kabel an die Mitte der Port-Zelle legen, rechtwinklig an den bisherigen Weg anschließen
         const cx = x + cw / 2;

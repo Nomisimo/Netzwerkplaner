@@ -3,13 +3,13 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
-## [Unveröffentlicht]
+## [0.7.0-beta.21] – 2026-10-16
 
 - Plott-Editor: Geräte frei verschieben, die Kabel folgen rechtwinklig. Mit Shift wie bisher in der Reihe umsetzen
 - Plott-Editor: Mittlere Strecken eines Kabels ziehen, um den Verlauf zu ändern; Doppelklick setzt das Kabel zurück
 - Plott-Editor: Klick wählt Gerät oder Kabel aus; im Bearbeiten-Fenster eigene Farbe setzen, Position oder Verlauf zurücksetzen
 - Plott: Bearbeiten-Fenster rechts mit allen Einstellungen an einem Ort: ausgewähltes Gerät oder Kabel, Inhalt, Linien und Schrift, Abstände, Farben, Kategoriefarben, Blatt und Anordnung, Profil. Lässt sich über „Bearbeiten“ ein- und ausblenden
-- Plott: Design mit Schrift, Linienbreite, Kabelabstand, Abständen zwischen Kästen, Reihen, Gruppen und Standorten, allen Farben und Farben je Gerätekategorie. Wird im Profil gespeichert
+- Plott: Design mit Schrift, Schriftgrößen für Titel, Beschreibung und Ports, Linienbreite, Kabelabstand, Abständen zwischen Kästen, Reihen, Gruppen und Standorten, allen Farben und Farben je Gerätekategorie. Wird im Profil gespeichert
 - Plott: Ports als farbige Kästchen (Stufe 4 „Patch“, unter „Inhalt“ schaltbar). Alle Ports stehen als durchgehende Leiste im Gerätekasten, an der Seite mit den meisten Kabeln; jedes Kabel dockt an seinem Port an, unbelegte Ports sind blasser. Jeder Port kann im Bearbeiten-Fenster eine eigene Farbe bekommen, sonst gilt die Farbe des VLANs
 
 ## [0.7.0-beta.20] – 2026-10-15

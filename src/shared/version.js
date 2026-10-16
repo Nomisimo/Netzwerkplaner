@@ -5,6 +5,14 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.21": [
+    "Plott-Editor: Geräte frei verschieben, die Kabel folgen rechtwinklig. Mit Shift wie bisher in der Reihe umsetzen",
+    "Plott-Editor: Mittlere Strecken eines Kabels ziehen, um den Verlauf zu ändern; Doppelklick setzt das Kabel zurück",
+    "Plott-Editor: Klick wählt Gerät oder Kabel aus; im Bearbeiten-Fenster eigene Farbe setzen, Position oder Verlauf zurücksetzen",
+    "Plott: Bearbeiten-Fenster rechts mit allen Einstellungen an einem Ort: ausgewähltes Gerät oder Kabel, Inhalt, Linien und Schrift, Abstände, Farben, Kategoriefarben, Blatt und Anordnung, Profil. Lässt sich über „Bearbeiten“ ein- und ausblenden",
+    "Plott: Design mit Schrift, Schriftgrößen für Titel, Beschreibung und Ports, Linienbreite, Kabelabstand, Abständen zwischen Kästen, Reihen, Gruppen und Standorten, allen Farben und Farben je Gerätekategorie. Wird im Profil gespeichert",
+    "Plott: Ports als farbige Kästchen (Stufe 4 „Patch“, unter „Inhalt“ schaltbar). Alle Ports stehen als durchgehende Leiste im Gerätekasten, an der Seite mit den meisten Kabeln; jedes Kabel dockt an seinem Port an, unbelegte Ports sind blasser. Jeder Port kann im Bearbeiten-Fenster eine eigene Farbe bekommen, sonst gilt die Farbe des VLANs",
+  ],
   "0.7.0-beta.20": [
     "Plott: Plan-Profile. Aussehen und Inhalt des Plans stecken in einem Profil, das mit dem Projekt gespeichert wird. Drei Vorlagen: „Standard“ (wie bisher), „Druck A3 hell“ (heller, sparsam für den Drucker) und „Patchplan“ (Ports an beiden Enden, Kabeltyp und Länge)",
     "Plott: Detailstufen 1 Übersicht, 2 Netz, 3 Adressen, 4 Patch. In der Übersicht werden gleiche Endgeräte am selben Switch zu einem Sammelkasten („3× Ton“). Unter „Profil“ lassen sich einzelne Felder an- und ausschalten",

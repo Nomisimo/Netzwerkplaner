@@ -65,6 +65,7 @@ export const STANDARD_PROFIL = Object.freeze({
     switchFuellung: "#fff176",
     kategorieAufhellen: 0.5,
     kategorieFarben: {}, // eigene Grundfarbe je Kategorie, z. B. { Ton: "#3b82f6" }
+    schriftGroesse: { titel: 1, beschreibung: 1, ports: 1 }, // Faktor je Textart (0,5–2)
     boxRand: "#3b3f45",
     raum: { fuellung: "#f6f7f8", rand: "#8a8f96", kopf: "#dfeefb", kopfLinie: "#b9cfe3", strich: "6 4" },
     stack: { fuellung: "#ffffff", rand: "#6f7680", kopf: "#eceef1", kopfLinie: "#c3c8ce" },
@@ -171,6 +172,7 @@ export const profilPruefen = (roh, eigene = []) => {
   a.gruppeAbstand = grenze(a.gruppeAbstand, 10, 200);
   a.raumAbstand = grenze(a.raumAbstand, 20, 300);
   profil.design.linienBreite = Math.max(0.5, Math.min(4, profil.design.linienBreite));
+  for (const [k, v] of Object.entries(profil.design.schriftGroesse)) profil.design.schriftGroesse[k] = Math.max(0.5, Math.min(2, Math.round(v * 100) / 100));
   profil.design.kategorieAufhellen = Math.max(0, Math.min(0.95, profil.design.kategorieAufhellen));
   profil.format = PROFIL_FORMAT; profil.version = PROFIL_VERSION;
   profil.eingebaut = !!eingebautesProfil(profil.id) && JSON.stringify(profilVergleich(profil)) === JSON.stringify(profilVergleich(eingebautesProfil(profil.id)));

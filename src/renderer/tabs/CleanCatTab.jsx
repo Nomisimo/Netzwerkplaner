@@ -189,7 +189,8 @@ export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zie
           const s = b.s || 1, bw = b.w / s, bh = b.h / s;
           const frei = bw - 20, zeilen = [b.tName, b.tSub, b.tIp].filter(Boolean).length;
           const kopfH = (b.basisH || b.h) / s;
-          const yName = zeilen === 3 ? 17 : zeilen === 2 ? 20 : kopfH / 2 + 4;
+          const dT = b.dT || 0, dB = b.dB || 0; // Zuschlag für größere Schrift
+          const yName = zeilen === 3 ? 17 + dT : zeilen === 2 ? 20 + dT : kopfH / 2 + 4 * (b.gT || 1);
           return (
             <g key={b.id} transform={`translate(${b.x},${b.y})${s !== 1 ? ` scale(${s})` : ""}`} style={{ cursor: onBoxDown ? "move" : onBox ? "pointer" : "default" }}
               opacity={boxZieh?.art === "box" && boxZieh.id === b.id && boxZieh.bewegt ? 0.45 : b.blass ? 0.25 : 1}
@@ -198,10 +199,10 @@ export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zie
               {b.sammel && <rect x={4} y={-4} width={bw} height={bh} fill={b.fill} stroke={D.boxRand} strokeWidth={1} />}
               <rect width={bw} height={bh} fill={b.fill} stroke={D.boxRand} strokeWidth={1} />
               {b.sammel && <title>{b.sammelNamen.join("\n")}</title>}
-              <g transform={b.leisteOben ? `translate(0,${PORT_LEISTE})` : undefined}>
+              <g transform={b.leisteOben ? `translate(0,${b.leisteH || PORT_LEISTE})` : undefined}>
               <T x={bw / 2} y={yName} max={frei} fit={b.tName} anchor="middle" weight={600} fill={D.text} />
-              {b.tSub && <T x={bw / 2} y={zeilen === 3 ? 30 : 34} max={frei} fit={b.tSub} anchor="middle" fill={D.textNeben} />}
-              {b.tIp && <T x={bw / 2} y={b.tSub ? 43 : 34} max={frei} fit={b.tIp} anchor="middle" fill={D.textNeben} mono />}
+              {b.tSub && <T x={bw / 2} y={(zeilen === 3 ? 30 : 34) + dT + dB} max={frei} fit={b.tSub} anchor="middle" fill={D.textNeben} />}
+              {b.tIp && <T x={bw / 2} y={(b.tSub ? 43 + dB : 34) + dT + dB} max={frei} fit={b.tIp} anchor="middle" fill={D.textNeben} mono />}
               {b.notiz && (
                 <>
                   <line x1={6} y1={kopfH - 2} x2={bw - 6} y2={kopfH - 2} stroke={D.boxRand} strokeOpacity="0.3" />
@@ -707,7 +708,10 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
                 {SCHRIFTEN.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
               </select></label>
             <label style={zeile}>Linienbreite {profil.design.linienBreite}{bereich({ min: 0.5, max: 4, step: 0.1, value: profil.design.linienBreite, onChange: (e) => designAendern("design.linienBreite", +e.target.value) })}</label>
-            <label style={zeile}>Abstand paralleler Kabel {profil.kabel.spur}{bereich({ min: 3, max: 20, step: 1, value: profil.kabel.spur, onChange: (e) => designAendern("kabel.spur", +e.target.value) })}</label>
+            {[["titel", "Schrift Titel"], ["beschreibung", "Schrift Beschreibung"], ["ports", "Schrift Ports"]].map(([k, n]) => (
+              <label key={k} style={zeile}>{n} {Math.round((profil.design.schriftGroesse?.[k] ?? 1) * 100)} %{bereich({ min: 0.5, max: 2, step: 0.05, value: profil.design.schriftGroesse?.[k] ?? 1, onChange: (e) => designAendern(`design.schriftGroesse.${k}`, +e.target.value) })}</label>
+            ))}
+            <label style={zeile}>Abstand paralleler Kabel {profil.kabel.spur}{bereich({ min: 4, max: 16, step: 1, value: profil.kabel.spur, onChange: (e) => designAendern("kabel.spur", +e.target.value) })}</label>
           </Abschnitt>
           <Abschnitt titel="Abstände">
             {ABSTAENDE.map(([k, n, min, max]) => (

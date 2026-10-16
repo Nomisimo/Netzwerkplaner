@@ -250,3 +250,17 @@ test("Port-Kästchen: alle Ports, auch unbelegte; eigene Port-Farbe vor VLAN-Far
   const q = P.geraete.find((g) => g.id === mitVlan.an).ports.find((x) => x.id === mitVlan.port);
   assert.equal(mitVlan.fill, P.vlans.find((v) => v.id === q.vlan).farbe);
 });
+
+test("Schriftgrößen: Titel, Beschreibung und Ports einzeln, Grenzen 50–200 %", () => {
+  const P = demoProject();
+  const std = plan(P, { profil: eingebautesProfil("patchplan") });
+  const gross = plan(P, { profil: mitProfil((p) => { p.inhalt.stufe = 4; p.design.schriftGroesse = { titel: 1.5, beschreibung: 1.4, ports: 1.6 }; }) });
+  const b0 = std.boxen.find((b) => b.tSub && b.tIp), b1 = gross.boxen.find((b) => b.id === b0.id);
+  assert.ok(b1.tName.fs > b0.tName.fs || b1.tName.t.length < b0.tName.t.length);
+  assert.ok(b1.tSub.fs > b0.tSub.fs);
+  assert.ok(b1.h > b0.h, "Kasten wächst mit");
+  const p0 = std.ports.find((p) => p.an === b0.id), p1 = gross.ports.find((p) => p.an === b0.id && p.port === p0.port);
+  assert.ok(p1.h > p0.h && p1.t.fs > p0.t.fs);
+  const { profil } = profilPruefen({ design: { schriftGroesse: { titel: 5, beschreibung: 0.1, ports: "x" } } });
+  assert.deepEqual(profil.design.schriftGroesse, { titel: 2, beschreibung: 0.5, ports: 1 });
+});
