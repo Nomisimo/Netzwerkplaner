@@ -65,7 +65,7 @@ function Legende({ B, L, D }) {
   const eintraege = [
     ...L.legende.linien.map((l) => ({ art: "linie", ...l })),
     ...L.legende.boxen.map((b) => ({ art: "box", ...b })),
-    ...(L.legende.fluss ? [{ art: "einweg", t: "Signal in eine Richtung" }, { art: "zweiweg", t: "Signal in beide Richtungen" }] : []),
+    ...(L.legende.fluss ? [{ art: "einweg", t: "Signal in eine Richtung" }] : []),
     { art: "raum", t: "Raum = Standort" },
     ...(L.legende.stapel ? [{ art: "stapel", t: "Stack (Rack, Case)" }] : []),
     ...(L.legende.sammel ? [{ art: "sammel", t: "n× = gleiche Geräte zusammengefasst" }] : []),

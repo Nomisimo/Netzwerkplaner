@@ -535,7 +535,17 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
   const ausgaenge = new Map(); // devId → Zähler für Unterkante
   const unterAnz = new Map();
   for (const c of conns) for (const e of [c.a, c.b]) unterAnz.set(e.dev, (unterAnz.get(e.dev) || 0) + 1);
-  const unterX = (id) => { const b = boxen.get(id); const i = ausgaenge.get(id) || 0; ausgaenge.set(id, i + 1); return verteile(b, unterAnz.get(id), i); };
+  /* Port-Leiste: jedes Kabel schließt genau an der Mitte seiner Port-Zelle an, schon beim Verlegen.
+     So entstehen keine nachträglichen Versätze, und kein Kabel liegt auf einem anderen. */
+  const portX = (id, portId) => {
+    const b = boxen.get(id), d = dev(id);
+    if (!felder.portKaesten || !b || b.sammel || !d) return null;
+    const liste = physPorts(d), i = liste.findIndex((p) => p.id === portId);
+    if (i < 0) return null;
+    const cw = portZelle(d, SG.ports) * (b.s || 1);
+    return b.x + (b.w - liste.length * cw) / 2 + (i + 0.5) * cw;
+  };
+  const unterX = (id, portId) => { const px = portX(id, portId); if (px != null) return px; const b = boxen.get(id); const i = ausgaenge.get(id) || 0; ausgaenge.set(id, i + 1); return verteile(b, unterAnz.get(id), i); };
 
   // Lokale Leitungen je Gruppe
   for (const r of raeume) for (const g of r.gruppen) {
@@ -545,7 +555,7 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
     const zaehlR = Array(g.reihen).fill(0), zaehlS = Array(g.spalten + 1).fill(0);
     const pfade = lok.map((w) => {
       const b = boxen.get(w.z.d.id);
-      const xe = unterX(w.z.d.id);
+      const xe = unterX(w.z.d.id, eigenes(w.c, w.z.d.id).port);
       const pts = [[xe, b.y + b.h]];
       let xNah = xe;
       if (w.spalteGap != null) {
@@ -560,14 +570,24 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
     // Am Switch nach x sortiert anschließen
     pfade.sort((a, b) => a.xNah - b.xNah);
     const letzte = g.reihen - 1;
+    // Mit Port-Leiste: Anschluss am Switch-Port; Spuren so, dass von links kommende mit Port weiter
+    // rechts höher laufen (von rechts umgekehrt), jede Leitung auf eigener Spur
+    const swX = pfade.map((p) => portX(g.sw.id, eigenes(p.w.c, g.sw.id).port));
+    const spurRang = new Map();
+    if (swX.every((x) => x != null)) {
+      const links = (i) => pfade[i].xNah < swX[i];
+      const li = pfade.map((p, i) => i).filter(links), re = pfade.map((p, i) => i).filter((i) => !links(i));
+      li.sort((a, b) => swX[b] - swX[a]).forEach((i, k) => spurRang.set(i, k));
+      re.sort((a, b) => swX[a] - swX[b]).forEach((i, k) => spurRang.set(i, li.length + k));
+    }
     pfade.forEach((p, i) => {
-      const xs = verteile(sb, pfade.length, i);
+      const xs = swX[i] ?? verteile(sb, pfade.length, i);
       // Spur in der Lücke zum Switch: weiter außen liegende Leitungen tiefer, damit sie sich nicht kreuzen
-      const yS = g.gapY[letzte] + 12 + (p.xNah < xs ? pfade.length - 1 - i : i) * SPUR;
+      const yS = g.gapY[letzte] + 12 + (spurRang.has(i) ? spurRang.get(i) : p.xNah < xs ? pfade.length - 1 - i : i) * SPUR;
       const last = p.pts[p.pts.length - 1];
       const b = boxen.get(p.w.z.d.id);
       // Gerät direkt über dem Switch-Port: gerade Linie ohne Ecken
-      if (p.pts.length === 1 && xs >= b.x + 6 && xs <= b.x + b.w - 6) p.pts = [[xs, b.y + b.h], [xs, sb.y]];
+      if (p.pts.length === 1 && (swX[i] != null ? Math.abs(last[0] - xs) < 0.5 : xs >= b.x + 6 && xs <= b.x + b.w - 6)) p.pts = [[xs, b.y + b.h], [xs, sb.y]];
       else p.pts.push([last[0], yS], [xs, yS], [xs, sb.y]);
       const st = stil(p.w.c);
       const swPort = portVon(eigenes(p.w.c, g.sw.id));
@@ -590,7 +610,7 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
     const partner = boxen.get(anderes(c, devId).dev);
     const r = raumVonId(devId);
     const g = r.gruppen.find((gg) => (gg.zellen || []).some((z) => z.d.id === devId));
-    const xe = unterX(devId);
+    const xe = unterX(devId, eigenes(c, devId).port);
     const pts = [[xe, b.y + b.h]];
     if (g) { // Gerät in einer oberen Reihe: zur Randspur links der Gruppe
       const z = g.zellen.find((zz) => zz.d.id === devId);
@@ -829,19 +849,6 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
         const an = enden.get(`${id}:${p.id}`) || [];
         const fill = farbeVon(p, an[0]?.c), t = passeText(p.name, 7.5 * SG.ports, portZelle(d, SG.ports) - 4 * SG.ports, 5 * SG.ports);
         ports.push({ x, y, w: cw, h: ph, fill, t: { ...t, fs: t.fs * s }, an: id, port: p.id, ...(an.length ? {} : { frei: true }), hell: hell(fill) });
-        // Kabel an die Mitte der Port-Zelle legen, rechtwinklig an den bisherigen Weg anschließen
-        const cx = x + cw / 2;
-        for (const { l, ende } of an) {
-          const pts = l.pts, i = ende ? pts.length - 1 : 0, nb = i === 0 ? 1 : pts.length - 2, nb2 = i === 0 ? 2 : pts.length - 3;
-          const alt = pts[i];
-          if (Math.abs(alt[0] - cx) < 0.01) continue;
-          const neu = [cx, alt[1]];
-          if (pts.length >= 3 && Math.abs(pts[nb][0] - alt[0]) < 0.01 && Math.abs(pts[nb][1] - pts[nb2][1]) < 0.01) { pts[i] = neu; pts[nb] = [cx, pts[nb][1]]; continue; }
-          const raus = pts[nb][1] < alt[1] ? -6 : 6;
-          const stueck = anschluss(neu, pts[nb], raus);
-          if (i === 0) l.pts = [...stueck.slice(0, -1), ...pts.slice(1)];
-          else l.pts = [...pts.slice(0, -1).slice(0, -1), ...stueck.reverse()];
-        }
         x += cw;
       }
     }
@@ -851,11 +858,11 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
   const titel = [...bloecke.filter((b) => b.kopf > 0).map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.kopf })), ...raeume.map((r) => ({ x: r.x, y: r.y, w: r.w, h: RAUM_KOPF }))];
   abkuerzen(linien, [...boxen.values(), ...titel], [...bloecke, ...raeume.filter((r) => r.stapel)]);
   /* Signalfluss: Pfeil nur am Empfänger. pts beginnen bei l.von; ohne bekannte Richtung
-     bleiben beide Pfeile (wie bisher). einweg markiert Leitungen mit nur einer Richtung. */
+     oder in beide Richtungen kein Pfeil. einweg markiert Leitungen mit nur einer Richtung. */
   const fluss = flussRichtungen(P, X);
   for (const l of linien) {
     const c = connById.get(l.id), f = c && fluss.get(c.id);
-    if (!f || (f.ab && f.ba)) { l.pfeil = { start: true, ende: true }; continue; }
+    if (!f || (f.ab && f.ba)) { l.pfeil = { start: false, ende: false }; continue; } // ohne eindeutige Richtung kein Pfeil
     const vor = l.von === c.a.dev ? f.ab : f.ba; // von → bis
     l.pfeil = { start: !vor, ende: vor };
     l.einweg = true;

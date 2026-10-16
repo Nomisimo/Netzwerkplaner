@@ -690,6 +690,8 @@ export default function TopologieTab(props) {
       gy: r.pa.kind === "switch" ? r.a1.y : r.pb.kind === "switch" ? r.b1.y : undefined,
     })), { abstand: 12, rand: 22, buendeln, hindernisse });
     for (const [id, y] of bahn) fpWeg.get(id).bahn = y;
+    // Bündel wie in der Mindmap: Kabel derselben Gruppe (Switch und Richtung) teilen sich den Weg
+    for (const r of fpWeg.values()) r.gruppe = (r.pa.kind === "switch" ? r.c.a.dev : r.pb.kind === "switch" ? r.c.b.dev : r.c.a.dev) + "|" + Math.sign(r.b1.y - r.a1.y);
     /* Weg je Kabel: von Hand gesetzt, sonst die Bahn. Läuft die durch ein Gerät, sucht der
        Router einen Weg außen herum (mit Abstand, neben schon verlegten Kabeln). Beim Ziehen
        eines Geräts nur die schnelle Bahn, gesucht wird nach dem Loslassen. */
@@ -711,10 +713,11 @@ export default function TopologieTab(props) {
         pts = standardWeg(a, b, (r.bahn ?? (a.y + b.y) / 2) + (kn?.dy || 0));
         if (routen && !wegFrei(pts, dicht, devs)) {
           // Gesuchte Wege merken: gleiche Geräte-Lage und gleiche Enden ergeben denselben Weg
-          const key = hSig + "|" + [a.x, a.y, a.dir, b.x, b.y, b.dir, pts[1]?.y].join(",");
+          const key = hSig + "|" + [a.x, a.y, a.dir, b.x, b.y, b.dir, pts[1]?.y, buendeln ? r.gruppe : ""].join(",");
           let w = wegCache.current.get(key);
           if (w === undefined) {
-            w = wegSuchen(a, b, hindernisse, { abstand: ABSTAND, devs, belegt });
+            // Gebündelt: Strecken der eigenen Gruppe kosten nichts, so laufen die Kabel zusammen statt nebeneinander
+            w = wegSuchen(a, b, hindernisse, { abstand: ABSTAND, devs, belegt: buendeln ? belegt.filter((s) => s.gruppe !== r.gruppe) : belegt });
             if (wegCache.current.size > 3000) wegCache.current.clear();
             wegCache.current.set(key, w);
           }
@@ -723,7 +726,7 @@ export default function TopologieTab(props) {
       }
       r.pts = pts;
       r.voll = [...(r.a1.stich ? [r.a1.stich] : []), ...pts, ...(r.b1.stich ? [r.b1.stich] : [])];
-      for (let i = 0; i + 1 < pts.length; i++) belegt.push({ a: pts[i], b: pts[i + 1] });
+      for (let i = 0; i + 1 < pts.length; i++) belegt.push({ a: pts[i], b: pts[i + 1], gruppe: r.gruppe });
     }
   }
 
