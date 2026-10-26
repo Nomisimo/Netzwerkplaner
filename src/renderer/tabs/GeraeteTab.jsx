@@ -11,6 +11,7 @@ import DeviceContextMenu from "../DeviceContextMenu.jsx";
 import { ipPorts } from "../../shared/catalog.js";
 import PatchTabelle, { PatchKnoepfe } from "./PatchlisteTab.jsx";
 import { RefreshCw, TriangleAlert, Globe, List, Cable } from "lucide-react";
+import { uiConfirm } from "../dialoge.jsx";
 
 // Ansicht der Geräteliste: „liste“ (Überblick, sortierbar) oder „patch“ (Aufbau-Reihenfolge, direkt bearbeitbar)
 export const ANSICHT_KEY = "netzwerkplaner_geraete_ansicht";
@@ -37,8 +38,8 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
     return [...l].sort(key);
   }, [P.geraete, q, kat, vlan, sort]);
 
-  const autoIps = () => {
-    if (!confirm("Allen Ports ohne IP (und ohne DHCP) die nächste freie Adresse ihres VLANs zuweisen? Je Gerät gibt es eine Adresse pro VLAN.")) return;
+  const autoIps = async () => {
+    if (!await uiConfirm("Allen Ports ohne IP (und ohne DHCP) die nächste freie Adresse ihres VLANs zuweisen? Je Gerät gibt es eine Adresse pro VLAN.")) return;
     mutate((d) => {
       for (const g of d.geraete) for (const i of ipPorts(g)) {
         if (i.ip || i.dhcp || !i.vlan) continue;
