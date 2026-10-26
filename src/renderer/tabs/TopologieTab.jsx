@@ -6,7 +6,7 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGOR
 import { buildTree, subtreeIds, astKlappbar, aesteUmschalten, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts, unmanagedVlans } from "../../shared/model.js";
 import { layoutMindmap, NODE_W, NODE_H } from "../../shared/layout.js";
 import { SvgIcon, IconView } from "../icons.jsx";
-import { Toggle, VlanSelect, Dot, Modal } from "../ui.jsx";
+import { Toggle, VlanSelect, Dot, Modal, uiConfirm } from "../ui.jsx";
 import DeviceEditor from "../DeviceEditor.jsx";
 import ConnEditor from "../ConnEditor.jsx";
 import { api } from "../api.js";
@@ -165,8 +165,8 @@ export default function TopologieTab(props) {
     }
     d.layout[pinKey] = m;
   });
-  const mehrereLoeschen = (ids) => {
-    if (!ids.length || !confirm(`${ids.length} Geräte und ihre Verbindungen löschen?`)) return;
+  const mehrereLoeschen = async (ids) => {
+    if (!ids.length || !await uiConfirm(`${ids.length} Geräte und ihre Verbindungen löschen?`)) return;
     const weg = new Set(ids);
     mutate((d) => removeDevices(d, weg)); // gemeinsame Kaskade: Verbindungen, Layout, Knicke, Stapel, Stromziele
     setSelection(null);

@@ -246,6 +246,83 @@ export function EingabeHost() {
   );
 }
 
+/* Ersatz für alert()/confirm(): Native Dialoge geben unter Windows den Tastaturfokus nicht
+   zuverlässig an die Seite zurück (electron/electron#35872, #41602), danach nehmen Textfelder
+   bis zum Neustart keine Eingabe mehr an. uiAlert(text) → Promise<void>, uiConfirm(text) → Promise<boolean>.
+   <DialogHost /> muss einmal in der App hängen; mehrere Aufrufe kommen nacheinander dran. */
+let dialogEinreihen = null;
+const dialogOeffnen = (art, text) => new Promise((resolve) => {
+  if (!dialogEinreihen) { resolve(art === "confirm" ? false : undefined); return; }
+  dialogEinreihen({ art, text: String(text ?? ""), resolve });
+});
+export const uiAlert = (text) => dialogOeffnen("alert", text);
+export const uiConfirm = (text) => dialogOeffnen("confirm", text);
+
+export function DialogHost() {
+  const [schlange, setSchlange] = useState([]);
+  const anzahl = useRef(0);       // Länge der Schlange ohne auf den nächsten Render zu warten
+  const vorher = useRef(null);    // Element, das vor dem ersten Dialog den Fokus hatte
+  const boxRef = useRef(null);
+  const okRef = useRef(null);
+  useEffect(() => {
+    dialogEinreihen = (d) => {
+      if (anzahl.current === 0) vorher.current = document.activeElement;
+      anzahl.current++;
+      setSchlange((s) => [...s, d]);
+    };
+    return () => { dialogEinreihen = null; };
+  }, []);
+  const d = schlange[0];
+  useEffect(() => { if (d) okRef.current?.focus(); }, [d]);
+  const fertig = (wert) => {
+    if (!d || d.erledigt) return; // Doppelklick vor dem nächsten Render
+    d.erledigt = true;
+    anzahl.current--;
+    setSchlange((s) => s.slice(1));
+    d.resolve(d.art === "confirm" ? wert : undefined);
+    if (anzahl.current === 0) {
+      const el = vorher.current;
+      vorher.current = null;
+      // Nach dem Abbau des Dialogs, sonst landet der Fokus auf einem Knopf, der gleich verschwindet
+      setTimeout(() => { if (anzahl.current === 0 && el?.isConnected && typeof el.focus === "function") el.focus(); }, 0);
+    }
+  };
+  // Tasten außerhalb des Dialogs (Kürzel, Entf, Escape anderer Fenster) erreichen die App nicht, solange er offen ist
+  useEffect(() => {
+    if (!d) return;
+    const fang = (e) => {
+      if (boxRef.current?.contains(e.target)) return;
+      e.preventDefault(); e.stopPropagation();
+      if (e.key === "Escape") fertig(false); else okRef.current?.focus();
+    };
+    window.addEventListener("keydown", fang, true);
+    return () => window.removeEventListener("keydown", fang, true);
+  });
+  if (!d) return null;
+  const taste = (e) => {
+    e.stopPropagation(); // z. B. Escape-Handler eines darunterliegenden Modals
+    if (e.key === "Escape") { e.preventDefault(); fertig(false); }
+    else if (e.key === "Tab") {
+      const k = [...boxRef.current.querySelectorAll("button")];
+      const i = k.indexOf(document.activeElement);
+      e.preventDefault();
+      k[(i + (e.shiftKey ? -1 : 1) + k.length) % k.length]?.focus();
+    }
+  };
+  return (
+    <div style={{ ...S.modalOverlay, zIndex: 5000 }} data-dialog-host="">
+      <div ref={boxRef} role={d.art === "confirm" ? "alertdialog" : "dialog"} aria-modal="true" onKeyDown={taste}
+        style={{ ...S.modalBox, width: 440, maxWidth: "94vw" }}>
+        <div style={{ fontSize: 14, color: TEXT, whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{d.text}</div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
+          {d.art === "confirm" && <button style={S.ghostBtn} onClick={() => fertig(false)}>Abbrechen</button>}
+          <button ref={okRef} style={S.primaryBtn} onClick={() => fertig(true)}>OK</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* Eingabefeld mit Vorschlagsliste (z. B. Standort). Anders als <datalist>:
    Öffnen ohne Tippen zeigt alle Einträge, erst Tippen filtert nach dem Getippten.
    Die Liste liegt „fixed“ über allem, damit sie in scrollenden Tabellen nicht abgeschnitten wird. */

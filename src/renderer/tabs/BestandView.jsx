@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from "react";
 import { passtSuche } from "../../shared/suche.js";
 import { S, LINE, SUB, MUTED, OK, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
 import { uid, migrateBestand } from "../../shared/catalog.js";
-import { Section } from "../ui.jsx";
+import { Section, uiConfirm } from "../ui.jsx";
 import { IconView } from "../icons.jsx";
 import { api } from "../api.js";
 import { bestandZuCsv, csvZuBestand } from "../../shared/bestandcsv.js";
@@ -36,8 +36,8 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   }).sort((a, b) => a.name.localeCompare(b.name, "de", { numeric: true })), [bestand, ql, kat]);
 
   const setName = (id, name) => setLibrary((l) => ({ ...l, bestand: l.bestand.map((b) => (b.id === id ? { ...b, name, geraet: { ...b.geraet, name } } : b)) }));
-  const remove = (ids) => {
-    if (!confirm(ids.length > 1 ? `${ids.length} Geräte aus dem Bestand löschen?` : `„${bestand.find((b) => b.id === ids[0])?.name}“ aus dem Bestand löschen?`)) return;
+  const remove = async (ids) => {
+    if (!await uiConfirm(ids.length > 1 ? `${ids.length} Geräte aus dem Bestand löschen?` : `„${bestand.find((b) => b.id === ids[0])?.name}“ aus dem Bestand löschen?`)) return;
     setLibrary((l) => ({ ...l, bestand: l.bestand.filter((b) => !ids.includes(b.id)) }));
     setSel(new Set());
   };

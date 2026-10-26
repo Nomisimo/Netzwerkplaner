@@ -3,7 +3,7 @@ import { passtSuche } from "../../shared/suche.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
 import { mainIp, webUrl, suggestIp } from "../../shared/model.js";
 import { ipSort } from "../../shared/net.js";
-import { Section, VlanChip, StatusDot, VlanSelect } from "../ui.jsx";
+import { Section, VlanChip, StatusDot, VlanSelect, uiConfirm } from "../ui.jsx";
 import { IconView } from "../icons.jsx";
 import DeviceEditor from "../DeviceEditor.jsx";
 import { api } from "../api.js";
@@ -37,8 +37,8 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
     return [...l].sort(key);
   }, [P.geraete, q, kat, vlan, sort]);
 
-  const autoIps = () => {
-    if (!confirm("Allen Ports ohne IP (und ohne DHCP) die nächste freie Adresse ihres VLANs zuweisen? Je Gerät gibt es eine Adresse pro VLAN.")) return;
+  const autoIps = async () => {
+    if (!await uiConfirm("Allen Ports ohne IP (und ohne DHCP) die nächste freie Adresse ihres VLANs zuweisen? Je Gerät gibt es eine Adresse pro VLAN.")) return;
     mutate((d) => {
       for (const g of d.geraete) for (const i of ipPorts(g)) {
         if (i.ip || i.dhcp || !i.vlan) continue;

@@ -10,6 +10,25 @@ app.commandLine.appendSwitch('disable-quic');
 
 const root = app.getAppPath();
 let mainWin = null;
+
+/* Native Dialoge und Kindfenster geben unter Windows den Tastaturfokus nicht sauber an die Seite
+   zurück (electron/electron#35872, #41602): danach lassen sich Textfelder erst nach einem Neustart
+   wieder beschreiben. Kurz warten, bis das Dialogfenster weg ist, dann den Fokus neu setzen. */
+function restoreFocus(win) {
+  setTimeout(() => {
+    if (!win || win.isDestroyed()) return;
+    if (win.isFocused()) win.blur();
+    win.focus();
+    win.webContents.focus();
+  }, 50);
+}
+// Datei-Dialoge immer über diese Hüllen öffnen (künftige showMessageBox ebenso über mitFokus)
+const mitFokus = (fn) => async (win, ...args) => {
+  try { return await fn(win, ...args); } finally { restoreFocus(win); }
+};
+const zeigeSpeichern = mitFokus((win, opts) => dialog.showSaveDialog(win, opts));
+const zeigeOeffnen = mitFokus((win, opts) => dialog.showOpenDialog(win, opts));
+
 let pendingOpen = null; // Datei, die vor dem Fensterstart per Doppelklick geöffnet wurde
 
 /* ── Fenster ──────────────────────────────────────────────────────────── */
@@ -52,6 +71,8 @@ function createWindow() {
   mainWin.once('ready-to-show', () => { appReady = true; tryShow(); });
   setTimeout(() => { minTimeUp = true; tryShow(); }, 1400);
   mainWin.on('focus', () => { if (!mainWin.isDestroyed()) mainWin.webContents.focus(); });
+  // Per window.open erzeugte Fenster (PDF-Vorschau, Druck): nach dem Schließen Fokus zurückholen
+  mainWin.webContents.on('did-create-window', (child) => child.on('closed', () => restoreFocus(mainWin)));
 
   // Links (Web-UIs, Doku) im Standardbrowser öffnen, PDF-Vorschau intern erlauben
   mainWin.webContents.setWindowOpenHandler(({ url }) => {
@@ -214,7 +235,7 @@ ipcMain.handle('save-project', async (_e, { json, suggestedName, filePath }) => 
   let target = filePath && fs.existsSync(path.dirname(filePath)) ? filePath : null;
   if (!target) {
     ensureDir(dataDir());
-    const r = await dialog.showSaveDialog(parentWin(), {
+    const r = await zeigeSpeichern(parentWin(), {
       title: 'Netzwerkplan speichern',
       defaultPath: path.join(dataDir(), `${suggestedName}.netplan`),
       filters: [{ name: 'Netzwerkplaner-Projekt', extensions: ['netplan'] }],
@@ -228,7 +249,7 @@ ipcMain.handle('save-project', async (_e, { json, suggestedName, filePath }) => 
 
 ipcMain.handle('open-project', async () => {
   ensureDir(dataDir());
-  const r = await dialog.showOpenDialog(parentWin(), {
+  const r = await zeigeOeffnen(parentWin(), {
     title: 'Netzwerkplan öffnen', defaultPath: dataDir(),
     filters: [{ name: 'Netzwerkplaner-Projekt', extensions: ['netplan', 'json'] }], properties: ['openFile'],
   });
@@ -255,7 +276,7 @@ ipcMain.handle('save-library', (_e, data) => {
 
 // Allgemeiner Export (CSV, XLSX, SVG, PNG)
 ipcMain.handle('save-file', async (_e, { data, name, filters, encoding, planPfad }) => {
-  const r = await dialog.showSaveDialog(parentWin(), { title: 'Exportieren', defaultPath: path.join(exportOrdner(planPfad), name), filters });
+  const r = await zeigeSpeichern(parentWin(), { title: 'Exportieren', defaultPath: path.join(exportOrdner(planPfad), name), filters });
   if (r.canceled || !r.filePath) return null;
   merkeExportOrdner(r.filePath);
   fs.writeFileSync(r.filePath, encoding === 'base64' ? Buffer.from(data, 'base64') : data, encoding === 'base64' ? undefined : 'utf8');
@@ -267,7 +288,7 @@ ipcMain.handle('export-pdf', async (_e, { html, name, pageSize, hoch, planPfad }
   const tmpPath = path.join(os.tmpdir(), `netzplan-${Date.now()}.html`);
   let win;
   try {
-    const r = await dialog.showSaveDialog(parentWin(), {
+    const r = await zeigeSpeichern(parentWin(), {
       title: 'PDF speichern', defaultPath: path.join(exportOrdner(planPfad), `${name}.pdf`),
       filters: [{ name: 'PDF-Datei', extensions: ['pdf'] }],
     });
@@ -283,7 +304,7 @@ ipcMain.handle('export-pdf', async (_e, { html, name, pageSize, hoch, planPfad }
   } finally {
     if (win && !win.isDestroyed()) win.destroy();
     if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
-    if (mainWin && !mainWin.isDestroyed()) { mainWin.focus(); mainWin.webContents.focus(); }
+    restoreFocus(mainWin);
   }
 });
 
