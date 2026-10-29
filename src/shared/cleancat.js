@@ -312,21 +312,52 @@ const anschluss = (a, q, raus) => { // von Kastenpunkt a senkrecht heraus, dann 
   const y = a[1] + raus;
   return [a, [a[0], y], [q[0], y], q];
 };
-const handAnwenden = (P, boxen, linien, blockVon, stapelVon) => {
+const handAnwenden = (P, boxen, linien, blockVon, stapelVon, bloecke = [], grenze = null) => {
   const pos = P.layout?.plottPos || {}, kabel = P.layout?.plottKabel || {}, farben = P.layout?.plottFarben || {};
   const versch = new Map();
+  /* Verschobener Kasten: sein Standort- und Stack-Rahmen wächst mit, aber nie in einen anderen
+     Standort und nie über das Blatt hinaus. Geht der Wunsch-Versatz nicht ganz, rückt der Kasten
+     so weit wie möglich in Zugrichtung (auch an einer Grenze entlang). */
+  const RAND = 12, LUECKE = 10;
+  const kopfVon = (r) => (r.subs ? 24 + (r.anmH || 0) : 21) + 8; // Kopfzeile bleibt über dem Kasten
+  const wachsen = (r, b, x, y) => {
+    const nx = Math.min(r.x, x - RAND), ny = Math.min(r.y, y - kopfVon(r));
+    return { x: nx, y: ny, w: Math.max(r.x + r.w, x + b.w + RAND) - nx, h: Math.max(r.y + r.h, y + b.h + RAND) - ny };
+  };
+  const schneidet = (a, o) => a.x < o.x + o.w + LUECKE && o.x < a.x + a.w + LUECKE && a.y < o.y + o.h + LUECKE && o.y < a.y + a.h + LUECKE;
   for (const [id, b] of boxen) {
     const v = pos[id];
     if (farben[id]) b.fill = farben[id];
     if (!v || (!v.dx && !v.dy)) continue;
-    b.x += +v.dx || 0; b.y += +v.dy || 0; b.hand = true;
-    versch.set(id, { dx: +v.dx || 0, dy: +v.dy || 0 });
-    // Standort- und Stack-Rahmen wachsen mit, damit der Kasten drin bleibt
-    for (const r of [blockVon(id), stapelVon(id)].filter(Boolean)) {
-      const nx = Math.min(r.x, b.x - 12), ny = Math.min(r.y, b.y - 12);
-      r.w = Math.max(r.x + r.w, b.x + b.w + 12) - nx; r.h = Math.max(r.y + r.h, b.y + b.h + 12) - ny;
-      r.x = nx; r.y = ny;
+    const bl = blockVon(id), st = stapelVon(id);
+    const andere = bloecke.filter((o) => o !== bl);
+    // Kabeltrassen außerhalb des Standorts bleiben frei: Strecken anderer Kabel, die ganz außerhalb liegen
+    const drin = (p, r) => p[0] >= r.x - 0.5 && p[0] <= r.x + r.w + 0.5 && p[1] >= r.y - 0.5 && p[1] <= r.y + r.h + 0.5;
+    const trassen = !bl ? [] : linien.filter((l) => l.von !== id && l.bis !== id).flatMap((l) => l.pts.slice(1).map((q, i) => [l.pts[i], q]))
+      .filter(([p, q]) => !drin(p, bl) && !drin(q, bl) && !(Math.min(p[0], q[0]) < bl.x + bl.w && Math.max(p[0], q[0]) > bl.x && Math.min(p[1], q[1]) < bl.y + bl.h && Math.max(p[1], q[1]) > bl.y))
+      .map(([p, q]) => ({ x: Math.min(p[0], q[0]), y: Math.min(p[1], q[1]), w: Math.abs(p[0] - q[0]), h: Math.abs(p[1] - q[1]) }));
+    const geht = (dx, dy) => {
+      const x = b.x + dx, y = b.y + dy;
+      if (grenze && (x - RAND < grenze.x0 || y - RAND < grenze.y0 || x + b.w + RAND > grenze.x1 || y + b.h + RAND > grenze.y1)) return false;
+      if (!bl) return true;
+      const g = wachsen(bl, b, x, y);
+      return !andere.some((o) => schneidet(g, o)) && !trassen.some((t) => g.x < t.x + t.w + 4 && t.x < g.x + g.w + 4 && g.y < t.y + t.h + 4 && t.y < g.y + g.h + 4);
+    };
+    // Größter erlaubter Anteil t∈[0,1] eines Versatzes (t = 0 ist die automatische Lage)
+    const weit = (fx, fy) => { if (geht(fx, fy)) return 1; let lo = 0, hi = 1; for (let k = 0; k < 14; k++) { const m = (lo + hi) / 2; if (geht(fx * m, fy * m)) lo = m; else hi = m; } return lo; };
+    let dx = +v.dx || 0, dy = +v.dy || 0;
+    if (!geht(dx, dy)) {
+      const t = weit(dx, dy);
+      // An der Grenze entlang gleiten: erst die volle Richtung, dann die Achse, die noch geht
+      const ax = weit(dx, dy * t) * dx, ay = weit(dx * t, dy) * dy;
+      [dx, dy] = Math.abs(ax - dx * t) >= Math.abs(ay - dy * t) ? [ax, dy * t] : [dx * t, ay];
+      if (!geht(dx, dy)) { dx *= t; dy *= t; }
+      dx = Math.round(dx * 10) / 10; dy = Math.round(dy * 10) / 10;
     }
+    if (!dx && !dy) continue;
+    b.x += dx; b.y += dy; b.hand = true; b.versatz = { dx, dy };
+    versch.set(id, { dx, dy });
+    for (const r of [bl, st].filter(Boolean)) Object.assign(r, wachsen(r, b, b.x, b.y));
   }
   for (const l of linien) {
     if (farben[l.id]) { l.col = farben[l.id]; l.eigeneFarbe = true; }
@@ -799,10 +830,10 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
       labels: [felder.kabeltext ? kabelText(kab) : null, ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))].filter(Boolean) });
   });
   // Leitungen glätten: doppelte Punkte und Punkte mitten auf einer Geraden entfernen (keine Schein-Ecken)
-  handAnwenden(P, boxen, linien, (id) => blockVon.get(raumVon(dev(id))), (id) => raeume.find((r) => r.stapel && r.name === raumVon(dev(id))));
+  handAnwenden(P, boxen, linien, (id) => blockVon.get(raumVon(dev(id))), (id) => raeume.find((r) => r.stapel && r.name === raumVon(dev(id))), bloecke, plan && { x0: 0, y0: 0, x1: plan.W, y1: plan.H });
   /* Ports als Leiste im Gerätekasten: alle Ports nebeneinander, ohne Abstand, an der Kastenseite
      mit den meisten Kabeln. Jedes Kabel dockt an seinem Port an. Farbe: eigene Port-Farbe, sonst
-     Trunk- bzw. VLAN-Farbe des Ports oder des angeschlossenen Kabels. Unbelegte Ports gestrichelt. */
+     Trunk- bzw. VLAN-Farbe des Ports oder des angeschlossenen Kabels, auch bei unbelegten Ports. */
   const connById = new Map(conns.map((c) => [c.id, c]));
   const ports = [];
   if (felder.portKaesten) {
@@ -967,7 +998,11 @@ export const CC_ECKE = 30; // Aufschlag je Ecke
 const ccKosten = (L) => ccLaenge(L) + CC_KREUZUNG * ccKreuzungen(L) + CC_ECKE * ccEcken(L);
 /* Von Hand gezogene Reihenfolgen (P.layout.cleancatOrdnung = { gruppen: { raum: [switchIds] },
    oben: { gruppe: [geräteIds] } }) bleiben stehen; nur die übrigen Listen werden optimiert. */
-export const cleanCatOptimieren = (P, X, opts = {}) => {
+export const cleanCatOptimieren = (P0, X, opts = {}) => {
+  // Von Hand verschobene Kästen und Kabel zählen für die automatische Reihenfolge nicht mit,
+  // sonst würde ein Verschieben die übrigen Geräte umsortieren
+  const { plottPos, plottKabel, ...layoutOhneHand } = P0.layout || {}; // eslint-disable-line no-unused-vars
+  const P = plottPos || plottKabel ? { ...P0, layout: layoutOhneHand } : P0;
   const hand = (P.layout?.cleancatStandorte || []).filter(Boolean);
   const handO = P.layout?.cleancatOrdnung || {};
   const basis = cleanCatLayout(P, X, { ...opts, ordnung: { standorte: hand.length ? hand : null, gruppen: { ...(handO.gruppen || {}) }, oben: { ...(handO.oben || {}) } } });

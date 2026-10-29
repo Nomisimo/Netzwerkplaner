@@ -216,9 +216,9 @@ export function Zeichnung({ L, B, P, stand, logo, svgRef, onBox, onRaumDown, zie
           );
         })}
         {(L.ports || []).map((p, i) => (
-          // Port-Leiste im Kasten: Zellen in VLAN- bzw. eigener Farbe, Name darin; unbelegte blasser
+          // Port-Leiste im Kasten: Zellen immer voll in VLAN- bzw. eigener Farbe, Name darin
           <g key={"p" + i} opacity={L.boxen.find((b) => b.id === p.an)?.blass ? 0.25 : undefined} pointerEvents="none">
-            <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={p.fill} fillOpacity={p.frei ? 0.45 : 1} stroke={D.boxRand} strokeWidth="0.8" />
+            <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={p.fill} stroke={D.boxRand} strokeWidth="0.8" />
             <text x={p.x + p.w / 2} y={p.y + p.h / 2 + p.t.fs * 0.36} fontSize={p.t.fs} textAnchor="middle" fill={p.hell ? "#111" : "#fff"} fontWeight="600">{p.t.t}</text>
           </g>
         ))}
@@ -521,7 +521,8 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     setBoxZieh(null);
     if (!bewegt) { if (art === "box") setSel({ art: "box", id }); return true; }
     if (frei) { // auf 5er-Raster einrasten
-      const alt = P.layout.plottPos?.[id] || { dx: 0, dy: 0 };
+      // Vom tatsächlich angewandten Versatz ausgehen (der Plan begrenzt ihn an Standort- und Blattgrenzen)
+      const alt = L0.boxen.find((b) => b.id === id)?.versatz || { dx: 0, dy: 0 };
       const nx = Math.round(((+alt.dx || 0) + dx) / 5) * 5, ny = Math.round(((+alt.dy || 0) + dy) / 5) * 5;
       mutate((d) => { const p = { ...(d.layout.plottPos || {}) }; if (nx || ny) p[id] = { dx: nx, dy: ny }; else delete p[id]; d.layout.plottPos = p; });
       setSel({ art: "box", id });
