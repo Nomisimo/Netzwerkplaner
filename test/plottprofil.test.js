@@ -163,21 +163,49 @@ test("Editor: verschobener Kasten, Kabel folgen rechtwinklig und bleiben angesch
   const l0 = vorher.linien.find((l) => !P.geraete.find((d) => d.id === l.von)?.isSwitch || !P.geraete.find((d) => d.id === l.bis)?.isSwitch);
   const id = P.geraete.find((d) => d.id === l0.bis && !d.isSwitch) ? l0.bis : l0.von;
   const b0 = vorher.boxen.find((b) => b.id === id);
-  P.layout = { ...P.layout, plottPos: { [id]: { dx: 85, dy: -40 } } };
+  P.layout = { ...P.layout, plottPos: { [id]: { dx: 85, dy: 20 } } };
   const nach = plan(P, { profil: STANDARD_PROFIL });
   const b1 = nach.boxen.find((b) => b.id === id);
   assert.equal(b1.x, b0.x + 85);
-  assert.equal(b1.y, b0.y - 40);
+  assert.equal(b1.y, b0.y + 20);
   for (const l of nach.linien.filter((x) => x.von === id || x.bis === id)) {
     assert.ok(orthogonal(l.pts), `rechtwinklig ${l.id}`);
     const ende = l.von === id ? l.pts[0] : l.pts[l.pts.length - 1];
     assert.ok(ende[0] >= b1.x - 0.5 && ende[0] <= b1.x + b1.w + 0.5, "Ende waagrecht am Kasten");
     assert.ok(Math.abs(ende[1] - b1.y) < 0.5 || Math.abs(ende[1] - (b1.y + b1.h)) < 0.5, "Ende oben oder unten am Kasten");
   }
-  // Das Blatt wächst mit, wenn ein Kasten weit hinaus geschoben wird
+  // Weit hinaus geschoben: der Kasten bleibt auf dem Blatt, Standorte überlappen nie
   P.layout.plottPos[id] = { dx: 4000, dy: 0 };
   const weit = plan(P, { profil: STANDARD_PROFIL });
-  assert.ok(weit.w > vorher.w);
+  const bw = weit.boxen.find((b) => b.id === id);
+  assert.ok(bw.x > b0.x && bw.x + bw.w <= weit.w + 0.01);
+  keineUeberlappung(weit);
+});
+
+const keineUeberlappung = (L) => {
+  for (let i = 0; i < L.raeume.length; i++) for (let j = i + 1; j < L.raeume.length; j++) {
+    const a = L.raeume[i], o = L.raeume[j];
+    assert.ok(!(a.x < o.x + o.w && o.x < a.x + a.w && a.y < o.y + o.h && o.y < a.y + a.h), `${a.name} überlappt ${o.name}`);
+  }
+};
+
+test("Editor: Gerät über die Standort-Grenze ziehen, Standort wächst nur bis zum Nachbarn", () => {
+  const P = demoProject();
+  const vorher = plan(P, { profil: STANDARD_PROFIL });
+  // Jedes Gerät einmal weit nach oben, unten, links und rechts schieben
+  for (const d of P.geraete) for (const [dx, dy] of [[0, -900], [0, 900], [-900, 0], [900, 0], [-500, -500]]) {
+    P.layout = { ...P.layout, plottPos: { [d.id]: { dx, dy } } };
+    const L = plan(P, { profil: STANDARD_PROFIL });
+    keineUeberlappung(L);
+    const b0 = vorher.boxen.find((b) => b.id === d.id), b = L.boxen.find((x) => x.id === d.id);
+    if (!b0 || !b) continue;
+    // in Zugrichtung oder gar nicht bewegt, nie dagegen
+    assert.ok((b.x - b0.x) * dx >= -0.01 && (b.y - b0.y) * dy >= -0.01, `${d.name} ${dx},${dy}`);
+    if (b.versatz) assert.deepEqual([b.x - b0.x, b.y - b0.y].map((v) => Math.round(v * 10) / 10), [b.versatz.dx, b.versatz.dy]);
+    // Der Kasten liegt in seinem Standort
+    const r = L.raeume.find((x) => x.x <= b.x && x.y <= b.y && x.x + x.w >= b.x + b.w && x.y + x.h >= b.y + b.h);
+    assert.ok(r, `${d.name} liegt in keinem Standort`);
+  }
 });
 
 test("Editor: gezogener Kabelverlauf, eigene Farben je Kasten und Kabel", () => {
@@ -263,4 +291,26 @@ test("Schriftgrößen: Titel, Beschreibung und Ports einzeln, Grenzen 50–200 %
   assert.ok(p1.h > p0.h && p1.t.fs > p0.t.fs);
   const { profil } = profilPruefen({ design: { schriftGroesse: { titel: 5, beschreibung: 0.1, ports: "x" } } });
   assert.deepEqual(profil.design.schriftGroesse, { titel: 2, beschreibung: 0.5, ports: 1 });
+});
+
+test("Plott: Kabel ohne kleine Versätze und nie übereinander (nicht gebündelt)", () => {
+  const segs = (l) => l.pts.slice(1).map((p, i) => [l.pts[i], p]);
+  for (const profil of [STANDARD_PROFIL, eingebautesProfil("patchplan"), mitProfil((p) => { p.inhalt.stufe = 2; p.inhalt.felder = { portKaesten: true }; })]) {
+    const L = plan(demoProject(), { profil });
+    for (const l of L.linien) for (const [a, b] of segs(l)) {
+      const d = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+      assert.ok(d < 0.01 || d >= 4, `Versatz ${d} in ${l.id}`);
+    }
+    const S = L.linien.flatMap((l) => segs(l).map((s) => ({ l: l.id, s })));
+    for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) {
+      if (S[i].l === S[j].l) continue;
+      const [a, b] = S[i].s, [c, d] = S[j].s;
+      for (const ax of [0, 1]) {
+        const o = 1 - ax;
+        if (Math.abs(a[ax] - b[ax]) > 0.01 || Math.abs(c[ax] - d[ax]) > 0.01 || Math.abs(a[ax] - c[ax]) >= 1) continue;
+        const lo = Math.max(Math.min(a[o], b[o]), Math.min(c[o], d[o])), hi = Math.min(Math.max(a[o], b[o]), Math.max(c[o], d[o]));
+        assert.ok(hi - lo <= 2, `${S[i].l} und ${S[j].l} liegen übereinander`);
+      }
+    }
+  }
 });

@@ -312,21 +312,52 @@ const anschluss = (a, q, raus) => { // von Kastenpunkt a senkrecht heraus, dann 
   const y = a[1] + raus;
   return [a, [a[0], y], [q[0], y], q];
 };
-const handAnwenden = (P, boxen, linien, blockVon, stapelVon) => {
+const handAnwenden = (P, boxen, linien, blockVon, stapelVon, bloecke = [], grenze = null) => {
   const pos = P.layout?.plottPos || {}, kabel = P.layout?.plottKabel || {}, farben = P.layout?.plottFarben || {};
   const versch = new Map();
+  /* Verschobener Kasten: sein Standort- und Stack-Rahmen wächst mit, aber nie in einen anderen
+     Standort und nie über das Blatt hinaus. Geht der Wunsch-Versatz nicht ganz, rückt der Kasten
+     so weit wie möglich in Zugrichtung (auch an einer Grenze entlang). */
+  const RAND = 12, LUECKE = 10;
+  const kopfVon = (r) => (r.subs ? 24 + (r.anmH || 0) : 21) + 8; // Kopfzeile bleibt über dem Kasten
+  const wachsen = (r, b, x, y) => {
+    const nx = Math.min(r.x, x - RAND), ny = Math.min(r.y, y - kopfVon(r));
+    return { x: nx, y: ny, w: Math.max(r.x + r.w, x + b.w + RAND) - nx, h: Math.max(r.y + r.h, y + b.h + RAND) - ny };
+  };
+  const schneidet = (a, o) => a.x < o.x + o.w + LUECKE && o.x < a.x + a.w + LUECKE && a.y < o.y + o.h + LUECKE && o.y < a.y + a.h + LUECKE;
   for (const [id, b] of boxen) {
     const v = pos[id];
     if (farben[id]) b.fill = farben[id];
     if (!v || (!v.dx && !v.dy)) continue;
-    b.x += +v.dx || 0; b.y += +v.dy || 0; b.hand = true;
-    versch.set(id, { dx: +v.dx || 0, dy: +v.dy || 0 });
-    // Standort- und Stack-Rahmen wachsen mit, damit der Kasten drin bleibt
-    for (const r of [blockVon(id), stapelVon(id)].filter(Boolean)) {
-      const nx = Math.min(r.x, b.x - 12), ny = Math.min(r.y, b.y - 12);
-      r.w = Math.max(r.x + r.w, b.x + b.w + 12) - nx; r.h = Math.max(r.y + r.h, b.y + b.h + 12) - ny;
-      r.x = nx; r.y = ny;
+    const bl = blockVon(id), st = stapelVon(id);
+    const andere = bloecke.filter((o) => o !== bl);
+    // Kabeltrassen außerhalb des Standorts bleiben frei: Strecken anderer Kabel, die ganz außerhalb liegen
+    const drin = (p, r) => p[0] >= r.x - 0.5 && p[0] <= r.x + r.w + 0.5 && p[1] >= r.y - 0.5 && p[1] <= r.y + r.h + 0.5;
+    const trassen = !bl ? [] : linien.filter((l) => l.von !== id && l.bis !== id).flatMap((l) => l.pts.slice(1).map((q, i) => [l.pts[i], q]))
+      .filter(([p, q]) => !drin(p, bl) && !drin(q, bl) && !(Math.min(p[0], q[0]) < bl.x + bl.w && Math.max(p[0], q[0]) > bl.x && Math.min(p[1], q[1]) < bl.y + bl.h && Math.max(p[1], q[1]) > bl.y))
+      .map(([p, q]) => ({ x: Math.min(p[0], q[0]), y: Math.min(p[1], q[1]), w: Math.abs(p[0] - q[0]), h: Math.abs(p[1] - q[1]) }));
+    const geht = (dx, dy) => {
+      const x = b.x + dx, y = b.y + dy;
+      if (grenze && (x - RAND < grenze.x0 || y - RAND < grenze.y0 || x + b.w + RAND > grenze.x1 || y + b.h + RAND > grenze.y1)) return false;
+      if (!bl) return true;
+      const g = wachsen(bl, b, x, y);
+      return !andere.some((o) => schneidet(g, o)) && !trassen.some((t) => g.x < t.x + t.w + 4 && t.x < g.x + g.w + 4 && g.y < t.y + t.h + 4 && t.y < g.y + g.h + 4);
+    };
+    // Größter erlaubter Anteil t∈[0,1] eines Versatzes (t = 0 ist die automatische Lage)
+    const weit = (fx, fy) => { if (geht(fx, fy)) return 1; let lo = 0, hi = 1; for (let k = 0; k < 14; k++) { const m = (lo + hi) / 2; if (geht(fx * m, fy * m)) lo = m; else hi = m; } return lo; };
+    let dx = +v.dx || 0, dy = +v.dy || 0;
+    if (!geht(dx, dy)) {
+      const t = weit(dx, dy);
+      // An der Grenze entlang gleiten: erst die volle Richtung, dann die Achse, die noch geht
+      const ax = weit(dx, dy * t) * dx, ay = weit(dx * t, dy) * dy;
+      [dx, dy] = Math.abs(ax - dx * t) >= Math.abs(ay - dy * t) ? [ax, dy * t] : [dx * t, ay];
+      if (!geht(dx, dy)) { dx *= t; dy *= t; }
+      dx = Math.round(dx * 10) / 10; dy = Math.round(dy * 10) / 10;
     }
+    if (!dx && !dy) continue;
+    b.x += dx; b.y += dy; b.hand = true; b.versatz = { dx, dy };
+    versch.set(id, { dx, dy });
+    for (const r of [bl, st].filter(Boolean)) Object.assign(r, wachsen(r, b, b.x, b.y));
   }
   for (const l of linien) {
     if (farben[l.id]) { l.col = farben[l.id]; l.eigeneFarbe = true; }
@@ -535,7 +566,17 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
   const ausgaenge = new Map(); // devId → Zähler für Unterkante
   const unterAnz = new Map();
   for (const c of conns) for (const e of [c.a, c.b]) unterAnz.set(e.dev, (unterAnz.get(e.dev) || 0) + 1);
-  const unterX = (id) => { const b = boxen.get(id); const i = ausgaenge.get(id) || 0; ausgaenge.set(id, i + 1); return verteile(b, unterAnz.get(id), i); };
+  /* Port-Leiste: jedes Kabel schließt genau an der Mitte seiner Port-Zelle an, schon beim Verlegen.
+     So entstehen keine nachträglichen Versätze, und kein Kabel liegt auf einem anderen. */
+  const portX = (id, portId) => {
+    const b = boxen.get(id), d = dev(id);
+    if (!felder.portKaesten || !b || b.sammel || !d) return null;
+    const liste = physPorts(d), i = liste.findIndex((p) => p.id === portId);
+    if (i < 0) return null;
+    const cw = portZelle(d, SG.ports) * (b.s || 1);
+    return b.x + (b.w - liste.length * cw) / 2 + (i + 0.5) * cw;
+  };
+  const unterX = (id, portId) => { const px = portX(id, portId); if (px != null) return px; const b = boxen.get(id); const i = ausgaenge.get(id) || 0; ausgaenge.set(id, i + 1); return verteile(b, unterAnz.get(id), i); };
 
   // Lokale Leitungen je Gruppe
   for (const r of raeume) for (const g of r.gruppen) {
@@ -545,7 +586,7 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
     const zaehlR = Array(g.reihen).fill(0), zaehlS = Array(g.spalten + 1).fill(0);
     const pfade = lok.map((w) => {
       const b = boxen.get(w.z.d.id);
-      const xe = unterX(w.z.d.id);
+      const xe = unterX(w.z.d.id, eigenes(w.c, w.z.d.id).port);
       const pts = [[xe, b.y + b.h]];
       let xNah = xe;
       if (w.spalteGap != null) {
@@ -560,14 +601,24 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
     // Am Switch nach x sortiert anschließen
     pfade.sort((a, b) => a.xNah - b.xNah);
     const letzte = g.reihen - 1;
+    // Mit Port-Leiste: Anschluss am Switch-Port; Spuren so, dass von links kommende mit Port weiter
+    // rechts höher laufen (von rechts umgekehrt), jede Leitung auf eigener Spur
+    const swX = pfade.map((p) => portX(g.sw.id, eigenes(p.w.c, g.sw.id).port));
+    const spurRang = new Map();
+    if (swX.every((x) => x != null)) {
+      const links = (i) => pfade[i].xNah < swX[i];
+      const li = pfade.map((p, i) => i).filter(links), re = pfade.map((p, i) => i).filter((i) => !links(i));
+      li.sort((a, b) => swX[b] - swX[a]).forEach((i, k) => spurRang.set(i, k));
+      re.sort((a, b) => swX[a] - swX[b]).forEach((i, k) => spurRang.set(i, li.length + k));
+    }
     pfade.forEach((p, i) => {
-      const xs = verteile(sb, pfade.length, i);
+      const xs = swX[i] ?? verteile(sb, pfade.length, i);
       // Spur in der Lücke zum Switch: weiter außen liegende Leitungen tiefer, damit sie sich nicht kreuzen
-      const yS = g.gapY[letzte] + 12 + (p.xNah < xs ? pfade.length - 1 - i : i) * SPUR;
+      const yS = g.gapY[letzte] + 12 + (spurRang.has(i) ? spurRang.get(i) : p.xNah < xs ? pfade.length - 1 - i : i) * SPUR;
       const last = p.pts[p.pts.length - 1];
       const b = boxen.get(p.w.z.d.id);
       // Gerät direkt über dem Switch-Port: gerade Linie ohne Ecken
-      if (p.pts.length === 1 && xs >= b.x + 6 && xs <= b.x + b.w - 6) p.pts = [[xs, b.y + b.h], [xs, sb.y]];
+      if (p.pts.length === 1 && (swX[i] != null ? Math.abs(last[0] - xs) < 0.5 : xs >= b.x + 6 && xs <= b.x + b.w - 6)) p.pts = [[xs, b.y + b.h], [xs, sb.y]];
       else p.pts.push([last[0], yS], [xs, yS], [xs, sb.y]);
       const st = stil(p.w.c);
       const swPort = portVon(eigenes(p.w.c, g.sw.id));
@@ -590,7 +641,7 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
     const partner = boxen.get(anderes(c, devId).dev);
     const r = raumVonId(devId);
     const g = r.gruppen.find((gg) => (gg.zellen || []).some((z) => z.d.id === devId));
-    const xe = unterX(devId);
+    const xe = unterX(devId, eigenes(c, devId).port);
     const pts = [[xe, b.y + b.h]];
     if (g) { // Gerät in einer oberen Reihe: zur Randspur links der Gruppe
       const z = g.zellen.find((zz) => zz.d.id === devId);
@@ -779,10 +830,10 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
       labels: [felder.kabeltext ? kabelText(kab) : null, ...endLabels({ pts: aPts }, portA, dev(c.a.dev)), ...endLabels({ pts: bPts }, portB, dev(c.b.dev))].filter(Boolean) });
   });
   // Leitungen glätten: doppelte Punkte und Punkte mitten auf einer Geraden entfernen (keine Schein-Ecken)
-  handAnwenden(P, boxen, linien, (id) => blockVon.get(raumVon(dev(id))), (id) => raeume.find((r) => r.stapel && r.name === raumVon(dev(id))));
+  handAnwenden(P, boxen, linien, (id) => blockVon.get(raumVon(dev(id))), (id) => raeume.find((r) => r.stapel && r.name === raumVon(dev(id))), bloecke, plan && { x0: 0, y0: 0, x1: plan.W, y1: plan.H });
   /* Ports als Leiste im Gerätekasten: alle Ports nebeneinander, ohne Abstand, an der Kastenseite
      mit den meisten Kabeln. Jedes Kabel dockt an seinem Port an. Farbe: eigene Port-Farbe, sonst
-     Trunk- bzw. VLAN-Farbe des Ports oder des angeschlossenen Kabels. Unbelegte Ports gestrichelt. */
+     Trunk- bzw. VLAN-Farbe des Ports oder des angeschlossenen Kabels, auch bei unbelegten Ports. */
   const connById = new Map(conns.map((c) => [c.id, c]));
   const ports = [];
   if (felder.portKaesten) {
@@ -829,19 +880,6 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
         const an = enden.get(`${id}:${p.id}`) || [];
         const fill = farbeVon(p, an[0]?.c), t = passeText(p.name, 7.5 * SG.ports, portZelle(d, SG.ports) - 4 * SG.ports, 5 * SG.ports);
         ports.push({ x, y, w: cw, h: ph, fill, t: { ...t, fs: t.fs * s }, an: id, port: p.id, ...(an.length ? {} : { frei: true }), hell: hell(fill) });
-        // Kabel an die Mitte der Port-Zelle legen, rechtwinklig an den bisherigen Weg anschließen
-        const cx = x + cw / 2;
-        for (const { l, ende } of an) {
-          const pts = l.pts, i = ende ? pts.length - 1 : 0, nb = i === 0 ? 1 : pts.length - 2, nb2 = i === 0 ? 2 : pts.length - 3;
-          const alt = pts[i];
-          if (Math.abs(alt[0] - cx) < 0.01) continue;
-          const neu = [cx, alt[1]];
-          if (pts.length >= 3 && Math.abs(pts[nb][0] - alt[0]) < 0.01 && Math.abs(pts[nb][1] - pts[nb2][1]) < 0.01) { pts[i] = neu; pts[nb] = [cx, pts[nb][1]]; continue; }
-          const raus = pts[nb][1] < alt[1] ? -6 : 6;
-          const stueck = anschluss(neu, pts[nb], raus);
-          if (i === 0) l.pts = [...stueck.slice(0, -1), ...pts.slice(1)];
-          else l.pts = [...pts.slice(0, -1).slice(0, -1), ...stueck.reverse()];
-        }
         x += cw;
       }
     }
@@ -851,11 +889,11 @@ export const cleanCatLayout = (P0, X0, { profil = null, farbe, zeigeIp, ordnung 
   const titel = [...bloecke.filter((b) => b.kopf > 0).map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.kopf })), ...raeume.map((r) => ({ x: r.x, y: r.y, w: r.w, h: RAUM_KOPF }))];
   abkuerzen(linien, [...boxen.values(), ...titel], [...bloecke, ...raeume.filter((r) => r.stapel)]);
   /* Signalfluss: Pfeil nur am Empfänger. pts beginnen bei l.von; ohne bekannte Richtung
-     bleiben beide Pfeile (wie bisher). einweg markiert Leitungen mit nur einer Richtung. */
+     oder in beide Richtungen kein Pfeil. einweg markiert Leitungen mit nur einer Richtung. */
   const fluss = flussRichtungen(P, X);
   for (const l of linien) {
     const c = connById.get(l.id), f = c && fluss.get(c.id);
-    if (!f || (f.ab && f.ba)) { l.pfeil = { start: true, ende: true }; continue; }
+    if (!f || (f.ab && f.ba)) { l.pfeil = { start: false, ende: false }; continue; } // ohne eindeutige Richtung kein Pfeil
     const vor = l.von === c.a.dev ? f.ab : f.ba; // von → bis
     l.pfeil = { start: !vor, ende: vor };
     l.einweg = true;
@@ -960,7 +998,11 @@ export const CC_ECKE = 30; // Aufschlag je Ecke
 const ccKosten = (L) => ccLaenge(L) + CC_KREUZUNG * ccKreuzungen(L) + CC_ECKE * ccEcken(L);
 /* Von Hand gezogene Reihenfolgen (P.layout.cleancatOrdnung = { gruppen: { raum: [switchIds] },
    oben: { gruppe: [geräteIds] } }) bleiben stehen; nur die übrigen Listen werden optimiert. */
-export const cleanCatOptimieren = (P, X, opts = {}) => {
+export const cleanCatOptimieren = (P0, X, opts = {}) => {
+  // Von Hand verschobene Kästen und Kabel zählen für die automatische Reihenfolge nicht mit,
+  // sonst würde ein Verschieben die übrigen Geräte umsortieren
+  const { plottPos, plottKabel, ...layoutOhneHand } = P0.layout || {}; // eslint-disable-line no-unused-vars
+  const P = plottPos || plottKabel ? { ...P0, layout: layoutOhneHand } : P0;
   const hand = (P.layout?.cleancatStandorte || []).filter(Boolean);
   const handO = P.layout?.cleancatOrdnung || {};
   const basis = cleanCatLayout(P, X, { ...opts, ordnung: { standorte: hand.length ? hand : null, gruppen: { ...(handO.gruppen || {}) }, oben: { ...(handO.oben || {}) } } });
