@@ -78,7 +78,7 @@ const KAPITEL = [
       "Stimmt eine Seite nicht, im Geräte-Editor bei den Ports unter „Seite“ vorne oder hinten fest einstellen. „auto“ nimmt die Herstellerangabe.",
       "Kabel enden an der Buchse, in die sie gesteckt sind, auch bei den Karten der Endgeräte. Sie laufen rechtwinklig mit etwas Abstand um andere Geräte herum, damit sie sichtbar bleiben.",
       "Kabelverlauf von Hand: Kabel anklicken, dann die mittleren Strecken an der Linie oder an den roten Griffen verschieben. Doppelklick auf das Kabel fügt dort zwei Ecken ein, die sich wieder einzeln verschieben lassen. Doppelklick auf einen Griff setzt den Verlauf zurück, „Auto-Layout“ setzt alle zurück.",
-      "„Kabel vorne“: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante. „Hell“: weißer Hintergrund, z. B. zum Drucken; gilt auch beim Bearbeiten und für den Export. Auswahl- und Fokusrahmen kommen nicht mit in den Export.",
+      "„Kabel vorne“: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante. „Hell“: weißer Hintergrund beim Bearbeiten. Exporte sind immer hell. Auswahl- und Fokusrahmen kommen nicht mit in den Export.",
     ]} />
     <H>Darstellung</H>
     <Bild id="topologie-eckig" text="Linien eckig, Farbe nach VLAN, Port & VLAN an jeder Verbindung" />
@@ -230,7 +230,8 @@ const KAPITEL = [
   </> },
   { id: "export", titel: "Export, Logo & Updates", inhalt: () => <>
     <Liste items={[
-      "„Export“: PDF-Dokumentation (Deckblatt, Topologie, VLANs, Patchliste, IP-Liste, Switch-Ports, Geräte, Prüfung), Excel mit Patchliste, IP-Liste, VLANs, Ports und Verbindungen, Patchliste allein als PDF oder CSV, CSV-IP-Liste und die Topologie als SVG oder PNG.",
+      "„Export“: PDF-Dokumentation (Deckblatt, Topologie, Patchliste je Switch, VLAN- und IP-Liste, Geräte je Standort, optional Switch-Konfiguration und Prüfung), Excel mit Patchliste, IP-Liste, VLANs, Ports und Verbindungen, Patchliste allein als PDF oder CSV, CSV-IP-Liste und die Topologie als SVG oder PNG. Topologie-Exporte sind immer hell.",
+      "Oben im Export-Dialog steht die Planversion. Hat sich der Plan seit dem letzten Export dieser Version geändert, schlägt der Dialog die nächste Nummer vor; die Version kommt in den Dateinamen und ins Projekt.",
       "„+ Logo“ neben dem App-Namen: eigenes Firmenlogo hochladen. Es erscheint im Kopf der App und auf jeder PDF-Seite. Das X daneben entfernt es wieder. Das Logo bleibt nur auf diesem Rechner.",
       "Updates: Beim Start sucht die App nach einer neuen Version. Unter Windows lädt sie das Update im Hintergrund, „… installieren“ startet neu und installiert. Unter macOS lädt „… laden und öffnen“ das passende DMG in den Download-Ordner und öffnet es. Dann „Netzwerkplaner beenden“, die App im Finder-Fenster auf „Programme“ ziehen, „Ersetzen“ wählen und neu starten. Ganz ohne Zutun geht es auf dem Mac erst mit einer Apple-Signatur.",
       "Der Knopf mit der Versionsnummer zeigt alle Änderungen und „Nach Updates suchen“.",

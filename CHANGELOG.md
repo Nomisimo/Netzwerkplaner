@@ -3,6 +3,14 @@
 Versionsnummern nach [SemVer](https://semver.org/lang/de/). Betas tragen den Zusatz `-beta.N`.
 Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/shared/version.js`).
 
+## [Unveröffentlicht]
+
+- Export: Mindmap und Anschlüsse werden immer hell exportiert (PDF, SVG, PNG), auch wenn die App dunkel ist
+- PDF: neu gegliedert, jede Angabe steht nur einmal. Patchliste je Switch (Port, Gerät, Geräte-Port, IP, Standort, Abhaken vor Ort), VLAN- und IP-Liste (VLANs mit Subnetz, Gateway und Einstellungen, darunter die IPs je VLAN), Geräte je Standort. Switch-Konfiguration und Prüfung sind optional. Leere Spalten fallen weg, die Spalten stehen bündig untereinander
+- PDF: Deckblatt mit Kennzahlen, Inhalt und offenen Fehlern/Warnungen statt der VLAN-Tabelle
+- Export: Planversion im Export-Dialog. Wurde die Version schon exportiert und der Plan seitdem geändert, schlägt der Dialog die nächste Nummer vor (1 → 2, 1.3 → 1.4). Die Version steht im Dateinamen, eine neue Version setzt das Datum auf heute
+- Excel/CSV-Patchliste: Switch, Switch-Port und Geräte-Port in eigenen Spalten, „Gewerk“ statt „Abteilung“/„Bereich“
+
 ## [0.7.0-beta.21] – 2026-10-16
 
 - Plott-Editor: Geräte frei verschieben, die Kabel folgen rechtwinklig. Mit Shift wie bisher in der Reihe umsetzen

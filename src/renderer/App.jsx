@@ -9,6 +9,7 @@ import { DevicePicker, Modal, EingabeHost, frageText, usePfeilNavigation } from 
 import { topologySvg, svgToPngBase64, buildXlsxBase64, buildIpCsv, buildPdfHtml, buildPatchCsv, fileBase } from "./exports.js";
 import { formatName } from "../shared/cleancat.js";
 import ExportDialog from "./ExportDialog.jsx";
+import { planStand } from "../shared/exportplan.js";
 import { ProtokollDetail } from "./tabs/BibliothekTab.jsx";
 import { PROTOKOLLE } from "../shared/catalog.js";
 import ProjektTab from "./tabs/ProjektTab.jsx";
@@ -451,48 +452,69 @@ export default function App() {
   /* ── Exporte ────────────────────────────────────────────────────────── */
   const needTopo = async () => {
     if (!svgRef.current) { setTab("topologie"); await new Promise((r) => setTimeout(r, 300)); }
-    return topologySvg(svgRef.current, P);
+    return topologySvg(svgRef.current, Pref.current);
   };
-  // Topologie in der gewünschten Ansicht zeichnen; der Plott bekommt dabei das gewählte Blattformat
+  /* Topologie in der gewünschten Ansicht zeichnen; der Plott bekommt dabei das gewählte Blattformat,
+     die Anschluss-Ansicht wird für den Export immer hell gezeichnet */
   const topoIn = async (ansicht, format) => {
-    const vorher = ansichtVon(Pref.current), aRoh = Pref.current.layout?.ansicht, fVorher = Pref.current.layout?.plottFormat, tabVorher = tab;
+    const L0 = Pref.current.layout || {};
+    const vorher = ansichtVon(Pref.current), aRoh = L0.ansicht, fVorher = L0.plottFormat, hellVorher = L0.fpHell, tabVorher = tab;
     const ziel = !ansicht || ansicht === "aktuell" ? vorher : ansicht;
     const fNeu = ziel === "cleancat" && format && format !== (fVorher || "A3-quer");
-    if (ziel === vorher && !fNeu) return needTopo();
+    const hellNeu = ziel === "front" && !hellVorher;
+    if (ziel === vorher && !fNeu && !hellNeu) return needTopo();
     const undoLen = hist.current.undo.length;
-    mutate((d) => { d.layout.ansicht = ziel; if (fNeu) d.layout.plottFormat = format; });
+    mutate((d) => { d.layout.ansicht = ziel; if (fNeu) d.layout.plottFormat = format; if (hellNeu) d.layout.fpHell = true; });
     setTab("topologie");
     await new Promise((r) => setTimeout(r, 600));
     try { return topologySvg(svgRef.current, Pref.current); }
     finally {
-      mutate((d) => { if (aRoh) d.layout.ansicht = aRoh; else delete d.layout.ansicht; if (fNeu) { if (fVorher) d.layout.plottFormat = fVorher; else delete d.layout.plottFormat; } });
+      mutate((d) => {
+        if (aRoh) d.layout.ansicht = aRoh; else delete d.layout.ansicht;
+        if (fNeu) { if (fVorher) d.layout.plottFormat = fVorher; else delete d.layout.plottFormat; }
+        if (hellNeu) delete d.layout.fpHell;
+      });
       hist.current.undo.length = undoLen;
       setTab(tabVorher);
     }
   };
-  // kind: Kurzbefehl aus der Patchliste ("patch-pdf", "patch-csv") oder die Auswahl aus dem Export-Dialog
+  /* kind: Kurzbefehl aus der Patchliste ("patch-pdf", "patch-csv") oder die Auswahl aus dem Export-Dialog.
+     Aus dem Dialog kommt auch die Planversion: sie kommt vor dem Export ins Projekt (neue Version =
+     Datum von heute), damit alle Ansichten sie zeigen, und steht im Dateinamen. Wird nichts
+     gespeichert, gilt wieder die alte. Sonst merkt sich das Projekt Version und Stand, damit der
+     Dialog nach Änderungen die nächste Nummer vorschlägt. */
   const doExport = async (kind) => {
     setShowExport(false);
-    const base = fileBase(P);
     const o = typeof kind === "string" ? { format: kind } : kind;
+    const alt = { version: P.meta.version, datum: P.meta.datum };
+    const neueVersion = o.version && o.version !== alt.version ? o.version : null;
+    const meta = neueVersion ? { ...P.meta, version: neueVersion, datum: new Date().toISOString().slice(0, 10) } : P.meta;
+    if (neueVersion) { mutate((d) => { d.meta.version = meta.version; d.meta.datum = meta.datum; }); await new Promise((r) => setTimeout(r, 60)); }
+    const Pe = { ...Pv, meta };
+    const base = fileBase(Pe) + (o.version ? ` v${meta.version}` : "");
     const pp = filePath || null;
-    const datei = (data, name, filters, enc) => api.saveFile(data, name, filters, enc, pp);
+    let gespeichert = false; // im Browser-Rückfall gibt es kein Ergebnis, dann bleibt die alte Version
+    const merke = (r) => { if (r) gespeichert = true; return r; };
+    const datei = async (data, name, filters, enc) => merke(await api.saveFile(data, name, filters, enc, pp));
+    const pdf = async (...a) => merke(await api.exportPdf(...a));
     try {
-      if (o.format === "patch-pdf") await api.exportPdf(buildPdfHtml(Pv, X, issues, null, { nurPatch: true }), `${base} – Patchliste`, { planPfad: pp });
-      if (o.format === "patch-csv") await datei(buildPatchCsv(Pv, X), `${base} – Patchliste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
+      if (o.format === "patch-pdf") await pdf(buildPdfHtml(Pe, X, issues, null, { nurPatch: true }), `${base} – Patchliste`, { planPfad: pp });
+      if (o.format === "patch-csv") await datei(buildPatchCsv(Pe, X), `${base} – Patchliste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
       if (o.format === "pdf") {
         const teile = o.teile || undefined;
         const t = !teile || teile.includes("topologie") ? await topoIn(o.ansicht, formatName(o.seite, o.hoch)) : null;
-        await api.exportPdf(buildPdfHtml(Pv, X, issues, t, { teile, seite: o.seite, hoch: o.hoch }), `${base} – Netzwerkplan`, { pageSize: o.seite, hoch: o.hoch, planPfad: pp });
+        await pdf(buildPdfHtml(Pe, X, issues, t, { teile, seite: o.seite, hoch: o.hoch }), `${base} – Netzwerkplan`, { pageSize: o.seite, hoch: o.hoch, planPfad: pp });
       }
-      if (o.format === "xlsx") await datei(buildXlsxBase64(Pv, X, issues, o.blaetter), `${base} – Netzwerkplan.xlsx`, [{ name: "Excel", extensions: ["xlsx"] }], "base64");
+      if (o.format === "xlsx") await datei(buildXlsxBase64(Pe, X, issues, o.blaetter), `${base} – Netzwerkplan.xlsx`, [{ name: "Excel", extensions: ["xlsx"] }], "base64");
       if (o.format === "csv") {
-        if (o.csv === "ip") await datei(buildIpCsv(P, X), `${base} – IP-Liste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
-        else await datei(buildPatchCsv(Pv, X), `${base} – Patchliste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
+        if (o.csv === "ip") await datei(buildIpCsv(Pe, X), `${base} – IP-Liste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
+        else await datei(buildPatchCsv(Pe, X), `${base} – Patchliste.csv`, [{ name: "CSV", extensions: ["csv"] }]);
       }
       if (o.format === "svg") { const t = await topoIn(o.ansicht, formatName(o.seite, o.hoch)); await datei(t.svg, `${base} – Topologie.svg`, [{ name: "SVG", extensions: ["svg"] }]); }
       if (o.format === "png") { const t = await topoIn(o.ansicht, formatName(o.seite, o.hoch)); await datei(await svgToPngBase64(t.svg, t.w, t.h), `${base} – Topologie.png`, [{ name: "PNG", extensions: ["png"] }], "base64"); }
+      if (o.version && gespeichert) mutate((d) => { d.meta.letzterExport = { version: meta.version, stand: planStand(d), zeit: new Date().toISOString() }; });
     } catch (e) { console.error(e); notify("Export fehlgeschlagen: " + e.message, "err"); }
+    if (neueVersion && !gespeichert) mutate((d) => { d.meta.version = alt.version; d.meta.datum = alt.datum; });
   };
 
   const nErr = issues.filter((i) => i.sev === "error").length, nWarn = issues.filter((i) => i.sev === "warn").length;
@@ -592,7 +614,7 @@ export default function App() {
       {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={Array.isArray(picker.umbauFor) && picker.umbauFor.length > 1 ? [] : library.bestand || []} customIcons={allIcons} title={Array.isArray(picker.umbauFor) && picker.umbauFor.length > 1 ? `Modell für ${picker.umbauFor.length} Geräte wählen` : picker.umbauFor ? `Modell für „${X.devById.get([].concat(picker.umbauFor)[0])?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
         mitAnzahl={!picker.umbauFor} onClose={() => setPicker(null)} onPick={(item, anzahl = 1) => { if (picker.umbauFor) { umbauen(picker.umbauFor, item); setPicker(null); return; } const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo, anzahl }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
       <EingabeHost />
-      {showExport && <ExportDialog onClose={() => setShowExport(false)} onExport={doExport} planPfad={filePath} aktuelleAnsicht={ansichtVon(P)} />}
+      {showExport && <ExportDialog P={P} onClose={() => setShowExport(false)} onExport={doExport} planPfad={filePath} aktuelleAnsicht={ansichtVon(P)} />}
       {protoModal && <Modal title="Protokoll" width={860} onClose={() => setProtoModal(null)}
         footer={<button style={S.secondaryBtn} onClick={() => { setProtoId(protoModal); setBibSub("protokolle"); setTab("bibliothek"); setProtoModal(null); }}>Im Katalog öffnen</button>}>
         <ProtokollDetail p={PROTOKOLLE.find((p) => p.id === protoModal)} P={Pv} onSelectDevice={(id) => { setProtoModal(null); selectDevice(id); }} />

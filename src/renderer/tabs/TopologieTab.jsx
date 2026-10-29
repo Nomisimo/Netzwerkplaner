@@ -853,7 +853,7 @@ export default function TopologieTab(props) {
           {front && <>
             {trenner}
             <Toggle checked={!!P.layout.fpHell} onChange={(v) => mutate((d) => { d.layout.fpHell = v; })} label="Hell"
-              title="Weißer Hintergrund, z. B. zum Drucken. Gilt auch für den Export und lässt sich beim Bearbeiten anlassen." />
+              title="Weißer Hintergrund beim Bearbeiten. Exporte sind immer hell." />
             <Toggle checked={kabelVorne} onChange={(v) => mutate((d) => { d.layout.fpKabelVorne = v; })} label="Kabel vorne"
               title="An: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante." />
           </>}
@@ -897,7 +897,7 @@ export default function TopologieTab(props) {
               <filter id="np-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" /></filter>
             </defs>
             <rect className="np-ui" width="100%" height="100%" fill="url(#np-grid)" />
-            <g id="np-world" transform={`translate(${view.x},${view.y}) scale(${view.k})`} data-bounds={JSON.stringify(L.bounds)} data-bg={front ? FPF.bg : BG}>
+            <g id="np-world" transform={`translate(${view.x},${view.y}) scale(${view.k})`} data-bounds={JSON.stringify(L.bounds)} data-hell={front && P.layout.fpHell ? "" : undefined}>
               {/* Hintergrundbild (z. B. Stage-Plot) */}
               {bgPos?.src && <image href={bgPos.src} x={bgPos.x} y={bgPos.y} width={bgPos.w} height={bgPos.h} opacity={bgPos.deckkraft ?? 0.5} preserveAspectRatio="none"
                 style={{ cursor: bgPos.fest === false && tool === "move" ? "move" : undefined, pointerEvents: bgPos.fest === false && tool === "move" ? "auto" : "none" }}

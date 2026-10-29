@@ -62,7 +62,3 @@ export function useSichtbar() {
   return useCallback((list) => (aus ? (list || []).filter((x) => !x?.zustand || x.zustand === "aktiv") : list || []), [aus]);
 }
 
-// Wie viele Monitore laufen gerade (für den Punkt am Tab)
-export function useRunningCount() {
-  return useSyncExternalStore(subscribe, () => Object.values(state).filter((m) => m?.running).length);
-}

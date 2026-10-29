@@ -156,8 +156,6 @@ export const buildIndex = (P) => {
 export const otherEnd = (c, devId) => (c.a.dev === devId ? c.b : c.a);
 export const thisEnd = (c, devId) => (c.a.dev === devId ? c.a : c.b);
 
-export const vlanLabel = (v) => (v ? `${v.vid} ${v.name}` : "–");
-
 // Welche VLANs laufen über eine Verbindung?
 export const connVlan = (c, X) => {
   const side = (end) => {
@@ -214,11 +212,6 @@ export const isP2PConn = (c, X) => {
 };
 
 /* ── Ports & Adressen ──────────────────────────────────────────────────── */
-export const freePort = (dev, X, preferP2P = false) => {
-  const free = physPorts(dev).filter((p) => !(X.connsByPort.get(`${dev.id}:${p.id}`) || []).length);
-  return free.find((p) => !!p.p2p === preferP2P) || free[0] || null;
-};
-
 export const usedIps = (P, exceptPortId) => {
   const s = new Set();
   for (const d of P.geraete) for (const i of ipPorts(d)) {
