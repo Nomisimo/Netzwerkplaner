@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY, DARK, INPUT, LINE2, MID, OK, TEXT, TEXT2 } from "../shared/constants.js";
+import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY, THEME_KEY, themeWahl, DARK, INPUT, LINE2, MID, OK, TEXT, TEXT2 } from "../shared/constants.js";
 import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl, vlansAbleiten } from "../shared/model.js";
 import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ipPorts, eindeutigerName, nummerierteNamen } from "../shared/catalog.js";
 import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
@@ -23,11 +23,11 @@ import { ladeLogo, speichereLogo, logoAusDatei } from "./logo.js";
 import APP_ICON_SVG from "../../assets/app-icon/icon.svg";
 const APP_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(APP_ICON_SVG)}`;
 import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } from "../shared/version.js";
-import AnleitungTab from "./tabs/AnleitungTab.jsx";
+import AnleitungTab, { KAPITEL, zeigeKapitel } from "./tabs/AnleitungTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
 import SitzungDialog from "./SitzungDialog.jsx";
-import Einstellungen from "./Einstellungen.jsx";
-import { ansichtVon, einstellungen } from "./einstellungen.js";
+import Einstellungen, { themeSetzen } from "./Einstellungen.jsx";
+import { ansichtVon, einstellungen, useEinstellungen, setzeEinstellungen, TOPO_STANDARD } from "./einstellungen.js";
 import { useSitzung } from "./sync.js";
 import { diff, apply, invert, valueAt, pathKey } from "../shared/ops.js";
 import { removeDevice } from "../shared/invarianten.js";
@@ -496,14 +496,37 @@ export default function App() {
   };
 
   const nErr = issues.filter((i) => i.sev === "error").length, nWarn = issues.filter((i) => i.sev === "warn").length;
-  // Native Menüleiste (macOS): Aktionen aus dem Menü; immer die aktuelle Fassung der Funktionen nutzen
+  // Native Menüleiste: Aktionen aus dem Menü; immer die aktuelle Fassung der Funktionen nutzen
+  const vorReload = () => { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) { console.error(e); } };
+  const inSitzung = !!sitzung.zustand && !sitzung.zustand.veraltet;
+  const topoAnwenden = () => { const t = einstellungen().topo; mutate((d) => { d.layout.ansicht = t.ansicht; d.layout.linien = t.linien; d.layout.titel = t.titel; d.layout.einrasten = t.einrasten; d.layout.kabelBuendel = t.kabelBuendel; }); notify("Standard-Anzeige auf das Projekt angewendet"); };
+  const einstAusMenu = (rest) => {
+    const [k, a, b] = rest.split(":");
+    if (k === "topoAnwenden") return topoAnwenden();
+    if (k === "topoZuruecksetzen") return setzeEinstellungen((x) => { x.topo = { ...TOPO_STANDARD }; });
+    setzeEinstellungen((x) => {
+      if (k === "lasche") x.lasche = a;
+      else if (k === "fokus") x.fokusHersteller = a === "keine" ? [] : null;
+      else if (k === "topo" && typeof TOPO_STANDARD[a] === "boolean") x.topo[a] = !x.topo[a];
+      else if (k === "topo" && a in TOPO_STANDARD) x.topo[a] = b;
+    });
+  };
+  const themeAusMenu = (w) => {
+    if (inSitzung && !confirm("Zum Umschalten lädt die Oberfläche neu, und du verlässt dabei die laufende Sitzung. Trotzdem umschalten?")) { try { localStorage.setItem(THEME_KEY, w); } catch { /* */ } meldeMenu(); return; }
+    if (!themeSetzen(w, vorReload)) meldeMenu();
+  };
   const menuAktion = useRef(null);
   menuAktion.current = (a) => {
-    const [art, wert] = a.split(":");
+    // Nur am ersten Doppelpunkt trennen: Dateipfade (C:\…) und Einstellungen haben selbst welche
+    const i = a.indexOf(":"), art = i < 0 ? a : a.slice(0, i), wert = i < 0 ? undefined : a.slice(i + 1);
     const imFeld = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
     if (art === "neu") newProject();
     else if (art === "oeffnen") openProject();
     else if (art === "zuletzt") setShowRecents(true);
+    else if (art === "datei") openRecent(wert);
+    else if (art === "theme") themeAusMenu(wert);
+    else if (art === "einst") einstAusMenu(wert);
+    else if (art === "kapitel") { zeigeKapitel(wert); setTab("hilfe"); }
     else if (art === "speichern") save(false);
     else if (art === "speichernUnter") save(true);
     else if (art === "export") setShowExport(true);
@@ -520,6 +543,10 @@ export default function App() {
     else if (art === "werkzeug") { setTab("topologie"); setTimeout(() => window.dispatchEvent(new CustomEvent("np-werkzeug", { detail: wert })), 50); }
   };
   useEffect(() => api.onMenu((a) => menuAktion.current?.(a)), []);
+  // Stand fürs Menü melden: Häkchen der Einstellungen, Tabs, Anleitungs-Kapitel
+  const einst = useEinstellungen();
+  const meldeMenu = () => api.menuZustand({ einst: einstellungen(), theme: themeWahl(), tabs: TABS, kapitel: KAPITEL.map((k) => [k.id, k.titel]) });
+  useEffect(meldeMenu, [einst]);
 
   const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }), onTypWaehlen: (id, key) => umbauen(id, { kind: "typ", key }), onShowIssue: (i) => showIssue(i), goTab: geheZu };
 
@@ -609,7 +636,7 @@ export default function App() {
         </div>
         {Object.entries(CHANGELOG).map(([v, items]) => <div key={v}><div className="sp-section-label">Version {v}{v === version ? " (installiert)" : ""}</div><ul style={{ margin: "0 0 12px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13 }}>{items.map((t, i) => <li key={i}>{t}</li>)}</ul></div>)}
       </Modal>}
-      {showEinst && <Einstellungen onClose={() => setShowEinst(false)} onTopoAnwenden={() => { const t = einstellungen().topo; mutate((d) => { d.layout.ansicht = t.ansicht; d.layout.linien = t.linien; d.layout.titel = t.titel; d.layout.einrasten = t.einrasten; d.layout.kabelBuendel = t.kabelBuendel; }); notify("Standard-Anzeige auf das Projekt angewendet"); }} inSitzung={!!sitzung.zustand && !sitzung.zustand.veraltet} vorReload={() => { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) { console.error(e); } }} />}
+      {showEinst && <Einstellungen onClose={() => { setShowEinst(false); meldeMenu(); }} onTopoAnwenden={topoAnwenden} inSitzung={inSitzung} vorReload={vorReload} />}
       {showSitzung && <SitzungDialog sitzung={sitzung} version={version} projektName={P.meta.veranstaltung} onClose={() => setShowSitzung(false)} onKopieSpeichern={() => save(true)} />}
       {toast && (() => {
         // Meldung unten: Erfolg grün mit Haken, Warnung gelb, Fehler rot

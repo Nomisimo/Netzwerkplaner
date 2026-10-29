@@ -31,9 +31,9 @@ function createWindow() {
       preload: path.join(root, 'src', 'preload', 'preload.js'),
     },
   });
-  mainWin.setMenuBarVisibility(false);
-  // macOS: eigene Menüleiste oben am Bildschirmrand (Windows behält die Leiste in der App)
-  if (process.platform === 'darwin') Menu.setApplicationMenu(baueMenue(mainWin, app));
+  // macOS: Menüleiste oben am Bildschirmrand. Windows: Leiste im Fenster, die Alt einblendet
+  if (process.platform !== 'darwin') { const immer = leisteImmer(); mainWin.setAutoHideMenuBar(!immer); mainWin.setMenuBarVisibility(immer); }
+  menueNeu();
   mainWin.loadFile(path.join(root, 'dist-app', 'index.html'));
 
   let appReady = false, minTimeUp = false, shown = false;
@@ -60,6 +60,21 @@ function createWindow() {
     return { action: 'deny' };
   });
 }
+
+/* ── Menüleiste ────────────────────────────────────────────────────────── */
+const menueFile = () => path.join(app.getPath('userData'), 'menue.json');
+let menueZustand = {};
+const leisteImmer = () => { try { return !!JSON.parse(fs.readFileSync(menueFile(), 'utf8')).leisteImmer; } catch { return false; } };
+const setzeLeisteImmer = (an) => {
+  try { fs.writeFileSync(menueFile(), JSON.stringify({ leisteImmer: an }), 'utf8'); } catch {}
+  if (mainWin && !mainWin.isDestroyed()) { mainWin.setAutoHideMenuBar(!an); mainWin.setMenuBarVisibility(an); }
+  menueNeu();
+};
+function menueNeu() {
+  if (!mainWin || mainWin.isDestroyed()) return;
+  Menu.setApplicationMenu(baueMenue(mainWin, app, { zustand: menueZustand, recents: loadRecents(), leisteImmer: leisteImmer(), onLeiste: setzeLeisteImmer }));
+}
+ipcMain.on('menu-zustand', (_e, z) => { if (z && typeof z === 'object') { menueZustand = z; menueNeu(); } });
 
 const parentWin = () => BrowserWindow.getAllWindows().find((w) => !w.isDestroyed() && w.isVisible()) || mainWin;
 
@@ -92,6 +107,7 @@ function addRecent(filePath) {
   list.unshift({ filePath, name: baseName(filePath), date: new Date().toISOString() });
   list = list.slice(0, 10);
   try { fs.writeFileSync(recentsFile(), JSON.stringify(list, null, 2), 'utf8'); } catch {}
+  menueNeu();
   return list;
 }
 function readProject(filePath) {
@@ -240,6 +256,7 @@ ipcMain.handle('open-recent', async (_e, filePath) => {
   if (!fs.existsSync(filePath)) {
     const list = loadRecents().filter((r) => r.filePath !== filePath);
     try { fs.writeFileSync(recentsFile(), JSON.stringify(list, null, 2), 'utf8'); } catch {}
+    menueNeu();
     return { error: 'not-found', recents: list };
   }
   return readProject(filePath);
