@@ -3,9 +3,8 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, INFO, OK, katColor, KATEGORIEN,
 import { KATALOG, ipPorts } from "../../shared/catalog.js";
 import { Section, Field } from "../ui.jsx";
 import { standortUmbenennen } from "../../shared/model.js";
-import { X as XIcon, RotateCcw } from "lucide-react";
+import { X as XIcon } from "lucide-react";
 import PruefungKompakt from "./PruefungTab.jsx";
-import VlanTab from "./VlanTab.jsx";
 
 const Stat = ({ label, value, color, onClick }) => (
   <div onClick={onClick} style={{ background: INPUT, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 10px", cursor: onClick ? "pointer" : "default" }}>
@@ -14,7 +13,7 @@ const Stat = ({ label, value, color, onClick }) => (
   </div>
 );
 
-// Setup: Projektangaben, Übersicht mit Prüfung, Standorte und VLANs auf einer Seite
+// Projekt: Angaben, Übersicht mit Prüfung und Standorte auf einer Seite (VLANs haben einen eigenen Tab)
 export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newProject, onShowIssue, onSelectDevice }) {
   const [neuBereich, setNeuBereich] = useState("");
   const m = P.meta;
@@ -33,10 +32,10 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
             <button style={S.primaryBtn} onClick={() => goTab("topologie")}>Leeres Projekt: zur Topologie</button>
             <button style={S.secondaryBtn} onClick={loadDemo}>Beispielprojekt laden</button>
           </div>
-          <p style={S.hint}>{P.vlans.length ? `${P.vlans.length} VLANs angelegt.` : "Noch keine VLANs: unten unter „VLANs“ anlegen oder die Standard-VLANs einfügen (10 Audio Primary, 11 Audio Secondary, 20 Licht, 30 Video, 40 Intercom, 50 Steuerung, 99 Management)."} Gerätekatalog: {KATALOG.geraete.length} Modelle, Protokollreferenz: {KATALOG.protokolle.length} Protokolle (Stand {KATALOG.stand}).</p>
+          <p style={S.hint}>{P.vlans.length ? `${P.vlans.length} VLANs angelegt.` : "Noch keine VLANs: im Tab „VLANs“ anlegen oder die Standard-VLANs einfügen (10 Audio Primary, 11 Audio Secondary, 20 Licht, 30 Video, 40 Intercom, 50 Steuerung, 99 Management)."} Gerätekatalog: {KATALOG.geraete.length} Modelle, Protokollreferenz: {KATALOG.protokolle.length} Protokolle (Stand {KATALOG.stand}).</p>
         </Section>
       )}
-      <Section title="Setup" subtitle="Projektangaben, Übersicht mit Prüfung, Standorte und VLANs. Die Angaben erscheinen im Kopf der App und in den Exporten.">
+      <Section title="Projekt" subtitle="Erscheint im Kopf der App und in allen Exporten.">
         <div style={S.metaGrid}>
           <Field label="Veranstaltung"><input style={S.input} value={m.veranstaltung} onChange={(e) => setMeta("veranstaltung", e.target.value)} /></Field>
           <Field label="Ort / Venue"><input style={S.input} value={m.ort} onChange={(e) => setMeta("ort", e.target.value)} /></Field>
@@ -65,7 +64,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
         <PruefungKompakt issues={issues} onShowIssue={onShowIssue} />
       </Section>
 
-      <Section title="Standorte / Äste" subtitle="Standorte der Geräte (Feld „Standort / Ast“, z. B. FOH, Bühne, Delay-Tower). Umbenennen gilt für das ganze Projekt. Die Anmerkung erscheint nur in der Plott-Ansicht.">
+      <Section title="Standorte" subtitle="Wo die Geräte stehen, z. B. FOH, Bühne, Delay-Tower. Umbenennen gilt im ganzen Projekt, die Anmerkung steht im Druckplan.">
         <div style={{ display: "grid", gap: 8 }}>
           {standorte.map((b) => {
             const anzahl = P.geraete.filter((g) => (g.bereich || "").trim() === b).length;
@@ -75,7 +74,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
                   title="Name ändern: gilt im ganzen Projekt, auch an allen Geräten"
                   onBlur={(e) => { const v = e.target.value.trim(); if (!v || v === b) { e.target.value = b; return; } mutate((d) => standortUmbenennen(d, b, v)); }}
                   onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") { e.target.value = b; e.target.blur(); } }} />
-                <input style={{ ...S.input, flex: 1, minWidth: 240 }} placeholder="Anmerkung (nur in Plott)" value={P.standortInfo?.[b]?.anmerkung || ""}
+                <input style={{ ...S.input, flex: 1, minWidth: 240 }} placeholder="Anmerkung (nur im Druckplan)" value={P.standortInfo?.[b]?.anmerkung || ""}
                   onChange={(e) => mutate((d) => { const i = d.standortInfo || (d.standortInfo = {}); i[b] = { ...(i[b] || {}), anmerkung: e.target.value }; })} />
                 <span style={{ fontSize: 12, color: SUB, alignSelf: "center" }}>{anzahl} {anzahl === 1 ? "Gerät" : "Geräte"}</span>
                 <button style={S.smallBtn} title={anzahl ? "Erst die Geräte umtragen" : "Aus der Liste entfernen"} disabled={!!anzahl}
@@ -90,14 +89,6 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
         </form>
       </Section>
 
-      <div id="setup-vlans"><VlanTab P={P} X={X} mutate={mutate} issues={issues} onSelectDevice={onSelectDevice} /></div>
-
-      <Section title="Projekt zurücksetzen">
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button style={S.secondaryBtn} onClick={loadDemo}>Beispielprojekt laden</button>
-          <button style={{ ...S.dangerBtnWide, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={newProject}><RotateCcw size={14} /> Neues leeres Projekt</button>
-        </div>
-      </Section>
     </>
   );
 }

@@ -6,7 +6,7 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, OK, PANEL, DARK, KABEL, KATEGOR
 import { buildTree, subtreeIds, astKlappbar, aesteUmschalten, connVlan, isP2PConn, mainIp, webUrl, addConnection, freiePorts, unmanagedVlans } from "../../shared/model.js";
 import { layoutMindmap, NODE_W, NODE_H } from "../../shared/layout.js";
 import { SvgIcon, IconView } from "../icons.jsx";
-import { Toggle, VlanSelect, Dot, Modal } from "../ui.jsx";
+import { Toggle, VlanSelect, Dot, Modal, Klappmenue } from "../ui.jsx";
 import DeviceEditor from "../DeviceEditor.jsx";
 import ConnEditor from "../ConnEditor.jsx";
 import { api } from "../api.js";
@@ -16,7 +16,7 @@ import { feldZeilen } from "../../shared/felder.js";
 import { layoutFrontplatten, anker, CARD_W, CARD_H, TAB_H } from "../../shared/frontplatte.js";
 import { FrontPlate, FrontCard, FP_FARBEN, FpFarben, laschenText, laschenZustand, kartenFarbe } from "../Frontplatte.jsx";
 import { wegSuchen, wegFrei, aufblasen, standardWeg, handWeg, wegSpeichern, streckeVerschieben, knickEinfuegen, naechsteStrecke, streckenMitten, wegPfad, wegMitte } from "../../shared/kabelweg.js";
-import { useEinstellungen, ansichtVon, topoWert } from "../einstellungen.js";
+import { useEinstellungen, ansichtVon, topoWert, setzeEinstellungen } from "../einstellungen.js";
 import { STAPEL_PAD, anordnen, positionenSichern, knickPfad, stapelAnker, stapelVon, obenAufStapel, entstapeln, kabelSpuren, bahnenVergeben, endenVerteilen } from "../../shared/anordnung.js";
 import { uid, ipPorts } from "../../shared/catalog.js";
 import HintergrundPanel from "../HintergrundPanel.jsx";
@@ -28,7 +28,7 @@ import { einrasten, mitlaeufer, gruppeBewegen } from "../../shared/einrasten.js"
 import { KonfigEinfuegen } from "../KonfigDialog.jsx";
 import Meldungen from "../Meldungen.jsx";
 import MehrfachBearbeiten from "../MehrfachBearbeiten.jsx";
-import { Network, Cable, FileText, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap, ArrowLeftRight } from "lucide-react";
+import { Network, Cable, FileText, Move, Link2, Layers, Maximize, RotateCcw, Image as ImageIcon, ListTree, ClipboardPaste, RefreshCw, Search, Plus, PanelLeftClose, PanelLeftOpen, X as XIcon, Pin, TriangleAlert, Globe, Trash2, Zap, ArrowLeftRight, SlidersHorizontal } from "lucide-react";
 import CleanCatTab from "./CleanCatTab.jsx";
 import { useVlanZuweisen, setVlanZuweisen } from "../vlanZuweisen.js";
 
@@ -85,9 +85,11 @@ export default function TopologieTab(props) {
   const knickKey = front ? "fpKnicke" : "knicke";   // verschobene Verbindungen (Versatz zur Mitte)
   const textKey = front ? "fpKabelText" : "kabelText"; // Stelle der Kabelbeschriftung als Anteil der Kabellänge
   const bgKey = front ? "fpHintergrund" : "hintergrund";
-  const auto = topoWert(P, "autoAnordnen") !== false;
-  const rasten = topoWert(P, "einrasten") !== false; // Einrasten beim Ziehen (Raster und Nachbarn), Alt hält es kurz aus
-  const pins = P.layout[pinKey] || {};
+  // Die Mindmap ordnet immer automatisch an: kein Verschieben, Anpinnen, Knicken; Handarbeit nur in Anschlüsse und Druckplan
+  const mm = !front;
+  const auto = mm || topoWert(P, "autoAnordnen") !== false;
+  const rasten = !mm && topoWert(P, "einrasten") !== false; // Einrasten beim Ziehen (Raster und Nachbarn), Alt hält es kurz aus
+  const pins = mm ? {} : P.layout[pinKey] || {};
   const stapel = P.layout.stapel || [];
   // Mehrfachauswahl: { type: "multi", ids } (Shift/⌘/Strg-Klick, Rahmen auf der Fläche, ⌘/Strg+A)
   const selIds = selection?.type === "multi" ? selection.ids.filter((id) => X.devById.has(id)) : selection?.type === "dev" ? [selection.id] : [];
@@ -113,7 +115,7 @@ export default function TopologieTab(props) {
   // Live-Position während des Ziehens: das gezogene Gerät bekommt vorläufig ein festes Ziel,
   // nicht fixierte Äste folgen ihm, angepinnte Geräte bleiben stehen.
   const L = useMemo(() => {
-    if (!drag || drag.kind !== "node" || !drag.moved) return Lbase;
+    if (mm || !drag || drag.kind !== "node" || !drag.moved) return Lbase;
     const p = Lbase.pos.get(drag.id);
     if (!p) return Lbase;
     const extra = {};
@@ -173,7 +175,7 @@ export default function TopologieTab(props) {
   };
   // Von Hand gesetzter Kabelweg (Anschluss-Ansicht): Zwischenpunkte, beim Ziehen die Live-Form
   const fpHand = (c) => (drag?.kind === "strecke" && drag.id === c.id && drag.moved ? wegSpeichern(drag.live) : P.layout.fpWege?.[c.id]);
-  const knickOf = (c) => (drag?.kind === "knick" && drag.id === c.id ? { dx: drag.bx + drag.dx, dy: drag.by + drag.dy } : P.layout[knickKey]?.[c.id]);
+  const knickOf = (c) => (mm ? null : drag?.kind === "knick" && drag.id === c.id ? { dx: drag.bx + drag.dx, dy: drag.by + drag.dy } : P.layout[knickKey]?.[c.id]);
   const bg = P.layout[bgKey];
   const bgPos = bg && (drag?.kind === "bg" ? { ...bg, x: bg.x + drag.dx, y: bg.y + drag.dy } : bg);
 
@@ -257,7 +259,7 @@ export default function TopologieTab(props) {
       // Gehört das Gerät zur Mehrfachauswahl, wandern alle gewählten Geräte mit
       const gruppe = !conn && !stapelId && !toggle && selIds.length > 1 && selIds.some((x) => stapelAnker(stapel, x) === id)
         ? [...new Set(selIds.map((x) => stapelAnker(stapel, x)))].filter((x) => x !== id) : null;
-      setDrag({ kind: "node", id, klick: nodeId, gruppe, toggle, andere: rasten ? rastBoxen([id, ...(gruppe || [])]) : null, stapel: stapelId, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false, conn });
+      setDrag({ kind: "node", id, klick: nodeId, gruppe, toggle, andere: rasten ? rastBoxen([id, ...(gruppe || [])]) : null, stapel: stapelId, sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, dx: 0, dy: 0, moved: false, conn });
     } else if (tool === "move") { const w = toWorld(e); setDrag({ kind: "rahmen", dazu: toggle, x0: w.x, y0: w.y, x1: w.x, y1: w.y, sx: e.clientX, sy: e.clientY, moved: false }); }
     else setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false });
   };
@@ -286,7 +288,8 @@ export default function TopologieTab(props) {
       setDrag({ ...drag, live: streckeVerschieben(drag.basis, drag.k, d), moved });
       return;
     }
-    if (drag.kind === "pan") setView((v) => ({ ...v, x: drag.vx + ddx, y: drag.vy + ddy })), moved !== drag.moved && setDrag({ ...drag, moved });
+    // Mindmap: Ziehen an einem Gerät verschiebt die Ansicht, die Geräte bleiben, wo der Layouter sie hinstellt
+    if (drag.kind === "pan" || (mm && drag.kind === "node")) setView((v) => ({ ...v, x: drag.vx + ddx, y: drag.vy + ddy })), moved !== drag.moved && setDrag({ ...drag, moved });
     else {
       let dx = ddx / view.k, dy = ddy / view.k, linien = null;
       const p = drag.kind === "node" && drag.andere && !e.altKey && Lbase.pos.get(drag.id);
@@ -303,7 +306,7 @@ export default function TopologieTab(props) {
     const vorher = d.layout.stapel || [];
     const alt = stapelAnker(vorher, ziel);
     d.layout.stapel = obenAufStapel(vorher, neu, ziel, uid());
-    if (alt === neu) return;
+    if (alt === neu || mm) return;
     for (const k of ["pins", "fpPins", "fix", "fpFix"]) {
       const m = d.layout[k];
       if (!m?.[alt]) continue;
@@ -350,7 +353,8 @@ export default function TopologieTab(props) {
       return;
     }
     if (drag.kind === "node") {
-      if (drag.moved) {
+      if (drag.moved && mm) { /* nur die Ansicht verschoben */ }
+      else if (drag.moved) {
         const dx = drag.dx, dy = drag.dy;
         // Bei Mehrfachauswahl nur Geräte speichern, die nicht schon im Ast eines anderen gewählten Geräts mitlaufen
         const ids = drag.gruppe ? gruppeBewegen([drag.id, ...drag.gruppe], bewegOpts()).schreiben : [drag.id];
@@ -457,9 +461,9 @@ export default function TopologieTab(props) {
       if (key === "m" || key === "v") setTool("move");
       if (key === "c") setTool("connect");
       if (key === "s") setTool("stack");
-      if (key === "p" && selection?.type === "dev") togglePin(selection.id);
-      if (key === "p" && selection?.type === "multi") allePinnen(selIds);
-      if (key === "p" && selection?.type === "stapel") { const s0 = stapel.find((x) => x.id === selection.id); if (s0) togglePin(s0.ids[0]); }
+      if (key === "p" && !mm && selection?.type === "dev") togglePin(selection.id);
+      if (key === "p" && !mm && selection?.type === "multi") allePinnen(selIds);
+      if (key === "p" && !mm && selection?.type === "stapel") { const s0 = stapel.find((x) => x.id === selection.id); if (s0) togglePin(s0.ids[0]); }
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
@@ -579,27 +583,29 @@ export default function TopologieTab(props) {
 
   // Linie direkt greifen: im Bewegen-Werkzeug verschiebt Ziehen an einer Verbindung ihre Knickstelle
   // Kabelbeschriftung: sitzt auf dem Kabel, Ziehen schiebt sie am Kabel entlang
-  const textAnteil = (c) => (drag?.kind === "kabeltext" && drag.id === c.id ? drag.f : P.layout[textKey]?.[c.id] ?? 0.5);
+  const textAnteil = (c) => (mm ? 0.5 : drag?.kind === "kabeltext" && drag.id === c.id ? drag.f : P.layout[textKey]?.[c.id] ?? 0.5);
   const textGreifen = (e, c) => {
     if (e.button) return;
+    if (mm) { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); return; }
     e.stopPropagation(); e.preventDefault();
     setDrag({ kind: "kabeltext", id: c.id, f: textAnteil(c), sx: e.clientX, sy: e.clientY, moved: false });
   };
   const textZurueck = (c) => mutate((d) => { const m = { ...(d.layout[textKey] || {}) }; delete m[c.id]; d.layout[textKey] = m; });
   // Beschriftungen kommen in eine eigene Ebene über allen Kabeln, damit sie greifbar bleiben
   const textEbene = [];
-  const kabelText = (c, d) => { if (c.label) textEbene.push(<KabelText key={c.id} id={c.id} d={d} f={textAnteil(c)} text={c.label} bg={front ? FPF.bg : CANVAS} farbe={front ? FPF.kabelText : TEXT}
+  const kabelText = (c, d) => { if (c.label) textEbene.push(<KabelText key={c.id} id={c.id} d={d} f={textAnteil(c)} text={c.label} bg={front ? FPF.bg : CANVAS} farbe={front ? FPF.kabelText : TEXT} fest={mm}
     onDown={(e) => textGreifen(e, c)} onReset={(e) => { e.stopPropagation(); textZurueck(c); }} />); return null; };
 
   const linieGreifen = (e, c) => {
     e.stopPropagation();
     if (e.button || tool !== "move" || e.shiftKey || stapelKlammer.has(c.id)) return;
+    if (mm) { setSelection({ type: "conn", id: c.id }); return; }
     const k = P.layout[knickKey]?.[c.id] || { dx: 0, dy: 0 };
     setSelection({ type: "conn", id: c.id });
     setDrag({ kind: "knick", id: c.id, bx: k.dx, by: k.dy, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false });
   };
   // Griff zum Verschieben der ausgewählten Verbindung
-  const knickGriff = (c, mx, my) => tool === "move" && selConn?.id === c.id && (
+  const knickGriff = (c, mx, my) => !mm && tool === "move" && selConn?.id === c.id && (
     <g className="np-ui" style={{ cursor: "move" }} onMouseDown={(e) => { if (e.button) return; e.stopPropagation(); const k = P.layout[knickKey]?.[c.id] || { dx: 0, dy: 0 }; setDrag({ kind: "knick", id: c.id, bx: k.dx, by: k.dy, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, moved: false }); }}
       onDoubleClick={(e) => { e.stopPropagation(); mutate((d) => { const m = { ...(d.layout[knickKey] || {}) }; delete m[c.id]; d.layout[knickKey] = m; }); }}>
       <circle cx={mx} cy={my} r="11" fill="transparent" />
@@ -729,31 +735,33 @@ export default function TopologieTab(props) {
 
   const closeCtx = useCallback(() => setCtx(null), []);
   const trenner = <span style={{ width: 1, height: 22, background: LINE, flexShrink: 0 }} />;
-  const zeile = { display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap", overflow: "hidden", minHeight: 32 };
   const knopf = { ...S.ghostBtn, whiteSpace: "nowrap", flexShrink: 0 };
   const ico = { size: 14, strokeWidth: 2 };
   // Schmale Fenster: Nebenknöpfe nur als Icon (Titel bleibt als Tooltip), damit die Leiste nicht abschneidet
   const leisteRef = useRef(null);
-  const [kompakt, setKompakt] = useState(false);
+  const [kompakt, setKompakt] = useState(false);   // < 1600 px: Werkzeuge und Einpassen nur als Icon
+  const [kompakt2, setKompakt2] = useState(false); // < 1250 px: auch die Klappmenüs und Status
   useEffect(() => {
     const el = leisteRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(([e]) => setKompakt(e.contentRect.width < 1330));
+    const ro = new ResizeObserver(([e]) => { setKompakt(e.contentRect.width < 1600); setKompakt2(e.contentRect.width < 1250); });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
   const lbl = (t) => (kompakt ? null : t);
+  const lbl2 = (t) => (kompakt2 ? null : t);
+  const zeile = { display: "flex", gap: 6, alignItems: "center", flexWrap: kompakt2 ? "wrap" : "nowrap", rowGap: 6, minHeight: 32 }; // ohne overflow: hidden, sonst schneidet sie die Klappmenüs ab
 
   const aktAnsicht = ["front", "cleancat"].includes(ansichtVon(P)) ? ansichtVon(P) : "mindmap";
   const ANSICHT_TITEL = { mindmap: "Baum vom Hauptswitch aus", front: "Geräte mit ihren Anschlüssen, Kabel von Buchse zu Buchse", cleancat: "Aufgeräumter Signalfluss-Plan als A3-Blatt mit Legende und Plankopf" };
   const ansichtWahl = (
     <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
-      {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"], ["cleancat", <FileText {...ico} />, "Plott"]].map(([k, i, l]) => (
-        <button key={k} onClick={() => setAnsicht(k)} title={ANSICHT_TITEL[k]} style={{ ...knopf, border: "none", borderRadius: 0, ...(aktAnsicht === k ? { background: "#2c3b93", color: "#fff" } : {}) }}>{i}{l}</button>
+      {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"], ["cleancat", <FileText {...ico} />, "Druckplan"]].map(([k, i, l]) => (
+        <button key={k} onClick={() => setAnsicht(k)} title={ANSICHT_TITEL[k]} style={{ ...knopf, border: "none", borderRadius: 0, ...(aktAnsicht === k ? { background: STRONG, color: DARK } : {}) }}>{i}{l}</button>
       ))}
     </div>
   );
-  // Plott: eigenes Blatt statt Zeichenfläche; Klick auf ein Gerät öffnet den Geräte-Editor
+  // Druckplan: eigenes Blatt statt Zeichenfläche; Klick auf ein Gerät öffnet den Geräte-Editor
   if (aktAnsicht === "cleancat") {
     return <CleanCatTab P={P} X={X} mutate={mutate} svgRef={svgRef} notify={props.notify} kopf={ansichtWahl} planProfile={props.planProfile} setPlanProfile={props.setPlanProfile}
       onSelectDevice={(id) => { setSelection({ type: "dev", id }); goTab("geraete"); }} />;
@@ -787,7 +795,7 @@ export default function TopologieTab(props) {
         onMouseDown={(e) => (bearbeitbar ? streckeGreifen(e, c, w.pts) : linieGreifen(e, c))} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}
         onDoubleClick={(e) => { if (!bearbeitbar) return; e.stopPropagation(); ecken(c, w.pts, toWorld(e)); }}>
         <path d={dPath} stroke="transparent" strokeWidth="12" fill="none" />
-        {sel && <path className="np-ui" d={dPath} stroke={ACCENT} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
+        {sel && <path className="np-ui" d={dPath} stroke={LINK} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
         {st.errs && <path d={dPath} stroke={ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
         <path d={dPath} stroke={farbe} strokeWidth={breite} fill="none" strokeLinejoin="round" strokeDasharray={treeConnIds.has(c.id) ? st.dash : st.dash || "6 5"} />
         {st.farben && <Streifen d={dPath} farben={st.farben} breite={breite} />}
@@ -805,58 +813,67 @@ export default function TopologieTab(props) {
       <div style={{ display: "flex", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexShrink: 0, position: "relative", zIndex: 5 }}>
       <Meldungen issues={issues} onShowIssue={onShowIssue} goPruefung={() => goTab("pruefung")} breite={166} />
       <div ref={leisteRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 0 }}>
+        {/* Eine Zeile: Ansicht, Werkzeug, Suche, Filter. Darstellung und Anordnen als Klappmenüs */}
         <div style={zeile}>
           {ansichtWahl}
           <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
-            {[["move", <Move {...ico} />, "Bewegen", "M"], ["connect", <Link2 {...ico} />, "Verbinden", "C"], ["stack", <Layers {...ico} />, "Stapeln", "S"]].map(([k, i, l, key]) => (
-              <button key={k} title={k === "stack" ? "Taste S · von einem Gerät auf ein anderes ziehen: stapelt sie grafisch (Rack, Tower). Keine Netzwerkverbindung." : `Taste ${key}`} onClick={() => setTool(k)} style={{ ...knopf, border: "none", borderRadius: 0, ...(tool === k ? { background: ACCENT, color: "#fff" } : {}) }}>{i}{l}</button>
+            {[["move", <Move {...ico} />, mm ? "Auswählen" : "Bewegen", "M"], ["connect", <Link2 {...ico} />, "Verbinden", "C"], ["stack", <Layers {...ico} />, "Stapeln", "S"]].map(([k, i, l, key]) => (
+              <button key={k} title={k === "stack" ? "Taste S · von einem Gerät auf ein anderes ziehen: stapelt sie grafisch (Rack, Tower). Keine Netzwerkverbindung." : k === "move" && mm ? "Taste M · Klick wählt aus, Ziehen verschiebt die Ansicht. Die Mindmap ordnet sich selbst an." : `Taste ${key}`} onClick={() => setTool(k)} style={{ ...knopf, border: "none", borderRadius: 0, ...(tool === k ? { background: STRONG, color: DARK } : {}) }}>{i}{lbl(l)}</button>
             ))}
           </div>
-          {trenner}
           <button style={knopf} onClick={fit} title="Alles einpassen"><Maximize {...ico} />{lbl("Einpassen")}</button>
-          <button style={knopf} onClick={() => mitWarnung("Auto-Layout setzt alle von Hand verschobenen Geräte und Verbindungen dieser Ansicht zurück. Angepinnte Geräte und Stapel bleiben stehen.", () => mutate((d) => { d.layout[offKey] = {}; d.layout.pinned = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; if (front) d.layout.fpWege = {}; }))}
-            title="Verschiebungen von Geräten und Verbindungen zurücksetzen. Angepinnte Geräte und Stapel bleiben."><RotateCcw {...ico} />{lbl("Auto-Layout")}</button>
-          <Toggle checked={rasten} onChange={(v) => mutate((d) => { d.layout.einrasten = v; })} label="Einrasten"
-            title="An: Geräte rasten beim Ziehen im Raster ein und richten sich an Kanten und Mitten benachbarter Geräte aus. Alt gedrückt halten = frei ziehen." />
-          <Toggle checked={auto} onChange={(an) => an ? mitWarnung("Auto-Anordnen ordnet alle Geräte neu an. Die von Hand gesetzten Positionen gehen dabei verloren, angepinnte Geräte bleiben stehen.", () => setAuto(true)) : setAuto(false)} label="Auto-Anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
           {trenner}
-          <button style={{ ...knopf, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan"><ImageIcon {...ico} />{lbl("Hintergrund")}</button>
-          <button style={knopf} title="Alle Äste ein- oder ausklappen" onClick={() => mutate((d) => { d.layout.collapsed = aesteUmschalten(T, d.layout.collapsed); })}><ListTree {...ico} />{lbl("Äste")}</button>
-          <button style={knopf} disabled={!stapelClip} onClick={() => { if (!stapelClip) return; let neu = null; mutate((d) => { neu = stapelEinfuegen(d, stapelClip); }); if (neu?.stapelId) setSelection({ type: "stapel", id: neu.stapelId }); else if (neu?.ids[0]) setSelection({ type: "dev", id: neu.ids[0] }); }}
-            title={stapelClip ? `Kopierten Stapel „${stapelClip.name || "Stapel"}“ (${stapelClip.geraete.length} Geräte) einfügen` : "Erst im Stapel-Fenster einen Stapel kopieren"}><ClipboardPaste {...ico} />{lbl("Stapel einfügen")}</button>
-          <span style={{ flex: 1 }} />
-          <button style={knopf} onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen"><RefreshCw {...ico} />{lbl("Status")}</button>
-          <Toggle checked={autoStatus} onChange={setAutoStatus} label="alle 15 s" title="Erreichbarkeit zyklisch prüfen" />
-        </div>
-        <div style={zeile}>
-          <select style={{ ...S.selectSm, width: 130, flexShrink: 0 }} value={colorBy} onChange={(e) => setColorBy(e.target.value)} title="Farbe der Verbindungen">
-            <option value="vlan">Farbe: VLAN</option><option value="kat">Farbe: Bereich</option><option value="kabel">Farbe: Kabel</option>
-          </select>
-          <select style={{ ...S.selectSm, width: 130, flexShrink: 0 }} value={linien} onChange={(e) => mutate((d) => { d.layout.linien = e.target.value; })} title="Form der Verbindungslinien">
-            <option value="rund">Linien: rund</option><option value="eckig">Linien: eckig</option><option value="direkt">Linien: direkt</option>
-          </select>
-          <Toggle checked={buendeln} disabled={linien !== "eckig"} onChange={(v) => mutate((d) => { d.layout.kabelBuendel = v; })} label="Kabel bündeln"
-            title={linien !== "eckig" ? "Nur bei „Linien: eckig“" : front ? "An: die Kabel eines Switches laufen gemeinsam in einem Kanal. Aus: jedes Kabel läuft auf eigener Bahn daneben." : "An: Kabel teilen sich den Weg, mehrere Kabel zwischen denselben Geräten werden eine Linie mit Anzahl. Aus: jedes Kabel läuft einzeln auf eigener Spur daneben."} />
-          <select style={{ ...S.selectSm, width: 170, flexShrink: 0 }} value={titel} onChange={(e) => setTitel(e.target.value)} title="Beschriftung der Geräte">
-            <option value="name">Titel: Gerätename</option><option value="netzname">Titel: Netzwerkname</option><option value="typ">Titel: Typ / Modell</option>{(P.feldKatalog || []).map((f) => <option key={f.id} value={"feld:" + f.id}>Titel: {f.name}</option>)}
-          </select>
-          {trenner}
-          <select style={{ ...S.selectSm, width: 130, flexShrink: 0 }} value={katFilter} onChange={(e) => setKatFilter(e.target.value)} title="Nur einen Bereich hervorheben">
-            <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
-          </select>
-          <VlanSelect vlans={P.vlans} value={vlanFilter} onChange={setVlanFilter} style={{ width: 150, flexShrink: 0 }} noneLabel="Alle VLANs" />
           <div style={{ position: "relative", flexShrink: 0 }}>
             <Search size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: MUTED, pointerEvents: "none" }} />
-            <input style={{ ...S.inputSm, width: 170, paddingLeft: 26 }} placeholder="Suchen (Name, IP)" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input style={{ ...S.inputSm, width: kompakt ? 120 : 160, paddingLeft: 26 }} placeholder="Suchen (Name, IP)" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
-          <Toggle checked={showPorts && !front} disabled={front} onChange={setShowPorts} label="Port & VLAN" title={front ? "In der Anschluss-Ansicht stehen die Ports direkt an den Buchsen" : "Switch-Port und VLAN an jeder Verbindung anzeigen"} />
-          {front && <>
-            {trenner}
-            <Toggle checked={!!P.layout.fpHell} onChange={(v) => mutate((d) => { d.layout.fpHell = v; })} label="Hell"
-              title="Weißer Hintergrund beim Bearbeiten. Exporte sind immer hell." />
-            <Toggle checked={kabelVorne} onChange={(v) => mutate((d) => { d.layout.fpKabelVorne = v; })} label="Kabel vorne"
-              title="An: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante." />
-          </>}
+          <select style={{ ...S.selectSm, width: 125, flexShrink: 0, ...(katFilter ? { borderColor: SUB } : {}) }} value={katFilter} onChange={(e) => setKatFilter(e.target.value)} title="Nur ein Gewerk hervorheben">
+            <option value="">Alle Gewerke</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
+          </select>
+          <VlanSelect vlans={P.vlans} value={vlanFilter} onChange={setVlanFilter} style={{ width: 140, flexShrink: 0 }} noneLabel="Alle VLANs" />
+          {trenner}
+          <Klappmenue label={lbl2("Darstellung")} icon={<SlidersHorizontal {...ico} />} title="Farben, Linien, Beschriftung" breite={280}>
+            <select style={S.selectSm} value={colorBy} onChange={(e) => setColorBy(e.target.value)} title="Farbe der Verbindungen">
+              <option value="vlan">Kabelfarbe: VLAN</option><option value="kat">Kabelfarbe: Gewerk</option><option value="kabel">Kabelfarbe: Kabeltyp</option>
+            </select>
+            <select style={S.selectSm} value={linien} onChange={(e) => mutate((d) => { d.layout.linien = e.target.value; })} title="Form der Verbindungslinien">
+              <option value="rund">Linien: rund</option><option value="eckig">Linien: eckig</option><option value="direkt">Linien: direkt</option>
+            </select>
+            <select style={S.selectSm} value={titel} onChange={(e) => setTitel(e.target.value)} title="Beschriftung der Geräte">
+              <option value="name">Titel: Gerätename</option><option value="netzname">Titel: Netzwerkname</option><option value="typ">Titel: Typ / Modell</option>{(P.feldKatalog || []).map((f) => <option key={f.id} value={"feld:" + f.id}>Titel: {f.name}</option>)}
+            </select>
+            <Toggle checked={buendeln} disabled={linien !== "eckig"} onChange={(v) => mutate((d) => { d.layout.kabelBuendel = v; })} label="Kabel bündeln"
+              title={linien !== "eckig" ? "Nur bei „Linien: eckig“" : front ? "An: die Kabel eines Switches laufen gemeinsam in einem Kanal. Aus: jedes Kabel läuft auf eigener Bahn daneben." : "An: Kabel teilen sich den Weg, mehrere Kabel zwischen denselben Geräten werden eine Linie mit Anzahl. Aus: jedes Kabel läuft einzeln auf eigener Spur daneben."} />
+            {mm && <Toggle checked={showPorts} onChange={setShowPorts} label="Port-Beschriftung" title="Switch-Port und VLAN an jeder Verbindung anzeigen" />}
+            {front && <>
+              <Toggle checked={!!P.layout.fpHell} onChange={(v) => mutate((d) => { d.layout.fpHell = v; })} label="Hell" title="Weißer Hintergrund beim Bearbeiten. Exporte sind immer hell." />
+              <Toggle checked={kabelVorne} onChange={(v) => mutate((d) => { d.layout.fpKabelVorne = v; })} label="Kabel vorne"
+                title="An: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante." />
+              <div style={{ fontSize: 11, color: MUTED }}>Port-Lasche an Geräten</div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[["standard", "Nur Uplink"], ["erweitert", "Alle belegten"]].map(([k, l]) => <button key={k} style={{ ...S.smallBtn, flex: 1, justifyContent: "center", ...(einst.lasche === k ? { borderColor: ACCENT, color: STRONG, fontWeight: 700 } : {}) }} onClick={() => setzeEinstellungen((e) => { e.lasche = k; })}>{l}</button>)}
+              </div>
+            </>}
+            <button style={{ ...S.smallBtn, justifyContent: "center" }} title="Ansicht, Linien, Titel und Kabelfarbe für neue Projekte übernehmen"
+              onClick={() => { setzeEinstellungen((e) => { e.topo = { ...e.topo, ansicht: aktAnsicht === "cleancat" ? e.topo.ansicht : aktAnsicht, linien, titel, kabelBuendel: !!P.layout.kabelBuendel, farbe: colorBy, portVlan: showPorts }; }); props.notify?.("Als Standard für neue Projekte gemerkt"); }}>Als Standard für neue Projekte merken</button>
+          </Klappmenue>
+          <Klappmenue label={lbl2("Anordnen")} icon={<ListTree {...ico} />} title="Äste, Stapel, Hintergrund" breite={280}>
+            {mm && <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.4 }}>Die Mindmap ordnet sich selbst an: jede Ebene eine Spalte, Geschwister in Port-Reihenfolge. Von Hand anordnen in „Anschlüsse“ und im Druckplan.</div>}
+            {front && <>
+              <Toggle checked={auto} onChange={(an) => an ? mitWarnung("Automatisch anordnen ordnet alle Geräte neu an. Die von Hand gesetzten Positionen gehen dabei verloren, angepinnte Geräte bleiben stehen.", () => setAuto(true)) : setAuto(false)} label="Automatisch anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
+              <Toggle checked={rasten} onChange={(v) => mutate((d) => { d.layout.einrasten = v; })} label="Einrasten beim Ziehen"
+                title="An: Geräte rasten beim Ziehen im Raster ein und richten sich an Kanten und Mitten benachbarter Geräte aus. Alt gedrückt halten = frei ziehen." />
+              <button style={S.smallBtn} onClick={() => mitWarnung("Setzt alle von Hand verschobenen Geräte und Kabel dieser Ansicht zurück. Angepinnte Geräte und Stapel bleiben stehen.", () => mutate((d) => { d.layout[offKey] = {}; delete d.layout[fixKey]; d.layout[knickKey] = {}; d.layout.fpWege = {}; }))}
+                title="Verschiebungen von Geräten und Kabeln zurücksetzen. Angepinnte Geräte und Stapel bleiben."><RotateCcw size={12} />Anordnung zurücksetzen</button>
+            </>}
+            <button style={S.smallBtn} title="Ist etwas eingeklappt, alles aufklappen, sonst alle Äste einklappen" onClick={() => mutate((d) => { d.layout.collapsed = aesteUmschalten(T, d.layout.collapsed); })}><ListTree size={12} />Alle Äste ein-/ausklappen</button>
+            <button style={S.smallBtn} disabled={!stapelClip} onClick={() => { if (!stapelClip) return; let neu = null; mutate((d) => { neu = stapelEinfuegen(d, stapelClip); }); if (neu?.stapelId) setSelection({ type: "stapel", id: neu.stapelId }); else if (neu?.ids[0]) setSelection({ type: "dev", id: neu.ids[0] }); }}
+              title={stapelClip ? `Kopierten Stapel „${stapelClip.name || "Stapel"}“ (${stapelClip.geraete.length} Geräte) einfügen` : "Erst im Stapel-Fenster einen Stapel kopieren"}><ClipboardPaste size={12} />Stapel einfügen</button>
+            <button style={{ ...S.smallBtn, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan"><ImageIcon size={12} />Hintergrundbild …</button>
+          </Klappmenue>
+          <span style={{ flex: 1 }} />
+          <button style={knopf} onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen"><RefreshCw {...ico} />{lbl2("Status")}</button>
+          <Toggle checked={autoStatus} onChange={setAutoStatus} label="alle 15 s" title="Erreichbarkeit zyklisch prüfen" />
         </div>
       </div>
       </div>
@@ -933,7 +950,7 @@ export default function TopologieTab(props) {
                   <g key={c.id} opacity={dim ? 0.12 : 1} style={{ cursor: tool === "move" && !stapelKlammer.has(c.id) ? "grab" : "pointer" }}
                     onMouseDown={(e) => linieGreifen(e, c)} onClick={(e) => { e.stopPropagation(); setSelection({ type: "conn", id: c.id }); }}>
                     <path d={g.d} stroke="transparent" strokeWidth="14" fill="none" />
-                    {(sel || st.errs) && <path className={sel ? "np-ui" : undefined} d={g.d} stroke={sel ? ACCENT : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
+                    {(sel || st.errs) && <path className={sel ? "np-ui" : undefined} d={g.d} stroke={sel ? LINK : ERR} strokeWidth={st.width + 6} fill="none" opacity=".35" filter="url(#np-glow)" />}
                     <path d={g.d} stroke={st.color} strokeWidth={st.width} fill="none" strokeDasharray={tree ? st.dash : st.dash || "6 5"} opacity={tree ? 1 : 0.85} />
                     {st.farben && <Streifen d={g.d} farben={st.farben} breite={st.width} />}
                     {kl && <title>{`${da?.name} [${pName(c.a)}] ⇄ ${db?.name} [${pName(c.b)}] · im selben Stapel`}</title>}
@@ -1012,7 +1029,7 @@ export default function TopologieTab(props) {
                   <g key={id} transform={`translate(${p.x - HW},${p.y - HH})`} opacity={dim ? 0.2 : 1}
                     onMouseDown={(e) => onDown(e, id)} style={{ cursor: tool !== "move" ? "crosshair" : "pointer" }}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtx({ id, x: e.clientX, y: e.clientY }); }}>
-                    {(sel || hover === id || hit) && <rect className="np-ui" x="-4" y="-4" width={NODE_W + 8} height={NODE_H + 8} rx="11" fill="none" stroke={sel ? ACCENT : hover === id ? OK : STRONG} strokeWidth="2" opacity=".9" />}
+                    {(sel || hover === id || hit) && <rect className="np-ui" x="-4" y="-4" width={NODE_W + 8} height={NODE_H + 8} rx="11" fill="none" stroke={sel ? LINK : hover === id ? OK : STRONG} strokeWidth="2" opacity=".9" />}
                     <rect width={NODE_W} height={NODE_H} rx="8" fill={isRoot ? (HELL ? "#fbefed" : "#262d36") : CARD} stroke={isRoot ? ACCENT : worst || LINE} strokeWidth={isRoot || worst ? 1.6 : 1} />
                     <rect width="5" height={NODE_H} rx="2" fill={col} />
                     <rect x="12" y="11" width="36" height="36" rx="7" fill={col + "1f"} />
@@ -1035,7 +1052,7 @@ export default function TopologieTab(props) {
                     {astKlappbar(T, id) && (
                       <g className="np-ui" transform={`translate(${side > 0 ? NODE_W + 2 : -18},${HH - 8})`} onMouseDown={(e) => e.stopPropagation()}
                         onClick={(e) => { e.stopPropagation(); mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [id]: !collapsed }; }); }} style={{ cursor: "pointer" }}>
-                        <circle cx="8" cy="8" r="8" fill={collapsed ? ACCENT : BTN} stroke={collapsed ? ACCENT : LINE} />
+                        <circle cx="8" cy="8" r="8" fill={collapsed ? LINK : BTN} stroke={collapsed ? LINK : LINE} />
                         <text x="8" y="11.5" fontSize={collapsed ? 8.5 : 11} fontWeight="700" textAnchor="middle" fill={collapsed ? DARK : TEXT2}>{collapsed ? "+" + (L.hidden.get(id) || kids.length) : "−"}</text>
                         <title>{collapsed ? "Ast ausklappen" : "Ast einklappen"}</title>
                       </g>
@@ -1075,7 +1092,7 @@ export default function TopologieTab(props) {
           </svg>
           </FpFarben.Provider>
           <div style={{ position: "absolute", left: 10, bottom: 8, fontSize: 11, color: MUTED, pointerEvents: "none" }}>
-            {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · {tool === "move" ? "Leertaste/mittlere Taste + ziehen" : "Fläche ziehen"} = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ast verschieben"}{rasten && tool === "move" ? " · Alt = ohne Einrasten" : ""}{tool === "move" ? " · Fläche ziehen = Rahmen, Shift+Klick = mehrere wählen · ⌘/Strg+C/V = kopieren/einfügen" : ""} · P = anpinnen · Rechtsklick = Geräteinfos · Entf = löschen
+            {Math.round(view.k * 100)} % · Mausrad = Zoom · Shift+Rad = hoch/runter · {navigator.platform?.startsWith("Mac") ? "⌘" : "Strg"}+Rad = links/rechts · {tool === "move" ? "Leertaste/mittlere Taste + ziehen" : "Fläche ziehen"} = verschieben · {tool === "connect" ? "von Gerät zu Gerät ziehen = verbinden" : tool === "stack" ? "Gerät auf Gerät ziehen = stapeln" : front ? "Switch ziehen = Gruppe verschieben · Port anklicken = Verbindung" : "Gerät ziehen = Ansicht verschieben (Mindmap ordnet sich selbst an)"}{rasten && tool === "move" ? " · Alt = ohne Einrasten" : ""}{tool === "move" ? " · Fläche ziehen = Rahmen, Shift+Klick = mehrere wählen · ⌘/Strg+C/V = kopieren/einfügen" : ""} {front ? "· P = anpinnen " : ""}· Rechtsklick = Geräteinfos · Entf = löschen
           </div>
           <Legend P={P} colorBy={colorBy} front={front} />
           {zuweisen && (() => {
@@ -1103,7 +1120,7 @@ export default function TopologieTab(props) {
             return <DeviceContextMenu P={P} X={X} dev={d} x={ctx.x} y={ctx.y} status={status[d.id]} issues={devIssues.get(d.id) || []} onClose={closeCtx}
               onEdit={() => setSelection({ type: "dev", id: d.id })} onCheck={checkReach} onDelete={() => onDeleteDevice(d.id)}
               onSetRoot={d.isSwitch && P.layout.rootId !== d.id ? () => mutate((dd) => { dd.layout.rootId = d.id; }) : null}
-              pinned={!!pins[stapelAnker(stapel, d.id)]} onPin={() => togglePin(d.id)}
+              pinned={!!pins[stapelAnker(stapel, d.id)]} onPin={mm ? null : () => togglePin(d.id)}
               onUnstack={stapelVon(stapel, d.id) ? () => mutate((dd) => { dd.layout.stapel = entstapeln(dd.layout.stapel, d.id); }) : null}
               onEditStack={stapelVon(stapel, d.id) ? () => setSelection({ type: "stapel", id: stapelVon(stapel, d.id).id }) : null}
               collapsed={!!P.layout.collapsed?.[d.id]} onToggleCollapse={hasKids ? () => mutate((dd) => { dd.layout.collapsed = { ...dd.layout.collapsed, [d.id]: !dd.layout.collapsed?.[d.id] }; }) : null} />;
@@ -1119,8 +1136,8 @@ export default function TopologieTab(props) {
           </div>}
           {selDev && <DeviceEditor key={selDev.id} compact P={P} X={X} dev={selDev} mutate={mutate} status={status[selDev.id]} onCheck={checkReach} onClose={() => setSelection(null)} kopfAbstand={14}
             issues={devIssues.get(selDev.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} onDelete={onDeleteDevice} onShowProto={onShowProto} onSaveVorlage={onSaveVorlage} onSaveBestand={onSaveBestand} onUmbauen={onUmbauen} onTypWaehlen={onTypWaehlen} bestand={bestand} />}
-          {selStapel && <StapelEditor P={P} stapelId={selStapel.id} pinned={!!pins[selStapel.ids[0]]} onPin={() => togglePin(selStapel.ids[0])} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
-          {selIds.length > 1 && <MehrfachAuswahl P={P} X={X} ids={selIds} stapel={stapel} pins={pins} mutate={mutate} onPin={() => allePinnen(selIds)} onDelete={() => mehrereLoeschen(selIds)}
+          {selStapel && <StapelEditor P={P} stapelId={selStapel.id} pinned={!!pins[selStapel.ids[0]]} onPin={mm ? null : () => togglePin(selStapel.ids[0])} mutate={mutate} onSelectDevice={(id) => setSelection({ type: "dev", id })} onSelectStapel={(id) => setSelection({ type: "stapel", id })} onClose={() => setSelection(null)} />}
+          {selIds.length > 1 && <MehrfachAuswahl P={P} X={X} ids={selIds} stapel={stapel} pins={pins} mutate={mutate} onPin={mm ? null : () => allePinnen(selIds)} onDelete={() => mehrereLoeschen(selIds)}
             onSelect={(ids) => waehle(ids)} onUmbauen={onUmbauen ? () => onUmbauen(selIds) : null} />}
           {selConn && <ConnEditor P={P} X={X} conn={selConn} mutate={mutate} onDelete={onDeleteConn} issues={connIssues.get(selConn.id) || []} onSelectDevice={(id) => setSelection({ type: "dev", id })} />}
         </div>
@@ -1148,7 +1165,7 @@ function MehrfachAuswahl({ P, X, ids, stapel, pins, mutate, onPin, onDelete, onS
       <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{devs.length} Geräte ausgewählt</div>
       <div style={{ ...S.hint, marginBottom: 10 }}>Ziehen an einem der Geräte verschiebt alle. Shift+Klick oder Shift+Rahmen nimmt Geräte dazu, ⌘/Strg+C kopiert sie, Esc hebt die Auswahl auf.</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <button style={{ ...S.smallBtn, ...(allePins ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={onPin} title="Taste P"><Pin size={12} />{allePins ? "Alle lösen" : "Alle anpinnen"}</button>
+        {onPin && <button style={{ ...S.smallBtn, ...(allePins ? { borderColor: ACCENT, color: ACCENT } : {}) }} onClick={onPin} title="Taste P"><Pin size={12} />{allePins ? "Alle lösen" : "Alle anpinnen"}</button>}
         <button style={S.smallBtn} onClick={alsStapel} title="Die gewählten Geräte in dieser Reihenfolge übereinander als Stapel (Rack, Tower)"><Layers size={12} />Als Stapel</button>
         {onUmbauen && <button style={S.smallBtn} onClick={onUmbauen} title="Allen gewählten Geräten dasselbe Katalogmodell oder dieselbe Vorlage geben. Namen, IPs und Verbindungen bleiben; Namen, die noch nicht von Hand geändert wurden, kommen vom Modell."><ArrowLeftRight size={12} />Modell zuweisen</button>}
         {konfigClip && <button style={S.smallBtn} onClick={() => setKonfig(true)} title={`Kopierte Konfiguration von „${konfigClip.quelle.name}“ in alle gewählten Geräte einfügen`}><ClipboardPaste size={12} />Konfig einfügen</button>}
@@ -1189,7 +1206,7 @@ const eckPfad = (x1, y1, x2, y2, dir, mid) => {
 /* Kabelbeschriftung: liegt mittig auf dem Kabel (mit Rand in Hintergrundfarbe, damit
    sie lesbar bleibt), an der Stelle f (0…1) der Kabellänge. Die Lage folgt dem Kabel,
    auch wenn Geräte verschoben werden. */
-function KabelText({ id, d, f, text, bg, farbe, onDown, onReset }) {
+function KabelText({ id, d, f, text, bg, farbe, onDown, onReset, fest }) {
   const ref = useRef(null);
   const [pt, setPt] = useState(null);
   useLayoutEffect(() => {
@@ -1200,8 +1217,8 @@ function KabelText({ id, d, f, text, bg, farbe, onDown, onReset }) {
     <g>
       <path ref={ref} d={d} data-kabeltext={id} fill="none" stroke="none" pointerEvents="none" />
       {pt && <text x={pt.x} y={pt.y + 3.5} fontSize="10" fontWeight="600" fill={farbe} textAnchor="middle" paintOrder="stroke" stroke={bg} strokeWidth="4" strokeLinejoin="round"
-        style={{ cursor: "grab" }} onMouseDown={onDown} onDoubleClick={onReset} onClick={(e) => e.stopPropagation()}>
-        <title>{`${text}\nZiehen = am Kabel verschieben · Doppelklick = wieder in die Mitte`}</title>{text}
+        style={{ cursor: fest ? "pointer" : "grab" }} onMouseDown={onDown} onDoubleClick={fest ? undefined : onReset} onClick={(e) => e.stopPropagation()}>
+        <title>{fest ? text : `${text}\nZiehen = am Kabel verschieben · Doppelklick = wieder in die Mitte`}</title>{text}
       </text>}
     </g>
   );

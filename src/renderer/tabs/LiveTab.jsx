@@ -26,6 +26,8 @@ const SUBS = [
   ["ptp", "PTP-Clock", "ptp"],
 ];
 
+const NETZ = ["status", "discovery", "scan", "switch", "ptp"];
+
 function SubTab({ k, label, kind, active, onClick }) {
   const m = useMonitor(kind || "_none");
   const on = kind && m.running && !["scan", "snmp"].includes(kind);
@@ -56,7 +58,13 @@ export default function LiveTab(props) {
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
         <div style={{ ...S.boxTabs, marginBottom: 0, flex: 1 }}>
-          {SUBS.map(([k, l, kind]) => <SubTab key={k} k={k} label={l} kind={kind} active={sub === k} onClick={() => setSub(k)} />)}
+          {/* Zwei Gruppen: Werkzeuge fürs Netz und Monitore je Protokoll */}
+          {[["Netz", NETZ], ["Protokolle", null]].map(([titel, nur]) => (
+            <div key={titel} style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginRight: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: 0.4, marginRight: 2 }}>{titel}</span>
+              {SUBS.filter(([k]) => (nur ? nur.includes(k) : !NETZ.includes(k))).map(([k, l, kind]) => <SubTab key={k} k={k} label={l} kind={kind} active={sub === k} onClick={() => setSub(k)} />)}
+            </div>
+          ))}
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="Alles im Live-Tab läuft nur über diese Netzwerkkarte: Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch in der Topologie). Laufende Monitore danach neu starten.">
           Netzwerkkarte

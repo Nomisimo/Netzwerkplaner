@@ -22,7 +22,7 @@ function EigeneFelder({ dev, katalog, upd, grid }) {
   const frei = katalog.filter((f) => !felder.some((x) => x.id === f.id));
   const einfuegen = (id) => {
     if (id === "__neu") {
-      frageText("Name des neuen Felds (steht danach im Katalog unter „Eigene Felder“):", "", "Neues Feld").then((name) => {
+      frageText("Name des neuen Felds (steht danach in der Bibliothek unter „Eigene Felder“):", "", "Neues Feld").then((name) => {
       if (!name?.trim()) return;
       const vorhanden = katalog.find((f) => f.name.toLowerCase() === name.trim().toLowerCase());
       if (vorhanden && felder.some((x) => x.id === vorhanden.id)) return;
@@ -92,13 +92,13 @@ function TrunkVlans({ vlans, value, onChange }) {
   );
 }
 
-/* VLANs eines Trunk-Ports: ein Trunk aus dem Setup oder eine eigene Auswahl */
+/* VLANs eines Trunk-Ports: ein Trunk aus dem Tab „VLANs“ oder eine eigene Auswahl */
 function PortTrunk({ P, p, setP }) {
   const trunks = P.trunks || [];
   const t = p.trunk && trunks.find((x) => x.id === p.trunk);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      {trunks.length > 0 && <select style={{ ...S.selectSm, padding: "3px 4px", ...(t ? { borderColor: t.farbe } : {}) }} value={t ? t.id : ""} title="Trunk aus dem Setup: der Port trägt dessen VLANs, Änderungen am Trunk gelten sofort"
+      {trunks.length > 0 && <select style={{ ...S.selectSm, padding: "3px 4px", ...(t ? { borderColor: t.farbe } : {}) }} value={t ? t.id : ""} title="Trunk aus dem Tab „VLANs“: der Port trägt dessen VLANs, Änderungen am Trunk gelten sofort"
         onChange={(e) => setP((x) => { const n = trunks.find((y) => y.id === e.target.value); if (n) { x.trunk = n.id; x.vlans = [...n.vlans]; } else delete x.trunk; })}>
         <option value="">eigene Auswahl</option>
         {trunks.map((x) => <option key={x.id} value={x.id}>{x.name || "Trunk"}</option>)}
@@ -355,7 +355,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
             {Object.entries(TYPEN).map(([key, t]) => <option key={key} value={key}>{t.label}</option>)}
           </select>
         </Field>
-        <Field label="Bereich (Anwendung)">
+        <Field label="Gewerk">
           <select style={S.selectSm} value={dev.kategorie} onChange={(e) => upd((g) => (g.kategorie = e.target.value))}>
             {Object.keys(KATEGORIEN).map((key) => <option key={key}>{key}</option>)}
           </select>
@@ -363,7 +363,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         <Field label="Netzwerkname" hint="Name im Gerät selbst (Dante-Name, Hostname, MA-Station)"><input style={S.inputSm} value={dev.netzname || ""} placeholder={dev.name.replace(/[^A-Za-z0-9-]+/g, "-")} onChange={(e) => upd((g) => (g.netzname = e.target.value))} /></Field>
         <Field label="Hersteller"><input style={{ ...S.inputSm, ...festStil(fest) }} value={dev.hersteller} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.hersteller = e.target.value))} /></Field>
         <Field label="Modell"><input style={{ ...S.inputSm, ...festStil(fest) }} value={dev.modell} readOnly={fest} title={fest ? FEST_TIP : undefined} onChange={(e) => upd((g) => (g.modell = e.target.value))} /></Field>
-        <Field label="Standort / Ast">
+        <Field label="Standort">
           <AuswahlFeld style={S.inputSm} optionen={standortListe(P)} value={dev.bereich || ""} onChange={(v) => upd((g) => (g.bereich = v))} placeholder="z. B. FOH" />
         </Field>
         {dev.isSwitch
@@ -548,7 +548,7 @@ function VlanZuweisenLeiste({ P, dev, mutate }) {
             </button>
           );
         })}
-        {!P.vlans.length && <span>Noch keine VLANs. Im Tab „Setup“ anlegen.</span>}
+        {!P.vlans.length && <span>Noch keine VLANs. Im Tab „VLANs“ anlegen.</span>}
       </div>
     </div>
   );

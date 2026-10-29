@@ -10,6 +10,15 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 - PDF: Deckblatt mit Kennzahlen, Inhalt und offenen Fehlern/Warnungen statt der VLAN-Tabelle
 - Export: Planversion im Export-Dialog. Wurde die Version schon exportiert und der Plan seitdem geändert, schlägt der Dialog die nächste Nummer vor (1 → 2, 1.3 → 1.4). Die Version steht im Dateinamen, eine neue Version setzt das Datum auf heute
 - Excel/CSV-Patchliste: Switch, Switch-Port und Geräte-Port in eigenen Spalten, „Gewerk“ statt „Abteilung“/„Bereich“
+- Mindmap: ordnet sich immer automatisch an, von Hand verschieben ist dort aus. Neuer Layouter: jede Ebene eine eigene Spalte, Geschwister in Port-Reihenfolge, jeder Ast in einem eigenen Streifen, Stapel als Block. Geprüft mit 400 zufälligen Netzen (keine Überlappung, Hierarchie, freie Kabelwege)
+- Topologie: „Plott“ heißt jetzt „Druckplan“
+- Topologie: eine Werkzeugleiste mit den Klappmenüs „Darstellung“ (Kabelfarbe, Linien, Titel, Bündeln, Port-Beschriftung, als Standard merken) und „Anordnen“; in schmalen Fenstern nur Icons
+- Kopfzeile: Menü „Datei“ (Neu, Öffnen, Speichern unter, Beispielprojekt, Zuletzt geöffnet). Das Logo steht jetzt in den Einstellungen, die Topologie-Standards in der Topologie
+- Tabs: Projekt, VLANs (eigener Tab), Topologie, Geräte, Live, Bibliothek, Hilfe (Anleitung und Netzwerk-Wissen zusammen). Live in zwei Gruppen „Netz“ und „Protokolle“
+- Begriffe vereinheitlicht: Gewerk, Standort, Bibliothek
+- Hilfe › Netzwerk-Wissen › MA-Net: Goldstandards für MA-Net3
+- Icons für Verstärker und Projektor deutlicher; Auswahl in Blau, Rot nur noch für Fehler
+- Aufgeräumt: ungenutzter Code entfernt
 
 ## [0.7.0-beta.21] – 2026-10-16
 

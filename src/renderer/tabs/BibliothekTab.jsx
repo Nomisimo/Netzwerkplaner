@@ -120,7 +120,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="Hersteller, Modell, Typ, Protokoll · * als Platzhalter, z. B. Cisco*1300*24" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
             <select style={{ ...S.selectSm, width: "auto" }} value={herst} onChange={(e) => setHerst(e.target.value)}><option value="">Alle Hersteller</option>{hersteller.map((h) => <option key={h}>{h}</option>)}</select>
-            <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}><option value="">Alle Bereiche</option>{["Ton", "Licht", "Bild", "Netzwerk", "Bühne", "Intercom"].map((k) => <option key={k}>{k}</option>)}</select>
+            <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}><option value="">Alle Gewerke</option>{["Ton", "Licht", "Bild", "Netzwerk", "Bühne", "Intercom"].map((k) => <option key={k}>{k}</option>)}</select>
             <Toggle checked={nurFokus} onChange={(c) => { setNurFokus(c); setHerst(""); }} label="nur Fokus-Hersteller" />
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="So viele gleiche Geräte fügt „+ ins Projekt“ ein. Ab 2 werden sie durchnummeriert (Name 1, Name 2 …).">
               Anzahl<input type="number" min="1" max="99" style={{ ...S.inputSm, width: 60 }} value={anzahl} onChange={(e) => setAnzahl(e.target.value)} onFocus={(e) => e.target.select()} />

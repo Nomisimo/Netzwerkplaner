@@ -5,7 +5,7 @@ import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ip
 import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
-import { DevicePicker, Modal, EingabeHost, frageText, usePfeilNavigation } from "./ui.jsx";
+import { DevicePicker, Modal, EingabeHost, frageText, usePfeilNavigation, Klappmenue, MenuePunkt } from "./ui.jsx";
 import { topologySvg, svgToPngBase64, buildXlsxBase64, buildIpCsv, buildPdfHtml, buildPatchCsv, fileBase } from "./exports.js";
 import { formatName } from "../shared/cleancat.js";
 import ExportDialog from "./ExportDialog.jsx";
@@ -17,28 +17,29 @@ import { profilPruefen } from "../shared/plottprofil.js";
 import TopologieTab from "./tabs/TopologieTab.jsx";
 import GeraeteTab, { ANSICHT_KEY } from "./tabs/GeraeteTab.jsx";
 import BibliothekTab from "./tabs/BibliothekTab.jsx";
-import WissenTab from "./tabs/WissenTab.jsx";
+import VlanTab from "./tabs/VlanTab.jsx";
 import { analyseIssues } from "../shared/analyse.js";
 import { maNetIssues } from "../shared/manet.js";
 import { ladeLogo, speichereLogo, logoAusDatei } from "./logo.js";
 import APP_ICON_SVG from "../../assets/app-icon/icon.svg";
 const APP_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(APP_ICON_SVG)}`;
 import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } from "../shared/version.js";
-import AnleitungTab from "./tabs/AnleitungTab.jsx";
+import HilfeTab from "./tabs/HilfeTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
 import SitzungDialog from "./SitzungDialog.jsx";
 import Einstellungen from "./Einstellungen.jsx";
-import { ansichtVon, einstellungen } from "./einstellungen.js";
+import { ansichtVon } from "./einstellungen.js";
 import { useSitzung } from "./sync.js";
 import { diff, apply, invert, valueAt, pathKey } from "../shared/ops.js";
 import { removeDevice } from "../shared/invarianten.js";
 import { bestandSchluessel } from "../shared/bestandschluessel.js";
-import { Pencil, Plus, X as XIcon, ArrowUpCircle, CheckCircle2, XCircle, TriangleAlert, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, ScrollText, Download, Power, Settings } from "lucide-react";
+import { ArrowUpCircle, CheckCircle2, XCircle, TriangleAlert, Save, Undo2, Redo2, Users, FolderOpen, History, RotateCcw, Download, Power, Settings, FilePlus2 } from "lucide-react";
 
 
-// VLANs und Prüfung stecken im Setup; alte Sprungziele („vlans“, „pruefung“) führen dorthin
-const TABS = [["projekt", "Setup"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["live", "Live"], ["bibliothek", "Katalog"], ["wissen", "Wissen"], ["hilfe", "Anleitung"]];
-const SETUP_ZIELE = { vlans: "setup-vlans", pruefung: "setup-pruefung" };
+// Tabs in der Reihenfolge, in der man ein Netz plant. Die Prüfung steckt im Projekt-Tab,
+// „Wissen“ und „Anleitung“ sind zusammen die Hilfe; alte Sprungziele führen dorthin
+const TABS = [["projekt", "Projekt"], ["vlans", "VLANs"], ["topologie", "Topologie"], ["geraete", "Geräte"], ["live", "Live"], ["bibliothek", "Bibliothek"], ["hilfe", "Hilfe"]];
+const SETUP_ZIELE = { pruefung: "setup-pruefung" };
 
 const loadAutosave = () => {
   try { const s = localStorage.getItem(LS_KEY); if (s) return migrateProject(JSON.parse(s)); } catch (e) { console.error(e); }
@@ -52,8 +53,9 @@ export default function App() {
   const [P, setP] = useState(loadAutosave);
   const Pref = useRef(P);
   const hist = useRef({ undo: [], redo: [] }); // Transaktionen als Operationen (nur eigene Änderungen)
-  const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || ["analyse", "vlans", "pruefung"].includes(t) ? "projekt" : t === "cleancat" ? "topologie" : t === "patch" ? "geraete" : t; });
+  const [tab, setTab] = useState(() => { const t = localStorage.getItem("netzwerkplaner_tab"); return !t || ["analyse", "pruefung"].includes(t) ? "projekt" : t === "cleancat" ? "topologie" : t === "patch" ? "geraete" : t === "wissen" ? "hilfe" : t; });
   const [selection, setSelection] = useState(null);
+  const [hilfeSub, setHilfeSub] = useState(null); // Hilfe: „anleitung“ oder „wissen“ (null = zuletzt gewählt)
   const [picker, setPicker] = useState(null); // { connectTo }
   const [status, setStatus] = useState({});
   const [autoStatus, setAutoStatus] = useState(false);
@@ -196,7 +198,7 @@ export default function App() {
     if (add.length) setLibrary((l) => ({ ...l, felder: [...(l.felder || []), ...add] }));
   }, [P.geraete, libLoaded, library]);
 
-  // Eigene Plan-Profile (Plott) liegen in der Bibliothek auf diesem Rechner
+  // Eigene Plan-Profile (Druckplan) liegen in der Bibliothek auf diesem Rechner
   const setPlanProfile = useCallback((fn) => setLibrary((l) => ({ ...l, planProfile: fn(l.planProfile || []) })), []);
   const Pv = useMemo(() => ({ ...P, icons: allIcons, feldKatalog: library.felder || [] }), [P, allIcons, library.felder]);
 
@@ -414,6 +416,7 @@ export default function App() {
   // Tab wechseln; VLANs und Prüfung liegen im Setup und werden dort angesprungen
   const geheZu = (k) => {
     if (k === "patch") { try { localStorage.setItem(ANSICHT_KEY, "patch"); } catch {} setTab("geraete"); return; }
+    if (k === "wissen" || k === "anleitung") { setHilfeSub(k); setTab("hilfe"); return; }
     const ziel = SETUP_ZIELE[k];
     if (!ziel) { setTab(k); return; }
     setTab("projekt");
@@ -454,7 +457,7 @@ export default function App() {
     if (!svgRef.current) { setTab("topologie"); await new Promise((r) => setTimeout(r, 300)); }
     return topologySvg(svgRef.current, Pref.current);
   };
-  /* Topologie in der gewünschten Ansicht zeichnen; der Plott bekommt dabei das gewählte Blattformat,
+  /* Topologie in der gewünschten Ansicht zeichnen; der Druckplan bekommt dabei das gewählte Blattformat,
      die Anschluss-Ansicht wird für den Export immer hell gezeichnet */
   const topoIn = async (ansicht, format) => {
     const L0 = Pref.current.layout || {};
@@ -550,10 +553,6 @@ export default function App() {
       <header style={S.header}>
         <div style={{ ...S.logo, display: "flex", alignItems: "center", gap: 8 }}><img src={APP_ICON} alt="" style={{ width: 24, height: 24, display: "block" }} />NETZWERKPLANER</div>
         {corpLogo && <img src={corpLogo} alt="Logo" style={{ height: 26, maxWidth: 110, objectFit: "contain", display: "block" }} />}
-        <label style={{ ...S.ghostBtn, padding: "3px 7px", fontSize: 10, cursor: "pointer" }} title={corpLogo ? "Logo ersetzen" : "Eigenes Logo hochladen (erscheint auch in PDF-Exporten)"}>
-          {corpLogo ? <Pencil size={12} /> : <Plus size={12} />}Logo<input type="file" accept="image/*" style={{ display: "none" }} onChange={logoHochladen} />
-        </label>
-        {corpLogo && <button style={{ ...S.ghostBtn, padding: "3px 6px", fontSize: 10 }} onClick={() => { setCorpLogo(""); speichereLogo(""); }} title="Logo entfernen"><XIcon size={12} /></button>}
         {version && <button onClick={() => setChangelog(true)} title="Version und Änderungen" style={{ background: "none", border: `1px solid ${LINE}`, borderRadius: 10, color: SUB, fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
           v{version.replace(/-beta\.?\d*$/i, "")}{istBeta(version) && <span style={{ marginLeft: 5, color: "#fff", background: ACCENT, borderRadius: 6, padding: "0 5px", fontSize: 9.5, fontWeight: 700 }}>BETA {(version.match(/beta\.?(\d+)/i) || [])[1] || ""}</span>}
         </button>}
@@ -565,9 +564,22 @@ export default function App() {
         <button style={{ ...S.ghostBtn, ...(sitzung.zustand ? { borderColor: sitzung.zustand.veraltet ? ERR : sitzung.zustand.status === "online" ? OK : WARN } : {}) }} onClick={() => setShowSitzung(true)} title="Gemeinsam arbeiten über den Planer-Server">
           <Users size={14} /> {sitzung.zustand ? (sitzung.zustand.veraltet ? "Sitzung beendet" : `${sitzung.zustand.users?.length || 0} online${sitzung.zustand.ausstehend ? ` · ${sitzung.zustand.ausstehend} ausstehend` : ""}`) : "Sitzung"}
         </button>
-        <button style={S.ghostBtn} onClick={openProject}><FolderOpen size={14} /> Öffnen</button>
-        {isElectron && <div style={{ position: "relative" }}>
-          <button style={{ ...S.ghostBtn, padding: "4px 5px" }} title="Zuletzt geöffnet" onClick={() => setShowRecents((v) => !v)}><History size={14} /></button>
+        {/* Datei-Menü: Neu, Öffnen, zuletzt geöffnet, Speichern unter, Beispielprojekt. „Zuletzt geöffnet“
+            öffnet auch die Menüleiste (macOS) als eigene Liste an derselben Stelle */}
+        <div style={{ position: "relative" }}>
+          <Klappmenue label="Datei" icon={<FolderOpen size={14} />} title="Neu, Öffnen, Speichern unter …" rechts breite={300} zu>
+            <MenuePunkt icon={<FilePlus2 size={14} />} onClick={newProject}>Neues Projekt</MenuePunkt>
+            <MenuePunkt icon={<FolderOpen size={14} />} onClick={openProject}>Öffnen …</MenuePunkt>
+            {isElectron && <MenuePunkt icon={<Save size={14} />} onClick={() => save(true)}>Speichern unter …</MenuePunkt>}
+            <MenuePunkt icon={<RotateCcw size={14} />} onClick={loadDemo}>Beispielprojekt laden</MenuePunkt>
+            {isElectron && <>
+              <div style={{ fontSize: 10, color: MUTED, letterSpacing: 0.5, textTransform: "uppercase", padding: "4px 8px 0", borderTop: `1px solid ${LINE2}` }}>Zuletzt geöffnet</div>
+              {recents.length === 0 ? <div style={{ padding: "2px 8px", fontSize: 11, color: MUTED, fontStyle: "italic" }}>Noch keine Dateien geöffnet.</div>
+                : recents.slice(0, 8).map((r, i) => <MenuePunkt key={i} icon={<History size={14} />} onClick={() => openRecent(r.filePath)} title={r.filePath}>
+                  <span style={{ minWidth: 0 }}><span style={{ display: "block", fontWeight: 600 }}>{r.name}</span><span style={{ display: "block", fontSize: 10, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString("de-DE")} · {r.filePath}</span></span>
+                </MenuePunkt>)}
+            </>}
+          </Klappmenue>
           {showRecents && <div ref={recentsRef} onKeyDown={(e) => e.key === "Escape" && setShowRecents(false)} style={{ position: "absolute", top: "100%", right: 0, zIndex: 999, background: INPUT, border: `1px solid ${LINE2}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.5)", minWidth: 280, maxWidth: 380, marginTop: 4 }} onMouseLeave={() => setShowRecents(false)}>
             <div style={{ padding: "6px 10px", fontSize: 10, color: MUTED, borderBottom: `1px solid ${LINE2}`, letterSpacing: 0.5, textTransform: "uppercase" }}>Zuletzt geöffnet</div>
             {recents.length === 0 ? <div style={{ padding: "10px 12px", fontSize: 11, color: MUTED, fontStyle: "italic" }}>Noch keine Dateien geöffnet.</div>
@@ -576,15 +588,10 @@ export default function App() {
                 <div style={{ fontSize: 9, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString("de-DE")} · {r.filePath}</div>
               </button>)}
           </div>}
-        </div>}
-        <button style={S.ghostBtn} onClick={() => save(false)} title="Speichern (Strg+S)"><Save size={14} /> Speichern</button>
-        {isElectron && <button style={S.ghostBtn} onClick={() => save(true)} title="Speichern unter">…</button>}
-        <button style={S.ghostBtn} onClick={newProject}><RotateCcw size={14} /> Neu</button>
-        <button style={S.ghostBtn} onClick={() => setChangelog(true)} title="Was ist neu?"><ScrollText size={14} /></button>
-        <button style={S.ghostBtn} onClick={() => setShowEinst(true)} title="Einstellungen (Erscheinungsbild hell, dunkel oder wie das System)"><Settings size={14} /></button>
-        <div style={{ position: "relative" }}>
-          <button style={S.exportBtn} onClick={() => setShowExport(true)}><Download size={14} /> Export</button>
         </div>
+        <button style={S.ghostBtn} onClick={() => save(false)} title="Speichern (Strg+S)"><Save size={14} /> Speichern</button>
+        <button style={S.ghostBtn} onClick={() => setShowEinst(true)} title="Einstellungen: Erscheinungsbild, Logo, Fokus-Hersteller"><Settings size={14} /></button>
+        <button style={S.exportBtn} onClick={() => setShowExport(true)}><Download size={14} /> Export</button>
       </header>
       <nav style={S.nav}>
         {TABS.map(([k, label]) => (
@@ -605,8 +612,8 @@ export default function App() {
             {tab === "geraete" && <GeraeteTab {...shared} onExport={doExport} notify={notify} />}
             {tab === "bibliothek" && <BibliothekTab P={Pv} mutate={mutate} onSaveAlleBestand={saveAlleBestand} notify={notify} library={library} setLibrary={setLibrary} protoId={protoId} setProtoId={setProtoId} onAddDevice={addDevice} onSelectDevice={selectDevice} sub={bibSub} setSub={setBibSub} allIcons={allIcons} />}
             {tab === "live" && <LiveTab P={Pv} X={X} mutate={mutate} status={status} checkReach={checkReach} autoStatus={autoStatus} setAutoStatus={setAutoStatus} onSelectDevice={selectDevice} notify={notify} />}
-            {tab === "wissen" && <WissenTab />}
-            {tab === "hilfe" && <AnleitungTab goTab={geheZu} />}
+            {tab === "vlans" && <VlanTab P={Pv} X={X} mutate={mutate} issues={issues} onSelectDevice={selectDevice} />}
+            {tab === "hilfe" && <HilfeTab goTab={geheZu} sub={hilfeSub} setSub={setHilfeSub} />}
           </div>
         </main></div>
       )}
@@ -631,7 +638,7 @@ export default function App() {
         </div>
         {Object.entries(CHANGELOG).map(([v, items]) => <div key={v}><div className="sp-section-label">Version {v}{v === version ? " (installiert)" : ""}</div><ul style={{ margin: "0 0 12px", paddingLeft: 18, lineHeight: 1.7, fontSize: 13 }}>{items.map((t, i) => <li key={i}>{t}</li>)}</ul></div>)}
       </Modal>}
-      {showEinst && <Einstellungen onClose={() => setShowEinst(false)} onTopoAnwenden={() => { const t = einstellungen().topo; mutate((d) => { d.layout.ansicht = t.ansicht; d.layout.linien = t.linien; d.layout.titel = t.titel; d.layout.einrasten = t.einrasten; d.layout.kabelBuendel = t.kabelBuendel; }); notify("Standard-Anzeige auf das Projekt angewendet"); }} inSitzung={!!sitzung.zustand && !sitzung.zustand.veraltet} vorReload={() => { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) { console.error(e); } }} />}
+      {showEinst && <Einstellungen onClose={() => setShowEinst(false)} logo={corpLogo} onLogo={logoHochladen} onLogoWeg={() => { setCorpLogo(""); speichereLogo(""); }} inSitzung={!!sitzung.zustand && !sitzung.zustand.veraltet} vorReload={() => { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) { console.error(e); } }} />}
       {showSitzung && <SitzungDialog sitzung={sitzung} version={version} projektName={P.meta.veranstaltung} onClose={() => setShowSitzung(false)} onKopieSpeichern={() => save(true)} />}
       {toast && (() => {
         // Meldung unten: Erfolg grün mit Haken, Warnung gelb, Fehler rot

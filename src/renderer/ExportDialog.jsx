@@ -14,7 +14,7 @@ const FORMATE = [
   ["svg", "SVG", ImageIcon, "Topologie als Vektorgrafik"],
   ["png", "PNG", ImageIcon, "Topologie als Bild"],
 ];
-export const ANSICHTEN = [["aktuell", "Wie gerade eingestellt"], ["mindmap", "Mindmap"], ["front", "Anschlüsse"], ["cleancat", "Plott"]];
+export const ANSICHTEN = [["aktuell", "Wie gerade eingestellt"], ["mindmap", "Mindmap"], ["front", "Anschlüsse"], ["cleancat", "Druckplan"]];
 const CSV_LISTEN = [["patch", "Patchliste"], ["ip", "IP-Liste"]];
 
 const LS = "netzwerkplaner_export";
@@ -47,7 +47,7 @@ export default function ExportDialog({ P, onClose, onExport, planPfad, aktuelleA
   const set = (k, v) => setO((x) => ({ ...x, [k]: v }));
   const umschalten = (k, wert) => setO((x) => ({ ...x, [k]: x[k].includes(wert) ? x[k].filter((y) => y !== wert) : [...x[k], wert] }));
   const mitTopo = o.format === "svg" || o.format === "png" || (o.format === "pdf" && o.teile.includes("topologie"));
-  // Seite gilt fürs PDF und für den Plott (der wird auf genau dieses Blatt gezeichnet)
+  // Seite gilt fürs PDF und für den Druckplan (der wird auf genau dieses Blatt gezeichnet)
   const plott = mitTopo && (o.ansicht === "aktuell" ? aktuelleAnsicht : o.ansicht) === "cleancat";
   const mitSeite = o.format === "pdf" || ((o.format === "svg" || o.format === "png") && plott);
   const leer = (o.format === "pdf" && !o.teile.length) || (o.format === "xlsx" && !o.blaetter.length);
@@ -91,7 +91,7 @@ export default function ExportDialog({ P, onClose, onExport, planPfad, aktuelleA
         {ANSICHTEN.map(([k, l]) => <Wahl key={k} aktiv={o.ansicht === k} onClick={() => set("ansicht", k)}>{l}</Wahl>)}
       </Gruppe>}
 
-      {mitSeite && <Gruppe titel={o.format === "pdf" ? (plott ? "Seite (auch Blatt des Plotts)" : "Seite") : "Blatt des Plotts"}>
+      {mitSeite && <Gruppe titel={o.format === "pdf" ? (plott ? "Seite (auch Blatt des Druckplans)" : "Seite") : "Blatt des Druckplans"}>
         {["A4", "A3"].map((k) => <Wahl key={k} aktiv={o.seite === k} onClick={() => set("seite", k)}>{k}</Wahl>)}
         <span style={{ width: 10 }} />
         <Wahl aktiv={!o.hoch} onClick={() => set("hoch", false)}>Quer</Wahl>

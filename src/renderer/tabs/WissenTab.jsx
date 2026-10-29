@@ -3,6 +3,7 @@ import { S, ACCENT, LINE, SUB, MUTED, OK, WARN, HINTBG, LINK, TEXT, TEXT2, STRON
 import { KERN, defaultParams } from "../../shared/kernprotokolle.js";
 import { KATALOG } from "../../shared/catalog.js";
 import { ARTIKEL } from "../../shared/wissen.js";
+import { GOLD_STANDARDS } from "../../shared/manet.js";
 import { fmtMbit } from "../../shared/analyse.js";
 import { Section, Dot } from "../ui.jsx";
 import { api } from "../api.js";
@@ -92,6 +93,10 @@ function ProtokollSeite({ k }) {
       <h3 style={{ fontSize: 14, color: ACCENT, margin: "18px 0 6px" }}>Latenz</h3>
       <Tabelle kopf={["Wert", "Bedeutung"]} zeilen={k.latenz} />
       {k.id === "dante" && <div style={{ fontSize: 12.5, borderLeft: `3px solid ${WARN}`, background: HINTBG, padding: "8px 12px", borderRadius: 4, marginTop: 8, maxWidth: 900 }}>Die Fokus-Recherche nennt vorsichtigere Hop-Zahlen (0,25 ms bei 1 Hop, 0,5 ms bei 3, 1 ms bei 5, 2 ms bei 10). Im Zweifel die höhere Latenz wählen und in Dante Controller auf späte Pakete prüfen.</div>}
+      {k.id === "manet" && <>
+        <h3 style={{ fontSize: 14, color: ACCENT, margin: "18px 0 6px" }}>Goldstandards für MA-Net3</h3>
+        <Tabelle kopf={["Regel", "Was das heißt"]} zeilen={GOLD_STANDARDS} />
+      </>}
       {k.varianten && <>
         <h3 style={{ fontSize: 14, color: ACCENT, margin: "18px 0 6px" }}>Varianten</h3>
         <Tabelle kopf={["Variante", "Beschreibung", "Datenstand"]} zeilen={k.varianten} />
