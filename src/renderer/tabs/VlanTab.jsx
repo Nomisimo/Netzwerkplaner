@@ -160,7 +160,7 @@ export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
   const trunks = P.trunks || [];
   return (
     <>
-      <Section title="VLANs" subtitle={<>ID, Name und Switch-Einstellungen je VLAN. <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> erscheint nur, wenn Geräte im VLAN es verlangen: Multicast-Protokolle (sACN, Dante-Multicast, MA-Net3, NDI …) ohne IGMP-Snooping, Audio over IP ohne „EEE aus“, doppelte IDs oder QinQ-Fehler. Ein leeres VLAN hat keine Warnung. Maus auf <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> zeigt den Grund.</>}
+      <Section tour="vlan-liste" title="VLANs" subtitle={<>ID, Name und Switch-Einstellungen je VLAN. <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> erscheint nur, wenn Geräte im VLAN es verlangen: Multicast-Protokolle (sACN, Dante-Multicast, MA-Net3, NDI …) ohne IGMP-Snooping, Audio over IP ohne „EEE aus“, doppelte IDs oder QinQ-Fehler. Ein leeres VLAN hat keine Warnung. Maus auf <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> zeigt den Grund.</>}
         right={<div style={{ display: "flex", gap: 6 }}>
           <button style={S.secondaryBtn} title="Trunk: Bündel mehrerer VLANs für Uplinks zwischen Switches" onClick={() => {
             const t = newTrunk({ name: `Trunk ${(P.trunks || []).length + 1}`, vlans: P.vlans.map((v) => v.id) });

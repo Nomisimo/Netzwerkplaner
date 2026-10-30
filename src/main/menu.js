@@ -169,6 +169,7 @@ const menueVorlage = (win, app, { zustand = {}, recents = [], leisteImmer = fals
       role: 'help', label: m('&Hilfe'),
       submenu: [
         item('&Anleitung', 'tab:anleitung', MAC ? undefined : 'F1'),
+        item('&Tour starten', 'tour:schnell'),
         // Jedes Kapitel als eigener Eintrag, damit die Suche im Hilfe-Menü (macOS) es findet
         ...(kapitel.length ? [{ label: m('Anleitung: &Kapitel'), submenu: kapitel.map(([id, titel]) => item(titel, `kapitel:${id}`)) }] : []),
         item('Netzwerk-&Wissen: Protokolle und Netzrechner', 'tab:wissen'),

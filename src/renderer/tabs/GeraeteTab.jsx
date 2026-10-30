@@ -53,9 +53,9 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
   const sichtbar = useMemo(() => new Set(list.map((d) => d.id)), [list]);
   const filterAktiv = !!(q || kat || vlan);
   const umschalter = (
-    <div style={{ display: "inline-flex", border: `1px solid ${LINE}`, borderRadius: 7, overflow: "hidden" }}>
+    <div data-tour="geraete-ansicht" style={{ display: "inline-flex", border: `1px solid ${LINE}`, borderRadius: 7, overflow: "hidden" }}>
       {[["liste", "Liste", List, "Überblick, sortierbar"], ["patch", "Patchliste", Cable, "Aufbau-Reihenfolge, IPs, Ports, Standort, Felder und Notizen direkt bearbeiten"]].map(([k, l, I, t]) => (
-        <button key={k} title={t} onClick={() => setAnsicht(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, background: ansicht === k ? ACCENT : "transparent", color: ansicht === k ? "#fff" : undefined }}><I size={14} />{l}</button>
+        <button key={k} data-tour={"geraete-" + k} title={t} onClick={() => setAnsicht(k)} style={{ ...S.ghostBtn, border: "none", borderRadius: 0, background: ansicht === k ? ACCENT : "transparent", color: ansicht === k ? "#fff" : undefined }}><I size={14} />{l}</button>
       ))}
     </div>
   );
@@ -68,7 +68,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
       <Section style={{ minWidth: 0 }} title={`Geräte (${P.geraete.length})`} right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
         {umschalter}
         {ansicht === "patch" && <PatchKnoepfe P={P} mutate={mutate} onExport={onExport} />}
-        <button style={S.secondaryBtn} onClick={autoIps} title="Freie IPs automatisch vergeben"><RefreshCw size={14} /> IPs vergeben</button>
+        <button style={S.secondaryBtn} data-tour="geraete-ips" onClick={autoIps} title="Freie IPs automatisch vergeben"><RefreshCw size={14} /> IPs vergeben</button>
         <button style={S.primaryBtn} onClick={() => onAddDevice(null, { picker: true })}>+ Gerät</button>
       </div>}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -85,7 +85,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
               onSelectDevice={(id) => setSelection({ type: "dev", id })} />
           </div>
         ) : list.length === 0 ? <p style={S.empty}>{P.geraete.length ? "Kein Gerät passt zum Filter." : "Noch keine Geräte. Mit „+ Gerät“ aus dem Katalog hinzufügen."}</p> : (
-          <div style={{ overflowX: "auto" }}>
+          <div style={{ overflowX: "auto" }} data-tour="geraete-tabelle">
             <table style={S.table}>
               <thead><tr>
                 <TH style={{ width: 28 }}></TH><TH k="name">Name</TH><TH k="kat">Gewerk</TH><TH k="ip">IP</TH><TH>VLAN</TH><TH k="bereich">Standort</TH><TH>Web</TH>

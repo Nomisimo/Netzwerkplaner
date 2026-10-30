@@ -52,7 +52,7 @@ export default function Einstellungen({ onClose, vorReload, inSitzung, logo, onL
   const [wahl, setWahl] = useState(themeWahl);
   const e = useEinstellungen();
   return (
-    <Modal title="Einstellungen" width={640} onClose={onClose} footer={<button style={S.primaryBtn} onClick={onClose}>Fertig</button>}>
+    <Modal title="Einstellungen" tour="einstellungen" width={640} onClose={onClose} footer={<button style={S.primaryBtn} onClick={onClose}>Fertig</button>}>
       <div className="sp-section-label">Erscheinungsbild</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
         {ARTEN.map(([k, l, Ic]) => {

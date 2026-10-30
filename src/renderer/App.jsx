@@ -25,6 +25,8 @@ import APP_ICON_SVG from "../../assets/app-icon/icon.svg";
 const APP_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(APP_ICON_SVG)}`;
 import { CHANGELOG, compareVersions, neuesteVersion, istBeta, RELEASES_URL } from "../shared/version.js";
 import HilfeTab from "./tabs/HilfeTab.jsx";
+import Tour from "./tour/Tour.jsx";
+import { TOUREN, tourSchritte, TOUR_ERLEDIGT_KEY, TOUR_SICHERUNG_KEY } from "./tour/touren.js";
 import { KAPITEL, zeigeKapitel } from "./tabs/AnleitungTab.jsx";
 import LiveTab from "./tabs/LiveTab.jsx";
 import SitzungDialog from "./SitzungDialog.jsx";
@@ -423,6 +425,38 @@ export default function App() {
     setTab("projekt");
     setTimeout(() => document.getElementById(ziel)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
+  /* ── Interaktive Tour: läuft im Beispielprojekt, das eigene Projekt wird vorher gesichert ── */
+  const [tour, setTour] = useState(null);
+  const tourRef = useRef(null);
+  const starteTour = (id) => {
+    if (tourRef.current) return;
+    if (sitzung.zustand && !sitzung.zustand.veraltet) { notify("Die Tour geht nur außerhalb einer gemeinsamen Sitzung.", "warn"); return; }
+    try { localStorage.setItem(TOUR_SICHERUNG_KEY, JSON.stringify({ P: Pref.current, tab, filePath })); }
+    catch { notify("Das Projekt ließ sich nicht sichern, die Tour startet nicht.", "err"); return; }
+    tourRef.current = id;
+    replaceProject(demoProject()); setFilePath(null);
+    setTour(id);
+  };
+  const tourWiederherstellen = () => {
+    let b = null;
+    try { b = JSON.parse(localStorage.getItem(TOUR_SICHERUNG_KEY) || "null"); } catch { /* kaputt */ }
+    if (!b?.P) return false;
+    replaceProject(migrateProject(b.P)); setFilePath(b.filePath || null); setTab(b.tab || "projekt");
+    try { localStorage.removeItem(TOUR_SICHERUNG_KEY); } catch { /* ohne Speicher */ }
+    return true;
+  };
+  const beendeTour = useCallback((fertig) => {
+    const id = tourRef.current;
+    tourRef.current = null; setTour(null);
+    if (fertig && id) try { const e = new Set(JSON.parse(localStorage.getItem(TOUR_ERLEDIGT_KEY) || "[]")); e.add(id); localStorage.setItem(TOUR_ERLEDIGT_KEY, JSON.stringify([...e])); } catch { /* ohne Speicher */ }
+    setShowExport(false); setShowEinst(false); setShowSitzung(false); setPicker(null);
+    if (tourWiederherstellen()) notify(fertig ? "Tour beendet. Dein Projekt ist wieder da." : "Tour abgebrochen. Dein Projekt ist wieder da.");
+  }, []);
+  // App während einer Tour beendet: beim nächsten Start das eigene Projekt zurückholen
+  useEffect(() => { if (tourWiederherstellen()) notify("Die letzte Tour wurde nicht beendet. Dein Projekt ist wieder da."); }, []);
+  const tourListe = useMemo(() => (tour ? tourSchritte(tour) : []), [tour]);
+  const tourAktionen = { auswahlLeeren: () => setSelection(null), waehle: (name) => { const d = Pref.current.geraete.find((g) => g.name === name); if (d) setSelection({ type: "dev", id: d.id }); } };
+
   const selectDevice = (id) => { setSelection({ type: "dev", id }); if (!["topologie", "geraete"].includes(tab)) setTab("geraete"); };
   const showProto = (id) => setProtoModal(id);
   const showIssue = (i) => {
@@ -446,6 +480,7 @@ export default function App() {
   const openProject = async () => { if (sitzungVerlassenOk()) loadFromFile(await api.openProject()); };
   const openRecent = async (p) => { setShowRecents(false); if (sitzungVerlassenOk()) loadFromFile(await api.openRecent(p)); };
   const save = async (saveAs) => {
+    if (tourRef.current) { notify("Während der Tour wird nicht gespeichert, das Beispielprojekt ist nur geliehen.", "warn"); return; }
     const json = JSON.stringify({ ...Pref.current, gespeichert: new Date().toISOString(), app: `Netzwerkplaner ${version}` }, null, 1);
     const r = await api.saveProject(json, fileBase(Pref.current), saveAs ? null : filePath);
     if (r) { setFilePath(r.filePath || null); if (r.recents) setRecents(r.recents); notify(`Gespeichert${r.filePath ? ": " + r.filePath : ""}`); }
@@ -559,6 +594,7 @@ export default function App() {
     else if (art === "sitzung") setShowSitzung(true);
     else if (art === "einstellungen") setShowEinst(true);
     else if (art === "neuigkeiten") setChangelog(true);
+    else if (art === "tour") starteTour(wert || "schnell");
     else if (art === "undo") { if (imFeld) document.execCommand("undo"); else undo(); }
     else if (art === "redo") { if (imFeld) document.execCommand("redo"); else redo(); }
     else if (art === "geraetNeu") addDevice(null, { picker: true });
@@ -576,9 +612,9 @@ export default function App() {
 
   const shared = { P: Pv, X, mutate, issues, status, checkReach, selection, setSelection, onAddDevice: addDevice, onDeleteDevice: deleteDevice, onDeleteConn: deleteConn, onShowProto: showProto, onSaveVorlage: saveVorlage, onSaveBestand: saveBestand, bestand: library.bestand || [], onSelectDevice: selectDevice, onUmbauen: (id) => setPicker({ umbauFor: id }), onTypWaehlen: (id, key) => umbauen(id, { kind: "typ", key }), onShowIssue: (i) => showIssue(i), goTab: geheZu };
 
-  return (
+  return (<>
     <div style={S.app}>
-      <header style={S.header}>
+      <header style={S.header} data-tour="kopf">
         <div style={{ ...S.logo, display: "flex", alignItems: "center", gap: 8 }}><img src={APP_ICON} alt="" style={{ width: 24, height: 24, display: "block" }} />NETZWERKPLANER</div>
         {corpLogo && <img src={corpLogo} alt="Logo" style={{ height: 26, maxWidth: 110, objectFit: "contain", display: "block" }} />}
         {version && <button onClick={() => setChangelog(true)} title="Version und Änderungen" style={{ background: "none", border: `1px solid ${LINE}`, borderRadius: 10, color: SUB, fontSize: 11, padding: "1px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
@@ -589,13 +625,13 @@ export default function App() {
         <span style={{ fontSize: 10, color: MID, display: "inline-flex", alignItems: "center", gap: 3 }} title="Automatisch gespeichert"><Save size={11} /> auto</span>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={undo} title="Rückgängig (Strg+Z)" disabled={!hist.current.undo.length}><Undo2 size={14} /></button>
         <button style={{ ...S.ghostBtn, padding: "4px 7px" }} onClick={redo} title="Wiederholen (Strg+Umschalt+Z)" disabled={!hist.current.redo.length}><Redo2 size={14} /></button>
-        <button style={{ ...S.ghostBtn, ...(sitzung.zustand ? { borderColor: sitzung.zustand.veraltet ? ERR : sitzung.zustand.status === "online" ? OK : WARN } : {}) }} onClick={() => setShowSitzung(true)} title="Gemeinsam arbeiten über den Planer-Server">
+        <button style={{ ...S.ghostBtn, ...(sitzung.zustand ? { borderColor: sitzung.zustand.veraltet ? ERR : sitzung.zustand.status === "online" ? OK : WARN } : {}) }} data-tour="kopf-sitzung" onClick={() => setShowSitzung(true)} title="Gemeinsam arbeiten über den Planer-Server">
           <Users size={14} /> {sitzung.zustand ? (sitzung.zustand.veraltet ? "Sitzung beendet" : `${sitzung.zustand.users?.length || 0} online${sitzung.zustand.ausstehend ? ` · ${sitzung.zustand.ausstehend} ausstehend` : ""}`) : "Sitzung"}
         </button>
         {/* Datei-Menü: Neu, Öffnen, zuletzt geöffnet, Speichern unter, Beispielprojekt. „Zuletzt geöffnet“
             öffnet auch die Menüleiste (macOS) als eigene Liste an derselben Stelle */}
         <div style={{ position: "relative" }}>
-          <Klappmenue label="Datei" icon={<FolderOpen size={14} />} title="Neu, Öffnen, Speichern unter …" rechts breite={300} zu>
+          <Klappmenue tour="kopf-datei" label="Datei" icon={<FolderOpen size={14} />} title="Neu, Öffnen, Speichern unter …" rechts breite={300} zu>
             <MenuePunkt icon={<FilePlus2 size={14} />} onClick={newProject}>Neues Projekt</MenuePunkt>
             <MenuePunkt icon={<FolderOpen size={14} />} onClick={openProject}>Öffnen …</MenuePunkt>
             {isElectron && <MenuePunkt icon={<Save size={14} />} onClick={() => save(true)}>Speichern unter …</MenuePunkt>}
@@ -617,13 +653,13 @@ export default function App() {
               </button>)}
           </div>}
         </div>
-        <button style={S.ghostBtn} onClick={() => save(false)} title="Speichern (Strg+S)"><Save size={14} /> Speichern</button>
-        <button style={S.ghostBtn} onClick={() => setShowEinst(true)} title="Einstellungen: Erscheinungsbild, Logo, Fokus-Hersteller"><Settings size={14} /></button>
-        <button style={S.exportBtn} onClick={() => setShowExport(true)}><Download size={14} /> Export</button>
+        <button style={S.ghostBtn} data-tour="kopf-speichern" onClick={() => save(false)} title="Speichern (Strg+S)"><Save size={14} /> Speichern</button>
+        <button style={S.ghostBtn} data-tour="kopf-einstellungen" onClick={() => setShowEinst(true)} title="Einstellungen: Erscheinungsbild, Logo, Fokus-Hersteller"><Settings size={14} /></button>
+        <button style={S.exportBtn} data-tour="kopf-export" onClick={() => setShowExport(true)}><Download size={14} /> Export</button>
       </header>
-      <nav style={S.nav}>
+      <nav style={S.nav} data-tour="tabs">
         {TABS.map(([k, label]) => (
-          <button key={k} style={{ ...S.navBtn, ...(tab === k ? S.navBtnActive : {}) }} onClick={() => setTab(k)}>
+          <button key={k} data-tour={"tab-" + k} style={{ ...S.navBtn, ...(tab === k ? S.navBtnActive : {}) }} onClick={() => setTab(k)}>
             <span style={{ display: "block", height: 0, fontWeight: 600, overflow: "hidden", visibility: "hidden" }} aria-hidden="true">{label}</span>
             {label}
             {k === "projekt" && (nErr + nWarn > 0) && <span style={{ ...S.badge, marginLeft: 6, background: nErr ? ERR : WARN, color: DARK }}>{nErr || nWarn}</span>}
@@ -634,14 +670,14 @@ export default function App() {
       {tab === "topologie" ? (
         <TopologieTab {...shared} notify={notify} svgRef={svgRef} autoStatus={autoStatus} setAutoStatus={setAutoStatus} planProfile={library.planProfile || []} setPlanProfile={setPlanProfile} />
       ) : (
-        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} key={tab}><main style={S.main}>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} key={tab}><main style={S.main} data-tour="inhalt">
           <div style={{ animation: "npFade .18s ease" }}>
-            {tab === "projekt" && <ProjektTab P={Pv} X={X} mutate={mutate} issues={issues} goTab={geheZu} loadDemo={loadDemo} newProject={newProject} onShowIssue={showIssue} onSelectDevice={selectDevice} />}
+            {tab === "projekt" && <ProjektTab P={Pv} X={X} mutate={mutate} issues={issues} goTab={geheZu} loadDemo={loadDemo} newProject={newProject} onShowIssue={showIssue} onSelectDevice={selectDevice} onTour={starteTour} />}
             {tab === "geraete" && <GeraeteTab {...shared} onExport={doExport} notify={notify} />}
             {tab === "bibliothek" && <BibliothekTab P={Pv} mutate={mutate} onSaveAlleBestand={saveAlleBestand} notify={notify} library={library} setLibrary={setLibrary} protoId={protoId} setProtoId={setProtoId} onAddDevice={addDevice} onSelectDevice={selectDevice} sub={bibSub} setSub={setBibSub} allIcons={allIcons} />}
             {tab === "live" && <LiveTab P={Pv} X={X} mutate={mutate} status={status} checkReach={checkReach} autoStatus={autoStatus} setAutoStatus={setAutoStatus} onSelectDevice={selectDevice} notify={notify} />}
             {tab === "vlans" && <VlanTab P={Pv} X={X} mutate={mutate} issues={issues} onSelectDevice={selectDevice} />}
-            {tab === "hilfe" && <HilfeTab goTab={geheZu} sub={hilfeSub} setSub={setHilfeSub} />}
+            {tab === "hilfe" && <HilfeTab goTab={geheZu} sub={hilfeSub} setSub={setHilfeSub} onTour={starteTour} />}
           </div>
         </main></div>
       )}
@@ -676,5 +712,6 @@ export default function App() {
           <Icon size={16} color={farbe} style={{ flexShrink: 0 }} />{toast.msg}</div>;
       })()}
     </div>
-  );
+    {tour && <Tour key={tour} schritte={tourListe} titel={TOUREN.find((t) => t.id === tour)?.titel || "Tour"} onEnde={beendeTour} aktionen={tourAktionen} geraeteAnzahl={P.geraete.length} />}
+  </>);
 }

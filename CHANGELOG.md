@@ -19,6 +19,9 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 - Hilfe › Netzwerk-Wissen › MA-Net: Goldstandards für MA-Net3
 - Icons für Verstärker und Projektor deutlicher; Auswahl in Blau, Rot nur noch für Fehler
 - Aufgeräumt: ungenutzter Code entfernt
+- Interaktive Touren: Markierung und kurze Texte führen durch die App, Schritt für Schritt mit Klick-Aufforderungen. Schnellstart (17 Schritte) und sechs Einzeltouren: Projekt und VLANs, Topologie, Geräte und Patchliste, Live, Bibliothek, Speichern/Export/Einstellungen. Start unter Hilfe › Anleitung › Interaktive Touren, im Menü „Hilfe › Tour starten“ oder auf der Willkommensseite
+- Touren laufen im Beispielprojekt: das eigene Projekt wird vorher gesichert und kommt danach zurück, auch nach einem Absturz beim nächsten Start. Während der Tour wird nicht gespeichert; in einer gemeinsamen Sitzung startet keine Tour
+- Anleitung: alle Bilder neu aus der aktuellen Version, im dunklen Modus dunkle und im hellen Modus helle Bilder. Neue Absätze zum Menü „Einstellungen“ und zur Menüleiste unter Windows (Alt)
 
 ## [0.7.0-beta.21] – 2026-10-16
 
