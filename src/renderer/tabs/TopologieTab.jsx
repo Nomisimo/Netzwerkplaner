@@ -755,9 +755,9 @@ export default function TopologieTab(props) {
   const aktAnsicht = ["front", "cleancat"].includes(ansichtVon(P)) ? ansichtVon(P) : "mindmap";
   const ANSICHT_TITEL = { mindmap: "Baum vom Hauptswitch aus", front: "Geräte mit ihren Anschlüssen, Kabel von Buchse zu Buchse", cleancat: "Aufgeräumter Signalfluss-Plan als A3-Blatt mit Legende und Plankopf" };
   const ansichtWahl = (
-    <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
+    <div data-tour="topo-ansichten" style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }} title="Darstellung der Topologie">
       {[["mindmap", <Network {...ico} />, "Mindmap"], ["front", <Cable {...ico} />, "Anschlüsse"], ["cleancat", <FileText {...ico} />, "Druckplan"]].map(([k, i, l]) => (
-        <button key={k} onClick={() => setAnsicht(k)} title={ANSICHT_TITEL[k]} style={{ ...knopf, border: "none", borderRadius: 0, ...(aktAnsicht === k ? { background: STRONG, color: DARK } : {}) }}>{i}{l}</button>
+        <button key={k} data-tour={"ansicht-" + k} onClick={() => setAnsicht(k)} title={ANSICHT_TITEL[k]} style={{ ...knopf, border: "none", borderRadius: 0, ...(aktAnsicht === k ? { background: STRONG, color: DARK } : {}) }}>{i}{l}</button>
       ))}
     </div>
   );
@@ -816,23 +816,23 @@ export default function TopologieTab(props) {
         {/* Eine Zeile: Ansicht, Werkzeug, Suche, Filter. Darstellung und Anordnen als Klappmenüs */}
         <div style={zeile}>
           {ansichtWahl}
-          <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
+          <div data-tour="topo-werkzeuge" style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
             {[["move", <Move {...ico} />, mm ? "Auswählen" : "Bewegen", "M"], ["connect", <Link2 {...ico} />, "Verbinden", "C"], ["stack", <Layers {...ico} />, "Stapeln", "S"]].map(([k, i, l, key]) => (
               <button key={k} title={k === "stack" ? "Taste S · von einem Gerät auf ein anderes ziehen: stapelt sie grafisch (Rack, Tower). Keine Netzwerkverbindung." : k === "move" && mm ? "Taste M · Klick wählt aus, Ziehen verschiebt die Ansicht. Die Mindmap ordnet sich selbst an." : `Taste ${key}`} onClick={() => setTool(k)} style={{ ...knopf, border: "none", borderRadius: 0, ...(tool === k ? { background: STRONG, color: DARK } : {}) }}>{i}{lbl(l)}</button>
             ))}
           </div>
           <button style={knopf} onClick={fit} title="Alles einpassen"><Maximize {...ico} />{lbl("Einpassen")}</button>
           {trenner}
-          <div style={{ position: "relative", flexShrink: 0 }}>
+          <div data-tour="topo-suche" style={{ position: "relative", flexShrink: 0 }}>
             <Search size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: MUTED, pointerEvents: "none" }} />
             <input style={{ ...S.inputSm, width: kompakt ? 120 : 160, paddingLeft: 26 }} placeholder="Suchen (Name, IP)" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
-          <select style={{ ...S.selectSm, width: 125, flexShrink: 0, ...(katFilter ? { borderColor: SUB } : {}) }} value={katFilter} onChange={(e) => setKatFilter(e.target.value)} title="Nur ein Gewerk hervorheben">
+          <select style={{ ...S.selectSm, width: 125, flexShrink: 0, ...(katFilter ? { borderColor: SUB } : {}) }} value={katFilter} onChange={(e) => setKatFilter(e.target.value)} title="Nur ein Gewerk hervorheben" data-tour="topo-filter">
             <option value="">Alle Gewerke</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
           </select>
           <VlanSelect vlans={P.vlans} value={vlanFilter} onChange={setVlanFilter} style={{ width: 140, flexShrink: 0 }} noneLabel="Alle VLANs" />
           {trenner}
-          <Klappmenue label={lbl2("Darstellung")} icon={<SlidersHorizontal {...ico} />} title="Farben, Linien, Beschriftung" breite={280}>
+          <Klappmenue tour="topo-darstellung" label={lbl2("Darstellung")} icon={<SlidersHorizontal {...ico} />} title="Farben, Linien, Beschriftung" breite={280}>
             <select style={S.selectSm} value={colorBy} onChange={(e) => setColorBy(e.target.value)} title="Farbe der Verbindungen">
               <option value="vlan">Kabelfarbe: VLAN</option><option value="kat">Kabelfarbe: Gewerk</option><option value="kabel">Kabelfarbe: Kabeltyp</option>
             </select>
@@ -857,7 +857,7 @@ export default function TopologieTab(props) {
             <button style={{ ...S.smallBtn, justifyContent: "center" }} title="Ansicht, Linien, Titel und Kabelfarbe für neue Projekte übernehmen"
               onClick={() => { setzeEinstellungen((e) => { e.topo = { ...e.topo, ansicht: aktAnsicht === "cleancat" ? e.topo.ansicht : aktAnsicht, linien, titel, kabelBuendel: !!P.layout.kabelBuendel, farbe: colorBy, portVlan: showPorts }; }); props.notify?.("Als Standard für neue Projekte gemerkt"); }}>Als Standard für neue Projekte merken</button>
           </Klappmenue>
-          <Klappmenue label={lbl2("Anordnen")} icon={<ListTree {...ico} />} title="Äste, Stapel, Hintergrund" breite={280}>
+          <Klappmenue tour="topo-anordnen" label={lbl2("Anordnen")} icon={<ListTree {...ico} />} title="Äste, Stapel, Hintergrund" breite={280}>
             {mm && <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.4 }}>Die Mindmap ordnet sich selbst an: jede Ebene eine Spalte, Geschwister in Port-Reihenfolge. Von Hand anordnen in „Anschlüsse“ und im Druckplan.</div>}
             {front && <>
               <Toggle checked={auto} onChange={(an) => an ? mitWarnung("Automatisch anordnen ordnet alle Geräte neu an. Die von Hand gesetzten Positionen gehen dabei verloren, angepinnte Geräte bleiben stehen.", () => setAuto(true)) : setAuto(false)} label="Automatisch anordnen" title="An: Geräte ordnen sich beim Bearbeiten automatisch an (angepinnte bleiben stehen). Aus: alle Geräte und Leitungen bleiben, wo sie sind." />
@@ -872,7 +872,7 @@ export default function TopologieTab(props) {
             <button style={{ ...S.smallBtn, ...(bg?.src ? { borderColor: ACCENT } : {}) }} onClick={() => setBgOpen((o) => !o)} title="Hintergrundbild, z. B. Stage-Plot oder Hallenplan"><ImageIcon size={12} />Hintergrundbild …</button>
           </Klappmenue>
           <span style={{ flex: 1 }} />
-          <button style={knopf} onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen"><RefreshCw {...ico} />{lbl2("Status")}</button>
+          <button style={knopf} data-tour="topo-status" onClick={() => checkReach()} title="Alle Geräte mit IP anpingen bzw. Web-UI-Port prüfen"><RefreshCw {...ico} />{lbl2("Status")}</button>
           <Toggle checked={autoStatus} onChange={setAutoStatus} label="alle 15 s" title="Erreichbarkeit zyklisch prüfen" />
         </div>
       </div>
@@ -880,12 +880,12 @@ export default function TopologieTab(props) {
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
       {/* Palette: eingeklappt bleiben die Typ-Icons als Miniaturen sichtbar und ziehbar */}
-      <div style={{ width: paletteOpen ? 176 : 46, background: DARK, borderRight: `1px solid ${LINE}`, overflowY: "auto", overflowX: "hidden", flexShrink: 0, transition: "width .15s" }}>
+      <div data-tour="topo-palette" style={{ width: paletteOpen ? 176 : 46, background: DARK, borderRight: `1px solid ${LINE}`, overflowY: "auto", overflowX: "hidden", flexShrink: 0, transition: "width .15s" }}>
         <button style={{ ...S.ghostBtn, border: "none", width: "100%", justifyContent: paletteOpen ? "space-between" : "center", borderRadius: 0, borderBottom: `1px solid ${LINE}` }} onClick={() => setPaletteOpen((o) => !o)} title={paletteOpen ? "Geräteliste einklappen" : "Geräteliste ausklappen"}>
           {paletteOpen && <span className="sp-section-label" style={{ margin: 0 }}>Geräte</span>}{paletteOpen ? <PanelLeftClose {...ico} /> : <PanelLeftOpen {...ico} />}
         </button>
         <div style={{ padding: paletteOpen ? 8 : "6px 4px" }}>
-          <button style={{ ...S.primaryBtn, width: "100%", padding: paletteOpen ? "7px 8px" : "6px 0", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }} onClick={() => onAddDevice(null, { connectTo: selDev?.id, picker: true })} title="Gerät aus dem Katalog hinzufügen">
+          <button style={{ ...S.primaryBtn, width: "100%", padding: paletteOpen ? "7px 8px" : "6px 0", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }} data-tour="topo-katalog" onClick={() => onAddDevice(null, { connectTo: selDev?.id, picker: true })} title="Gerät aus dem Katalog hinzufügen">
             <Plus {...ico} />{paletteOpen && "Aus Katalog …"}
           </button>
           {paletteOpen && <div style={{ ...S.hint, marginTop: 6 }}>Typ auf ein Gerät ziehen = anschließen. Auf leere Fläche = frei platzieren.</div>}
@@ -902,7 +902,7 @@ export default function TopologieTab(props) {
 
       {/* Zeichenfläche */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FPF.bg : CANVAS, cursor: tool !== "move" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
+        <div ref={wrapRef} data-tour="topo-flaeche" style={{ flex: 1, position: "relative", overflow: "hidden", background: front ? FPF.bg : CANVAS, cursor: tool !== "move" ? "crosshair" : drag?.kind === "pan" ? "grabbing" : "default" }}
           onMouseDown={(e) => onDown(e, null)} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { setDrag(null); setDraw(null); }}
           onWheel={onWheel} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
           <FpFarben.Provider value={FPF}>
@@ -1130,7 +1130,7 @@ export default function TopologieTab(props) {
 
       {/* Inspector */}
       {(selDev || selConn || selStapel || selIds.length > 1) && (
-        <div style={{ width: 420, background: PANEL, borderLeft: `1px solid ${LINE}`, overflowY: "auto", padding: 14, flexShrink: 0 }}>
+        <div data-tour="topo-editor" style={{ width: 420, background: PANEL, borderLeft: `1px solid ${LINE}`, overflowY: "auto", padding: 14, flexShrink: 0 }}>
           {!selDev && <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4, position: "sticky", top: 0, zIndex: 4 }}>
             <button style={{ ...S.ghostBtn, padding: "2px 8px", background: PANEL }} onClick={() => setSelection(null)} title="Schließen"><XIcon size={14} /></button>
           </div>}

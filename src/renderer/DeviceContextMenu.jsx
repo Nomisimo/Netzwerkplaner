@@ -51,7 +51,7 @@ export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = []
   const stCol = !status || status.ok == null ? MUTED : status.ok ? OK : ERR;
 
   return (
-    <div ref={ref} className="np-ctx" onContextMenu={(e) => e.preventDefault()} onMouseDown={(e) => e.stopPropagation()}
+    <div ref={ref} className="np-ctx" data-tour="kontextmenue" onContextMenu={(e) => e.preventDefault()} onMouseDown={(e) => e.stopPropagation()}
       style={{ position: "fixed", zIndex: 200, left: pos.left, top: pos.top, width: W, maxHeight: "80vh", overflowY: "auto", background: INPUT, border: `1px solid ${LINE}`, borderTop: `3px solid ${col}`, borderRadius: 10, boxShadow: "0 12px 36px rgba(0,0,0,.6)", color: TEXT }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px 6px" }}>
         <div style={{ background: col + "1f", borderRadius: 8, padding: 6, display: "flex" }}><IconView icon={dev.icon} customIcons={P.icons} color={col} size={26} /></div>

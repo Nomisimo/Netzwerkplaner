@@ -90,8 +90,8 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
 
   return (
     <>
-      <div style={S.boxTabs}>
-        {TABS.map(([k, l]) => <button key={k} style={{ ...S.boxTab, ...(sub === k ? S.boxTabActive : {}) }} onClick={() => { setSub(k); setKat(""); setQ(""); }}>{l}</button>)}
+      <div style={S.boxTabs} data-tour="bib-bereiche">
+        {TABS.map(([k, l]) => <button key={k} data-tour={"bib-" + k} style={{ ...S.boxTab, ...(sub === k ? S.boxTabActive : {}) }} onClick={() => { setSub(k); setKat(""); setQ(""); }}>{l}</button>)}
       </div>
 
       {sub === "protokolle" && (

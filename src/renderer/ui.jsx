@@ -7,9 +7,9 @@ import { istFokus, einstellungen } from "./einstellungen.js";
 import { passtSuche } from "../shared/suche.js";
 import { X as XIcon, OctagonX, TriangleAlert, Info, ChevronDown } from "lucide-react";
 
-export function Section({ title, subtitle, right, children, style }) {
+export function Section({ title, subtitle, right, children, style, tour }) {
   return (
-    <section style={{ ...S.section, ...style }}>
+    <section style={{ ...S.section, ...style }} data-tour={tour}>
       {(title || right) && (
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: subtitle ? 0 : 12 }}>
           <div style={{ flex: 1 }}>{title && <h2 style={S.h2}>{title}</h2>}</div>
@@ -32,7 +32,7 @@ export function Field({ label, children, hint, style }) {
   );
 }
 
-export function Modal({ title, onClose, children, width = 640, footer }) {
+export function Modal({ title, onClose, children, width = 640, footer, tour }) {
   useEffect(() => {
     const k = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", k);
@@ -40,7 +40,7 @@ export function Modal({ title, onClose, children, width = 640, footer }) {
   }, [onClose]);
   return (
     <div style={S.modalOverlay} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ ...S.modalBox, width, maxWidth: "94vw" }}>
+      <div style={{ ...S.modalBox, width, maxWidth: "94vw" }} data-tour={tour}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: STRONG, flex: 1 }}>{title}</div>
           <button style={{ ...S.ghostBtn, padding: "3px 9px" }} onClick={onClose}><XIcon size={14} /></button>
@@ -132,7 +132,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
     else if (e.key === "Enter" && items[aktiv]) { e.preventDefault(); pick(items[aktiv]); }
   };
   return (
-    <Modal title={title} onClose={onClose} width={720}>
+    <Modal title={title} onClose={onClose} width={720} tour="picker">
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         <input ref={inp} style={{ ...S.input, flex: 1 }} placeholder="Suchen: Hersteller, Modell, Typ oder Protokoll (z. B. „Dante“, „Cisco*1300*24“)" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen. Pfeiltasten wählen, Enter übernimmt." value={q} onChange={(e) => setQ(e.target.value)}
           onKeyDown={taste} />
@@ -223,7 +223,7 @@ export function usePfeilNavigation(ref, aktiv = true) {
 
 /* Klappmenü: Knopf mit ▾, darunter ein Feld mit Einstellungen oder Menüpunkten.
    Schließt bei Klick daneben, Escape oder (zu = true) nach einem Klick auf einen Menüpunkt. */
-export function Klappmenue({ label, icon, title, children, rechts = false, breite = 260, zu = false, knopfStil }) {
+export function Klappmenue({ label, icon, title, children, rechts = false, breite = 260, zu = false, knopfStil, tour }) {
   const [offen, setOffen] = useState(false);
   const ref = useRef(null);
   usePfeilNavigation(ref, offen);
@@ -235,7 +235,7 @@ export function Klappmenue({ label, icon, title, children, rechts = false, breit
     return () => { window.removeEventListener("mousedown", weg); window.removeEventListener("keydown", esc); };
   }, [offen]);
   return (
-    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
+    <div ref={ref} style={{ position: "relative", flexShrink: 0 }} data-tour={tour}>
       <button style={{ ...S.ghostBtn, whiteSpace: "nowrap", ...(offen ? { borderColor: SUB } : {}), ...knopfStil }} title={title} onClick={() => setOffen((o) => !o)} aria-expanded={offen}>
         {icon}{label}<ChevronDown size={12} />
       </button>

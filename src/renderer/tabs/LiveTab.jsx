@@ -32,7 +32,7 @@ function SubTab({ k, label, kind, active, onClick }) {
   const m = useMonitor(kind || "_none");
   const on = kind && m.running && !["scan", "snmp"].includes(kind);
   return (
-    <button style={{ ...S.boxTab, ...(active ? S.boxTabActive : {}) }} onClick={onClick}>
+    <button data-tour={"live-" + k} style={{ ...S.boxTab, ...(active ? S.boxTabActive : {}) }} onClick={onClick}>
       {on && <span title="läuft" style={{ width: 7, height: 7, borderRadius: "50%", background: OK, display: "inline-block" }} />}
       {label}
     </button>
@@ -57,7 +57,7 @@ export default function LiveTab(props) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-        <div style={{ ...S.boxTabs, marginBottom: 0, flex: 1 }}>
+        <div data-tour="live-ansichten" style={{ ...S.boxTabs, marginBottom: 0, flex: 1 }}>
           {/* Zwei Gruppen: Werkzeuge fürs Netz und Monitore je Protokoll */}
           {[["Netz", NETZ], ["Protokolle", null]].map(([titel, nur]) => (
             <div key={titel} style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginRight: 10 }}>
@@ -66,7 +66,7 @@ export default function LiveTab(props) {
             </div>
           ))}
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="Alles im Live-Tab läuft nur über diese Netzwerkkarte: Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch in der Topologie). Laufende Monitore danach neu starten.">
+        <label data-tour="live-karte" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="Alles im Live-Tab läuft nur über diese Netzwerkkarte: Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch in der Topologie). Laufende Monitore danach neu starten.">
           Netzwerkkarte
           <select style={{ ...S.selectSm, width: 230 }} value={iface} onChange={(e) => setIface(e.target.value)}>
             {!interfaces.length && <option value="">keine gefunden</option>}

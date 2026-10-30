@@ -87,7 +87,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
     <Section title={`Gerätebestand (${bestand.length})`}
       subtitle="Deine eigenen Geräte mit Name, Netzwerkname, IPs, MACs, Ports und eigenen Feldern. Speichern im Geräte-Editor mit „In Bestand“. Beim Einfügen bleiben IPs und Einstellungen erhalten. Das VLAN bekommt ein Gerät im Projekt vom Switch-Port."
       right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <button style={S.secondaryBtn} onClick={onSaveAlleBestand} title="Alle Geräte dieses Projekts, die noch nicht im Bestand sind, übernehmen"><Download size={14} /> Projektgeräte übernehmen</button>
+        <button style={S.secondaryBtn} data-tour="bib-uebernehmen" onClick={onSaveAlleBestand} title="Alle Geräte dieses Projekts, die noch nicht im Bestand sind, übernehmen"><Download size={14} /> Projektgeräte übernehmen</button>
         <button style={S.primaryBtn} onClick={() => setAnlegen(true)}>+ Neues Gerät</button>
         <button style={S.secondaryBtn} onClick={exportCsv} disabled={!bestand.length} title="Als CSV (Excel, andere Netzwerkplaner-Installationen)">Export CSV</button>
         <button style={S.secondaryBtn} onClick={exportJson} disabled={!bestand.length} title="Als JSON mit eigenen Icons">Export JSON</button>

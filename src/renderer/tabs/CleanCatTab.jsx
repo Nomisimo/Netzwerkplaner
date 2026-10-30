@@ -604,7 +604,7 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     if (farbe) p.farbe = farbe; else delete p.farbe;
   });
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+    <div data-tour="druckplan" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "7px 10px", background: PANEL, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap", flexShrink: 0 }}>
         {kopf}
         <select style={{ ...S.selectSm, width: "auto" }} value={angepasst ? "__aktuell" : profil.id} onChange={(e) => waehlen(e.target.value)}

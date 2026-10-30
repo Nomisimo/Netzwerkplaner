@@ -57,7 +57,7 @@ export default function ExportDialog({ P, onClose, onExport, planPfad, aktuelleA
   };
   const letzter = vorschlag.letzter;
   return (
-    <Modal title="Exportieren" width={560} onClose={onClose}
+    <Modal title="Exportieren" tour="export" width={560} onClose={onClose}
       footer={<>
         <span style={{ flex: 1, fontSize: 11, color: MUTED }}>{planPfad ? `Speichert neben dem Plan: ${planPfad.split(/[\\/]/).slice(0, -1).pop() || ""}` : "Speichert im zuletzt benutzten Export-Ordner"}</span>
         <button style={S.secondaryBtn} onClick={onClose}>Abbrechen</button>

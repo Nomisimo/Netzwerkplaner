@@ -14,7 +14,7 @@ const Stat = ({ label, value, color, onClick }) => (
 );
 
 // Projekt: Angaben, Übersicht mit Prüfung und Standorte auf einer Seite (VLANs haben einen eigenen Tab)
-export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newProject, onShowIssue, onSelectDevice }) {
+export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newProject, onShowIssue, onSelectDevice, onTour }) {
   const [neuBereich, setNeuBereich] = useState("");
   const m = P.meta;
   const setMeta = (k, v) => mutate((d) => (d.meta[k] = v));
@@ -29,13 +29,14 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
       {P.geraete.length === 0 && (
         <Section title="Willkommen im Netzwerkplaner" subtitle="Offline-Planung für Veranstaltungsnetze: Topologie als Mindmap oder Frontplatten, VLANs, IP-Adressen und Prüfungen in einer Projektdatei.">
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button style={S.primaryBtn} onClick={() => goTab("topologie")}>Leeres Projekt: zur Topologie</button>
+            {onTour && <button style={S.primaryBtn} onClick={() => onTour("schnell")}>Tour starten (3 min)</button>}
+            <button style={onTour ? S.secondaryBtn : S.primaryBtn} onClick={() => goTab("topologie")}>Leeres Projekt: zur Topologie</button>
             <button style={S.secondaryBtn} onClick={loadDemo}>Beispielprojekt laden</button>
           </div>
           <p style={S.hint}>{P.vlans.length ? `${P.vlans.length} VLANs angelegt.` : "Noch keine VLANs: im Tab „VLANs“ anlegen oder die Standard-VLANs einfügen (10 Audio Primary, 11 Audio Secondary, 20 Licht, 30 Video, 40 Intercom, 50 Steuerung, 99 Management)."} Gerätekatalog: {KATALOG.geraete.length} Modelle, Protokollreferenz: {KATALOG.protokolle.length} Protokolle (Stand {KATALOG.stand}).</p>
         </Section>
       )}
-      <Section title="Projekt" subtitle="Erscheint im Kopf der App und in allen Exporten.">
+      <Section tour="projekt-angaben" title="Projekt" subtitle="Erscheint im Kopf der App und in allen Exporten.">
         <div style={S.metaGrid}>
           <Field label="Veranstaltung"><input style={S.input} value={m.veranstaltung} onChange={(e) => setMeta("veranstaltung", e.target.value)} /></Field>
           <Field label="Ort / Venue"><input style={S.input} value={m.ort} onChange={(e) => setMeta("ort", e.target.value)} /></Field>
@@ -46,7 +47,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
         <Field label="Notiz" style={{ marginTop: 10 }}><textarea style={{ ...S.input, minHeight: 60, fontFamily: "inherit", fontSize: 13 }} value={m.notiz} onChange={(e) => setMeta("notiz", e.target.value)} /></Field>
       </Section>
 
-      <Section title="Übersicht">
+      <Section tour="projekt-uebersicht" title="Übersicht">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(105px,1fr))", gap: 6 }}>
           <Stat label="Geräte" value={P.geraete.length} onClick={() => goTab("geraete")} />
           <Stat label="Switches" value={P.geraete.filter((d) => d.isSwitch).length} />
@@ -64,7 +65,7 @@ export default function ProjektTab({ P, X, mutate, issues, goTab, loadDemo, newP
         <PruefungKompakt issues={issues} onShowIssue={onShowIssue} />
       </Section>
 
-      <Section title="Standorte" subtitle="Wo die Geräte stehen, z. B. FOH, Bühne, Delay-Tower. Umbenennen gilt im ganzen Projekt, die Anmerkung steht im Druckplan.">
+      <Section tour="projekt-standorte" title="Standorte" subtitle="Wo die Geräte stehen, z. B. FOH, Bühne, Delay-Tower. Umbenennen gilt im ganzen Projekt, die Anmerkung steht im Druckplan.">
         <div style={{ display: "grid", gap: 8 }}>
           {standorte.map((b) => {
             const anzahl = P.geraete.filter((g) => (g.bereich || "").trim() === b).length;

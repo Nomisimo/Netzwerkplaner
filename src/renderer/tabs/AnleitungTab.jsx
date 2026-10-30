@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { S, ACCENT, SUB, LINE, LINK, TEXT2, STRONG } from "../../shared/constants.js";
+import { S, ACCENT, SUB, LINE, LINK, TEXT2, STRONG, OK, MUTED, HELL } from "../../shared/constants.js";
+import { TOUREN, TOUR_ERLEDIGT_KEY } from "../tour/touren.js";
+import { Play, CheckCircle2 } from "lucide-react";
 import { WERKZEUGE, WIRESHARK, CISCO } from "../../shared/wissen.js";
 import { Section } from "../ui.jsx";
 import BILDER from "virtual:anleitung-bilder";
 
 /* Anleitung: ein Kapitel je Tab bzw. Funktion, mit Screenshots aus dem Beispielprojekt
-   (assets/anleitung/*.jpg, beim Build eingebettet). */
+   (assets/anleitung/*.jpg, beim Build eingebettet; neu aufnehmen mit scripts/anleitung-screenshots.js).
+   Im dunklen Modus zeigt die Anleitung die dunkle Fassung <id>-dunkel, falls vorhanden. */
 
-const Bild = ({ id, text }) => BILDER[id] ? (
+const bildVon = (id) => (!HELL && BILDER[`${id}-dunkel`]) || BILDER[id];
+const Bild = ({ id, text }) => bildVon(id) ? (
   <figure style={{ margin: "4px 0 16px" }}>
-    <img src={BILDER[id]} alt={text || id} style={{ width: "100%", display: "block", borderRadius: 8, border: `1px solid ${LINE}` }} />
+    <img src={bildVon(id)} alt={text || id} style={{ width: "100%", display: "block", borderRadius: 8, border: `1px solid ${LINE}` }} />
     {text && <figcaption style={{ fontSize: 11.5, color: SUB, marginTop: 5 }}>{text}</figcaption>}
   </figure>
 ) : null;
@@ -27,7 +31,31 @@ const Code = ({ rows }) => (
   </tbody></table>
 );
 
+// Liste der interaktiven Touren mit Start-Knopf und Haken für erledigte
+function Touren({ onTour }) {
+  let erledigt = [];
+  try { erledigt = JSON.parse(localStorage.getItem(TOUR_ERLEDIGT_KEY) || "[]"); } catch { /* ohne Speicher */ }
+  return (
+    <>
+      <p style={{ ...S.hint, marginTop: 0 }}>Eine Tour führt dich mit Markierungen und kurzen Texten durch die App. Sie läuft im Beispielprojekt, dein eigenes Projekt wird vorher gesichert und kommt danach zurück. Während der Tour wird nicht gespeichert. Weiter mit → oder Enter, zurück mit ←, beenden mit Esc.</p>
+      <div style={{ display: "grid", gap: 8 }}>
+        {TOUREN.map((t) => (
+          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, border: `1px solid ${t.id === "schnell" ? ACCENT : LINE}`, borderRadius: 8, padding: "10px 12px" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, color: STRONG, display: "flex", alignItems: "center", gap: 6 }}>{t.titel}{erledigt.includes(t.id) && <CheckCircle2 size={14} color={OK} aria-label="erledigt" />}</div>
+              <div style={{ fontSize: 12, color: SUB }}>{t.schritte.length} Schritte · {t.dauer}{t.text ? ` · ${t.text}` : ""}</div>
+            </div>
+            <button style={t.id === "schnell" ? S.primaryBtn : S.secondaryBtn} onClick={() => onTour?.(t.id)} disabled={!onTour}><Play size={13} /> Starten</button>
+          </div>
+        ))}
+      </div>
+      <p style={{ ...S.hint, color: MUTED }}>Die Tour startest du auch über das Menü „Hilfe › Tour starten“ oder auf der Willkommensseite eines leeren Projekts.</p>
+    </>
+  );
+}
+
 export const KAPITEL = [
+  { id: "touren", titel: "Interaktive Touren", inhalt: ({ onTour }) => <Touren onTour={onTour} /> },
   { id: "start", titel: "Erste Schritte", tab: ["projekt", "Projekt"], inhalt: () => <>
     <Bild id="projekt" text="Tab Projekt mit dem Beispielprojekt" />
     <Liste items={[
@@ -51,7 +79,7 @@ export const KAPITEL = [
       "Mausrad zoomt. Shift + Mausrad schiebt die Fläche hoch und runter, ⌘ (Mac) bzw. Strg (Windows) + Mausrad schiebt sie nach links und rechts.",
     ]} />
     <H>Anpinnen, Einrasten, Anordnen, Stapel, Hintergrund</H>
-    <Bild id="topologie-hintergrund" text="Stage-Plot als Hintergrund, angepinntes Pult und ein Stapel aus zwei Nodes" />
+    <Bild id="topologie-hintergrund" text="Stage-Plot als Hintergrund unter der Ansicht Anschlüsse, links das Fenster „Hintergrundbild“" />
     <Liste items={[
       "Anpinnen (nur in „Anschlüsse“, Taste P oder Rechtsklick): das Gerät bleibt stehen, wenn sich die Anordnung durch neue Geräte oder Verbindungen ändert. Sein Ast wandert mit ihm. Klick auf die Nadel löst es wieder.",
       "Mehrere Geräte wählen: Auf der leeren Fläche einen Rahmen über die Geräte ziehen (mit Shift kommen sie zur Auswahl dazu). Shift+Klick (oder ⌘/Strg+Klick) nimmt ein Gerät dazu oder heraus, ⌘/Strg+A wählt alle. Ziehen an einem gewählten Gerät verschiebt alle zusammen. Die Ansicht verschiebst du mit Leertaste + Ziehen, der mittleren Maustaste oder Shift/⌘/Strg + Mausrad. In der Seitenleiste: gemeinsame Felder (Bereich, Standort, PoE-Bedarf, eigene Felder, Notizen) für alle auf einmal bearbeiten, alle anpinnen (Taste P), als Stapel zusammenfassen, Konfiguration in alle einfügen, alle löschen (Entf).",
@@ -82,7 +110,7 @@ export const KAPITEL = [
       "„Kabel vorne“: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante. „Hell“: weißer Hintergrund beim Bearbeiten. Exporte sind immer hell. Auswahl- und Fokusrahmen kommen nicht mit in den Export.",
     ]} />
     <H>Darstellung</H>
-    <Bild id="topologie-eckig" text="Linien eckig, Farbe nach VLAN, Port & VLAN an jeder Verbindung" />
+    <Bild id="topologie-eckig" text="Linien eckig, Kabelfarbe nach VLAN, Port-Beschriftung an jeder Verbindung" />
     <Liste items={[
       "„Darstellung ▾ › Kabelfarbe“: Verbindungen nach VLAN, Gewerk oder Kabeltyp einfärben.",
       "„Linien: rund / eckig / direkt“: geschwungene, rechtwinklige oder gerade Verbindungslinien (direkt = kürzester Weg von Port zu Port). Mehrere Kabel zwischen denselben Geräten liegen nebeneinander, in der Ansicht Anschlüsse bekommt jedes Kabel eine eigene Bahn.",
@@ -145,7 +173,7 @@ export const KAPITEL = [
     ]} />
   </> },
   { id: "vlans", titel: "VLANs", tab: ["vlans", "VLANs"], inhalt: () => <>
-    <Bild id="vlans" text="VLAN mit Zweck und Switch-Schaltern" />
+    <Bild id="vlans" text="VLANs mit Farbe, Zweck und Switch-Schaltern" />
     <Liste items={[
       "Die VLANs haben einen eigenen Tab „VLANs“. Ein neues Projekt („Datei ▾ › Neues Projekt“) beginnt ohne VLANs; „Standard-VLANs einfügen“ legt 10, 11, 20, 30, 40, 50 und 99 an, „+ VLAN“ ein einzelnes.",
       "Je VLAN: ID, Name, Farbe, Zweck und Notiz sowie die Schalter IGMP-Snooping, EEE aus, QoS/DSCP und DHCP.",
@@ -154,13 +182,13 @@ export const KAPITEL = [
     ]} />
   </> },
   { id: "pruefung", titel: "Prüfung & MA-Net", tab: ["pruefung", "Projekt"], inhalt: () => <>
-    <Bild id="pruefung" text="Prüfung mit Fehlern, Warnungen und Hinweisen" />
+    <Bild id="pruefung" text="Meldungen der Prüfung in der Topologie, hier die Warnungen" />
     <Liste items={[
       "Die Prüfung läuft ständig mit und steht im Tab „Projekt“ im Block „Übersicht“ (nur Fehler und Warnungen). „Zeigen →“ springt zum betroffenen Gerät, VLAN oder zur Verbindung.",
       "Geprüft werden unter anderem IP-Konflikte, doppelt belegte Ports, VLAN-Fehler an Switch-Ports, Punkt-zu-Punkt-Protokolle am Switch, IGMP bei Multicast, EEE bei Audio over IP, PoE-Budgets, Leitungslast und Dante-Hops.",
     ]} />
     <H>MA-Net Gold-Standards</H>
-    <Bild id="pruefung-manet" text="Gold-Standards für MA-Geräte" />
+    <Bild id="pruefung-manet" text="Goldstandards für MA-Net3 (Hilfe › Netzwerk-Wissen › MA-Net)" />
     <Liste items={[
       "Sobald ein Gerät MA-Net1, MA-Net2 oder MA-Net3 spricht, prüft der Netzwerkplaner zusätzlich die MA-Vorgaben. Die Treffer beginnen mit „MA-Net:“.",
       "MA-Net3: 1 GbE durchgehend, eigenes VLAN ohne Dante/NDI, keine 100-Mbit-Geräte, IGMP-Snooping mit Querier, EEE aus, kurze Switch-Ketten (max. 2 ms), kein 192.168.33.x.",
@@ -221,6 +249,8 @@ export const KAPITEL = [
   { id: "einstellungen", titel: "Einstellungen & helles Design", inhalt: () => <>
     <Liste items={[
       "Das Zahnrad oben rechts öffnet die Einstellungen. Unter „Erscheinungsbild“ wählst du „Wie das System“ (Standard), „Hell“ oder „Dunkel“.",
+      "Schneller geht es über das Menü „Einstellungen“ in der Menüleiste: Erscheinungsbild, Port-Lasche, Fokus-Hersteller und die Standard-Anzeige der Topologie lassen sich dort direkt umschalten, „Alle Einstellungen …“ (Strg+, bzw. ⌘,) öffnet das Fenster.",
+      "Unter Windows ist die Menüleiste ausgeblendet und erscheint, sobald du Alt drückst. Alt plus der unterstrichene Buchstabe öffnet ein Menü direkt (z. B. Alt+D für „Datei“). Wer sie dauerhaft sehen will, hakt „Einstellungen › Menüleiste immer anzeigen“ an. Unter macOS steht die Menüleiste wie gewohnt oben am Bildschirmrand.",
       "„Wie das System“ übernimmt beim Start der App Hell oder Dunkel vom Betriebssystem. Wechselt das System später, gilt das beim nächsten Start.",
       "Beim Umschalten lädt die Oberfläche kurz neu. Das Projekt, der offene Tab und die Datei bleiben erhalten. In einer laufenden Sitzung fragt die App vorher, weil das Neuladen die Sitzung verlässt.",
       "Die Ansicht „Anschlüsse“ in der Topologie bleibt in beiden Modi im dunkelblauen Blaupausen-Stil, Druckplan immer auf weißem Papier.",
@@ -254,8 +284,8 @@ export const KAPITEL = [
 let gewuenscht = null;
 export const zeigeKapitel = (id) => { gewuenscht = id; window.dispatchEvent(new CustomEvent("np-kapitel", { detail: id })); };
 
-export default function AnleitungTab({ goTab }) {
-  const [sel, setSel] = useState(() => gewuenscht || "start");
+export default function AnleitungTab({ goTab, onTour }) {
+  const [sel, setSel] = useState(() => gewuenscht || "touren");
   useEffect(() => {
     const f = (e) => setSel(e.detail);
     window.addEventListener("np-kapitel", f);
@@ -273,7 +303,7 @@ export default function AnleitungTab({ goTab }) {
         ))}
       </div>
       <Section title={k.titel} right={k.tab && <Tab id={k.tab[0]} goTab={goTab}>{k.tab[1]}</Tab>}>
-        {k.inhalt()}
+        {k.inhalt({ onTour })}
       </Section>
     </div>
   );

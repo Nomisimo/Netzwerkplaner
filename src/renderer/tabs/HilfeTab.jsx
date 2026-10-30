@@ -7,18 +7,18 @@ import { BookOpen, GraduationCap } from "lucide-react";
 /* Hilfe: Anleitung zur App und Netzwerk-Wissen (Anforderungen, Schaubilder, Poster) an einem Ort.
    Die Protokoll-Referenz steht in der Bibliothek unter „Protokolle“. */
 export const HILFE_KEY = "netzwerkplaner_hilfe";
-export default function HilfeTab({ goTab, sub: subVon, setSub: setSubVon }) {
+export default function HilfeTab({ goTab, sub: subVon, setSub: setSubVon, onTour }) {
   const [eigen, setEigen] = useState(() => { try { return localStorage.getItem(HILFE_KEY) || "anleitung"; } catch { return "anleitung"; } });
   const sub = subVon || eigen;
   const setSub = (k) => { setEigen(k); setSubVon?.(k); try { localStorage.setItem(HILFE_KEY, k); } catch { /* ohne Speicher */ } };
   return (
     <>
-      <div style={S.boxTabs}>
+      <div style={S.boxTabs} data-tour="hilfe-bereiche">
         {[["anleitung", "Anleitung", BookOpen], ["wissen", "Netzwerk-Wissen", GraduationCap]].map(([k, l, Ic]) => (
           <button key={k} style={{ ...S.boxTab, ...(sub === k ? S.boxTabActive : {}) }} onClick={() => setSub(k)}><Ic size={14} />{l}</button>
         ))}
       </div>
-      {sub === "wissen" ? <WissenTab /> : <AnleitungTab goTab={goTab} />}
+      {sub === "wissen" ? <WissenTab /> : <AnleitungTab goTab={goTab} onTour={onTour} />}
     </>
   );
 }
