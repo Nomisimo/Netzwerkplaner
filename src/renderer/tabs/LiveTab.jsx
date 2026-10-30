@@ -6,6 +6,7 @@ import StatusView from "../live/StatusView.jsx";
 import ScanView from "../live/ScanView.jsx";
 import DiscoveryView from "../live/DiscoveryView.jsx";
 import SwitchView from "../live/SwitchView.jsx";
+import VlanPcView from "../live/VlanPcView.jsx";
 import { SacnView, ArtnetView } from "../live/LichtViews.jsx";
 import { DanteView, NdiView, ManetView, OscView, CitpView, PtpView } from "../live/ProtokollViews.jsx";
 import { RefreshCw, TriangleAlert } from "lucide-react";
@@ -16,6 +17,7 @@ const SUBS = [
   ["discovery", "Discovery", null],
   ["scan", "Netzwerkscan", "scan"],
   ["switch", "Switches (SNMP)", "snmp"],
+  ["vlanpc", "VLANs am Rechner", null],
   ["sacn", "sACN", "sacn"],
   ["artnet", "Art-Net", "artnet"],
   ["dante", "Dante", "dante"],
@@ -26,7 +28,7 @@ const SUBS = [
   ["ptp", "PTP-Clock", "ptp"],
 ];
 
-const NETZ = ["status", "discovery", "scan", "switch", "ptp"];
+const NETZ = ["status", "discovery", "scan", "switch", "vlanpc", "ptp"];
 
 function SubTab({ k, label, kind, active, onClick }) {
   const m = useMonitor(kind || "_none");
@@ -53,7 +55,7 @@ export default function LiveTab(props) {
   });
   useEffect(() => { laden(); }, []);
 
-  const p = { ...props, iface, interfaces, goSub: setSub };
+  const p = { ...props, iface, interfaces, goSub: setSub, reloadInterfaces: laden };
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
@@ -83,6 +85,7 @@ export default function LiveTab(props) {
         {sub === "discovery" && <DiscoveryView {...p} />}
         {sub === "scan" && <ScanView {...p} />}
         {sub === "switch" && <SwitchView {...p} />}
+        {sub === "vlanpc" && <VlanPcView {...p} />}
         {sub === "sacn" && <SacnView {...p} />}
         {sub === "artnet" && <ArtnetView {...p} />}
         {sub === "dante" && <DanteView {...p} />}
