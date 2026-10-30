@@ -67,6 +67,7 @@ export const api = {
   monState: () => (E?.monState ? E.monState() : Promise.resolve({})),
   onMonEvent: (cb) => (E?.onMonEvent ? E.onMonEvent(cb) : () => {}),
   onOpenFile: (cb) => E && E.onOpenFile && E.onOpenFile(cb),
-  // Klicks aus der nativen Menüleiste (macOS)
+  // Native Menüleiste: Klicks kommen als Aktion, der Stand (Häkchen, Tabs, Kapitel) geht zurück
   onMenu: (cb) => (E?.onMenu ? E.onMenu(cb) : () => {}),
+  menuZustand: (z) => E?.menuZustand?.(z),
 };

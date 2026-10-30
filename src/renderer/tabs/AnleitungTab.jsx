@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { S, ACCENT, SUB, LINE, LINK, TEXT2, STRONG } from "../../shared/constants.js";
 import { WERKZEUGE, WIRESHARK, CISCO } from "../../shared/wissen.js";
 import { Section } from "../ui.jsx";
@@ -27,7 +27,7 @@ const Code = ({ rows }) => (
   </tbody></table>
 );
 
-const KAPITEL = [
+export const KAPITEL = [
   { id: "start", titel: "Erste Schritte", tab: ["projekt", "Projekt"], inhalt: () => <>
     <Bild id="projekt" text="Tab Projekt mit dem Beispielprojekt" />
     <Liste items={[
@@ -250,8 +250,17 @@ const KAPITEL = [
   </> },
 ];
 
+// Sprung aus der Menüleiste (Hilfe › Kapitel): gilt auch, wenn der Tab erst noch aufgeht
+let gewuenscht = null;
+export const zeigeKapitel = (id) => { gewuenscht = id; window.dispatchEvent(new CustomEvent("np-kapitel", { detail: id })); };
+
 export default function AnleitungTab({ goTab }) {
-  const [sel, setSel] = useState("start");
+  const [sel, setSel] = useState(() => gewuenscht || "start");
+  useEffect(() => {
+    const f = (e) => setSel(e.detail);
+    window.addEventListener("np-kapitel", f);
+    return () => window.removeEventListener("np-kapitel", f);
+  }, []);
   const k = KAPITEL.find((x) => x.id === sel) || KAPITEL[0];
   return (
     <div style={{ display: "grid", gridTemplateColumns: "230px 1fr", gap: 20, alignItems: "start" }}>
