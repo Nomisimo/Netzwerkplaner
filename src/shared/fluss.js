@@ -1,5 +1,5 @@
 /* ── Signalfluss je Verbindung ────────────────────────────────────────────────
-   Für den Plott: läuft das Signal über ein Kabel nur in eine Richtung (z. B. ein
+   Für den Druckplan: läuft das Signal über ein Kabel nur in eine Richtung (z. B. ein
    AES67- oder Dante-Sender zu seinen Empfängern) oder in beide? Von Hand gesetzt
    (conn.fluss = "ab" | "ba" | "beide") gilt das. Sonst ergibt es sich aus den
    Datenströmen: jeder Strom mit Zielen läuft im Netz vom Sender zum Empfänger,

@@ -140,7 +140,7 @@ export function DevicePicker({ onPick, onClose, vorlagen = [], bestand = [], tit
           Anzahl<input type="number" min="1" max="99" style={{ ...S.input, width: 64 }} value={anzahl} onChange={(e) => setAnzahl(e.target.value)} onFocus={(e) => e.target.select()} />
         </label>}
         <select style={S.select} value={kat} onChange={(e) => setKat(e.target.value)}>
-          <option value="">Alle Bereiche</option>
+          <option value="">Alle Gewerke</option>
           {Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>
         <Toggle checked={nurFokus} onChange={setNurFokus} label="nur Fokus" title={`Nur Modelle der Fokus-Hersteller anzeigen${Array.isArray(einstellungen().fokusHersteller) ? ` (${einstellungen().fokusHersteller.join(", ")})` : ""}. Welche das sind, stellst du in den Einstellungen ein.`} />
@@ -220,6 +220,37 @@ export function usePfeilNavigation(ref, aktiv = true) {
     return () => window.removeEventListener("keydown", taste);
   }, [ref, aktiv]);
 }
+
+/* Klappmenü: Knopf mit ▾, darunter ein Feld mit Einstellungen oder Menüpunkten.
+   Schließt bei Klick daneben, Escape oder (zu = true) nach einem Klick auf einen Menüpunkt. */
+export function Klappmenue({ label, icon, title, children, rechts = false, breite = 260, zu = false, knopfStil }) {
+  const [offen, setOffen] = useState(false);
+  const ref = useRef(null);
+  usePfeilNavigation(ref, offen);
+  useEffect(() => {
+    if (!offen) return;
+    const weg = (e) => { if (!ref.current?.contains(e.target)) setOffen(false); };
+    const esc = (e) => { if (e.key === "Escape") setOffen(false); };
+    window.addEventListener("mousedown", weg); window.addEventListener("keydown", esc);
+    return () => { window.removeEventListener("mousedown", weg); window.removeEventListener("keydown", esc); };
+  }, [offen]);
+  return (
+    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
+      <button style={{ ...S.ghostBtn, whiteSpace: "nowrap", ...(offen ? { borderColor: SUB } : {}), ...knopfStil }} title={title} onClick={() => setOffen((o) => !o)} aria-expanded={offen}>
+        {icon}{label}<ChevronDown size={12} />
+      </button>
+      {offen && <div onClick={zu ? (e) => { if (e.target.closest("button")) setOffen(false); } : undefined}
+        style={{ position: "absolute", top: "100%", [rechts ? "right" : "left"]: 0, marginTop: 4, zIndex: 999, width: breite, background: INPUT, border: `1px solid ${LINE2}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.35)", padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+        {children}
+      </div>}
+    </div>
+  );
+}
+// Menüpunkt im Klappmenü
+export const MenuePunkt = ({ icon, children, onClick, title, disabled }) => (
+  <button title={title} disabled={disabled} onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: "none", border: "none", borderRadius: 5, padding: "6px 8px", cursor: disabled ? "default" : "pointer", color: disabled ? MUTED : TEXT, fontSize: 12.5 }}
+    onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = LINE2; }} onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}>{icon}{children}</button>
+);
 
 export const th = (extra) => ({ ...S.th, ...extra });
 export const td = (extra) => ({ ...S.td, ...extra });

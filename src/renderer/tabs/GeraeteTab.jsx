@@ -74,7 +74,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <input style={{ ...S.inputSm, flex: 1, minWidth: 160 }} placeholder="Name, IP, MAC, Modell, Protokoll · * als Platzhalter" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
           <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}>
-            <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
+            <option value="">Alle Gewerke</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
           </select>
           <VlanSelect vlans={P.vlans} value={vlan} onChange={setVlan} style={{ width: "auto" }} noneLabel="Alle VLANs" />
         </div>
@@ -88,7 +88,7 @@ export default function GeraeteTab({ P, X, mutate, issues, status, checkReach, s
           <div style={{ overflowX: "auto" }}>
             <table style={S.table}>
               <thead><tr>
-                <TH style={{ width: 28 }}></TH><TH k="name">Name</TH><TH k="kat">Bereich</TH><TH k="ip">IP</TH><TH>VLAN</TH><TH k="bereich">Standort</TH><TH>Web</TH>
+                <TH style={{ width: 28 }}></TH><TH k="name">Name</TH><TH k="kat">Gewerk</TH><TH k="ip">IP</TH><TH>VLAN</TH><TH k="bereich">Standort</TH><TH>Web</TH>
               </tr></thead>
               <tbody>
                 {list.map((d) => {

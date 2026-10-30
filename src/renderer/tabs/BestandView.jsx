@@ -97,7 +97,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="Name, IP, MAC, Modell, eigene Felder · * als Platzhalter" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
         <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}>
-          <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
+          <option value="">Alle Gewerke</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>
         {selIds.length > 0 && <>
           <button style={S.primaryBtn} onClick={() => einfuegen(selIds)}>+ {selIds.length} ins Projekt</button>

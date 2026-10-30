@@ -65,7 +65,7 @@ export default function DeviceContextMenu({ P, X, dev, x, y, status, issues = []
       <div style={{ padding: "0 12px 10px" }}>
         {dev.netzname && <Row k="Netzname">{dev.netzname}</Row>}
         {(dev.felder || []).filter((f) => f.wert).map((f) => <Row key={f.id} k={f.name}>{f.wert}</Row>)}
-        <Row k="Bereich">{dev.kategorie}{dev.bereich ? ` · ${dev.bereich}` : ""}</Row>
+        <Row k="Gewerk">{dev.kategorie}{dev.bereich ? ` · ${dev.bereich}` : ""}</Row>
         <Row k="Status"><span style={{ color: stCol }}>{stTxt}</span></Row>
         {url && <Row k="Web-UI"><a href="#" style={{ color: LINK }} onClick={(e) => { e.preventDefault(); api.openExternal(url); }}>{url}</a></Row>}
         {dev.isSwitch && dev.poeBudget > 0 && <Row k="PoE-Budget">{dev.poeBudget} W</Row>}

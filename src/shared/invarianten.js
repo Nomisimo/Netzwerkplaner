@@ -65,5 +65,3 @@ export const pruefeInvarianten = (P) => {
   return fehler;
 };
 
-// Schlüssel für Vergleiche „neu hinzugekommen?“
-export const fehlerKey = (f) => JSON.stringify(f);
