@@ -33,7 +33,7 @@ export const KAPITEL = [
     <Liste items={[
       "„Beispielprojekt laden“ zeigt ein fertiges Open-Air-Netz mit Audio, Licht, Video und Intercom. Zum Ausprobieren ideal, „Neues leeres Projekt“ setzt wieder zurück.",
       "Veranstaltung, Ort, Datum, Version und Ersteller erscheinen im Kopf der App und in allen Exporten.",
-      "Unter „Standorte / Äste“ legst du Bereiche wie Bühne, FOH oder Monitor an. Den Namen kannst du dort jederzeit ändern: die Umbenennung gilt im ganzen Projekt und zieht an allen Geräten mit. Daneben steht eine Anmerkung je Standort, die nur in der Plott-Ansicht auftaucht. Geräte lassen sich nach Standort filtern und einfärben.",
+      "Unter „Standorte“ legst du Standorte wie Bühne, FOH oder Monitor an. Den Namen kannst du dort jederzeit ändern: die Umbenennung gilt im ganzen Projekt und zieht an allen Geräten mit. Daneben steht eine Anmerkung je Standort, die nur in der Druckplan-Ansicht auftaucht. Geräte lassen sich nach Standort filtern und einfärben.",
       "Der Stand wird automatisch gespeichert („auto“ oben rechts). „Speichern“ legt zusätzlich eine .netplan-Datei an, die du weitergeben kannst. Die Pfeile Rückgängig/Wiederholen bzw. Strg+Z / Strg+Umschalt+Z machen Schritte rückgängig.",
     ]} />
   </> },
@@ -42,21 +42,22 @@ export const KAPITEL = [
     <H>Geräte hinzufügen und verbinden</H>
     <Liste items={[
       "Einen Typ aus der Geräteliste links auf die Fläche ziehen. Auf ein vorhandenes Gerät gezogen, wird das neue Gerät an den nächsten freien Port angeschlossen. Eingeklappt zeigt die Liste nur die Icons; die lassen sich genauso ziehen.",
-      "Die Werkzeugleiste steht fest über Geräteliste, Zeichenfläche und Seitenleiste. Öffnet sich rechts der Editor, springt nichts mehr um.",
+      "Die Werkzeugleiste ist eine Zeile: Ansicht, Werkzeug, Einpassen, Suche, Filter nach Gewerk und VLAN. Farben, Linien und Beschriftung stehen unter „Darstellung ▾“, Äste, Stapel und Hintergrund unter „Anordnen ▾“. „Als Standard für neue Projekte merken“ übernimmt die Darstellung für neue Projekte.",
       "„+ Aus Katalog …“ öffnet die Suche über Herstellermodelle, eigene Vorlagen und deinen Gerätebestand. Ist ein Gerät ausgewählt, hängt das neue direkt daran.",
       "„Verbinden“ (Taste C): von Gerät zu Gerät ziehen. Das Endgerät übernimmt das VLAN des Switch-Ports. Switch-zu-Switch-Verbindungen werden Trunks mit allen VLANs.",
-      "„Bewegen“ (Taste M): Geräte ziehen, der ganze Ast zieht mit. „Auto-Layout“ setzt die Verschiebungen zurück, „Äste“ klappt alle Äste unter den Wurzeln ein, ein zweiter Klick wieder auf. Jedes Gerät mit Geräten dahinter hat einen eigenen Knopf zum Einklappen, in Mindmap und „Anschlüsse“ gleich; nur der Hauptswitch bleibt immer offen. Die Geräte eines Astes stehen bei jedem Switch in der Reihenfolge seiner Ports (Port 1 oben), genau wie in der Patchliste.",
+      "Die Mindmap ordnet sich immer selbst an: der Hauptswitch in der Mitte, jede Ebene eine eigene Spalte, Geschwister in Port-Reihenfolge (Port 1 oben), ein Elternteil mittig vor seinen Kindern. Ein Stapel steht als Block an der Stelle seines am höchsten hängenden Geräts. So überlappt nichts, und jedes Kabel im Baum läuft von einer Spalte in die nächste. Ziehen an einem Gerät verschiebt in der Mindmap nur die Ansicht; von Hand anordnen geht in „Anschlüsse“ und im Druckplan.",
+      "„Anordnen ▾ › Alle Äste ein-/ausklappen“ klappt alle Äste unter den Wurzeln ein, ein zweiter Klick wieder auf. Jedes Gerät mit Geräten dahinter hat einen eigenen Knopf zum Einklappen, in Mindmap und „Anschlüsse“ gleich; nur der Hauptswitch bleibt immer offen.",
       "Rechtsklick auf ein Gerät zeigt Ports, Verbindungen und IPs. Entf löscht die Auswahl.",
       "Mausrad zoomt. Shift + Mausrad schiebt die Fläche hoch und runter, ⌘ (Mac) bzw. Strg (Windows) + Mausrad schiebt sie nach links und rechts.",
     ]} />
-    <H>Anpinnen, Einrasten, Auto-Anordnen, Stapel, Hintergrund</H>
+    <H>Anpinnen, Einrasten, Anordnen, Stapel, Hintergrund</H>
     <Bild id="topologie-hintergrund" text="Stage-Plot als Hintergrund, angepinntes Pult und ein Stapel aus zwei Nodes" />
     <Liste items={[
-      "Anpinnen (Taste P oder Rechtsklick): das Gerät bleibt stehen, wenn sich die Anordnung durch neue Geräte oder Verbindungen ändert. Sein Ast wandert mit ihm. Klick auf die Nadel löst es wieder.",
+      "Anpinnen (nur in „Anschlüsse“, Taste P oder Rechtsklick): das Gerät bleibt stehen, wenn sich die Anordnung durch neue Geräte oder Verbindungen ändert. Sein Ast wandert mit ihm. Klick auf die Nadel löst es wieder.",
       "Mehrere Geräte wählen: Auf der leeren Fläche einen Rahmen über die Geräte ziehen (mit Shift kommen sie zur Auswahl dazu). Shift+Klick (oder ⌘/Strg+Klick) nimmt ein Gerät dazu oder heraus, ⌘/Strg+A wählt alle. Ziehen an einem gewählten Gerät verschiebt alle zusammen. Die Ansicht verschiebst du mit Leertaste + Ziehen, der mittleren Maustaste oder Shift/⌘/Strg + Mausrad. In der Seitenleiste: gemeinsame Felder (Bereich, Standort, PoE-Bedarf, eigene Felder, Notizen) für alle auf einmal bearbeiten, alle anpinnen (Taste P), als Stapel zusammenfassen, Konfiguration in alle einfügen, alle löschen (Entf).",
       "Kopieren und Einfügen: ⌘/Strg+C kopiert die gewählten Geräte (auch einen Stapel) mit den Kabeln und Stapeln zwischen ihnen, ⌘/Strg+V fügt sie an der Mausposition ein. IP- und MAC-Adressen werden nicht mitkopiert, damit es keine Konflikte gibt. Die Zwischenablage gilt auch zwischen Projekten.",
-      "„Einrasten“ an: Beim Ziehen rastet ein Gerät im Raster ein und richtet sich an Kanten und Mitten benachbarter Geräte aus (gestrichelte Hilfslinie). Alt gedrückt halten = frei ziehen. Der Schalter gilt für das ganze Projekt.",
-      "„Auto-Anordnen“ aus: alle Geräte und Leitungen bleiben, wo sie sind, auch die nicht angepinnten. Ziehen verschiebt dann nur das eine Gerät. Wieder an: die automatische Anordnung gilt wieder, Pins bleiben. Wurde das Layout von Hand angepasst, fragt die App vorher nach, ebenso bei „Auto-Layout“.",
+      "„Anordnen ▾ › Einrasten beim Ziehen“ (Anschlüsse): Beim Ziehen rastet ein Gerät im Raster ein und richtet sich an Kanten und Mitten benachbarter Geräte aus (gestrichelte Hilfslinie). Alt gedrückt halten = frei ziehen. Der Schalter gilt für das ganze Projekt.",
+      "„Anordnen ▾ › Automatisch anordnen“ aus (Anschlüsse): alle Geräte und Leitungen bleiben, wo sie sind, auch die nicht angepinnten. Ziehen verschiebt dann nur das eine Gerät. Wieder an: die automatische Anordnung gilt wieder, Pins bleiben. Wurde das Layout von Hand angepasst, fragt die App vorher nach, ebenso bei „Anordnung zurücksetzen“.",
       "„Stapeln“ (Taste S): ein Gerät auf ein anderes ziehen stellt beide grafisch übereinander, z. B. als Rack oder Tower. Zieht man es auf ein Gerät in einem Stapel oder auf den Stapelrahmen, kommt es oben in diesen Stapel. Der Stapel bleibt dabei an seinem Platz. Das ist keine Netzwerkverbindung. Rechtsklick › „Aus Stapel lösen“ nimmt ein Gerät heraus.",
       "Klick auf Rahmen oder Namen eines Stapels öffnet „Stapel bearbeiten“: Name, Anordnung (untereinander wie im Rack oder nebeneinander), Reihenfolge (Pfeile), Geräte hinzufügen oder lösen. „Duplizieren“ legt alle Geräte mit ihren Einstellungen und Verbindungen untereinander als neuen Stapel an (ohne IP- und MAC-Adressen). „Kopieren“ legt den Stapel in die Zwischenablage, „Stapel einfügen“ in der Werkzeugleiste fügt ihn ein, auch in einem anderen Projekt.",
       "Ein Stapel lässt sich als Ganzes anpinnen: „Anpinnen“ im Stapel-Fenster, Taste P bei ausgewähltem Stapel oder Rechtsklick auf eines seiner Geräte. Vor dem Namen steht dann eine Nadel.",
@@ -78,25 +79,25 @@ export const KAPITEL = [
       "Stimmt eine Seite nicht, im Geräte-Editor bei den Ports unter „Seite“ vorne oder hinten fest einstellen. „auto“ nimmt die Herstellerangabe.",
       "Kabel enden an der Buchse, in die sie gesteckt sind, auch bei den Karten der Endgeräte. Sie laufen rechtwinklig mit etwas Abstand um andere Geräte herum, damit sie sichtbar bleiben.",
       "Kabelverlauf von Hand: Kabel anklicken, dann die mittleren Strecken an der Linie oder an den roten Griffen verschieben. Doppelklick auf das Kabel fügt dort zwei Ecken ein, die sich wieder einzeln verschieben lassen. Doppelklick auf einen Griff setzt den Verlauf zurück, „Auto-Layout“ setzt alle zurück.",
-      "„Kabel vorne“: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante. „Hell“: weißer Hintergrund, z. B. zum Drucken; gilt auch beim Bearbeiten und für den Export. Auswahl- und Fokusrahmen kommen nicht mit in den Export.",
+      "„Kabel vorne“: Kabel liegen vor den Geräten und führen sichtbar bis in ihre Buchse. Aus: Kabel enden hinter dem Gerät an seiner Kante. „Hell“: weißer Hintergrund beim Bearbeiten. Exporte sind immer hell. Auswahl- und Fokusrahmen kommen nicht mit in den Export.",
     ]} />
     <H>Darstellung</H>
     <Bild id="topologie-eckig" text="Linien eckig, Farbe nach VLAN, Port & VLAN an jeder Verbindung" />
     <Liste items={[
-      "„Farbe“: Verbindungen nach VLAN, Bereich oder Kabeltyp einfärben.",
+      "„Darstellung ▾ › Kabelfarbe“: Verbindungen nach VLAN, Gewerk oder Kabeltyp einfärben.",
       "„Linien: rund / eckig / direkt“: geschwungene, rechtwinklige oder gerade Verbindungslinien (direkt = kürzester Weg von Port zu Port). Mehrere Kabel zwischen denselben Geräten liegen nebeneinander, in der Ansicht Anschlüsse bekommt jedes Kabel eine eigene Bahn.",
       "„Kabel bündeln“ (nur bei eckigen Linien): an = Kabel teilen sich den Weg, parallele Kabel werden eine Linie mit Anzahl (z. B. 2×). Aus = jedes Kabel läuft einzeln auf eigener Spur.",
       "In der Ansicht Anschlüsse fasst „Kabel bündeln“ alle Kabel eines Switches, die in dieselbe Richtung laufen, in einem gemeinsamen Kanal direkt am Switch zusammen. Ohne Bündeln läuft jedes Kabel auf eigener Bahn mit gut sichtbarem Abstand. Kabel zwischen Geräten im selben Stapel erscheinen als Klammer seitlich am Stapel (bei nebeneinander gestapelten Geräten darunter) und bleiben innerhalb seines Rahmens.",
       "„Titel“: in den Kästen den Gerätenamen, den Netzwerknamen (Hostname), den Typ bzw. das Modell oder den Wert eines eigenen Felds (z. B. Inventar-Nr.) zeigen. Ohne Netzwerknamen steht dort der Typ.",
-      "„Port & VLAN“ blendet an jeder Verbindung Switch-Port und VLAN ein. Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports untereinander am Gerät, auch bei gebündelten Kabeln. Filter nach Bereich, VLAN und Suche blenden den Rest ab.",
-      "Kabelbezeichnungen (z. B. „FIB-FOH-01“) stehen direkt auf dem Kabel und wandern mit, wenn Geräte verschoben werden. Text greifen und ziehen schiebt ihn am Kabel entlang; Doppelklick setzt ihn wieder in die Mitte.",
+      "„Darstellung ▾ › Port-Beschriftung“ blendet an jeder Verbindung Switch-Port und VLAN ein. Hängt ein Gerät mit mehreren Kabeln am Netz, stehen alle belegten Ports untereinander am Gerät, auch bei gebündelten Kabeln. Filter nach Gewerk, VLAN und Suche blenden den Rest ab.",
+      "Kabelbezeichnungen (z. B. „FIB-FOH-01“) stehen direkt auf dem Kabel und wandern mit, wenn Geräte verschoben werden. In „Anschlüsse“ schiebt Ziehen den Text am Kabel entlang, Doppelklick setzt ihn wieder in die Mitte; in der Mindmap steht er immer in der Mitte.",
       "„Status“ prüft jede IP aller Geräte (am Web-UI-Anschluss per Web-UI-Port, sonst Ping) über die Netzwerkkarte, die im Live-Tab gewählt ist. Antwortet eine IP, gilt das Gerät als erreichbar. Welche IPs antworten, steht im Geräte-Editor an jedem Anschluss („antwortet“ / „keine Antwort“). Mit „alle 15 s“ läuft das zyklisch.",
       "Meldungszentrum links in der Werkzeugleiste: Fehler, Warnungen und Hinweise der Prüfung als Zähler. Klick auf einen Zähler listet die Meldungen, „Zeigen“ springt zum Gerät, „Alle in Prüfung“ öffnet den Prüfungs-Tab.",
     ]} />
   </> },
-  { id: "cleancat", titel: "Plott", tab: ["topologie", "Topologie"], inhalt: () => <>
+  { id: "cleancat", titel: "Druckplan", tab: ["topologie", "Topologie"], inhalt: () => <>
     <Liste items={[
-      "Plott (früher „Clean Cat“) ist eine Ansicht im Topologie-Tab: oben links zwischen „Mindmap“, „Anschlüsse“ und „Plott“ umschalten.",
+      "Druckplan (früher „Clean Cat“) ist eine Ansicht im Topologie-Tab: oben links zwischen „Mindmap“, „Anschlüsse“ und „Druckplan“ umschalten.",
       "Der Plan ist ein Blatt mit Rahmen (Standard A3 quer, umstellbar auf A3 hoch oder A4 quer/hoch; „Kästen %“ macht die Geräte-Kästen kleiner oder größer), wie eine aufgeräumte Visio-Zeichnung: jeder Standort ist ein gestrichelter Raum, jedes Gerät ein farbiger Block (Farbe nach Bereich, Switches gelb). Die Räume werden so in Reihen gelegt, dass das Blatt möglichst gut gefüllt ist.",
       "Alle Endgeräte sind gleich groß, Switches richten sich nach ihrer Portzahl: gleiches Modell, gleiche Größe. Zu lange Namen werden kleiner geschrieben und notfalls mit „…“ gekürzt, der volle Name steht im Tooltip. Text läuft nie aus seinem Feld.",
       "Je Switch stehen seine Endgeräte in Reihen darüber, die Leitungen laufen rechtwinklig in eigenen Spuren. Dante Primary ist rot, Dante Secondary grün (erkannt am Portnamen Primary/Secondary), Glasfaser lila, Switch zu Switch dunkelgrau. Am Switch steht die Portnummer.",
@@ -110,7 +111,7 @@ export const KAPITEL = [
       "Mausrad zoomt, Ziehen verschiebt, „Einpassen“ zeigt das ganze Blatt. Ein Klick auf ein Gerät öffnet es im Geräte-Editor. „PDF“, „SVG“ und „PNG“ speichern das Blatt im eingestellten Format, z. B. für Visio oder die Doku.",
       "Die Anordnung entsteht automatisch aus Standort und Verbindungen. Ein Gerät landet im Raum seines Standorts; ohne Standort im Raum „Ohne Standort“. Die Reihenfolge von Standorten, Switches und Geräten wird so gewählt, dass die Kabelwege möglichst kurz sind.",
       "Jedes Gerät zeigt unter Name, Modell und IP auch seine Notiz (zwei Zeilen, der Rest im Tooltip). Alle Blöcke bleiben dabei gleich groß. Eine Notiz an einer Verbindung steht an der Leitung.",
-      "Der Standort-Kasten zeigt unter seinem Namen die Anmerkung, die du auf der Projekt-Seite unter „Standorte / Äste“ einträgst. Sie erscheint nur hier in Plott.",
+      "Der Standort-Kasten zeigt unter seinem Namen die Anmerkung, die du auf der Projekt-Seite unter „Standorte“ einträgst. Sie erscheint nur hier im Druckplan.",
       "Stacks (in der Mindmap mit „Stapeln“ gebaut) erscheinen im Standort als eigener Kasten mit ihrem Namen, z. B. ein Rack. Geräte ohne Stack stehen daneben. Leitungen zwischen Stack und Rest des Standorts laufen unter dem Standort entlang.",
     ]} />
   </> },
@@ -143,19 +144,19 @@ export const KAPITEL = [
       "„PDF“ druckt nur die Patchliste, mit linierter Spalte „Notizen vor Ort“ und einem Kästchen zum Abhaken je Gerät. „CSV“ gibt sie als Tabelle aus. Im Gesamt-PDF und im Excel-Export ist sie ebenfalls enthalten.",
     ]} />
   </> },
-  { id: "vlans", titel: "VLANs", tab: ["vlans", "Setup"], inhalt: () => <>
+  { id: "vlans", titel: "VLANs", tab: ["vlans", "VLANs"], inhalt: () => <>
     <Bild id="vlans" text="VLAN mit Zweck und Switch-Schaltern" />
     <Liste items={[
-      "Die VLANs stehen unten im Tab „Setup“. Ein neues Projekt („Neu“) beginnt ohne VLANs; „Standard-VLANs einfügen“ legt 10, 11, 20, 30, 40, 50 und 99 an, „+ VLAN“ ein einzelnes.",
+      "Die VLANs haben einen eigenen Tab „VLANs“. Ein neues Projekt („Datei ▾ › Neues Projekt“) beginnt ohne VLANs; „Standard-VLANs einfügen“ legt 10, 11, 20, 30, 40, 50 und 99 an, „+ VLAN“ ein einzelnes.",
       "Je VLAN: ID, Name, Farbe, Zweck und Notiz sowie die Schalter IGMP-Snooping, EEE aus, QoS/DSCP und DHCP.",
       "Die Schalter fließen in die Prüfung ein: Multicast-Protokolle verlangen IGMP, Audio over IP und MA-Net3 verlangen EEE aus.",
       "VLAN in VLAN (QinQ, IEEE 802.1ad): Unter „Äußeres VLAN“ ein S-VLAN wählen, dann läuft das VLAN als inneres C-VLAN darin und steht eingerückt darunter. Innere VLANs verschiedener S-VLANs dürfen dieselbe ID haben. Die Prüfung warnt dann und nennt die trennenden S-VLANs; gleiche IDs in derselben Ebene bleiben ein Fehler, ebenso ein Trunk-Port, der dieselbe ID zweimal führt, bekommt eine Warnung.",
     ]} />
   </> },
-  { id: "pruefung", titel: "Prüfung & MA-Net", tab: ["pruefung", "Setup"], inhalt: () => <>
+  { id: "pruefung", titel: "Prüfung & MA-Net", tab: ["pruefung", "Projekt"], inhalt: () => <>
     <Bild id="pruefung" text="Prüfung mit Fehlern, Warnungen und Hinweisen" />
     <Liste items={[
-      "Die Prüfung läuft ständig mit und steht im Tab „Setup“ im Block „Übersicht“ (nur Fehler und Warnungen). „Zeigen →“ springt zum betroffenen Gerät, VLAN oder zur Verbindung.",
+      "Die Prüfung läuft ständig mit und steht im Tab „Projekt“ im Block „Übersicht“ (nur Fehler und Warnungen). „Zeigen →“ springt zum betroffenen Gerät, VLAN oder zur Verbindung.",
       "Geprüft werden unter anderem IP-Konflikte, doppelt belegte Ports, VLAN-Fehler an Switch-Ports, Punkt-zu-Punkt-Protokolle am Switch, IGMP bei Multicast, EEE bei Audio over IP, PoE-Budgets, Leitungslast und Dante-Hops.",
     ]} />
     <H>MA-Net Gold-Standards</H>
@@ -184,7 +185,7 @@ export const KAPITEL = [
       "„+ Einfügen“ bzw. „+ Alle neuen einfügen“ setzt neue Geräte als generische Einträge in den Plan. Danach im Editor „Modell zuweisen“ oder „Leeres Gerät anlegen“.",
     ]} />
   </> },
-  { id: "katalog", titel: "Katalog", tab: ["bibliothek", "Katalog"], inhalt: () => <>
+  { id: "katalog", titel: "Bibliothek", tab: ["bibliothek", "Bibliothek"], inhalt: () => <>
     <H>Gerätebestand</H>
     <Bild id="katalog-bestand" text="Gerätebestand: deine eigenen Geräte mit eigenen Feldern" />
     <Liste items={[
@@ -206,7 +207,7 @@ export const KAPITEL = [
       "Icons: eigene Icons hochladen und Geräten zuweisen.",
     ]} />
   </> },
-  { id: "wissen", titel: "Wissen", tab: ["wissen", "Wissen"], inhalt: () => <>
+  { id: "wissen", titel: "Netzwerk-Wissen", tab: ["wissen", "Hilfe › Netzwerk-Wissen"], inhalt: () => <>
     <Bild id="wissen-poster" text="OSI-Modell & Ports: Protokoll-Poster im App-Design" />
     <Liste items={[
       "Grundlagen zu IGMP, QoS, Bandbreite, Latenz, PTP, EEE, Spanning Tree, IP-Adressen, VLANs, Redundanz und Switch-Einstellungen je Hersteller.",
@@ -222,16 +223,17 @@ export const KAPITEL = [
       "Das Zahnrad oben rechts öffnet die Einstellungen. Unter „Erscheinungsbild“ wählst du „Wie das System“ (Standard), „Hell“ oder „Dunkel“.",
       "„Wie das System“ übernimmt beim Start der App Hell oder Dunkel vom Betriebssystem. Wechselt das System später, gilt das beim nächsten Start.",
       "Beim Umschalten lädt die Oberfläche kurz neu. Das Projekt, der offene Tab und die Datei bleiben erhalten. In einer laufenden Sitzung fragt die App vorher, weil das Neuladen die Sitzung verlässt.",
-      "Die Ansicht „Anschlüsse“ in der Topologie bleibt in beiden Modi im dunkelblauen Blaupausen-Stil, Plott immer auf weißem Papier.",
-      "„Port-Lasche an Geräten“: „Standard“ zeigt in der Lasche über einem Gerät nur den Port, über den es hängt (z. B. „Port 3 → LAN 1“), „Erweitert“ alle belegten Ports des Geräts.",
-      "„Fokus im Katalog“: die Hersteller anhaken, die der Filter „nur Fokus“ im Katalog und beim Gerät-Hinzufügen zeigen soll. „Recherchierte“ stellt die gegen Herstellerdoku geprüften Hersteller wieder her.",
-      "„Topologie: Standard-Anzeige“: Ansicht, Linien, Farbe, Titel, Einrasten, Auto-Anordnen, Kabel bündeln und Port & VLAN für neue Projekte. Was ein Projekt selbst eingestellt hat, bleibt; „Auf offenes Projekt anwenden“ übernimmt die Standards ins offene Projekt.",
+      "Die Ansicht „Anschlüsse“ in der Topologie bleibt in beiden Modi im dunkelblauen Blaupausen-Stil, Druckplan immer auf weißem Papier.",
+      "„Port-Lasche an Geräten“ (Topologie › Anschlüsse › Darstellung ▾): „Nur Uplink“ zeigt in der Lasche über einem Gerät nur den Port, über den es hängt (z. B. „Port 3 → LAN 1“), „Alle belegten“ alle belegten Ports des Geräts.",
+      "„Fokus-Hersteller im Katalog“ (Einstellungen): die Hersteller anhaken, die der Filter „nur Fokus“ im Katalog und beim Gerät-Hinzufügen zeigen soll. „Recherchierte“ stellt die gegen Herstellerdoku geprüften Hersteller wieder her.",
+      "Standard-Darstellung der Topologie: in der Topologie „Darstellung ▾ › Als Standard für neue Projekte merken“. Was ein Projekt selbst eingestellt hat, bleibt.",
     ]} />
   </> },
   { id: "export", titel: "Export, Logo & Updates", inhalt: () => <>
     <Liste items={[
-      "„Export“: PDF-Dokumentation (Deckblatt, Topologie, VLANs, Patchliste, IP-Liste, Switch-Ports, Geräte, Prüfung), Excel mit Patchliste, IP-Liste, VLANs, Ports und Verbindungen, Patchliste allein als PDF oder CSV, CSV-IP-Liste und die Topologie als SVG oder PNG.",
-      "„+ Logo“ neben dem App-Namen: eigenes Firmenlogo hochladen. Es erscheint im Kopf der App und auf jeder PDF-Seite. Das X daneben entfernt es wieder. Das Logo bleibt nur auf diesem Rechner.",
+      "„Export“: PDF-Dokumentation (Deckblatt, Topologie, Patchliste je Switch, VLAN- und IP-Liste, Geräte je Standort, optional Switch-Konfiguration und Prüfung), Excel mit Patchliste, IP-Liste, VLANs, Ports und Verbindungen, Patchliste allein als PDF oder CSV, CSV-IP-Liste und die Topologie als SVG oder PNG. Topologie-Exporte sind immer hell.",
+      "Oben im Export-Dialog steht die Planversion. Hat sich der Plan seit dem letzten Export dieser Version geändert, schlägt der Dialog die nächste Nummer vor; die Version kommt in den Dateinamen und ins Projekt.",
+      "Logo: in den Einstellungen (Zahnrad oben rechts) ein eigenes Firmenlogo hochladen. Es erscheint im Kopf der App, auf jeder PDF-Seite und im Plankopf des Druckplans. Das Logo bleibt nur auf diesem Rechner.",
       "Updates: Beim Start sucht die App nach einer neuen Version. Unter Windows lädt sie das Update im Hintergrund, „… installieren“ startet neu und installiert. Unter macOS lädt „… laden und öffnen“ das passende DMG in den Download-Ordner und öffnet es. Dann „Netzwerkplaner beenden“, die App im Finder-Fenster auf „Programme“ ziehen, „Ersetzen“ wählen und neu starten. Ganz ohne Zutun geht es auf dem Mac erst mit einer Apple-Signatur.",
       "Der Knopf mit der Versionsnummer zeigt alle Änderungen und „Nach Updates suchen“.",
     ]} />

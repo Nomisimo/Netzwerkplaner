@@ -8,19 +8,21 @@ const wahl = typeof window === "undefined" ? "dunkel" : themeWahl();
 export const HELL = wahl === "hell" || (wahl === "system" && typeof window !== "undefined" && systemHell());
 
 /* ── Farben (dunkel identisch zum Stromplaner) ──────────────────────────── */
-const F = HELL ? {
+export const FARBEN_HELL = {
   DARK: "#ffffff", PANEL: "#ffffff", LINE: "#d3d9df", BG: "#eef1f4",
   OK: "#1f9d55", WARN: "#c77700", ERR: "#d63c3c", INFO: "#2a78d1", MUTED: "#6f7a86", SUB: "#56616d",
   TEXT: "#1d232a", STRONG: "#10151b", TEXT2: "#38414b", INPUT: "#ffffff", CARD: "#f6f8fa", BTN: "#e9edf1",
   LINE2: "#e5e9ed", MID: "#a5aeb8", LINK: "#1f6fc5", HINTBG: "#fff4dc", DANGERLINE: "#e8b4b4", OPTBG: "#ffffff",
   TRUNK: "#3c4650", CANVAS: "#f4f6f8", GRID: "#d9dee4",
-} : {
+};
+export const FARBEN_DUNKEL = {
   DARK: "#1c2127", PANEL: "#252b33", LINE: "#3a424c", BG: "#15191e",
   OK: "#2ecc71", WARN: "#f39c12", ERR: "#ff5d5d", INFO: "#4ea1ff", MUTED: "#7c8794", SUB: "#9aa4af",
   TEXT: "#e8eaed", STRONG: "#ffffff", TEXT2: "#c8d0d8", INPUT: "#1b2026", CARD: "#1f242b", BTN: "#323a44",
   LINE2: "#232a33", MID: "#56606c", LINK: "#8ec5ff", HINTBG: "#2a2418", DANGERLINE: "#5a2a2a", OPTBG: "#1b2026",
   TRUNK: "#d8dde3", CANVAS: "#12161a", GRID: "#252b33",
 };
+const F = HELL ? FARBEN_HELL : FARBEN_DUNKEL;
 export const ACCENT = "#b3483f", { DARK, PANEL, LINE, BG, OK, WARN, ERR, INFO, MUTED, SUB } = F;
 // Text- und Flächenfarben, die in beiden Modi lesbar bleiben
 export const { TEXT, STRONG, TEXT2, INPUT, CARD, BTN, LINE2, MID, LINK, HINTBG, TRUNK, CANVAS, GRID } = F;

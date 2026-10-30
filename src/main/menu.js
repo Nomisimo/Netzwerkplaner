@@ -12,7 +12,7 @@ const oeffne = (url) => require('electron').shell.openExternal(url);
 const REPO_URL = 'https://github.com/Nomisimo/Netzwerkplaner';
 
 // Bis die Oberfläche ihren Stand meldet
-const STANDARD_TABS = [['projekt', 'Setup'], ['topologie', 'Topologie'], ['geraete', 'Geräte'], ['live', 'Live'], ['bibliothek', 'Katalog'], ['wissen', 'Wissen'], ['hilfe', 'Anleitung']];
+const STANDARD_TABS = [['projekt', 'Projekt'], ['vlans', 'VLANs'], ['topologie', 'Topologie'], ['geraete', 'Geräte'], ['live', 'Live'], ['bibliothek', 'Bibliothek'], ['hilfe', 'Hilfe']];
 
 const menueVorlage = (win, app, { zustand = {}, recents = [], leisteImmer = false, onLeiste, plattform = process.platform } = {}) => {
   const MAC = plattform === 'darwin';
@@ -57,13 +57,13 @@ const menueVorlage = (win, app, { zustand = {}, recents = [], leisteImmer = fals
         {
           label: 'Topologie: Standard-Anzeige',
           submenu: [
-            auswahl('Ansicht', 'einst:topo:ansicht', t.ansicht, [['mindmap', 'Mindmap'], ['front', 'Anschlüsse'], ['cleancat', 'Plott']]),
+            auswahl('Ansicht', 'einst:topo:ansicht', t.ansicht, [['mindmap', 'Mindmap'], ['front', 'Anschlüsse'], ['cleancat', 'Druckplan']]),
             auswahl('Linien', 'einst:topo:linien', t.linien, [['rund', 'Rund'], ['eckig', 'Eckig'], ['direkt', 'Direkt']]),
             auswahl('Farbe', 'einst:topo:farbe', t.farbe, [['vlan', 'VLAN'], ['kat', 'Bereich'], ['kabel', 'Kabeltyp']]),
             auswahl('Titel', 'einst:topo:titel', t.titel, [['name', 'Gerätename'], ['netzname', 'Netzwerkname'], ['typ', 'Typ / Modell']]),
             { type: 'separator' },
-            haken('Einrasten', 'einst:topo:einrasten', t.einrasten),
-            haken('Auto-Anordnen', 'einst:topo:autoAnordnen', t.autoAnordnen),
+            haken('Einrasten (Anschlüsse)', 'einst:topo:einrasten', t.einrasten),
+            haken('Auto-Anordnen (Anschlüsse)', 'einst:topo:autoAnordnen', t.autoAnordnen),
             haken('Kabel bündeln (nur bei eckigen Linien)', 'einst:topo:kabelBuendel', t.kabelBuendel, { enabled: t.linien === 'eckig' }),
             haken('Port & VLAN', 'einst:topo:portVlan', t.portVlan),
             { type: 'separator' },
@@ -151,10 +151,10 @@ const menueVorlage = (win, app, { zustand = {}, recents = [], leisteImmer = fals
       submenu: [
         item('Mindmap', 'ansicht:mindmap', `${alt}+1`),
         item('Anschlüsse', 'ansicht:front', `${alt}+2`),
-        item('Plott', 'ansicht:cleancat', `${alt}+3`),
+        item('Druckplan', 'ansicht:cleancat', `${alt}+3`),
         { type: 'separator' },
         // Einzeltasten ohne ⌘ gehen nicht als Systemkürzel (sie würden beim Tippen auslösen), daher im Namen
-        item('Bewegen  (M)', 'werkzeug:move'),
+        item('Auswählen / Bewegen  (M)', 'werkzeug:move'),
         item('Verbinden  (C)', 'werkzeug:connect'),
         item('Stapeln  (S)', 'werkzeug:stack'),
         { type: 'separator' },
@@ -168,10 +168,10 @@ const menueVorlage = (win, app, { zustand = {}, recents = [], leisteImmer = fals
     {
       role: 'help', label: m('&Hilfe'),
       submenu: [
-        item('&Anleitung', 'tab:hilfe', MAC ? undefined : 'F1'),
+        item('&Anleitung', 'tab:anleitung', MAC ? undefined : 'F1'),
         // Jedes Kapitel als eigener Eintrag, damit die Suche im Hilfe-Menü (macOS) es findet
         ...(kapitel.length ? [{ label: m('Anleitung: &Kapitel'), submenu: kapitel.map(([id, titel]) => item(titel, `kapitel:${id}`)) }] : []),
-        ...(tabs.some(([k]) => k === 'wissen') ? [item('&Wissen: Protokolle und Netzrechner', 'tab:wissen')] : []),
+        item('Netzwerk-&Wissen: Protokolle und Netzrechner', 'tab:wissen'),
         item('Was ist &neu?', 'neuigkeiten'),
         { type: 'separator' },
         { label: m('Netzwerkplaner auf &GitHub'), click: () => oeffne(REPO_URL) },

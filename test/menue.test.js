@@ -4,7 +4,7 @@ import { menueVorlage } from "../src/main/menu.js";
 import { STANDARD, TOPO_STANDARD } from "../src/renderer/einstellungen.js";
 
 const app = { name: "Netzwerkplaner" };
-const zustand = { einst: { ...STANDARD, topo: { ...TOPO_STANDARD } }, theme: "hell", tabs: [["projekt", "Setup"], ["hilfe", "Anleitung"]], kapitel: [["start", "Erste Schritte"], ["topo", "Topologie"]] };
+const zustand = { einst: { ...STANDARD, topo: { ...TOPO_STANDARD } }, theme: "hell", tabs: [["projekt", "Projekt"], ["hilfe", "Hilfe"]], kapitel: [["start", "Erste Schritte"], ["topo", "Topologie"]] };
 const recents = [{ name: "Open Air", filePath: "C:\\Pläne\\Open Air.netplan" }];
 
 const alle = (liste, f = (x) => x) => liste.flatMap((x) => [f(x), ...(Array.isArray(x.submenu) ? alle(x.submenu, f) : [])]);
@@ -44,12 +44,12 @@ test("Menü: Einstellungen als Häkchen, Kapitel und zuletzt geöffnete Dateien"
   const hell = finde(finde(v, "Erscheinungsbild").submenu, "Hell");
   assert.equal(hell.type, "radio"); assert.ok(hell.checked);
   assert.ok(finde(finde(v, "Linien").submenu, "Rund").checked);
-  assert.equal(finde(v, "Einrasten").checked, TOPO_STANDARD.einrasten);
+  assert.equal(finde(v, "Einrasten (Anschlüsse)").checked, TOPO_STANDARD.einrasten);
   assert.equal(finde(v, "Kabel bündeln (nur bei eckigen Linien)").enabled, false);
   assert.ok(finde(v, "Erste Schritte"));
   assert.ok(finde(v, "Open Air"));
-  assert.ok(finde(v, "Anleitung")); // Tab aus dem gemeldeten Stand
-  assert.ok(!finde(v, "Wissen: Protokolle und Netzrechner")); // kein Wissen-Tab gemeldet
+  assert.ok(finde(v, "Hilfe")); // Tab aus dem gemeldeten Stand
+  assert.ok(!finde(v, "VLANs")); // nur gemeldete Tabs
 });
 
 test("Menü ohne gemeldeten Stand", () => {

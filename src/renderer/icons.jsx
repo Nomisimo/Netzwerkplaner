@@ -3,7 +3,6 @@ import { TEXT } from "../shared/constants.js";
 import BUILTIN from "virtual:device-icons";
 import { MODELL_ICONS } from "../shared/geraeteicons.js";
 
-export const BUILTIN_ICONS = BUILTIN; // { name: innerSvgMarkup }
 export const ICON_NAMES = Object.keys(BUILTIN).sort();
 
 // Für das Auswahlmenü: erst die Typ-Icons, dann die Modell-Icons je Hersteller
