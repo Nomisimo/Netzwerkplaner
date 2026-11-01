@@ -5,6 +5,7 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 
 ## [Unveröffentlicht]
 
+- Live › VLANs am Rechner (macOS): legt am Mac getaggte VLAN-Schnittstellen (802.1Q) für die geplanten VLANs an, mit freier IP aus dem Plan oder DHCP. So sieht der Rechner am Trunk-Port alle VLANs. Eine Admin-Abfrage, kein Gateway, „Alle wieder entfernen“ räumt auf. Unter Windows nicht möglich (fehlende Treiberunterstützung)
 - Export: Mindmap und Anschlüsse werden immer hell exportiert (PDF, SVG, PNG), auch wenn die App dunkel ist
 - PDF: neu gegliedert, jede Angabe steht nur einmal. Patchliste je Switch (Port, Gerät, Geräte-Port, IP, Standort, Abhaken vor Ort), VLAN- und IP-Liste (VLANs mit Subnetz, Gateway und Einstellungen, darunter die IPs je VLAN), Geräte je Standort. Switch-Konfiguration und Prüfung sind optional. Leere Spalten fallen weg, die Spalten stehen bündig untereinander
 - PDF: Deckblatt mit Kennzahlen, Inhalt und offenen Fehlern/Warnungen statt der VLAN-Tabelle

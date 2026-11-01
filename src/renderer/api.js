@@ -66,6 +66,10 @@ export const api = {
   monAction: (kind, name, args) => (E?.monAction ? E.monAction(kind, name, args) : Promise.resolve({ ok: false, error: "Nur in der Desktop-App." })),
   monState: () => (E?.monState ? E.monState() : Promise.resolve({})),
   onMonEvent: (cb) => (E?.onMonEvent ? E.onMonEvent(cb) : () => {}),
+  // VLAN-Schnittstellen am eigenen Rechner (nur macOS-Desktop-App)
+  vlanPcStatus: () => (E?.vlanPcStatus ? E.vlanPcStatus() : Promise.resolve({ unterstuetzt: false, ports: [], vlans: [] })),
+  vlanPcAnlegen: (args) => (E?.vlanPcAnlegen ? E.vlanPcAnlegen(args) : Promise.resolve({ ok: false, fehler: "Nur in der Desktop-App." })),
+  vlanPcEntfernen: () => (E?.vlanPcEntfernen ? E.vlanPcEntfernen() : Promise.resolve({ ok: false, fehler: "Nur in der Desktop-App." })),
   onOpenFile: (cb) => E && E.onOpenFile && E.onOpenFile(cb),
   // Native Menüleiste: Klicks kommen als Aktion, der Stand (Häkchen, Tabs, Kapitel) geht zurück
   onMenu: (cb) => (E?.onMenu ? E.onMenu(cb) : () => {}),

@@ -337,6 +337,9 @@ ipcMain.handle('check-reachability', async (_e, targets, src) => {
 const monitors = require('./monitor').register(ipcMain, () => mainWin);
 app.on('before-quit', () => monitors.stopAll());
 
+/* ── VLANs am eigenen Rechner (macOS) ──────────────────────────────────── */
+require('./vlanpc').register(ipcMain);
+
 /* ── Start, Dateiverknüpfung, Einzelinstanz ────────────────────────────── */
 const fileArg = (argv) => argv.slice(1).find((a) => /\.netplan$|\.json$/i.test(a) && fs.existsSync(a));
 
