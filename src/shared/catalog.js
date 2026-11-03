@@ -84,8 +84,6 @@ export const findProtokoll = (s) => {
   return hit;
 };
 
-export const protoFlags = (list) => (list || []).map(findProtokoll).filter(Boolean);
-
 /* ── Gerätekatalog ─────────────────────────────────────────────────────── */
 const TYP_RULES = [
   [/Switch|Glasfaser-Netzwerkknoten/i, "switch_managed"],

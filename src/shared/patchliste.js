@@ -74,12 +74,13 @@ export const patchZeilen = (P, X) => {
   return patchReihenfolge(P, X, T).map((id, n) => {
     const d = X.devById.get(id);
     const up = T.treeConn.get(id);
-    let gesteckt = "", aufSwitch = null, upConn = null, aufPort = null, eigenerPort = null;
+    let gesteckt = "", aufSwitch = null, upConn = null, aufPort = null, eigenerPort = null, switchName = "", switchPort = "", geraetPort = "";
     if (up) {
       const o = otherEnd(up, id), self = thisEnd(up, id);
       const od = X.devById.get(o.dev);
       aufSwitch = od?.id || null; upConn = up.id; aufPort = o.port; eigenerPort = self.port;
-      gesteckt = `${od?.name || "?"} · Port ${portName(X, o)}${(d.ports || []).length > 1 ? ` ← ${portName(X, self)}` : ""}`;
+      switchName = od?.name || "?"; switchPort = portName(X, o); geraetPort = (d.ports || []).length > 1 ? portName(X, self) : "";
+      gesteckt = `${switchName} · Port ${switchPort}${geraetPort ? ` ← ${geraetPort}` : ""}`;
     }
     const ips = ipPorts(d).filter((i) => i.ip || i.dhcp).map((i) => {
       const v = X.vlanById.get(i.vlan);
@@ -88,7 +89,7 @@ export const patchZeilen = (P, X) => {
     const s = stapelVon.get(id);
     return {
       nr: n + 1, id, name: d.name, netzname: d.netzname || "", modell: [d.hersteller, d.modell].filter(Boolean).join(" ") || TYPEN[d.typ]?.label || "",
-      ips, gesteckt, aufSwitch, upConn, aufPort, eigenerPort,
+      ips, gesteckt, switchName, switchPort, geraetPort, aufSwitch, upConn, aufPort, eigenerPort,
       ipPorts: ipPorts(d).map((i) => ({ id: i.id, name: i.name, ip: i.ip || "", prefix: i.prefix, dhcp: !!i.dhcp, vlan: X.vlanById.get(i.vlan)?.vid ?? null })),
       felder: (d.felder || []).filter((f) => f.wert).map((f) => `${f.name}: ${f.wert}`),
       abteilung: d.kategorie || "", standort: d.bereich || "", stapel: s ? s.name || "Stapel" : "",
@@ -97,12 +98,32 @@ export const patchZeilen = (P, X) => {
   });
 };
 
-/* Flache Tabellenzeilen für Excel/CSV/PDF */
+/* Flache Tabellenzeilen für Excel/CSV: Switch und Ports in eigenen Spalten, damit sich danach sortieren lässt */
 export const patchExportZeilen = (P, X) => patchZeilen(P, X).map((z) => ({
-  "#": z.nr, Gerät: z.name, Netzwerkname: z.netzname, Modell: z.modell, "IPs / Interfaces": z.ips.join(", "),
-  "Gesteckt auf": z.gesteckt, Stapel: z.stapel, Abteilung: z.abteilung, Standort: z.standort,
+  "#": z.nr, Switch: z.switchName, "Switch-Port": z.switchPort, Gerät: z.name, "Geräte-Port": z.geraetPort, Netzwerkname: z.netzname, Modell: z.modell,
+  "IPs / Interfaces": z.ips.join(", "), Gewerk: z.abteilung, Standort: z.standort, Stapel: z.stapel,
   Felder: z.felder.join("; "), Notizen: z.notizen, "Notizen vor Ort": "", Erledigt: "",
 }));
+
+/* Patchliste je Switch (PDF): eine Gruppe je Gerät, an dem andere stecken, in Aufbau-Reihenfolge.
+   Der Haupt-Switch steht als Kopf seiner Gruppe; Unter-Switches stehen als Zeile bei ihrem
+   Switch und haben danach ihre eigene Gruppe. Nicht verbundene Geräte kommen zum Schluss. */
+export const patchGruppen = (P, X) => {
+  const z = patchZeilen(P, X);
+  const gruppen = new Map();
+  const ohne = [];
+  for (const r of z) {
+    if (!r.aufSwitch) continue;
+    if (!gruppen.has(r.aufSwitch)) gruppen.set(r.aufSwitch, []);
+    gruppen.get(r.aufSwitch).push(r);
+  }
+  const kopfZeile = new Map(z.map((r) => [r.id, r]));
+  for (const r of z) if (!r.aufSwitch && !gruppen.has(r.id)) ohne.push(r);
+  const out = [...gruppen].map(([id, zeilen]) => ({ kopf: kopfZeile.get(id), zeilen }))
+    .sort((a, b) => (a.kopf?.nr ?? 1e9) - (b.kopf?.nr ?? 1e9));
+  if (ohne.length) out.push({ kopf: null, zeilen: ohne });
+  return out;
+};
 
 /* ── Bearbeiten aus der Patchliste (arbeitet auf einem Projekt-Entwurf) ──── */
 

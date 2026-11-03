@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useRef } from "react";
 import { passtSuche } from "../../shared/suche.js";
 import { S, LINE, SUB, MUTED, OK, KATEGORIEN, TYPEN, katColor } from "../../shared/constants.js";
-import { uid, migrateBestand } from "../../shared/catalog.js";
 import { Section } from "../ui.jsx";
 import { IconView } from "../icons.jsx";
 import { api } from "../api.js";
 import { bestandZuCsv, csvZuBestand } from "../../shared/bestandcsv.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
-import { Download, X as XIcon, Check, Pencil } from "lucide-react";
+import { geraeteExportieren, geraeteDateiImportieren } from "../geraeteTeilen.js";
+import { Download, X as XIcon, Check, Pencil, Share2 } from "lucide-react";
 import { uiConfirm } from "../dialoge.jsx";
 
 const datum = (iso) => (iso ? new Date(iso).toLocaleDateString("de-DE") : "");
@@ -51,7 +51,8 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
   };
   const toggle = (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const exportJson = () => api.saveFile(JSON.stringify({ format: "netzwerkplaner-bestand", version: 1, bestand, icons: library.icons || [] }, null, 2), "Gerätebestand.json", [{ name: "JSON", extensions: ["json"] }], "utf8");
+  // Gerätedatei mit allem (Ports, Seiten, Protokolle, Web-UI, Felder, Icons) für eine andere Installation
+  const exportJson = (ids) => geraeteExportieren({ bestand: ids ? bestand.filter((b) => ids.includes(b.id)) : bestand, library, notify });
   const exportCsv = () => api.saveFile(bestandZuCsv(bestand, library.felder), "Gerätebestand.csv", [{ name: "CSV", extensions: ["csv"] }], "utf8");
   const importDatei = (e) => {
     const f = e.target.files[0];
@@ -59,25 +60,14 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
     if (!f) return;
     const r = new FileReader();
     r.onload = () => {
-      if (/\.(csv|txt|tsv)$/i.test(f.name) || !/^\s*\{/.test(r.result)) {
+      if (/\.(csv|txt|tsv)$/i.test(f.name) || !/^﻿?\s*\{/.test(r.result)) {
         const { bestand: neu, fehler } = csvZuBestand(r.result, P.vlans, library.felder);
         if (!neu.length) return notify("In der CSV wurden keine Geräte gefunden. Erste Zeile muss die Spaltennamen enthalten (mindestens „Name“).", "err");
         setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...neu] }));
         const ohne = neu.filter((b) => !b.geraet.katalogId).length;
         return notify(`${neu.length} Geräte aus CSV in den Bestand importiert${ohne ? `, ${ohne} ohne Katalogmodell (generischer Typ)` : ""}${fehler.length ? `, ${fehler.length} Zeilen übersprungen` : ""}.`);
       }
-      try {
-        const data = JSON.parse(r.result);
-        const neu = migrateBestand((data.bestand || []).filter((b) => b?.geraet?.ports || b?.geraet?.interfaces)); // ältere Dateien mit getrennten Interfaces
-        if (!neu.length) throw new Error("leer");
-        setLibrary((l) => {
-          const ids = new Set((l.bestand || []).map((b) => b.id));
-          const icons = [...(l.icons || [])];
-          for (const ic of data.icons || []) if (!icons.some((x) => x.id === ic.id)) icons.push(ic);
-          return { ...l, icons, bestand: [...(l.bestand || []), ...neu.map((b) => (ids.has(b.id) ? { ...b, id: uid() } : b))] };
-        });
-        notify(`${neu.length} Geräte in den Bestand importiert.`);
-      } catch { notify("Keine gültige Bestandsdatei.", "err"); }
+      geraeteDateiImportieren(r.result, { library, setLibrary, notify });
     };
     r.readAsText(f);
   };
@@ -88,20 +78,21 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
     <Section title={`Gerätebestand (${bestand.length})`}
       subtitle="Deine eigenen Geräte mit Name, Netzwerkname, IPs, MACs, Ports und eigenen Feldern. Speichern im Geräte-Editor mit „In Bestand“. Beim Einfügen bleiben IPs und Einstellungen erhalten. Das VLAN bekommt ein Gerät im Projekt vom Switch-Port."
       right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <button style={S.secondaryBtn} onClick={onSaveAlleBestand} title="Alle Geräte dieses Projekts, die noch nicht im Bestand sind, übernehmen"><Download size={14} /> Projektgeräte übernehmen</button>
+        <button style={S.secondaryBtn} data-tour="bib-uebernehmen" onClick={onSaveAlleBestand} title="Alle Geräte dieses Projekts, die noch nicht im Bestand sind, übernehmen"><Download size={14} /> Projektgeräte übernehmen</button>
         <button style={S.primaryBtn} onClick={() => setAnlegen(true)}>+ Neues Gerät</button>
         <button style={S.secondaryBtn} onClick={exportCsv} disabled={!bestand.length} title="Als CSV (Excel, andere Netzwerkplaner-Installationen)">Export CSV</button>
-        <button style={S.secondaryBtn} onClick={exportJson} disabled={!bestand.length} title="Als JSON mit eigenen Icons">Export JSON</button>
-        <button style={S.secondaryBtn} onClick={() => fileRef.current?.click()} title="CSV oder JSON aus einer anderen Installation oder einer eigenen Liste">Import</button>
+        <button style={S.secondaryBtn} onClick={() => exportJson(selIds.length ? selIds : null)} disabled={!bestand.length} title="Gerätedatei für eine andere Installation: Ports, Vorder-/Rückseite, Protokolle, Web-UI, eigene Felder und Icons. Mit Auswahl nur die ausgewählten Geräte.">{selIds.length ? `Export ${selIds.length} (Datei)` : "Export Datei"}</button>
+        <button style={S.secondaryBtn} onClick={() => fileRef.current?.click()} title="Gerätedatei (JSON) aus einer anderen Installation oder CSV aus einer eigenen Liste">Import</button>
         <input ref={fileRef} type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv" style={{ display: "none" }} onChange={importDatei} />
       </div>}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         <input style={{ ...S.inputSm, flex: 1, minWidth: 180 }} placeholder="Name, IP, MAC, Modell, eigene Felder · * als Platzhalter" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
         <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}>
-          <option value="">Alle Bereiche</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
+          <option value="">Alle Gewerke</option>{Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
         </select>
         {selIds.length > 0 && <>
           <button style={S.primaryBtn} onClick={() => einfuegen(selIds)}>+ {selIds.length} ins Projekt</button>
+          <button style={S.secondaryBtn} onClick={() => exportJson(selIds)} title="Ausgewählte Geräte als Datei für eine andere Installation speichern"><Share2 size={13} /> {selIds.length} teilen</button>
           <button style={S.dangerBtn} onClick={() => remove(selIds)}><XIcon size={14} /> {selIds.length} löschen</button>
         </>}
       </div>
@@ -138,6 +129,7 @@ export default function BestandView({ P, library, setLibrary, onAddDevice, onSel
                       {drin
                         ? <button style={{ ...S.smallBtn, borderColor: OK + "88", color: OK }} onClick={() => onSelectDevice(drin.id)} title="Ist bereits im Projekt – zum Gerät springen"><Check size={14} /> im Projekt</button>
                         : <button style={S.smallBtn} onClick={() => einfuegen([b.id])}>+ ins Projekt</button>}
+                      <button style={{ ...S.smallBtn, marginLeft: 6 }} onClick={() => exportJson([b.id])} title="Dieses Gerät als Datei für eine andere Installation speichern"><Share2 size={13} /></button>
                       <button style={{ ...S.smallBtn, marginLeft: 6 }} onClick={() => setBearbeiten(b)} title="Ports, IPs, MACs, Felder, Protokolle und Notizen dieses Bestandsgeräts ändern"><Pencil size={13} /> Bearbeiten</button>
                       <button style={{ ...S.dangerBtn, marginLeft: 6, padding: "3px 8px" }} onClick={() => remove([b.id])}><XIcon size={12} /></button>
                     </td>

@@ -11,8 +11,6 @@ export const ip2int = (s) => {
 
 export const int2ip = (n) => [n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join(".");
 
-export const isValidIp = (s) => ip2int(s) !== null;
-
 export const prefixToMask = (p) => (p <= 0 ? 0 : (0xffffffff << (32 - p)) >>> 0);
 export const prefixToMaskStr = (p) => int2ip(prefixToMask(p));
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, WARN, INPUT, MID, STRONG } from "../../shared/constants.js";
+import { S, ACCENT, SUB, MUTED, ERR, OK, WARN, INPUT, MID, STRONG } from "../../shared/constants.js";
 import { findPlanned, fmtAge } from "../../shared/live.js";
 import { macHerstellerText, herstellerPasst } from "../../shared/mac.js";
 import { Dot, Toggle, th, td } from "../ui.jsx";
@@ -126,4 +126,3 @@ export const Card = ({ title, right, children }) => (
 );
 
 export const mono = { fontFamily: "Consolas,monospace", fontSize: 12 };
-export const LINE_C = LINE;
