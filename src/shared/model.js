@@ -1,7 +1,7 @@
 import { doppelteBestandsgeraete } from "./bestandschluessel.js";
 import { STANDARD_VLANS, DEFAULT_BEREICHE, KABEL } from "./constants.js";
 import { uid, findProtokoll, migrateGeraet, physPorts, ipPorts, katalogAbweichung } from "./catalog.js";
-import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, DEFAULT_RANGES, isValidMac } from "./net.js";
+import { ip2int, int2ip, parseCidr, inSubnet, subnetsOverlap, nextFreeIp, parseIpBereich, ipBereichFehler, DEFAULT_RANGES, isValidMac } from "./net.js";
 import { normMac, macHersteller, herstellerPasst } from "./mac.js";
 import { qinqIssues } from "./qinq.js";
 import { migrateFelder } from "./felder.js";
@@ -13,7 +13,9 @@ export const clone = (x) => JSON.parse(JSON.stringify(x));
 
 export const newVlan = (o = {}) => ({
   id: uid(), vid: 1, name: "", farbe: "#9aa4af", subnetz: "", gateway: "", zweck: "",
-  igmp: false, querier: "", eeeAus: false, qos: false, dhcp: { aktiv: false, von: "", bis: "" }, notiz: "", svlan: null, ...o,
+  igmp: false, querier: "", eeeAus: false, qos: false, dhcp: { aktiv: false, von: "", bis: "" },
+  ipBereich: { von: "", bis: "" }, // optional: Auto-IP vergibt nur aus diesem Bereich
+  notiz: "", svlan: null, ...o,
 });
 
 export const standardVlans = () => STANDARD_VLANS.map((v) => newVlan(clone(v)));
@@ -41,7 +43,7 @@ export const standortListe = (P) => [...new Set([...(P.bereiche || []), ...(P.ge
 export const migrateProject = (p) => {
   const e = emptyProject();
   const out = { ...e, ...p, meta: { ...e.meta, ...(p.meta || {}) }, layout: { ...e.layout, ...(p.layout || {}) } };
-  out.vlans = (p.vlans || []).map((v) => newVlan({ ...v, dhcp: { aktiv: false, von: "", bis: "", ...(v.dhcp || {}) } }));
+  out.vlans = (p.vlans || []).map((v) => newVlan({ ...v, dhcp: { aktiv: false, von: "", bis: "", ...(v.dhcp || {}) }, ipBereich: { von: "", bis: "", ...(v.ipBereich || {}) } }));
   // Ports und Interfaces waren früher getrennt: migrateGeraet führt sie zusammen
   out.geraete = (p.geraete || []).map((d) => migrateGeraet(migrateFelder({
     kategorie: "Sonstiges", bereich: "", protokolle: [], notizen: "", webUi: { vorhanden: false, url: "http://{ip}", iface: null },
@@ -223,15 +225,19 @@ export const usedIps = (P, exceptPortId) => {
 };
 
 export const suggestIp = (P, vlan, exceptPortId) => {
-  if (!vlan?.subnetz) return null;
+  // Eigener IP-Bereich des VLANs: dann nur daraus vergeben (auch ohne Subnetz), nie außerhalb.
+  // Ungültiger Bereich (die Prüfung meldet ihn) → wie bisher das ganze Subnetz
+  const bereich = parseIpBereich(vlan?.ipBereich, vlan?.subnetz);
+  if (!vlan?.subnetz && !bereich) return null;
   const used = usedIps(P, exceptPortId);
   const reserved = [vlan.gateway].filter(Boolean);
   // DHCP-Bereich nicht für statische Vorschläge verwenden
-  const c = parseCidr(vlan.subnetz);
+  const c = parseCidr(vlan.subnetz) || (bereich && { first: bereich.first, last: bereich.last });
   if (vlan.dhcp?.aktiv && c) {
     const a = ip2int(vlan.dhcp.von), b = ip2int(vlan.dhcp.bis);
     if (a !== null && b !== null) for (let n = Math.max(a, c.first); n <= Math.min(b, c.last); n++) reserved.push(n);
   }
+  if (bereich) return nextFreeIp(vlan.subnetz, used, reserved, bereich);
   // Bei /24 und größer die ersten 9 Adressen für Gateway/Infrastruktur freihalten
   if (c && c.hosts > 60) for (let n = c.first; n < c.first + 9; n++) reserved.push(n);
   return nextFreeIp(vlan.subnetz, used, reserved) || nextFreeIp(vlan.subnetz, used, [vlan.gateway].filter(Boolean));
@@ -366,6 +372,19 @@ export const validate = (P, X) => {
   issues.push(...qinqIssues(vlanList));
   for (const v of vlanList) {
     if (+v.vid < 1 || +v.vid > 4094) add("error", `VLAN „${v.name}“: ID ${v.vid} liegt außerhalb 1–4094.`, { vlan: v.id });
+    // Optionaler IP-Bereich für die automatische Vergabe
+    const bf = ipBereichFehler(v.ipBereich, v.subnetz);
+    const bt = `VLAN ${v.vid} ${v.name}: IP-Bereich ${v.ipBereich?.von || "?"}–${v.ipBereich?.bis || "?"}`;
+    if (bf === "unvollständig") add("warn", `${bt} ist unvollständig. Start und Ende eintragen oder beide leeren. Auto-IP nutzt bis dahin das ganze Subnetz.`, { vlan: v.id });
+    else if (bf === "ungueltig") add("error", `${bt} enthält keine gültige IPv4-Adresse. Auto-IP nutzt bis dahin das ganze Subnetz.`, { vlan: v.id });
+    else if (bf === "vertauscht") add("error", `${bt}: Start liegt hinter dem Ende.`, { vlan: v.id });
+    else if (bf === "ausserhalb") add("error", `${bt} liegt außerhalb des Subnetzes ${v.subnetz}. Auto-IP nutzt bis dahin das ganze Subnetz.`, { vlan: v.id });
+    else if (bf === "teilweise-ausserhalb") add("warn", `${bt} reicht über das Subnetz ${v.subnetz} hinaus. Vergeben wird nur der Teil im Subnetz.`, { vlan: v.id });
+    const br = !bf || bf === "teilweise-ausserhalb" ? parseIpBereich(v.ipBereich, v.subnetz) : null;
+    if (br && v.dhcp?.aktiv) {
+      const a = ip2int(v.dhcp.von), b = ip2int(v.dhcp.bis);
+      if (a !== null && b !== null && a <= br.last && br.first <= b) add("info", `${bt} überschneidet sich mit dem DHCP-Bereich. Adressen aus dem DHCP-Bereich werden nicht automatisch vergeben.`, { vlan: v.id });
+    }
   }
   // Trunk-Port mit zwei VLANs gleicher ID: auf der Leitung nicht unterscheidbar
   for (const sw of P.geraete.filter((d) => d.isSwitch)) for (const p of sw.ports) {

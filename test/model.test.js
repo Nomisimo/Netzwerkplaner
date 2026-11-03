@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { emptyProject, buildIndex, validate, addConnection, vlansAbleiten, buildTree, suggestIp, standortUmbenennen, unmanagedVlans } from "../src/shared/model.js";
+import { emptyProject, buildIndex, validate, addConnection, vlansAbleiten, buildTree, suggestIp, standortUmbenennen, unmanagedVlans, migrateProject } from "../src/shared/model.js";
 import { createDevice, findProtokoll, parsePorts, KATALOG_GERAETE, ipPorts, snapshotDevice } from "../src/shared/catalog.js";
 import { demoProject } from "../src/shared/demo.js";
 import { layoutMindmap } from "../src/shared/layout.js";
@@ -300,4 +300,46 @@ test("VLAN-Farbe über durchgeschliffene Geräte (Daisy-Chain)", async () => {
   const X = buildIndex(P);
   for (const c of P.verbindungen) assert.deepEqual(connVlan(c, X).vlans, [v20.id]);
   assert.equal(physPorts(n3)[0].vlan, v20.id);
+});
+
+test("VLAN mit IP-Bereich: Auto-IP bleibt im Bereich", () => {
+  const P = emptyProject();
+  const v = P.vlans.find((x) => x.vid === 20);
+  assert.deepEqual(v.ipBereich, { von: "", bis: "" });
+  // ohne Bereich wie bisher (erste 9 Adressen frei)
+  assert.equal(suggestIp(P, v), "10.10.20.10");
+  v.ipBereich = { von: "10.10.20.200", bis: "10.10.20.202" };
+  assert.equal(suggestIp(P, v), "10.10.20.200");
+  // belegte Adressen, Gateway und DHCP-Bereich werden übersprungen
+  const d = createDevice({ katalogId: kat("Rio3224"), vlans: P.vlans });
+  P.geraete.push(d);
+  ipPorts(d)[0].ip = "10.10.20.200";
+  v.gateway = "10.10.20.201";
+  assert.equal(suggestIp(P, v), "10.10.20.202");
+  v.dhcp = { aktiv: true, von: "10.10.20.202", bis: "10.10.20.250" };
+  assert.equal(suggestIp(P, v), null); // Bereich voll: kein Ausweichen ins übrige Subnetz
+  // der eigene Port zählt beim Neuvorschlag nicht als belegt
+  assert.equal(suggestIp(P, v, ipPorts(d)[0].id), "10.10.20.200");
+  // ungültiger Bereich: Prüfung meldet ihn, Vergabe nutzt das Subnetz
+  v.dhcp.aktiv = false; v.gateway = "";
+  v.ipBereich = { von: "10.10.20.50", bis: "10.10.20.40" };
+  assert.equal(suggestIp(P, v), "10.10.20.10");
+  const msgs = validate(P, buildIndex(P)).filter((i) => i.vlan === v.id).map((i) => i.msg);
+  assert.ok(msgs.some((m) => m.includes("IP-Bereich") && m.includes("Start liegt hinter dem Ende")), msgs.join("\n"));
+  // Bereich außerhalb des Subnetzes → Fehler
+  v.ipBereich = { von: "10.10.30.1", bis: "10.10.30.9" };
+  assert.ok(validate(P, buildIndex(P)).some((i) => i.vlan === v.id && i.sev === "error" && i.msg.includes("außerhalb des Subnetzes")));
+  // VLAN ohne Subnetz: der Bereich allein genügt
+  const w = P.vlans.find((x) => x.vid === 50);
+  w.subnetz = ""; w.ipBereich = { von: "192.168.5.20", bis: "192.168.5.30" };
+  assert.equal(suggestIp(P, w), "192.168.5.20");
+});
+
+test("Migration: ältere VLANs bekommen einen leeren IP-Bereich, gesetzte bleiben", () => {
+  const alt = emptyProject();
+  delete alt.vlans[0].ipBereich;
+  alt.vlans[1].ipBereich = { von: "10.10.11.100" };
+  const P = migrateProject(JSON.parse(JSON.stringify(alt)));
+  assert.deepEqual(P.vlans[0].ipBereich, { von: "", bis: "" });
+  assert.deepEqual(P.vlans[1].ipBereich, { von: "10.10.11.100", bis: "" });
 });

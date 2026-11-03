@@ -5,6 +5,7 @@ import { newTrunk, vlanZuTrunk, trunkZuVlan, trunkPorts, trunkVlanText } from ".
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
 import { ipPorts } from "../../shared/catalog.js";
+import { parseCidr, parseIpBereich, int2ip } from "../../shared/net.js";
 import { CornerDownRight, TriangleAlert, ChevronUp, ChevronDown, Trash2, Layers } from "lucide-react";
 
 function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, onNeu }) {
@@ -13,6 +14,8 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, o
   const iss = issues.filter((i) => i.vlan === v.id || i.vlans?.includes(v.id));
   const aussen = aeusseresVlan(v, P.vlans);
   const sv = istSvlan(v, P.vlans);
+  const sub = parseCidr(v.subnetz);
+  const bereich = parseIpBereich(v.ipBereich, v.subnetz);
   return (
     <div style={{ ...S.card, borderLeft: `4px solid ${v.farbe}`, marginLeft: tiefe * 28 }}>
       <div style={S.cardHead} onClick={() => setOpen((o) => !o)}>
@@ -31,6 +34,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, o
           {v.eeeAus && <span style={S.chip}>EEE aus</span>}
           {v.qos && <span style={S.chip}>QoS</span>}
           {v.dhcp?.aktiv && <span style={S.chip}>DHCP</span>}
+          {bereich && <span style={{ ...S.chip, color: SUB }} title="IP-Bereich für die automatische Vergabe">{int2ip(bereich.first)}–{int2ip(bereich.last)}</span>}
           <span style={{ ...S.chip, color: SUB }}>{count} IPs</span>
           {(() => {
             // Warndreieck nur, wenn die Prüfung für dieses VLAN etwas meldet; der Grund steht im Tooltip und aufgeklappt unten
@@ -67,6 +71,11 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, o
             <div style={{ ...S.hint, marginTop: 4 }}>Läuft dieses VLAN als inneres C-VLAN in einem S-VLAN, darf seine ID auch in anderen S-VLANs vorkommen. Die Switches müssen dafür QinQ können.</div>
           </Field>
           <Field label="Zweck / Protokolle" style={{ marginTop: 10 }}><input style={S.inputSm} value={v.zweck} onChange={(e) => upd((x) => (x.zweck = e.target.value))} /></Field>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, marginTop: 10 }}>
+            <Field label="IP-Bereich von (optional)"><input style={S.inputSm} placeholder={sub ? int2ip(sub.first) : "z. B. 10.10.20.100"} value={v.ipBereich?.von || ""} onChange={(e) => upd((x) => (x.ipBereich = { bis: "", ...x.ipBereich, von: e.target.value.trim() }))} /></Field>
+            <Field label="IP-Bereich bis (optional)"><input style={S.inputSm} placeholder={sub ? int2ip(sub.last) : "z. B. 10.10.20.199"} value={v.ipBereich?.bis || ""} onChange={(e) => upd((x) => (x.ipBereich = { von: "", ...x.ipBereich, bis: e.target.value.trim() }))} /></Field>
+          </div>
+          <div style={{ ...S.hint, marginTop: 4 }}>{v.subnetz ? `Subnetz ${v.subnetz}. ` : ""}Ist ein Bereich gesetzt, vergeben „IPs vergeben“ und der Vorschlag im Geräte-Editor nur Adressen daraus (ohne Gateway und DHCP-Bereich). Leer: wie bisher das ganze Subnetz.</div>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12 }}>
             <Toggle checked={v.igmp} onChange={(b) => upd((x) => (x.igmp = b))} label="IGMP-Snooping" />
             <Toggle checked={!v.eeeAus} onChange={(b) => upd((x) => (x.eeeAus = !b))} label="EEE (802.3az) an" title="Energy Efficient Ethernet. Haken gesetzt = EEE an, Haken raus = EEE aus (für Dante, AES67 und MA-Net3 empfohlen)" />
