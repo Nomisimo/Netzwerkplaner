@@ -7,6 +7,12 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 
 - VLANs: Netz (z. B. 10.10.20.0/24) wieder im VLAN-Tab eintragbar, optional. „IPs vergeben“ und der Kreispfeil im Geräte-Editor vergeben freie Adressen aus diesem Netz; leer heißt keine automatische Vergabe. Die Prüfung meldet ungültige Netze, Host- statt Netzadresse und überlappende Netze zweier VLANs
 - Bibliothek: Geräte teilen. Vorlagen und Bestandsgeräte (eins, eine Auswahl oder alle) als Datei speichern und in einer anderen Installation importieren, mit allen Ports (Steckertyp, Vorder-/Rückseite), Protokollen, Web-UI, Datenströmen, Notizen, eigenen Feldern und eigenen Icons. Gleiche Geräte werden beim zweiten Import übersprungen, bei anderem Stand fragt die App: ersetzen oder als Kopie. Eine Gerätedatei lässt sich auch über Datei › Öffnen laden, das Projekt bleibt dabei offen. Ältere Bestands-Exporte (JSON) werden weiter gelesen
+- Druckplan: Kabel schließen schon beim Verlegen genau an ihrem Port in der Port-Leiste an. Keine kleinen Versätze mehr kurz vor dem Kasten, und kein Kabel liegt auf einem anderen
+- Druckplan: Kabel ohne eindeutige Signalrichtung bekommen keine Doppelpfeile mehr; Pfeile nur noch bei Signal in eine Richtung
+- Druckplan: Ports in der Port-Leiste sind immer voll farbig, auch unbelegte
+- Druckplan: Ein Gerät über die Grenze seines Standorts zu ziehen lässt den Standort nur so weit wachsen, wie Platz ist. Er schiebt sich nie mehr über einen anderen Standort, über Kabeltrassen oder über den Blattrand; das Gerät bleibt dort stehen bzw. gleitet an der Grenze entlang
+- Druckplan: Verschieben eines Geräts sortiert die übrigen Geräte nicht mehr um
+- Anschlüsse: Mit „Kabel bündeln“ laufen auch Kabel, die um Geräte herum geführt werden, gemeinsam im Bündel statt nebeneinander
 
 ## [0.7.0-beta.22] – 2026-10-30
 

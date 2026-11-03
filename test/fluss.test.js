@@ -41,3 +41,12 @@ test("Plott: von Hand gezogene Reihenfolge der Geräte bleibt beim Optimieren", 
   const { ordnung } = cleanCatOptimieren(P, X);
   assert.deepEqual(ordnung.oben[key], neu);
 });
+
+test("Plott: Kabel ohne eindeutige Richtung bekommen keine Doppelpfeile mehr", () => {
+  const P = demoProject(), X = buildIndex(P);
+  const L = cleanCatLayout(P, X);
+  const ohne = L.linien.filter((l) => !l.einweg);
+  assert.ok(ohne.length > 0);
+  for (const l of ohne) assert.deepEqual(l.pfeil, { start: false, ende: false });
+  for (const l of L.linien.filter((x) => x.einweg)) assert.notEqual(l.pfeil.start, l.pfeil.ende);
+});
