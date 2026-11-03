@@ -3,6 +3,7 @@ import { S, ACCENT, LINE, SUB, MUTED, PANEL, KATEGORIEN } from "../../shared/con
 import { STANDARD_PROFIL, EINGEBAUTE_PROFILE, eingebautesProfil, projektProfil, profilFelder, profilVergleich, profilDatei, profilLesen, STUFEN, FELDER, GEWERKE, PROFIL_ENDUNG, katGrundfarbe } from "../../shared/plottprofil.js";
 import { uid } from "../../shared/catalog.js";
 import { frageText } from "../ui.jsx";
+import { uiConfirm } from "../dialoge.jsx";
 import { cleanCatLayout, cleanCatOptimieren, ccBlatt, passeText, BLATT_FORMATE, plottFormat, PLOTT_GROESSEN, plottGroesse, kabelLabelAn, anteilAufPfad, PORT_LEISTE } from "../../shared/cleancat.js";
 import { api } from "../api.js";
 import { fileBase, svgToPngBase64 } from "../exports.js";
@@ -375,9 +376,9 @@ export default function CleanCatTab({ P, X, mutate, onSelectDevice, notify, kopf
     };
     r.readAsText(datei);
   };
-  const eigenesLoeschen = () => {
+  const eigenesLoeschen = async () => {
     if (!planProfile.some((x) => x.id === profil.id)) return;
-    if (!confirm(`Eigenes Profil „${profil.name}“ von diesem Rechner löschen? Projekte, die es nutzen, behalten ihre Kopie.`)) return;
+    if (!await uiConfirm(`Eigenes Profil „${profil.name}“ von diesem Rechner löschen? Projekte, die es nutzen, behalten ihre Kopie.`)) return;
     setPlanProfile?.((l) => l.filter((x) => x.id !== profil.id));
   };
   const gewerkUmschalten = (g) => profilAendern((p) => {

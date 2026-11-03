@@ -8,6 +8,7 @@ import { geraeteDateiImportieren } from "./geraeteTeilen.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
 import { DevicePicker, Modal, EingabeHost, frageText, usePfeilNavigation, Klappmenue, MenuePunkt } from "./ui.jsx";
+import { DialogHost, uiConfirm } from "./dialoge.jsx";
 import { topologySvg, svgToPngBase64, buildXlsxBase64, buildIpCsv, buildPdfHtml, buildPatchCsv, fileBase } from "./exports.js";
 import { formatName } from "../shared/cleancat.js";
 import ExportDialog from "./ExportDialog.jsx";
@@ -97,9 +98,9 @@ export default function App() {
   // Projekt ersetzen geht nur außerhalb einer Sitzung
   // Neue Sitzung: eigene Undo-Schritte von vorher passen nicht zum Stand der Sitzung
   useEffect(() => { hist.current = { undo: [], redo: [] }; }, [sitzung.zustand?.info?.id]);
-  const sitzungVerlassenOk = () => {
+  const sitzungVerlassenOk = async () => {
     if (!sitzung.zustand) return true;
-    if (!confirm("Dafür musst du die gemeinsame Sitzung verlassen. Dein aktueller Stand bleibt als lokale Kopie. Verlassen?")) return false;
+    if (!await uiConfirm("Dafür musst du die gemeinsame Sitzung verlassen. Dein aktueller Stand bleibt als lokale Kopie. Verlassen?")) return false;
     sitzung.verlassen();
     return true;
   };
@@ -362,9 +363,9 @@ export default function App() {
     else notify(mehr + (ausBestand ? "Gerät aus dem Bestand übernommen, mit seinen festen IPs. Die Verbindungen sind geblieben." : item.kind === "typ" ? "Leeres Gerät angelegt. IPs und Verbindungen sind geblieben." : "Modell übernommen. IPs und Verbindungen sind geblieben, nicht von Hand geänderte Namen kommen vom Modell."));
   }, [library, mutate]);
 
-  const deleteDevice = useCallback((id) => {
+  const deleteDevice = useCallback(async (id) => {
     const d = Pref.current.geraete.find((g) => g.id === id);
-    if (!d || !confirm(`„${d.name}“ und alle Verbindungen löschen?`)) return;
+    if (!d || !await uiConfirm(`„${d.name}“ und alle Verbindungen löschen?`)) return;
     if (sitzung.aktiv) sitzung.intent("loescheGeraete", { ids: [id] }).catch(() => {});
     else mutate((p) => removeDevice(p, id)); // räumt auch Stapel, Positionen, Knicke und Stromziele auf
     setSelection(null);
@@ -408,10 +409,10 @@ export default function App() {
     }
     rememberIcon(dev);
   };
-  const saveAlleBestand = () => {
+  const saveAlleBestand = async () => {
     const neu = P.geraete.filter((d) => !d.bestandId || !(library.bestand || []).some((b) => b.id === d.bestandId));
     if (!neu.length) return notify("Alle Projektgeräte sind schon im Bestand.");
-    if (!confirm(`${neu.length} Geräte aus diesem Projekt in den Bestand übernehmen?`)) return;
+    if (!await uiConfirm(`${neu.length} Geräte aus diesem Projekt in den Bestand übernehmen?`)) return;
     const now = new Date().toISOString();
     const entries = neu.map((d) => ({ id: bestandId(snapshotDevice(d, P.vlans, P.trunks)), dev: d }));
     setLibrary((l) => ({ ...l, bestand: [...(l.bestand || []), ...entries.map(({ id, dev }) => ({ id, name: dev.name, geraet: snapshotDevice(dev, P.vlans, P.trunks), angelegt: now, geaendert: now }))] }));
@@ -476,8 +477,9 @@ export default function App() {
       const data = JSON.parse(r.data);
       // Gerätedatei (geteilte Vorlagen/Bestandsgeräte): in die Bibliothek übernehmen, das Projekt bleibt offen
       if (data.format === GERAETE_FORMAT || data.format === "netzwerkplaner-bestand") {
-        const z = geraeteDateiImportieren(data, { library: libRef.current, setLibrary, notify });
-        if (z) { setTab("bibliothek"); setBibSub(z.vorlagen && !z.bestand ? "vorlagen" : "bestand"); }
+        geraeteDateiImportieren(data, { library: libRef.current, setLibrary, notify }).then((z) => {
+          if (z) { setTab("bibliothek"); setBibSub(z.vorlagen && !z.bestand ? "vorlagen" : "bestand"); }
+        });
         return;
       }
       if (data.format !== "netzwerkplaner" && !data.geraete) throw new Error("Keine Netzwerkplaner-Datei");
@@ -487,16 +489,16 @@ export default function App() {
       notify(`„${r.name}“ geöffnet.`);
     } catch (e) { notify("Datei konnte nicht gelesen werden: " + e.message, "err"); }
   };
-  const openProject = async () => { if (sitzungVerlassenOk()) loadFromFile(await api.openProject()); };
-  const openRecent = async (p) => { setShowRecents(false); if (sitzungVerlassenOk()) loadFromFile(await api.openRecent(p)); };
+  const openProject = async () => { if (await sitzungVerlassenOk()) loadFromFile(await api.openProject()); };
+  const openRecent = async (p) => { setShowRecents(false); if (await sitzungVerlassenOk()) loadFromFile(await api.openRecent(p)); };
   const save = async (saveAs) => {
     if (tourRef.current) { notify("Während der Tour wird nicht gespeichert, das Beispielprojekt ist nur geliehen.", "warn"); return; }
     const json = JSON.stringify({ ...Pref.current, gespeichert: new Date().toISOString(), app: `Netzwerkplaner ${version}` }, null, 1);
     const r = await api.saveProject(json, fileBase(Pref.current), saveAs ? null : filePath);
     if (r) { setFilePath(r.filePath || null); if (r.recents) setRecents(r.recents); notify(`Gespeichert${r.filePath ? ": " + r.filePath : ""}`); }
   };
-  const newProject = () => { if (sitzungVerlassenOk() && confirm("Neues leeres Projekt beginnen? Nicht gespeicherte Änderungen gehen verloren.")) { replaceProject(emptyProject({ mitVlans: false })); setFilePath(null); setTab("projekt"); } };
-  const loadDemo = () => { if (!sitzungVerlassenOk()) return; if (P.geraete.length && !confirm("Aktuelles Projekt durch das Beispielprojekt ersetzen?")) return; replaceProject(demoProject()); setFilePath(null); setTab("topologie"); };
+  const newProject = async () => { if (await sitzungVerlassenOk() && await uiConfirm("Neues leeres Projekt beginnen? Nicht gespeicherte Änderungen gehen verloren.")) { replaceProject(emptyProject({ mitVlans: false })); setFilePath(null); setTab("projekt"); } };
+  const loadDemo = async () => { if (!await sitzungVerlassenOk()) return; if (P.geraete.length && !await uiConfirm("Aktuelles Projekt durch das Beispielprojekt ersetzen?")) return; replaceProject(demoProject()); setFilePath(null); setTab("topologie"); };
 
   /* ── Exporte ────────────────────────────────────────────────────────── */
   const needTopo = async () => {
@@ -582,8 +584,8 @@ export default function App() {
       else if (k === "topo" && a in TOPO_STANDARD) x.topo[a] = b;
     });
   };
-  const themeAusMenu = (w) => {
-    if (inSitzung && !confirm("Zum Umschalten lädt die Oberfläche neu, und du verlässt dabei die laufende Sitzung. Trotzdem umschalten?")) { try { localStorage.setItem(THEME_KEY, w); } catch { /* */ } meldeMenu(); return; }
+  const themeAusMenu = async (w) => {
+    if (inSitzung && !await uiConfirm("Zum Umschalten lädt die Oberfläche neu, und du verlässt dabei die laufende Sitzung. Trotzdem umschalten?")) { try { localStorage.setItem(THEME_KEY, w); } catch { /* */ } meldeMenu(); return; }
     if (!themeSetzen(w, vorReload)) meldeMenu();
   };
   const menuAktion = useRef(null);
@@ -695,6 +697,7 @@ export default function App() {
       {picker && <DevicePicker vorlagen={library.vorlagen || []} bestand={Array.isArray(picker.umbauFor) && picker.umbauFor.length > 1 ? [] : library.bestand || []} customIcons={allIcons} title={Array.isArray(picker.umbauFor) && picker.umbauFor.length > 1 ? `Modell für ${picker.umbauFor.length} Geräte wählen` : picker.umbauFor ? `Modell für „${X.devById.get([].concat(picker.umbauFor)[0])?.name}“ wählen` : picker.connectTo && X.devById.get(picker.connectTo)?.isSwitch ? `Gerät an „${X.devById.get(picker.connectTo)?.name}“ anschließen` : "Gerät hinzufügen"}
         mitAnzahl={!picker.umbauFor} onClose={() => setPicker(null)} onPick={(item, anzahl = 1) => { if (picker.umbauFor) { umbauen(picker.umbauFor, item); setPicker(null); return; } const id = addDevice({ kind: item.kind, key: item.key }, { connectTo: picker.connectTo, anzahl }); setPicker(null); if (id) setSelection({ type: "dev", id }); }} />}
       <EingabeHost />
+      <DialogHost />
       {showExport && <ExportDialog P={P} onClose={() => setShowExport(false)} onExport={doExport} planPfad={filePath} aktuelleAnsicht={ansichtVon(P)} />}
       {protoModal && <Modal title="Protokoll" width={860} onClose={() => setProtoModal(null)}
         footer={<button style={S.secondaryBtn} onClick={() => { setProtoId(protoModal); setBibSub("protokolle"); setTab("bibliothek"); setProtoModal(null); }}>Im Katalog öffnen</button>}>

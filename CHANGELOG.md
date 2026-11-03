@@ -13,6 +13,7 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 - Druckplan: Ein Gerät über die Grenze seines Standorts zu ziehen lässt den Standort nur so weit wachsen, wie Platz ist. Er schiebt sich nie mehr über einen anderen Standort, über Kabeltrassen oder über den Blattrand; das Gerät bleibt dort stehen bzw. gleitet an der Grenze entlang
 - Druckplan: Verschieben eines Geräts sortiert die übrigen Geräte nicht mehr um
 - Anschlüsse: Mit „Kabel bündeln“ laufen auch Kabel, die um Geräte herum geführt werden, gemeinsam im Bündel statt nebeneinander
+- Textfelder bleiben nach Rückfragen bedienbar: Bestätigungen und Hinweise erscheinen als Dialog in der App statt als Systemfenster. Unter Windows nahmen Eingabefelder danach teils keine Tastatur mehr an, bis die App neu startete. Nach Speichern-/Öffnen-Dialogen und der Druckvorschau bekommt das Fenster den Fokus ausdrücklich zurück
 
 ## [0.7.0-beta.22] – 2026-10-30
 
