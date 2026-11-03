@@ -330,28 +330,23 @@ ipcMain.handle('open-external', (_e, url) => {
 });
 
 /* ── Erreichbarkeit (TCP auf Web-UI-Port, sonst ICMP-Ping) ─────────────── */
-const IP_RE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
-const { ping: monPing, tcpProbe } = require('./monitor/util');
+// src = Adresse einer Netzwerkkarte oder '*' = über alle VLANs/Netzwerkkarten gleichzeitig
+const erreichbar = require('./monitor/erreichbar');
+const vlanpc = require('./vlanpc');
+let vlanNamen = { t: 0, namen: {} };
+// Am Mac heißen die VLAN-Schnittstellen vlan0, vlan1 …; angezeigt wird ihr Name („NP - Licht“)
+async function schnittstellenNamen() {
+  if (process.platform !== 'darwin') return {};
+  if (Date.now() - vlanNamen.t < 30000) return vlanNamen.namen;
+  let namen = {};
+  try { namen = Object.fromEntries((await vlanpc.status()).vlans.filter((v) => v.device).map((v) => [v.device, v.name])); } catch {}
+  vlanNamen = { t: Date.now(), namen };
+  return namen;
+}
 
 ipcMain.handle('check-reachability', async (_e, targets, src) => {
-  const out = {};
-  const list = (targets || []).filter((t) => IP_RE.test(t.ip || '')).slice(0, 1024);
-  if (src && !IP_RE.test(src)) src = '';
-  let i = 0;
-  const worker = async () => {
-    while (i < list.length) {
-      const t = list[i++];
-      let r = null;
-      if (t.port) { const p = await tcpProbe(t.ip, +t.port, { src, timeout: 1500 }); r = { ok: p.alive, ms: p.ms, method: `TCP ${t.port}` }; }
-      if (!r || !r.ok) {
-        const p = await monPing(t.ip, { src });
-        if (p.ok || !r) r = { ok: p.ok, ms: p.ms, method: 'Ping' };
-      }
-      out[t.id] = { ...r, t: Date.now() };
-    }
-  };
-  await Promise.all(Array.from({ length: 16 }, worker));
-  return out;
+  const namen = src === erreichbar.ALLE ? await schnittstellenNamen() : {};
+  return erreichbar.pruefen(targets, src, { namen });
 });
 
 /* ── Live-Monitore (sACN, Art-Net, Dante, Scan, SNMP …) ────────────────── */
@@ -359,7 +354,7 @@ const monitors = require('./monitor').register(ipcMain, () => mainWin);
 app.on('before-quit', () => monitors.stopAll());
 
 /* ── VLANs am eigenen Rechner (macOS) ──────────────────────────────────── */
-require('./vlanpc').register(ipcMain);
+vlanpc.register(ipcMain);
 
 /* ── Start, Dateiverknüpfung, Einzelinstanz ────────────────────────────── */
 const fileArg = (argv) => argv.slice(1).find((a) => /\.netplan$|\.json$/i.test(a) && fs.existsSync(a));

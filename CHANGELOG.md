@@ -5,6 +5,8 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 
 ## [Unveröffentlicht]
 
+- Live › Online-Status: Die Prüfung läuft über alle VLANs gleichzeitig. Jede IP wird über jede Netzwerkkarte des Rechners geprüft, in deren Netz sie liegt, auch über die VLAN-Schnittstellen am Mac („NP - <VLAN-Name>“). Die neue Spalte „Erreichbar über“ zeigt je Gerät VLAN und Schnittstelle, über die es antwortet; ebenso der Geräte-Editor und der Tooltip des Statuspunkts. Abschaltbar, dann wie bisher nur über die gewählte Netzwerkkarte
+
 ## [0.7.0-beta.23] – 2026-11-03
 
 - Live › VLANs am Rechner (macOS): eingetragene Adressen, Masken, DHCP/fest und die Auswahl bleiben erhalten (vorher beim Neuladen, nach dem Anlegen und beim Tabwechsel auf den Vorschlag zurückgesetzt). Schon angelegte VLANs zeigen die tatsächliche Adresse am Mac. Die Schnittstellen heißen am Mac jetzt „NP - <VLAN-Name>“; ältere „NP VLAN …“ werden beim nächsten Anlegen umbenannt
