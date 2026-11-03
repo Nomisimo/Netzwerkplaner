@@ -5,7 +5,7 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 
 ## [Unveröffentlicht]
 
-- VLANs: optionaler IP-Bereich (von–bis). Ist er gesetzt, vergeben „IPs vergeben“ und der Vorschlag im Geräte-Editor nur Adressen daraus (ohne Gateway und DHCP-Bereich); ist er voll, wird nicht ins übrige Subnetz ausgewichen. Leer bleibt alles wie bisher. Die Prüfung meldet unvollständige, vertauschte oder außerhalb des Subnetzes liegende Bereiche
+- VLANs: Netz (z. B. 10.10.20.0/24) wieder im VLAN-Tab eintragbar, optional. „IPs vergeben“ und der Kreispfeil im Geräte-Editor vergeben freie Adressen aus diesem Netz; leer heißt keine automatische Vergabe. Die Prüfung meldet ungültige Netze, Host- statt Netzadresse und überlappende Netze zweier VLANs
 - Live › VLANs am Rechner (macOS): legt am Mac getaggte VLAN-Schnittstellen (802.1Q) für die geplanten VLANs an, mit freier IP aus dem Plan oder DHCP. So sieht der Rechner am Trunk-Port alle VLANs. Eine Admin-Abfrage, kein Gateway, „Alle wieder entfernen“ räumt auf. Unter Windows nicht möglich (fehlende Treiberunterstützung)
 - Export: Mindmap und Anschlüsse werden immer hell exportiert (PDF, SVG, PNG), auch wenn die App dunkel ist
 - PDF: neu gegliedert, jede Angabe steht nur einmal. Patchliste je Switch (Port, Gerät, Geräte-Port, IP, Standort, Abhaken vor Ort), VLAN- und IP-Liste (VLANs mit Subnetz, Gateway und Einstellungen, darunter die IPs je VLAN), Geräte je Standort. Switch-Konfiguration und Prüfung sind optional. Leere Spalten fallen weg, die Spalten stehen bündig untereinander

@@ -60,38 +60,13 @@ export const subnetsOverlap = (a, b) => {
 };
 
 // Nächste freie Adresse im Subnetz (ab optionalem Startwert), belegte als Set<int>
-// bereich: optional { first, last } (siehe parseIpBereich); ohne Subnetz genügt der Bereich
-export const nextFreeIp = (cidr, usedSet, reserved = [], bereich = null) => {
-  const c = parseCidr(cidr) || (bereich ? { first: bereich.first, last: bereich.last } : null);
+export const nextFreeIp = (cidr, usedSet, reserved = []) => {
+  const c = parseCidr(cidr);
   if (!c) return null;
-  const von = bereich ? Math.max(bereich.first, c.first) : c.first, bis = bereich ? Math.min(bereich.last, c.last) : c.last;
   const res = new Set(reserved.map((r) => (typeof r === "number" ? r : ip2int(r))).filter((x) => x !== null));
-  for (let n = von; n <= bis; n++) {
+  for (let n = c.first; n <= c.last; n++) {
     if (!usedSet.has(n) && !res.has(n)) return int2ip(n);
   }
-  return null;
-};
-
-// Optionaler IP-Bereich eines VLANs („von“–„bis“) → { first, last } oder null, wenn nicht gesetzt/ungültig.
-// Liegt ein Subnetz vor, wird der Bereich auf dessen Host-Adressen beschnitten.
-export const parseIpBereich = (bereich, cidr) => {
-  const a = ip2int(bereich?.von), b = ip2int(bereich?.bis);
-  if (a === null || b === null || a > b) return null;
-  const c = cidr ? parseCidr(cidr) : null;
-  const first = c ? Math.max(a, c.first) : a, last = c ? Math.min(b, c.last) : b;
-  return first <= last ? { first, last } : null;
-};
-
-// Prüft einen eingetragenen IP-Bereich; leer (beide Felder leer) ist erlaubt
-export const ipBereichFehler = (bereich, cidr) => {
-  const von = (bereich?.von || "").trim(), bis = (bereich?.bis || "").trim();
-  if (!von && !bis) return null;
-  if (!von || !bis) return "unvollständig";
-  const a = ip2int(von), b = ip2int(bis);
-  if (a === null || b === null) return "ungueltig";
-  if (a > b) return "vertauscht";
-  const c = cidr ? parseCidr(cidr) : null;
-  if (c && (a < c.first || b > c.last)) return parseIpBereich(bereich, cidr) ? "teilweise-ausserhalb" : "ausserhalb";
   return null;
 };
 
