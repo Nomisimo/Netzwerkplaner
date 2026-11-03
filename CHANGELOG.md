@@ -5,6 +5,8 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 
 ## [Unveröffentlicht]
 
+## [0.7.0-beta.23] – 2026-11-03
+
 - Live › VLANs am Rechner (macOS): eingetragene Adressen, Masken, DHCP/fest und die Auswahl bleiben erhalten (vorher beim Neuladen, nach dem Anlegen und beim Tabwechsel auf den Vorschlag zurückgesetzt). Schon angelegte VLANs zeigen die tatsächliche Adresse am Mac. Die Schnittstellen heißen am Mac jetzt „NP - <VLAN-Name>“; ältere „NP VLAN …“ werden beim nächsten Anlegen umbenannt
 - VLANs: Netz (z. B. 10.10.20.0/24) wieder im VLAN-Tab eintragbar, optional. „IPs vergeben“ und der Kreispfeil im Geräte-Editor vergeben freie Adressen aus diesem Netz; leer heißt keine automatische Vergabe. Die Prüfung meldet ungültige Netze, Host- statt Netzadresse und überlappende Netze zweier VLANs
 - Bibliothek: Geräte teilen. Vorlagen und Bestandsgeräte (eins, eine Auswahl oder alle) als Datei speichern und in einer anderen Installation importieren, mit allen Ports (Steckertyp, Vorder-/Rückseite), Protokollen, Web-UI, Datenströmen, Notizen, eigenen Feldern und eigenen Icons. Gleiche Geräte werden beim zweiten Import übersprungen, bei anderem Stand fragt die App: ersetzen oder als Kopie. Eine Gerätedatei lässt sich auch über Datei › Öffnen laden, das Projekt bleibt dabei offen. Ältere Bestands-Exporte (JSON) werden weiter gelesen
