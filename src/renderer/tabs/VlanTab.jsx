@@ -5,6 +5,7 @@ import { newTrunk, vlanZuTrunk, trunkZuVlan, trunkPorts, trunkVlanText } from ".
 import { Section, Field, Toggle, SevBadge } from "../ui.jsx";
 import { vlanBaum, vlanPfad, aeusseresVlan, istSvlan, moeglicheAeussere } from "../../shared/qinq.js";
 import { ipPorts } from "../../shared/catalog.js";
+import { parseCidr, int2ip } from "../../shared/net.js";
 import { CornerDownRight, TriangleAlert, ChevronUp, ChevronDown, Trash2, Layers } from "lucide-react";
 
 function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, onNeu }) {
@@ -13,6 +14,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, o
   const iss = issues.filter((i) => i.vlan === v.id || i.vlans?.includes(v.id));
   const aussen = aeusseresVlan(v, P.vlans);
   const sv = istSvlan(v, P.vlans);
+  const sub = parseCidr(v.subnetz);
   return (
     <div style={{ ...S.card, borderLeft: `4px solid ${v.farbe}`, marginLeft: tiefe * 28 }}>
       <div style={S.cardHead} onClick={() => setOpen((o) => !o)}>
@@ -31,6 +33,7 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, o
           {v.eeeAus && <span style={S.chip}>EEE aus</span>}
           {v.qos && <span style={S.chip}>QoS</span>}
           {v.dhcp?.aktiv && <span style={S.chip}>DHCP</span>}
+          {sub && <span style={{ ...S.chip, color: SUB, fontFamily: "ui-monospace, monospace" }} title="Netz für die automatische IP-Vergabe">{sub.cidr}</span>}
           <span style={{ ...S.chip, color: SUB }}>{count} IPs</span>
           {(() => {
             // Warndreieck nur, wenn die Prüfung für dieses VLAN etwas meldet; der Grund steht im Tooltip und aufgeklappt unten
@@ -67,6 +70,12 @@ function VlanRow({ v, P, mutate, issues, count, tiefe = 0, startOffen = false, o
             <div style={{ ...S.hint, marginTop: 4 }}>Läuft dieses VLAN als inneres C-VLAN in einem S-VLAN, darf seine ID auch in anderen S-VLANs vorkommen. Die Switches müssen dafür QinQ können.</div>
           </Field>
           <Field label="Zweck / Protokolle" style={{ marginTop: 10 }}><input style={S.inputSm} value={v.zweck} onChange={(e) => upd((x) => (x.zweck = e.target.value))} /></Field>
+          <Field label="Netz (optional)" style={{ marginTop: 10 }}>
+            <input style={{ ...S.inputSm, fontFamily: "ui-monospace, monospace" }} placeholder="z. B. 10.10.20.0/24" value={v.subnetz || ""}
+              onChange={(e) => upd((x) => (x.subnetz = e.target.value.trim()))}
+              onBlur={() => { const c = parseCidr(v.subnetz); if (c && c.cidr !== v.subnetz) upd((x) => (x.subnetz = c.cidr)); }} />
+            <div style={{ ...S.hint, marginTop: 4 }}>{sub ? `${int2ip(sub.first)} – ${int2ip(sub.last)} · ${sub.hosts} Adressen. ` : ""}Aus diesem Netz vergeben „IPs vergeben“ und der Kreispfeil im Geräte-Editor freie Adressen. Leer: keine automatische Vergabe in diesem VLAN.</div>
+          </Field>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12 }}>
             <Toggle checked={v.igmp} onChange={(b) => upd((x) => (x.igmp = b))} label="IGMP-Snooping" />
             <Toggle checked={!v.eeeAus} onChange={(b) => upd((x) => (x.eeeAus = !b))} label="EEE (802.3az) an" title="Energy Efficient Ethernet. Haken gesetzt = EEE an, Haken raus = EEE aus (für Dante, AES67 und MA-Net3 empfohlen)" />
@@ -160,7 +169,7 @@ export default function VlanTab({ P, X, mutate, issues, onSelectDevice }) {
   const trunks = P.trunks || [];
   return (
     <>
-      <Section title="VLANs" subtitle={<>ID, Name und Switch-Einstellungen je VLAN. <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> erscheint nur, wenn Geräte im VLAN es verlangen: Multicast-Protokolle (sACN, Dante-Multicast, MA-Net3, NDI …) ohne IGMP-Snooping, Audio over IP ohne „EEE aus“, doppelte IDs oder QinQ-Fehler. Ein leeres VLAN hat keine Warnung. Maus auf <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> zeigt den Grund.</>}
+      <Section tour="vlan-liste" title="VLANs" subtitle={<>ID, Name und Switch-Einstellungen je VLAN. <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> erscheint nur, wenn Geräte im VLAN es verlangen: Multicast-Protokolle (sACN, Dante-Multicast, MA-Net3, NDI …) ohne IGMP-Snooping, Audio over IP ohne „EEE aus“, doppelte IDs oder QinQ-Fehler. Ein leeres VLAN hat keine Warnung. Maus auf <TriangleAlert size={12} style={{ verticalAlign: "-2px" }} /> zeigt den Grund.</>}
         right={<div style={{ display: "flex", gap: 6 }}>
           <button style={S.secondaryBtn} title="Trunk: Bündel mehrerer VLANs für Uplinks zwischen Switches" onClick={() => {
             const t = newTrunk({ name: `Trunk ${(P.trunks || []).length + 1}`, vlans: P.vlans.map((v) => v.id) });

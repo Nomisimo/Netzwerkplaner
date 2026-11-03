@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildIndex } from "../src/shared/model.js";
 import { demoProject } from "../src/shared/demo.js";
-import { aufbauReihenfolge, patchReihenfolge, patchZeilen, patchExportZeilen, steckZiele, steckeUm, setzeFeld } from "../src/shared/patchliste.js";
+import { aufbauReihenfolge, patchReihenfolge, patchZeilen, patchExportZeilen, patchGruppen, steckZiele, steckeUm, setzeFeld } from "../src/shared/patchliste.js";
 
 test("Patchliste: alle Geräte, Aufbau-Reihenfolge vom Haupt-Switch aus", () => {
   const P = demoProject();
@@ -18,7 +18,8 @@ test("Patchliste: alle Geräte, Aufbau-Reihenfolge vom Haupt-Switch aus", () => 
   assert.deepEqual(amKern, [...amKern].sort((a, b) => a - b));
   const e = patchExportZeilen(P, X)[1];
   assert.ok(!("Kabel" in e) && !("Weitere Kabel" in e));
-  for (const k of ["Gerät", "Netzwerkname", "IPs / Interfaces", "Gesteckt auf", "Abteilung", "Standort", "Felder", "Notizen", "Notizen vor Ort"]) assert.ok(k in e, k);
+  for (const k of ["Switch", "Switch-Port", "Gerät", "Geräte-Port", "Netzwerkname", "IPs / Interfaces", "Gewerk", "Standort", "Felder", "Notizen", "Notizen vor Ort"]) assert.ok(k in e, k);
+  assert.ok(e.Switch && e["Switch-Port"]);
 });
 
 test("Patchliste: Stapel bleiben zusammen, Hand-Reihenfolge gewinnt, neue Geräte rücken ein", () => {
@@ -66,4 +67,20 @@ test("Patchliste: eigenes Feld setzen", () => {
   setzeFeld(d, { id: "f1", name: "Rack" }, "B2");
   setzeFeld(d, { id: "f2", name: "Leer" }, "");
   assert.deepEqual(d.felder, [{ id: "f1", name: "Rack", wert: "B2" }]);
+});
+
+test("Patchliste je Switch: jede Zeile genau einmal, Unter-Switch als Zeile und als eigene Gruppe", () => {
+  const P = demoProject();
+  const X = buildIndex(P);
+  const g = patchGruppen(P, X);
+  const zeilen = g.flatMap((x) => x.zeilen);
+  const koepfe = g.map((x) => x.kopf).filter(Boolean);
+  assert.ok(koepfe[0].isSwitch && !koepfe[0].aufSwitch); // Haupt-Switch zuerst, als Kopf
+  // jedes Gerät steht als Zeile oder als Kopf ohne eigenen Uplink, nichts doppelt
+  const ids = [...zeilen.map((r) => r.id), ...koepfe.filter((k) => !k.aufSwitch).map((k) => k.id)];
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(ids.length, P.geraete.length);
+  for (const x of g) if (x.kopf) for (const r of x.zeilen) assert.equal(r.aufSwitch, x.kopf.id);
+  const unter = koepfe.find((k) => k.aufSwitch);
+  if (unter) assert.ok(zeilen.some((r) => r.id === unter.id));
 });

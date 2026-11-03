@@ -1,4 +1,4 @@
-/* ── Plan-Profile für Plott ─────────────────────────────────────────────────
+/* ── Plan-Profile für Druckplan ─────────────────────────────────────────────────
    Ein Profil beschreibt, wie der Plan aussieht (design), was er zeigt (inhalt),
    wie Kabel gefärbt und geführt werden (kabel) und wie dicht angeordnet wird
    (anordnung). Profile lassen sich als .npprofil-Datei weitergeben.

@@ -21,7 +21,7 @@ export default function Meldungen({ issues, onShowIssue, goPruefung, breite = 17
   const liste = offen ? issues.filter((i) => i.sev === offen) : [];
 
   return (
-    <div ref={ref} style={{ position: "relative", width: breite, flexShrink: 0, alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "center", gap: 5, paddingRight: 10, marginRight: 4, borderRight: `1px solid ${LINE}` }}>
+    <div ref={ref} data-tour="topo-meldungen" style={{ position: "relative", width: breite, flexShrink: 0, alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "center", gap: 5, paddingRight: 10, marginRight: 4, borderRight: `1px solid ${LINE}` }}>
       <button onClick={goPruefung} title="Prüfung öffnen" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: 0, cursor: "pointer", color: MUTED }}>
         <span className="sp-section-label" style={{ margin: 0 }}>Meldungen</span><ArrowRight size={12} />
       </button>

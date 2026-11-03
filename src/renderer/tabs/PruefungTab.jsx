@@ -3,7 +3,7 @@ import { S, LINE, SUB, MUTED, OK, STRONG } from "../../shared/constants.js";
 import { SevBadge, SEV } from "../ui.jsx";
 import { Check } from "lucide-react";
 
-/* Prüfung im Setup: nur Fehler und Warnungen, kompakt im Übersichts-Block.
+/* Prüfung im Projekt-Tab: nur Fehler und Warnungen, kompakt im Übersichts-Block.
    Hinweise (info) zeigt die Liste nicht mehr; sie stehen weiter am Gerät bzw. VLAN. */
 export default function PruefungKompakt({ issues, onShowIssue }) {
   const relevant = issues.filter((i) => i.sev === "error" || i.sev === "warn");

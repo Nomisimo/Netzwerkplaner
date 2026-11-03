@@ -3,7 +3,7 @@ import { S, KATEGORIEN, MUTED } from "../shared/constants.js";
 import { Field, AuswahlFeld } from "./ui.jsx";
 import { standortListe } from "../shared/model.js";
 
-/* Gemeinsame Felder mehrerer Geräte auf einmal bearbeiten: Bereich, Standort, PoE-Bedarf,
+/* Gemeinsame Felder mehrerer Geräte auf einmal bearbeiten: Gewerk, Standort, PoE-Bedarf,
    eigene Felder und Notizen. Sind die Werte verschieden, steht „verschieden“ im Feld;
    eine Eingabe setzt den Wert in allen gewählten Geräten. */
 const VERSCHIEDEN = "__verschieden";
@@ -33,14 +33,14 @@ export default function MehrfachBearbeiten({ P, devs, mutate }) {
       <div className="sp-section-label" style={{ marginTop: 16 }}>Gemeinsam bearbeiten</div>
       <div style={{ ...S.hint, marginTop: 0, marginBottom: 8 }}>Eine Eingabe gilt für alle {devs.length} Geräte. „verschieden“: die Geräte haben unterschiedliche Werte.</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <Field label="Bereich (Anwendung)">
+        <Field label="Gewerk">
           {(() => { const w = gemeinsam((g) => g.kategorie); return (
             <select style={S.selectSm} value={w} onChange={(e) => { const v = e.target.value; if (v !== VERSCHIEDEN) alle((g) => { g.kategorie = v; }); }}>
               {w === VERSCHIEDEN && <option value={VERSCHIEDEN}>verschieden</option>}
               {Object.keys(KATEGORIEN).map((k) => <option key={k}>{k}</option>)}
             </select>); })()}
         </Field>
-        {text("Standort / Ast", (g) => g.bereich || "", (g, v) => { g.bereich = v; }, { optionen: standortListe(P), placeholder: "z. B. FOH" })}
+        {text("Standort", (g) => g.bereich || "", (g, v) => { g.bereich = v; }, { optionen: standortListe(P), placeholder: "z. B. FOH" })}
         {endgeraete.length > 0 && (() => { const w = gemeinsam((g) => (g.isSwitch ? null : g.poeBedarf || 0)); return (
           <Field label={`PoE-Bedarf (W)${endgeraete.length < devs.length ? " · nur Endgeräte" : ""}`}>
             <input type="number" min="0" style={S.inputSm} value={w === VERSCHIEDEN ? "" : w ?? ""} placeholder={w === VERSCHIEDEN ? "verschieden" : ""}

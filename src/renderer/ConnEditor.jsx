@@ -52,7 +52,7 @@ export default function ConnEditor({ P, X, conn, mutate, onDelete, onSelectDevic
         </Field>
         <Field label="Kabelbezeichnung" style={{ gridColumn: "1 / -1" }}><input style={S.inputSm} value={conn.label} placeholder="z. B. NET-FOH-01" onChange={(e) => upd((c) => (c.label = e.target.value))} /></Field>
         <Field label="Notiz" style={{ gridColumn: "1 / -1" }}><input style={S.inputSm} value={conn.notiz || ""} onChange={(e) => upd((c) => (c.notiz = e.target.value))} /></Field>
-        <Field label="Signalfluss" style={{ gridColumn: "1 / -1" }} hint={!conn.fluss ? `Aus den Datenströmen: ${flussText(fluss, nameA, nameB)}` : "Im Plott zeigen Pfeile, wohin das Signal läuft"}>
+        <Field label="Signalfluss" style={{ gridColumn: "1 / -1" }} hint={!conn.fluss ? `Aus den Datenströmen: ${flussText(fluss, nameA, nameB)}` : "Im Druckplan zeigen Pfeile, wohin das Signal läuft"}>
           <select style={S.selectSm} value={conn.fluss || ""} onChange={(e) => upd((c) => { if (e.target.value) c.fluss = e.target.value; else delete c.fluss; })}>
             {Object.entries(FLUSS).map(([k, t]) => <option key={k} value={k}>{k === "ab" ? `Nur ${nameA} → ${nameB}` : k === "ba" ? `Nur ${nameB} → ${nameA}` : t}</option>)}
           </select>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { passtSuche } from "../../shared/suche.js";
 import { S, ACCENT, LINE, SUB, MUTED, ERR, OK, INFO, WARN, TYPEN, katColor, DARK, INPUT, TEXT } from "../../shared/constants.js";
 import { KATALOG, KATALOG_GERAETE, PROTOKOLLE, findProtokoll, uid, ipPorts, physPorts } from "../../shared/catalog.js";
@@ -8,8 +8,9 @@ import { api } from "../api.js";
 import BestandView from "./BestandView.jsx";
 import { useEinstellungen, istFokus } from "../einstellungen.js";
 import GeraetAnlegen from "../GeraetAnlegen.jsx";
+import { geraeteExportieren, geraeteDateiImportieren } from "../geraeteTeilen.js";
 import { newFeld, feldUmbenennen, feldEntfernen } from "../../shared/felder.js";
-import { Link, Check, X as XIcon, ChevronUp, ChevronDown, Pencil } from "lucide-react";
+import { Link, Check, X as XIcon, ChevronUp, ChevronDown, Pencil, Share2 } from "lucide-react";
 
 const FLAG_LABELS = [
   ["p2p", "Punkt-zu-Punkt, nicht über Switch", ERR],
@@ -64,6 +65,19 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
   const [neueVorlage, setNeueVorlage] = useState(false);
   const [anzahl, setAnzahl] = useState(1); // „+ ins Projekt“ fügt so viele gleiche Geräte ein
   const [vorlageEdit, setVorlageEdit] = useState(null); // Vorlage im Editor
+  const [vSel, setVSel] = useState(() => new Set()); // ausgewählte Vorlagen (zum Teilen)
+  const vorlagenDatei = useRef(null);
+  const vorlagen = library.vorlagen || [];
+  const vSelIds = [...vSel].filter((id) => vorlagen.some((v) => v.id === id));
+  const vorlagenTeilen = (ids) => geraeteExportieren({ vorlagen: vorlagen.filter((v) => ids.includes(v.id)), library, notify });
+  const vorlagenImport = (e) => {
+    const f = e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => geraeteDateiImportieren(r.result, { library, setLibrary, notify });
+    r.readAsText(f);
+  };
   const ql = q.toLowerCase();
 
   const protos = useMemo(() => PROTOKOLLE.filter((p) => (!kat || p.kategorie === kat) && (!ql || passtSuche(`${p.name} ${p.raw.Ports} ${p.raw["Hersteller / Gremium"]}`, ql))), [ql, kat]);
@@ -90,8 +104,8 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
 
   return (
     <>
-      <div style={S.boxTabs}>
-        {TABS.map(([k, l]) => <button key={k} style={{ ...S.boxTab, ...(sub === k ? S.boxTabActive : {}) }} onClick={() => { setSub(k); setKat(""); setQ(""); }}>{l}</button>)}
+      <div style={S.boxTabs} data-tour="bib-bereiche">
+        {TABS.map(([k, l]) => <button key={k} data-tour={"bib-" + k} style={{ ...S.boxTab, ...(sub === k ? S.boxTabActive : {}) }} onClick={() => { setSub(k); setKat(""); setQ(""); }}>{l}</button>)}
       </div>
 
       {sub === "protokolle" && (
@@ -120,7 +134,7 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input style={{ ...S.inputSm, flex: 1, minWidth: 200 }} placeholder="Hersteller, Modell, Typ, Protokoll · * als Platzhalter, z. B. Cisco*1300*24" title="Mehrere Wörter: alle müssen vorkommen. * steht für beliebige Zeichen." value={q} onChange={(e) => setQ(e.target.value)} />
             <select style={{ ...S.selectSm, width: "auto" }} value={herst} onChange={(e) => setHerst(e.target.value)}><option value="">Alle Hersteller</option>{hersteller.map((h) => <option key={h}>{h}</option>)}</select>
-            <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}><option value="">Alle Bereiche</option>{["Ton", "Licht", "Bild", "Netzwerk", "Bühne", "Intercom"].map((k) => <option key={k}>{k}</option>)}</select>
+            <select style={{ ...S.selectSm, width: "auto" }} value={kat} onChange={(e) => setKat(e.target.value)}><option value="">Alle Gewerke</option>{["Ton", "Licht", "Bild", "Netzwerk", "Bühne", "Intercom"].map((k) => <option key={k}>{k}</option>)}</select>
             <Toggle checked={nurFokus} onChange={(c) => { setNurFokus(c); setHerst(""); }} label="nur Fokus-Hersteller" />
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="So viele gleiche Geräte fügt „+ ins Projekt“ ein. Ab 2 werden sie durchnummeriert (Name 1, Name 2 …).">
               Anzahl<input type="number" min="1" max="99" style={{ ...S.inputSm, width: 60 }} value={anzahl} onChange={(e) => setAnzahl(e.target.value)} onFocus={(e) => e.target.select()} />
@@ -161,16 +175,23 @@ export default function BibliothekTab({ P, mutate, library, setLibrary, protoId,
       {sub === "bestand" && <BestandView P={P} library={library} setLibrary={setLibrary} onAddDevice={onAddDevice} onSelectDevice={onSelectDevice} onSaveAlleBestand={onSaveAlleBestand} allIcons={allIcons} notify={notify} />}
 
       {sub === "vorlagen" && (
-        <Section title="Eigene Vorlagen" right={<button style={S.primaryBtn} onClick={() => setNeueVorlage(true)}>+ Neue Vorlage</button>} subtitle="Vorlagen sind Gerätetypen ohne Adressen (Ports, VLANs, Protokolle). Für konkrete Geräte mit IPs gibt es den Gerätebestand. Mit „+ Neue Vorlage“ anlegen oder im Geräte-Editor mit „Vorlage“ speichern. Vorlagen liegen im Katalog der App und stehen in jedem Projekt zur Verfügung.">
+        <Section title="Eigene Vorlagen" right={<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button style={S.primaryBtn} onClick={() => setNeueVorlage(true)}>+ Neue Vorlage</button>
+          <button style={S.secondaryBtn} disabled={!vorlagen.length} onClick={() => vorlagenTeilen(vSelIds.length ? vSelIds : vorlagen.map((v) => v.id))} title="Vorlagen als Datei für eine andere Installation: Ports, Vorder-/Rückseite, Protokolle, Web-UI, eigene Felder und Icons. Mit Auswahl nur die ausgewählten."><Share2 size={13} /> {vSelIds.length ? `${vSelIds.length} teilen` : "Alle teilen"}</button>
+          <button style={S.secondaryBtn} onClick={() => vorlagenDatei.current?.click()} title="Gerätedatei aus einer anderen Installation importieren. Vorlagen landen hier, Bestandsgeräte im Gerätebestand.">Import</button>
+          <input ref={vorlagenDatei} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={vorlagenImport} />
+        </div>} subtitle="Vorlagen sind Gerätetypen ohne Adressen (Ports, VLANs, Protokolle). Für konkrete Geräte mit IPs gibt es den Gerätebestand. Mit „+ Neue Vorlage“ anlegen oder im Geräte-Editor mit „Vorlage“ speichern. Vorlagen liegen im Katalog der App und stehen in jedem Projekt zur Verfügung. Mit „teilen“ und „Import“ gibst du sie samt Icons an andere Installationen weiter.">
           {neueVorlage && <GeraetAnlegen P={P} ziel="vorlage" onClose={() => setNeueVorlage(false)} onSave={(v) => { setLibrary((l) => ({ ...l, vorlagen: [...(l.vorlagen || []), v] })); setNeueVorlage(false); notify(`Vorlage „${v.name}“ angelegt.`); }} />}
           {vorlageEdit && <GeraetAnlegen key={vorlageEdit.id} P={P} ziel="vorlage" eintrag={vorlageEdit} onClose={() => setVorlageEdit(null)}
             onSave={(v) => { setLibrary((l) => ({ ...l, vorlagen: (l.vorlagen || []).map((x) => (x.id === v.id ? v : x)) })); setVorlageEdit(null); notify(`Vorlage „${v.name}“ geändert.`); }} />}
           {!(library.vorlagen || []).length && <p style={S.empty}>Noch keine eigenen Vorlagen.</p>}
           {(library.vorlagen || []).map((v) => (
             <div key={v.id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px" }}>
+              <input type="checkbox" checked={vSel.has(v.id)} title="Zum Teilen auswählen" onChange={() => setVSel((s) => { const n = new Set(s); n.has(v.id) ? n.delete(v.id) : n.add(v.id); return n; })} />
               <IconView icon={v.geraet.icon} customIcons={allIcons} color={katColor(v.geraet.kategorie)} />
               <input style={{ ...S.inputSm, maxWidth: 300 }} value={v.name} onChange={(e) => setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.map((x) => (x.id === v.id ? { ...x, name: e.target.value } : x)) }))} />
               <span style={{ fontSize: 11, color: MUTED, flex: 1 }}>{v.geraet.hersteller} {v.geraet.modell} · {physPorts(v.geraet).length} Ports · {ipPorts(v.geraet).filter((i) => i.ip || i.dhcp || i.virtuell).length} mit IP</span>
+              <button style={S.smallBtn} onClick={() => vorlagenTeilen([v.id])} title="Diese Vorlage als Datei für eine andere Installation speichern"><Share2 size={13} /></button>
               <button style={S.smallBtn} onClick={() => setVorlageEdit(v)} title="Ports, Protokolle, Web-UI und Notizen der Vorlage ändern"><Pencil size={13} /> Bearbeiten</button>
               <button style={S.smallBtn} onClick={() => onAddDevice({ kind: "vorlage", key: v.id }, { anzahl })}>+ {+anzahl > 1 ? `${Math.min(99, Math.floor(+anzahl))}× ` : ""}ins Projekt</button>
               <button style={S.dangerBtn} onClick={() => confirm(`Vorlage „${v.name}“ löschen?`) && setLibrary((l) => ({ ...l, vorlagen: l.vorlagen.filter((x) => x.id !== v.id) }))}><XIcon size={14} /></button>

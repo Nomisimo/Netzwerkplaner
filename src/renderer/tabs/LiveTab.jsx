@@ -6,6 +6,7 @@ import StatusView from "../live/StatusView.jsx";
 import ScanView from "../live/ScanView.jsx";
 import DiscoveryView from "../live/DiscoveryView.jsx";
 import SwitchView from "../live/SwitchView.jsx";
+import VlanPcView from "../live/VlanPcView.jsx";
 import { SacnView, ArtnetView } from "../live/LichtViews.jsx";
 import { DanteView, NdiView, ManetView, OscView, CitpView, PtpView } from "../live/ProtokollViews.jsx";
 import { RefreshCw, TriangleAlert } from "lucide-react";
@@ -16,6 +17,7 @@ const SUBS = [
   ["discovery", "Discovery", null],
   ["scan", "Netzwerkscan", "scan"],
   ["switch", "Switches (SNMP)", "snmp"],
+  ["vlanpc", "VLANs am Rechner", null],
   ["sacn", "sACN", "sacn"],
   ["artnet", "Art-Net", "artnet"],
   ["dante", "Dante", "dante"],
@@ -26,11 +28,13 @@ const SUBS = [
   ["ptp", "PTP-Clock", "ptp"],
 ];
 
+const NETZ = ["status", "discovery", "scan", "switch", "vlanpc", "ptp"];
+
 function SubTab({ k, label, kind, active, onClick }) {
   const m = useMonitor(kind || "_none");
   const on = kind && m.running && !["scan", "snmp"].includes(kind);
   return (
-    <button style={{ ...S.boxTab, ...(active ? S.boxTabActive : {}) }} onClick={onClick}>
+    <button data-tour={"live-" + k} style={{ ...S.boxTab, ...(active ? S.boxTabActive : {}) }} onClick={onClick}>
       {on && <span title="läuft" style={{ width: 7, height: 7, borderRadius: "50%", background: OK, display: "inline-block" }} />}
       {label}
     </button>
@@ -51,14 +55,20 @@ export default function LiveTab(props) {
   });
   useEffect(() => { laden(); }, []);
 
-  const p = { ...props, iface, interfaces, goSub: setSub };
+  const p = { ...props, iface, interfaces, goSub: setSub, reloadInterfaces: laden };
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-        <div style={{ ...S.boxTabs, marginBottom: 0, flex: 1 }}>
-          {SUBS.map(([k, l, kind]) => <SubTab key={k} k={k} label={l} kind={kind} active={sub === k} onClick={() => setSub(k)} />)}
+        <div data-tour="live-ansichten" style={{ ...S.boxTabs, marginBottom: 0, flex: 1 }}>
+          {/* Zwei Gruppen: Werkzeuge fürs Netz und Monitore je Protokoll */}
+          {[["Netz", NETZ], ["Protokolle", null]].map(([titel, nur]) => (
+            <div key={titel} style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginRight: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: 0.4, marginRight: 2 }}>{titel}</span>
+              {SUBS.filter(([k]) => (nur ? nur.includes(k) : !NETZ.includes(k))).map(([k, l, kind]) => <SubTab key={k} k={k} label={l} kind={kind} active={sub === k} onClick={() => setSub(k)} />)}
+            </div>
+          ))}
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="Alles im Live-Tab läuft nur über diese Netzwerkkarte: Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch in der Topologie). Laufende Monitore danach neu starten.">
+        <label data-tour="live-karte" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="Alles im Live-Tab läuft nur über diese Netzwerkkarte: Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch in der Topologie). Laufende Monitore danach neu starten.">
           Netzwerkkarte
           <select style={{ ...S.selectSm, width: 230 }} value={iface} onChange={(e) => setIface(e.target.value)}>
             {!interfaces.length && <option value="">keine gefunden</option>}
@@ -75,6 +85,7 @@ export default function LiveTab(props) {
         {sub === "discovery" && <DiscoveryView {...p} />}
         {sub === "scan" && <ScanView {...p} />}
         {sub === "switch" && <SwitchView {...p} />}
+        {sub === "vlanpc" && <VlanPcView {...p} />}
         {sub === "sacn" && <SacnView {...p} />}
         {sub === "artnet" && <ArtnetView {...p} />}
         {sub === "dante" && <DanteView {...p} />}

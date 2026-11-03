@@ -44,3 +44,15 @@ layout.plottFarben { devId | connId: "#hex" }   eigene Farbe für einen Kasten o
 - Interfaces tragen die IP-Konfiguration, Ports sind die physischen Buchsen. Ein Endgerät-Port zeigt über `iface` auf sein Interface (Dante Primary/Secondary = zwei Interfaces).
 - Das VLAN einer Verbindung ergibt sich aus dem Switch-Port (Access/Trunk) bzw. dem Interface des Endgeräts.
 - Der Mindmap-Baum wird aus den Verbindungen berechnet: Verzweigung nur über Switches; Switches, die nur über Endgeräte erreichbar sind (z. B. Dante Secondary), bilden eigene Netze darunter. `offsets` wirken auf den ganzen Ast.
+
+## Gerätedatei (Geräte teilen)
+
+```
+Datei     { format: "netzwerkplaner-geraete", version: 1, erstellt, app?, vorlagen[], bestand[], icons[], felder[] }
+vorlagen  [{ id, name, geraet }]                      Gerät wie in der Bibliothek, ohne Adressen
+bestand   [{ id, name, geraet, angelegt, geaendert }]  Gerät mit Name, IPs, MACs
+icons     [{ id, name, data }]                         nur die eigenen Icons, die die Geräte benutzen
+felder    [{ id, name }]                               Definitionen der benutzten eigenen Felder
+```
+
+Beim Import werden gleiche Einträge (gleiche ID, gleicher Inhalt) übersprungen; bei gleicher ID mit anderem Stand wählt man „ersetzen“ oder „als Kopie“. Icons mit gleichen Bilddaten werden wiederverwendet, gleichnamige eigene Felder zusammengeführt. Ältere Bestands-Exporte (`format: "netzwerkplaner-bestand"`) werden ebenfalls gelesen.

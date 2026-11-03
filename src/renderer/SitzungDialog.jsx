@@ -12,7 +12,7 @@ const Punkt = ({ farbe }) => <span style={{ display: "inline-block", width: 9, h
 export default function SitzungDialog({ sitzung, version, onClose, projektName, onKopieSpeichern }) {
   const z = sitzung.zustand;
   return (
-    <Modal title="Gemeinsam arbeiten" width={720} onClose={onClose}>
+    <Modal title="Gemeinsam arbeiten" tour="sitzung" width={720} onClose={onClose}>
       {z ? <InSitzung sitzung={sitzung} onKopieSpeichern={onKopieSpeichern} /> : <Verbinden sitzung={sitzung} version={version} projektName={projektName} onClose={onClose} />}
     </Modal>
   );
