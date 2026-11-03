@@ -5,6 +5,8 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 
 ## [Unveröffentlicht]
 
+- VLANs: Netz (z. B. 10.10.20.0/24) wieder im VLAN-Tab eintragbar, optional. „IPs vergeben“ und der Kreispfeil im Geräte-Editor vergeben freie Adressen aus diesem Netz; leer heißt keine automatische Vergabe. Die Prüfung meldet ungültige Netze, Host- statt Netzadresse und überlappende Netze zweier VLANs
+
 ## [0.7.0-beta.22] – 2026-10-30
 
 - Live › VLANs am Rechner (macOS): legt am Mac getaggte VLAN-Schnittstellen (802.1Q) für die geplanten VLANs an, mit freier IP aus dem Plan oder DHCP. So sieht der Rechner am Trunk-Port alle VLANs. Eine Admin-Abfrage, kein Gateway, „Alle wieder entfernen“ räumt auf. Unter Windows nicht möglich (fehlende Treiberunterstützung)

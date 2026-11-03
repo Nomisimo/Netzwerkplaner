@@ -301,3 +301,23 @@ test("VLAN-Farbe über durchgeschliffene Geräte (Daisy-Chain)", async () => {
   for (const c of P.verbindungen) assert.deepEqual(connVlan(c, X).vlans, [v20.id]);
   assert.equal(physPorts(n3)[0].vlan, v20.id);
 });
+
+test("VLAN-Netz: Auto-IP nutzt das eingetragene Netz, Prüfung meldet Fehler", () => {
+  const P = emptyProject();
+  const v = P.vlans.find((x) => x.vid === 20);
+  v.subnetz = "";
+  assert.equal(suggestIp(P, v), null); // ohne Netz keine automatische Vergabe
+  v.subnetz = "192.168.50.0/24";
+  assert.equal(suggestIp(P, v), "192.168.50.10");
+  v.subnetz = "192.168.50.0/29"; // kleines Netz: ab der ersten Host-Adresse
+  assert.equal(suggestIp(P, v), "192.168.50.1");
+  const iss = () => validate(P, buildIndex(P)).filter((i) => i.vlan === v.id || i.vlans?.includes(v.id));
+  assert.equal(iss().length, 0, iss().map((i) => i.msg).join("\n"));
+  v.subnetz = "192.168.50.0";
+  assert.ok(iss().some((i) => i.sev === "error" && i.msg.includes("ungültig")));
+  assert.equal(suggestIp(P, v), null);
+  v.subnetz = "192.168.50.7/24";
+  assert.ok(iss().some((i) => i.sev === "warn" && i.msg.includes("192.168.50.0/24")));
+  v.subnetz = "10.10.0.0/16"; // überlappt die Standard-VLANs 10.10.x.0/24
+  assert.ok(iss().some((i) => i.sev === "warn" && i.msg.includes("überlappende Netze")));
+});

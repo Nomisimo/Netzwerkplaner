@@ -366,6 +366,19 @@ export const validate = (P, X) => {
   issues.push(...qinqIssues(vlanList));
   for (const v of vlanList) {
     if (+v.vid < 1 || +v.vid > 4094) add("error", `VLAN „${v.name}“: ID ${v.vid} liegt außerhalb 1–4094.`, { vlan: v.id });
+    // Optionales Netz: daraus vergibt die automatische IP-Vergabe
+    const netz = (v.subnetz || "").trim();
+    if (netz) {
+      const c = parseCidr(netz);
+      if (!c) add("error", `VLAN ${v.vid} ${v.name}: Netz „${netz}“ ist ungültig. Format z. B. 10.10.20.0/24. Ohne gültiges Netz vergibt Auto-IP keine Adressen.`, { vlan: v.id });
+      else if (!c.exact) add("warn", `VLAN ${v.vid} ${v.name}: „${netz}“ ist keine Netzadresse, gemeint ist wohl ${c.cidr}.`, { vlan: v.id });
+    }
+  }
+  // Netze zweier VLANs überschneiden sich: Auto-IP und VLAN-Erkennung über die IP werden mehrdeutig
+  const mitNetz = vlanList.filter((v) => parseCidr((v.subnetz || "").trim()));
+  for (let i = 0; i < mitNetz.length; i++) for (let j = i + 1; j < mitNetz.length; j++) {
+    const a = mitNetz[i], b = mitNetz[j];
+    if (subnetsOverlap(a.subnetz.trim(), b.subnetz.trim())) add("warn", `VLAN ${a.vid} (${a.subnetz}) und VLAN ${b.vid} (${b.subnetz}) haben überlappende Netze.`, { vlan: a.id, vlans: [a.id, b.id] });
   }
   // Trunk-Port mit zwei VLANs gleicher ID: auf der Leitung nicht unterscheidbar
   for (const sw of P.geraete.filter((d) => d.isSwitch)) for (const p of sw.ports) {
