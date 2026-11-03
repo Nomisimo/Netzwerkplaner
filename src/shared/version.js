@@ -5,6 +5,26 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.22": [
+    "Live › VLANs am Rechner (macOS): legt am Mac getaggte VLAN-Schnittstellen (802.1Q) für die geplanten VLANs an, mit freier IP aus dem Plan oder DHCP. So sieht der Rechner am Trunk-Port alle VLANs. Eine Admin-Abfrage, kein Gateway, „Alle wieder entfernen“ räumt auf. Unter Windows nicht möglich (fehlende Treiberunterstützung)",
+    "Export: Mindmap und Anschlüsse werden immer hell exportiert (PDF, SVG, PNG), auch wenn die App dunkel ist",
+    "PDF: neu gegliedert, jede Angabe steht nur einmal. Patchliste je Switch (Port, Gerät, Geräte-Port, IP, Standort, Abhaken vor Ort), VLAN- und IP-Liste (VLANs mit Subnetz, Gateway und Einstellungen, darunter die IPs je VLAN), Geräte je Standort. Switch-Konfiguration und Prüfung sind optional. Leere Spalten fallen weg, die Spalten stehen bündig untereinander",
+    "PDF: Deckblatt mit Kennzahlen, Inhalt und offenen Fehlern/Warnungen statt der VLAN-Tabelle",
+    "Export: Planversion im Export-Dialog. Wurde die Version schon exportiert und der Plan seitdem geändert, schlägt der Dialog die nächste Nummer vor (1 → 2, 1.3 → 1.4). Die Version steht im Dateinamen, eine neue Version setzt das Datum auf heute",
+    "Excel/CSV-Patchliste: Switch, Switch-Port und Geräte-Port in eigenen Spalten, „Gewerk“ statt „Abteilung“/„Bereich“",
+    "Mindmap: ordnet sich immer automatisch an, von Hand verschieben ist dort aus. Neuer Layouter: jede Ebene eine eigene Spalte, Geschwister in Port-Reihenfolge, jeder Ast in einem eigenen Streifen, Stapel als Block. Geprüft mit 400 zufälligen Netzen (keine Überlappung, Hierarchie, freie Kabelwege)",
+    "Topologie: „Plott“ heißt jetzt „Druckplan“",
+    "Topologie: eine Werkzeugleiste mit den Klappmenüs „Darstellung“ (Kabelfarbe, Linien, Titel, Bündeln, Port-Beschriftung, als Standard merken) und „Anordnen“; in schmalen Fenstern nur Icons",
+    "Kopfzeile: Menü „Datei“ (Neu, Öffnen, Speichern unter, Beispielprojekt, Zuletzt geöffnet). Das Logo steht jetzt in den Einstellungen, die Topologie-Standards in der Topologie",
+    "Tabs: Projekt, VLANs (eigener Tab), Topologie, Geräte, Live, Bibliothek, Hilfe (Anleitung und Netzwerk-Wissen zusammen). Live in zwei Gruppen „Netz“ und „Protokolle“",
+    "Begriffe vereinheitlicht: Gewerk, Standort, Bibliothek",
+    "Hilfe › Netzwerk-Wissen › MA-Net: Goldstandards für MA-Net3",
+    "Icons für Verstärker und Projektor deutlicher; Auswahl in Blau, Rot nur noch für Fehler",
+    "Aufgeräumt: ungenutzter Code entfernt",
+    "Interaktive Touren: Markierung und kurze Texte führen durch die App, Schritt für Schritt mit Klick-Aufforderungen. Schnellstart (17 Schritte) und sechs Einzeltouren: Projekt und VLANs, Topologie, Geräte und Patchliste, Live, Bibliothek, Speichern/Export/Einstellungen. Start unter Hilfe › Anleitung › Interaktive Touren, im Menü „Hilfe › Tour starten“ oder auf der Willkommensseite",
+    "Touren laufen im Beispielprojekt: das eigene Projekt wird vorher gesichert und kommt danach zurück, auch nach einem Absturz beim nächsten Start. Während der Tour wird nicht gespeichert; in einer gemeinsamen Sitzung startet keine Tour",
+    "Anleitung: alle Bilder neu aus der aktuellen Version, im dunklen Modus dunkle und im hellen Modus helle Bilder. Neue Absätze zum Menü „Einstellungen“ und zur Menüleiste unter Windows (Alt)",
+  ],
   "0.7.0-beta.21": [
     "Plott-Editor: Geräte frei verschieben, die Kabel folgen rechtwinklig. Mit Shift wie bisher in der Reihe umsetzen",
     "Plott-Editor: Mittlere Strecken eines Kabels ziehen, um den Verlauf zu ändern; Doppelklick setzt das Kabel zurück",
