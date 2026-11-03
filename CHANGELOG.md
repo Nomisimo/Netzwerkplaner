@@ -14,6 +14,7 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 - Druckplan: Verschieben eines Geräts sortiert die übrigen Geräte nicht mehr um
 - Anschlüsse: Mit „Kabel bündeln“ laufen auch Kabel, die um Geräte herum geführt werden, gemeinsam im Bündel statt nebeneinander
 - Textfelder bleiben nach Rückfragen bedienbar: Bestätigungen und Hinweise erscheinen als Dialog in der App statt als Systemfenster. Unter Windows nahmen Eingabefelder danach teils keine Tastatur mehr an, bis die App neu startete. Nach Speichern-/Öffnen-Dialogen und der Druckvorschau bekommt das Fenster den Fokus ausdrücklich zurück
+- Katalog: Netgear GS724TPv2, Cymatic Audio uTrack 24, Neutrik DLINE (NA-2I2O-DLINE, NA2-IO-DLINE) und weitere Swisson-Geräte (XND-1, XND-4B/4R/4D, XES-8G, XES-2T6), jeweils mit Anschlüssen. XND-8 und XES-M08-2S aktualisiert
 
 ## [0.7.0-beta.22] – 2026-10-30
 
