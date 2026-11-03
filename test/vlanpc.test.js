@@ -58,11 +58,22 @@ test("Prüfung der Einträge", () => {
   assert.equal(pruefen("en0", [{ vid: 10, ip: "10.0.0.5", mask: "255.0.255.0" }]).ok, false);
   assert.equal(pruefen("en0", [{ vid: 10, ip: "10.0.0.5'; reboot", mask: "255.255.255.0" }]).ok, false);
   const ok = pruefen("en0", [{ vid: "10", ip: "10.0.10.250", mask: "255.255.255.0", name: "egal" }, { vid: 20, dhcp: true }]);
-  assert.deepEqual(ok.eintraege, [{ vid: 10, dhcp: false, ip: "10.0.10.250", mask: "255.255.255.0" }, { vid: 20, dhcp: true }]);
+  assert.deepEqual(ok.eintraege, [{ vid: 10, name: "NP - egal", dhcp: false, ip: "10.0.10.250", mask: "255.255.255.0" }, { vid: 20, name: "NP - VLAN 20", dhcp: true }]);
+});
+
+test("Name am Mac: „NP - <VLAN-Name>“, gesäubert und eindeutig", () => {
+  const p = pruefen("en0", [{ vid: 10, name: "Licht", dhcp: true }, { vid: 11, name: "Licht", dhcp: true }, { vid: 12, name: `Ton "A" $(reboot)\\`, dhcp: true }, { vid: 13, name: "  ", dhcp: true }]);
+  assert.deepEqual(p.eintraege.map((e) => e.name), ["NP - Licht", "NP - Licht (11)", "NP - Ton A (reboot)", "NP - VLAN 13"]);
+  const s = anlegenSkript("en7", pruefen("en7", [{ vid: 20, name: "Video", ip: "10.0.20.250", mask: "255.255.255.0" }]).eintraege, parseVlans(VL));
+  // altes „NP VLAN 20“ wird ersetzt und unter dem neuen Namen angelegt
+  assert.match(s, /ns -deleteVLAN 'NP VLAN 20' 'en7' 20/);
+  assert.match(s, /ns -createVLAN 'NP - Video' 'en7' 20/);
+  assert.match(s, /ns -setmanual 'NP - Video' 10\.0\.20\.250 255\.255\.255\.0 &&/);
+  assert.equal(parseVlans("VLAN User Defined Name: NP - Video\nParent Device: en7\nDevice (\"Hardware\" Port): vlan0\nTag: 20\n")[0].eigen, true);
 });
 
 test("Skript: ersetzt eigenes VLAN gleicher ID, fasst fremde nicht an, kein Gateway", () => {
-  const s = anlegenSkript("en7", [{ vid: 20, dhcp: false, ip: "10.0.20.250", mask: "255.255.255.0" }, { vid: 5, dhcp: true }], parseVlans(VL));
+  const s = anlegenSkript("en7", [{ vid: 20, name: "NP VLAN 20", dhcp: false, ip: "10.0.20.250", mask: "255.255.255.0" }, { vid: 5, name: "NP VLAN 5", dhcp: true }], parseVlans(VL));
   assert.match(s, /ns -deleteVLAN 'NP VLAN 20' 'en7' 20/);
   assert.doesNotMatch(s, /deleteVLAN 'Büro'/);
   assert.match(s, /ns -createVLAN 'NP VLAN 20' 'en7' 20/);
