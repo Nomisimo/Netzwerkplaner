@@ -1,16 +1,22 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { S, OK, ERR, WARN, MUTED, SUB } from "../../shared/constants.js";
 import { vlanPcVorschlag } from "../../shared/vlanpc.js";
+import { prefixToMaskStr } from "../../shared/net.js";
 import { VlanChip } from "../ui.jsx";
 import { api } from "../api.js";
 import { Table, td, Hint, Empty, mono } from "./common.jsx";
 import { RefreshCw, Plus, Trash2, OctagonX, TriangleAlert, Check } from "lucide-react";
 
+const LS_EINGABEN = "netzwerkplaner_vlanpc_eingaben";
+const ladeEingaben = () => { try { return JSON.parse(localStorage.getItem(LS_EINGABEN) || "{}") || {}; } catch { return {}; } };
+const speichereEingaben = (e) => { try { localStorage.setItem(LS_EINGABEN, JSON.stringify(e)); } catch {} };
+
 // Getaggte VLAN-Schnittstellen am eigenen Mac anlegen, damit er am Trunk-Port alle geplanten VLANs sieht
 export default function VlanPcView({ P, X, interfaces, reloadInterfaces }) {
   const [st, setSt] = useState(null);
   const [parent, setParent] = useState(() => localStorage.getItem("netzwerkplaner_vlanpc_parent") || "");
-  const [rows, setRows] = useState([]);
+  // Eigene Eingaben je VLAN-ID ({ an, dhcp, ip, mask, subnetz }); bleiben über Neuladen, Tabwechsel und Neustart erhalten
+  const [eingaben, setEingaben] = useState(ladeEingaben);
   const [busy, setBusy] = useState(false);
   const [ergebnis, setErgebnis] = useState(null);
 
@@ -23,8 +29,27 @@ export default function VlanPcView({ P, X, interfaces, reloadInterfaces }) {
 
   const eigene = (st?.vlans || []).filter((v) => v.eigen);
   const vorschlag = useMemo(() => vlanPcVorschlag(P, interfaces, eigene.map((v) => v.device)), [P, interfaces, st]);
-  useEffect(() => { setRows(vorschlag); }, [vorschlag]);
-  const setRow = (i, o) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...o } : x)));
+  // Vorrang: eigene Eingabe > tatsächliche Adresse am Mac > Vorschlag aus dem Plan.
+  // Früher wurde die Tabelle bei jedem Neuladen (nach dem Anlegen, bei Planänderungen) auf den Vorschlag zurückgesetzt.
+  const rows = useMemo(() => vorschlag.map((r) => {
+    let x = r;
+    const da = eigene.find((v) => v.tag === r.vid);
+    const ist = da && interfaces.find((i) => i.name === da.device && i.address);
+    if (ist) x = { ...x, an: true, ip: ist.address, mask: ist.prefix != null ? prefixToMaskStr(ist.prefix) : x.mask };
+    const e = eingaben[r.vid];
+    if (e) {
+      x = { ...x, an: !!e.an, dhcp: !!e.dhcp };
+      // Feste Adresse nur übernehmen, solange das Subnetz im Plan gleich geblieben ist
+      if (e.subnetz === r.subnetz) x = { ...x, ip: e.ip ?? x.ip, mask: e.mask ?? x.mask };
+    }
+    return x;
+  }), [vorschlag, eingaben, interfaces, st]);
+  const setRow = (i, o) => setEingaben((alt) => {
+    const r = { ...rows[i], ...o };
+    const neu = { ...alt, [r.vid]: { an: r.an, dhcp: r.dhcp, ip: r.ip, mask: r.mask, subnetz: r.subnetz } };
+    speichereEingaben(neu);
+    return neu;
+  });
 
   if (!st) return <Empty>Lade Netzwerkkarten …</Empty>;
   if (!st.unterstuetzt) return (
@@ -43,7 +68,7 @@ export default function VlanPcView({ P, X, interfaces, reloadInterfaces }) {
     setTimeout(() => reloadInterfaces?.(), 6000);
   };
   const anlegen = async () => {
-    const eintraege = rows.filter((r) => r.an).map((r) => ({ vid: r.vid, dhcp: r.dhcp, ip: r.ip.trim(), mask: r.mask.trim() }));
+    const eintraege = rows.filter((r) => r.an).map((r) => ({ vid: r.vid, name: r.name, dhcp: r.dhcp, ip: r.ip.trim(), mask: r.mask.trim() }));
     setBusy(true); setErgebnis(null);
     fertig(await api.vlanPcAnlegen({ parent, eintraege }));
   };
@@ -87,7 +112,7 @@ export default function VlanPcView({ P, X, interfaces, reloadInterfaces }) {
                   </div>
                 </td>
                 <td style={td()}>{!r.dhcp && <input style={{ ...S.inputSm, ...mono, width: 130 }} value={r.mask} onChange={(e) => setRow(i, { mask: e.target.value })} placeholder="255.255.255.0" />}</td>
-                <td style={td({ fontSize: 12, color: da ? OK : MUTED })}>{da ? `angelegt (${da.device} an ${da.parent})` : r.hinweis}</td>
+                <td style={td({ fontSize: 12, color: da ? OK : MUTED })}>{da ? `angelegt als „${da.name}“ (${da.device} an ${da.parent})` : r.hinweis}</td>
               </tr>
             );
           })}
@@ -97,7 +122,8 @@ export default function VlanPcView({ P, X, interfaces, reloadInterfaces }) {
       <Hint>
         Legt am Mac für jedes gewählte VLAN eine getaggte Schnittstelle (802.1Q) an, wie unter Systemeinstellungen › Netzwerk › VLANs. macOS fragt einmal nach dem Admin-Passwort.
         Der Switch-Port muss ein Trunk mit diesen VLANs sein. Es wird kein Gateway gesetzt, Internet und Standardroute bleiben beim Hauptanschluss.
-        Die VLANs bleiben nach dem Beenden der App bestehen, bis du sie hier entfernst. Die App fasst nur VLANs an, deren Name mit „NP VLAN“ beginnt.
+        Die VLANs bleiben nach dem Beenden der App bestehen, bis du sie hier entfernst. Am Mac heißen sie „NP - &lt;VLAN-Name&gt;“; die App fasst nur VLANs an, deren Name mit „NP - “ (oder dem älteren „NP VLAN“) beginnt.
+        Adressen und Masken, die du hier einträgst, merkt sich die App.
         Die neuen Schnittstellen erscheinen danach oben bei „Netzwerkkarte“; Scan und Monitore laufen immer über die dort gewählte.
       </Hint>
     </div>
