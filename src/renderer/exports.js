@@ -15,11 +15,15 @@ export const fileBase = (P) => (P.meta.veranstaltung || "Netzwerkplan").replace(
 /* ── Topologie als eigenständiges SVG ─────────────────────────────────── */
 export const topologySvg = (svgEl, P) => {
   if (!svgEl) return null;
-  // Clean-Cat-Ansicht: das A3-Blatt so übernehmen, wie es ist
+  // Druckplan: das Blatt so übernehmen, wie es ist (mit eigenem Rahmen und Plankopf)
   if (svgEl.hasAttribute("data-cleancat")) {
     const c = svgEl.cloneNode(true);
+    const schrift = svgEl.style?.fontFamily;
     c.removeAttribute("style");
-    return { svg: new XMLSerializer().serializeToString(c), w: +c.getAttribute("width"), h: +c.getAttribute("height") };
+    c.removeAttribute("data-cleancat");
+    c.querySelectorAll("[data-max]").forEach((n) => n.removeAttribute("data-max"));
+    if (schrift) c.setAttribute("font-family", schrift);
+    return { svg: new XMLSerializer().serializeToString(c), w: +c.getAttribute("width"), h: +c.getAttribute("height"), druckplan: true };
   }
   const clone = svgEl.cloneNode(true);
   const world = clone.querySelector("#np-world");
@@ -283,6 +287,8 @@ tr { page-break-inside: avoid; }
 td.port { font-weight: 700; }
 .topo { width: 100%; height: ${ph - 38}mm; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .topo svg { width: 100%; height: 100%; } .topo .np-titel { display: none; }
+.page.voll { padding: 0; height: ${ph}mm; min-height: 0; overflow: hidden; }
+.page.voll svg { display: block; width: ${pw}mm; height: ${ph}mm; }
 .sev-error { color: #c0392b; font-weight: 700; } .sev-warn { color: #d68910; font-weight: 700; } .sev-info { color: #2e86de; }
 .empty { color: #888; font-style: italic; }
 .patch td { font-size: 8.5px; }
@@ -298,7 +304,10 @@ ${mit.has("deckblatt") ? `<div class="page">
   ${inhalt.length ? `<h2>Inhalt</h2><ol class="inhalt">${inhalt.map(([, l]) => `<li>${esc(l)}</li>`).join("")}</ol>` : ""}
   ${nErr + nWarn ? `<div class="hinweis">Offen: ${[nErr && `${nErr} Fehler`, nWarn && `${nWarn} ${nWarn === 1 ? "Warnung" : "Warnungen"}`].filter(Boolean).join(", ")}${mit.has("pruefung") ? " (siehe Prüfung)" : ""}</div>` : ""}
 </div>` : ""}
-${topo && mit.has("topologie") ? `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>` : ""}
+${topo && mit.has("topologie") ? (topo.druckplan
+  // Der Druckplan ist schon ein ganzes Blatt mit Rahmen und Plankopf: randlos auf die volle Seite
+  ? `<div class="page voll">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div>`
+  : `<div class="page">${head("Topologie")}<div class="topo">${topo.svg.replace(/^<svg /, '<svg preserveAspectRatio="xMidYMid meet" ')}</div></div>`) : ""}
 ${seiteMit("patch", patchSeite(P, X))}
 ${seiteMit("vlans", vlanSeite(P, X))}
 ${seiteMit("geraete", geraeteSeite(P))}
