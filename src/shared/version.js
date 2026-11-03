@@ -5,6 +5,18 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.23": [
+    "VLANs: Netz (z. B. 10.10.20.0/24) wieder im VLAN-Tab eintragbar, optional. „IPs vergeben“ und der Kreispfeil im Geräte-Editor vergeben freie Adressen aus diesem Netz; leer heißt keine automatische Vergabe. Die Prüfung meldet ungültige Netze, Host- statt Netzadresse und überlappende Netze zweier VLANs",
+    "Bibliothek: Geräte teilen. Vorlagen und Bestandsgeräte (eins, eine Auswahl oder alle) als Datei speichern und in einer anderen Installation importieren, mit allen Ports (Steckertyp, Vorder-/Rückseite), Protokollen, Web-UI, Datenströmen, Notizen, eigenen Feldern und eigenen Icons. Gleiche Geräte werden beim zweiten Import übersprungen, bei anderem Stand fragt die App: ersetzen oder als Kopie. Eine Gerätedatei lässt sich auch über Datei › Öffnen laden, das Projekt bleibt dabei offen. Ältere Bestands-Exporte (JSON) werden weiter gelesen",
+    "Druckplan: Kabel schließen schon beim Verlegen genau an ihrem Port in der Port-Leiste an. Keine kleinen Versätze mehr kurz vor dem Kasten, und kein Kabel liegt auf einem anderen",
+    "Druckplan: Kabel ohne eindeutige Signalrichtung bekommen keine Doppelpfeile mehr; Pfeile nur noch bei Signal in eine Richtung",
+    "Druckplan: Ports in der Port-Leiste sind immer voll farbig, auch unbelegte",
+    "Druckplan: Ein Gerät über die Grenze seines Standorts zu ziehen lässt den Standort nur so weit wachsen, wie Platz ist. Er schiebt sich nie mehr über einen anderen Standort, über Kabeltrassen oder über den Blattrand; das Gerät bleibt dort stehen bzw. gleitet an der Grenze entlang",
+    "Druckplan: Verschieben eines Geräts sortiert die übrigen Geräte nicht mehr um",
+    "Anschlüsse: Mit „Kabel bündeln“ laufen auch Kabel, die um Geräte herum geführt werden, gemeinsam im Bündel statt nebeneinander",
+    "Textfelder bleiben nach Rückfragen bedienbar: Bestätigungen und Hinweise erscheinen als Dialog in der App statt als Systemfenster. Unter Windows nahmen Eingabefelder danach teils keine Tastatur mehr an, bis die App neu startete. Nach Speichern-/Öffnen-Dialogen und der Druckvorschau bekommt das Fenster den Fokus ausdrücklich zurück",
+    "Katalog: Netgear GS724TPv2, Cymatic Audio uTrack 24, Neutrik DLINE (NA-2I2O-DLINE, NA2-IO-DLINE) und weitere Swisson-Geräte (XND-1, XND-4B/4R/4D, XES-8G, XES-2T6), jeweils mit Anschlüssen. XND-8 und XES-M08-2S aktualisiert",
+  ],
   "0.7.0-beta.22": [
     "Live › VLANs am Rechner (macOS): legt am Mac getaggte VLAN-Schnittstellen (802.1Q) für die geplanten VLANs an, mit freier IP aus dem Plan oder DHCP. So sieht der Rechner am Trunk-Port alle VLANs. Eine Admin-Abfrage, kein Gateway, „Alle wieder entfernen“ räumt auf. Unter Windows nicht möglich (fehlende Treiberunterstützung)",
     "Export: Mindmap und Anschlüsse werden immer hell exportiert (PDF, SVG, PNG), auch wenn die App dunkel ist",
