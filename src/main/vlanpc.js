@@ -1,19 +1,24 @@
 // VLANs am eigenen Rechner (nur macOS): getaggte VLAN-Schnittstellen per networksetup anlegen und entfernen,
 // damit der Rechner am Trunk-Port alle geplanten VLANs sieht. Anlegen und Entfernen laufen als ein Skript
-// mit einer einzigen Admin-Abfrage. Die App fasst nur VLANs an, deren Name mit PREFIX beginnt.
+// mit einer einzigen Admin-Abfrage. Die App fasst nur VLANs an, deren Name mit PREFIX (oder dem alten
+// Präfix ALT_PREFIX) beginnt. Am Mac heißen sie „NP - <VLAN-Name aus dem Plan>“.
 // Die Parser und Skript-Bauer sind rein, damit sie unter Node getestet werden können.
 const { execFile } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const PREFIX = 'NP VLAN ';
+const PREFIX = 'NP - ';
+const ALT_PREFIX = 'NP VLAN '; // bis 2026-11, wird beim nächsten Anlegen umbenannt
 const IP_RE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 const DEV_RE = /^en\d{1,3}$/;
 
 const ip2int = (s) => s.split('.').reduce((a, o) => ((a << 8) >>> 0) + (+o), 0) >>> 0;
 const gueltigeMaske = (m) => IP_RE.test(m) && /^1+0*$/.test(ip2int(m).toString(2).padStart(32, '0')) && m !== '255.255.255.255';
-const vlanName = (vid) => `${PREFIX}${vid}`;
+const istEigen = (name) => name.startsWith(PREFIX) || name.startsWith(ALT_PREFIX);
+// Plan-Name säubern: keine Steuerzeichen, Anführungszeichen oder Backslashes, damit er in Shell und awk sicher ist
+const saeubern = (s) => String(s || '').replace(/[\u0000-\u001f\u007f"'`\\$]/g, '').replace(/\s+/g, ' ').trim().slice(0, 48);
+const vlanName = (vid, name) => `${PREFIX}${saeubern(name) || `VLAN ${vid}`}`;
 const q = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 
 const bloecke = (text) => String(text || '').split(/\n\s*\n/).map((b) => Object.fromEntries(
@@ -34,11 +39,12 @@ function parseVlans(text) {
     .map((o) => {
       const name = o['VLAN User Defined Name'];
       const device = Object.entries(o).find(([k]) => /^Device/.test(k))?.[1] || '';
-      return { name, parent: o['Parent Device'] || '', device, tag: +o.Tag || 0, eigen: name.startsWith(PREFIX) };
+      return { name, parent: o['Parent Device'] || '', device, tag: +o.Tag || 0, eigen: istEigen(name) };
     });
 }
 
-// Einträge prüfen: [{ vid, dhcp, ip, mask }] → { ok, fehler, eintraege }
+// Einträge prüfen: [{ vid, name, dhcp, ip, mask }] → { ok, fehler, eintraege: [{ vid, name, dhcp, ip?, mask? }] }
+// name ist der fertige Name am Mac; doppelte Plan-Namen bekommen die VLAN-ID angehängt.
 function pruefen(parent, eintraege) {
   if (!DEV_RE.test(parent || '')) return { ok: false, fehler: 'Ungültige Netzwerkkarte.' };
   if (!Array.isArray(eintraege) || !eintraege.length) return { ok: false, fehler: 'Kein VLAN ausgewählt.' };
@@ -48,10 +54,12 @@ function pruefen(parent, eintraege) {
     if (!Number.isInteger(vid) || vid < 1 || vid > 4094) return { ok: false, fehler: `Ungültige VLAN-ID: ${e.vid}` };
     if (vids.has(vid)) return { ok: false, fehler: `VLAN ${vid} ist doppelt ausgewählt.` };
     vids.add(vid);
-    if (e.dhcp) { out.push({ vid, dhcp: true }); continue; }
+    let name = vlanName(vid, e.name);
+    if (out.some((x) => x.name === name)) name = `${name} (${vid})`;
+    if (e.dhcp) { out.push({ vid, name, dhcp: true }); continue; }
     if (!IP_RE.test(e.ip || '')) return { ok: false, fehler: `VLAN ${vid}: ungültige IP „${e.ip || ''}“.` };
     if (!gueltigeMaske(e.mask || '')) return { ok: false, fehler: `VLAN ${vid}: ungültige Subnetzmaske „${e.mask || ''}“.` };
-    out.push({ vid, dhcp: false, ip: e.ip, mask: e.mask });
+    out.push({ vid, name, dhcp: false, ip: e.ip, mask: e.mask });
   }
   return { ok: true, eintraege: out };
 }
@@ -75,7 +83,7 @@ const entfernenZeilen = (v) => [
 function anlegenSkript(parent, eintraege, vorhanden = []) {
   const z = [...KOPF];
   for (const e of eintraege) {
-    const name = vlanName(e.vid);
+    const name = e.name || vlanName(e.vid);
     for (const v of vorhanden.filter((x) => x.eigen && (x.tag === e.vid || x.name === name))) z.push(...entfernenZeilen(v));
     z.push(
       `ns -createVLAN ${q(name)} ${q(parent)} ${e.vid}`,
@@ -158,4 +166,4 @@ function register(ipcMain) {
   ipcMain.handle('vlanpc-entfernen', () => entfernen());
 }
 
-module.exports = { register, PREFIX, vlanName, parseHardwarePorts, parseVlans, pruefen, anlegenSkript, entfernenSkript, auswerten };
+module.exports = { register, PREFIX, ALT_PREFIX, vlanName, parseHardwarePorts, parseVlans, pruefen, anlegenSkript, entfernenSkript, auswerten };
