@@ -21,7 +21,7 @@ Electron-Desktop-App für **macOS und Windows**, läuft komplett ohne Server und
 | **Anleitung** | Ein Kapitel je Tab mit Screenshots, Analyse-Werkzeuge (Wireshark-Filter, Cisco-Befehle) |
 
 **Exporte:** PDF-Dokumentation (A4 quer), Excel (IP-Liste, VLANs, Verbindungen, Switch-Ports, Geräte, Prüfung), CSV-IP-Liste, Topologie als SVG/PNG.
-**Dateien:** Projekte als `.netplan` (JSON, Doppelklick öffnet die App), Autospeichern, „zuletzt geöffnet“, Katalog (Bestand, eigene Vorlagen, Icons) im App-Datenordner. Eigenes Logo für Kopf und PDF.
+**Dateien:** Projekte als `.netplan` (JSON, Doppelklick öffnet die App), Autospeichern, „zuletzt geöffnet“, Katalog (Bestand, eigene Vorlagen, Icons) im App-Datenordner. Vorlagen und Bestandsgeräte lassen sich samt Ports, Protokollen, Web-UI und Icons als Gerätedatei teilen und in einer anderen Installation importieren. Eigenes Logo für Kopf und PDF.
 **Updates:** Windows lädt neue Versionen im Hintergrund (electron-updater), macOS zeigt einen Hinweis mit Link zur Download-Seite.
 **Private Daten:** Echte Gerätelisten gehören in den Ordner `lokal/` (per `.gitignore` gesperrt) und nie ins Repository.
 **Erreichbarkeit:** TCP-Prüfung auf den Web-UI-Port, sonst ICMP-Ping aus dem Hauptprozess; einmalig oder alle 15 s.

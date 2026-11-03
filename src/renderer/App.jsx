@@ -3,6 +3,8 @@ import { S, ACCENT, LINE, SUB, MUTED, ERR, WARN, LS_KEY, THEME_KEY, themeWahl, D
 import { emptyProject, migrateProject, buildIndex, validate, clone, addConnection, webUrl, vlansAbleiten } from "../shared/model.js";
 import { createDevice, uid, snapshotDevice, geraetUmbauen, migrateBibliothek, ipPorts, eindeutigerName, nummerierteNamen } from "../shared/catalog.js";
 import { migrateLibrary, fehlendeFeldDefs } from "../shared/felder.js";
+import { GERAETE_FORMAT } from "../shared/geraeteteilen.js";
+import { geraeteDateiImportieren } from "./geraeteTeilen.js";
 import { demoProject } from "../shared/demo.js";
 import { api, isElectron } from "./api.js";
 import { DevicePicker, Modal, EingabeHost, frageText, usePfeilNavigation, Klappmenue, MenuePunkt } from "./ui.jsx";
@@ -63,6 +65,8 @@ export default function App() {
   const [status, setStatus] = useState({});
   const [autoStatus, setAutoStatus] = useState(false);
   const [library, setLibrary] = useState({ vorlagen: [], bestand: [], icons: [], felder: [] });
+  const libRef = useRef(library); // aktueller Stand für Datei-Öffnen aus dem Betriebssystem (Handler wird nur einmal gesetzt)
+  libRef.current = library;
   const [libLoaded, setLibLoaded] = useState(false);
   const [showEinst, setShowEinst] = useState(false);
   const [filePath, setFilePath] = useState(() => localStorage.getItem("netzwerkplaner_file") || null);
@@ -470,6 +474,12 @@ export default function App() {
     if (!r || r.error) { if (r?.error === "not-found") { notify("Datei nicht gefunden.", "err"); setRecents(r.recents || []); } return; }
     try {
       const data = JSON.parse(r.data);
+      // Gerätedatei (geteilte Vorlagen/Bestandsgeräte): in die Bibliothek übernehmen, das Projekt bleibt offen
+      if (data.format === GERAETE_FORMAT || data.format === "netzwerkplaner-bestand") {
+        const z = geraeteDateiImportieren(data, { library: libRef.current, setLibrary, notify });
+        if (z) { setTab("bibliothek"); setBibSub(z.vorlagen && !z.bestand ? "vorlagen" : "bestand"); }
+        return;
+      }
       if (data.format !== "netzwerkplaner" && !data.geraete) throw new Error("Keine Netzwerkplaner-Datei");
       replaceProject(migrateProject(data));
       setFilePath(r.filePath || null);
