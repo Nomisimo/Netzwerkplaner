@@ -67,7 +67,7 @@ export const Dot = ({ color, size = 9, title }) => (
 
 export const StatusDot = ({ st, size = 9 }) => {
   const c = !st || st.ok === null || st.ok === undefined ? MID : st.ok ? OK : ERR;
-  const t = !st ? "Status unbekannt" : st.ok === null ? st.method : st.ok ? `erreichbar (${st.method}, ${st.ms} ms)` : `nicht erreichbar (${st.method})`;
+  const t = !st ? "Status unbekannt" : st.ok === null ? st.method : st.ok ? `erreichbar (${st.method}, ${st.ms} ms)${st.via?.length ? ` über ${[...new Set(st.via.map((v) => v.label || v.iface))].join(", ")}` : ""}` : `nicht erreichbar (${st.method})`;
   return <Dot color={c} size={size} title={t} />;
 };
 

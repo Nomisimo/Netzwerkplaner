@@ -225,15 +225,18 @@ export default function App() {
       for (const i of ipPorts(d)) if (i.ip) targets.push({ id: `${d.id}|${i.id}`, ip: i.ip, port: i === webIfc ? port : null });
     }
     if (!targets.length) { notify("Keine Geräte mit IP-Adresse zum Prüfen.", "warn"); return; }
-    let src = ""; try { src = localStorage.getItem("netzwerkplaner_live_iface") || ""; } catch {}
+    // Standard: über alle VLANs gleichzeitig (jede IP über die Netzwerkkarte ihres Netzes), sonst nur über die gewählte Karte
+    let src = ""; try { src = localStorage.getItem("netzwerkplaner_live_alleVlans") === "0" ? localStorage.getItem("netzwerkplaner_live_iface") || "" : "*"; } catch {}
     const res = await api.checkReachability(targets, src);
     const proGeraet = {};
     for (const t of targets) {
       const [dev, port] = t.id.split("|");
       const r = res[t.id];
       if (!r) continue;
-      const g = proGeraet[dev] || (proGeraet[dev] = { ok: false, ifs: {} });
+      const g = proGeraet[dev] || (proGeraet[dev] = { ok: false, ifs: {}, via: [] });
       g.ifs[port] = { ...r, ip: t.ip };
+      // Alle Wege, über die das Gerät antwortet (IP + Schnittstelle bzw. VLAN am Rechner)
+      for (const v of r.via || []) if (v.ok) g.via.push({ ...v, ip: t.ip, port });
       if (r.ok && !g.ok) Object.assign(g, { ok: true, ms: r.ms, method: r.method, ip: t.ip, port, t: r.t });
       else if (!g.ok) Object.assign(g, { ok: r.ok, ms: r.ms, method: r.method, t: r.t });
     }

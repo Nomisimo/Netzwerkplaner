@@ -47,7 +47,7 @@ export default function LiveTab(props) {
   const [iface, setIface] = useState(() => localStorage.getItem("netzwerkplaner_live_iface") || "");
   useEffect(() => { localStorage.setItem("netzwerkplaner_live_sub", sub); }, [sub]);
   useEffect(() => { localStorage.setItem("netzwerkplaner_live_iface", iface); }, [iface]);
-  // Alles im Live-Tab (Monitore, Scan, SNMP, Ping) läuft nur über die gewählte Netzwerkkarte
+  // Monitore, Scan und SNMP laufen über die gewählte Netzwerkkarte; die Online-Prüfung auf Wunsch über alle VLANs
   const laden = () => api.monInterfaces().then((l) => {
     l = l || [];
     setInterfaces(l);
@@ -68,7 +68,7 @@ export default function LiveTab(props) {
             </div>
           ))}
         </div>
-        <label data-tour="live-karte" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="Alles im Live-Tab läuft nur über diese Netzwerkkarte: Monitore, Discovery, Netzwerkscan, SNMP und die Online-Prüfung (auch in der Topologie). Laufende Monitore danach neu starten.">
+        <label data-tour="live-karte" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: SUB }} title="Monitore, Discovery, Netzwerkscan und SNMP laufen über diese Netzwerkkarte. Die Online-Prüfung läuft standardmäßig über alle VLANs gleichzeitig (Schalter im Online-Status), sonst ebenfalls nur über diese Karte. Laufende Monitore danach neu starten.">
           Netzwerkkarte
           <select style={{ ...S.selectSm, width: 230 }} value={iface} onChange={(e) => setIface(e.target.value)}>
             {!interfaces.length && <option value="">keine gefunden</option>}

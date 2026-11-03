@@ -5,6 +5,7 @@ import { portSeiten } from "../shared/anschluesse.js";
 import { otherEnd, suggestIp, webUrl, clone, vlanQuelle, standortListe } from "../shared/model.js";
 import { parsePrefix, prefixToMaskStr } from "../shared/net.js";
 import { normMac, macHersteller, herstellerPasst } from "../shared/mac.js";
+import { viaText } from "../shared/live.js";
 import { Field, Toggle, VlanSelect, VlanChip, IconPicker, StatusDot, SevBadge, Dot, frageText, AuswahlFeld } from "./ui.jsx";
 import { api } from "./api.js";
 import StroemeEditor from "./StroemeEditor.jsx";
@@ -205,7 +206,7 @@ function IpPort({ P, X, dev, p, upd, mutate, compact, cons, onSelectDevice, fest
         {ip && <Toggle checked={p.dhcp} onChange={(c) => setP((x) => (x.dhcp = c))} label="DHCP" />}
         {ip && <span style={{ fontSize: 11, color: MUTED }}>{prefixToMaskStr(+p.prefix)}</span>}
         {ip && p.ip && pst && pst.ip === p.ip && pst.ok != null && <span style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, color: pst.ok ? OK : MUTED }}
-          title={`Letzte Prüfung ${new Date(pst.t).toLocaleTimeString("de-DE")}`}><Dot color={pst.ok ? OK : MUTED} size={7} />{pst.ok ? `antwortet (${pst.method}, ${pst.ms} ms)` : "keine Antwort"}</span>}
+          title={`Letzte Prüfung ${new Date(pst.t).toLocaleTimeString("de-DE")}`}><Dot color={pst.ok ? OK : MUTED} size={7} />{pst.ok ? `antwortet (${pst.method}, ${pst.ms} ms)${(pst.via || []).some((v) => v.ok) ? ` über ${pst.via.filter((v) => v.ok).map((v) => viaText(P, v)).join(", ")}` : ""}` : "keine Antwort"}</span>}
         {!p.virtuell && ip && <select style={{ ...S.selectSm, width: 100, padding: "2px 4px" }} value={p.typ} disabled={hw} title={hw ? FEST_TIP : "Porttyp"} onChange={(e) => setP((x) => (x.typ = e.target.value))}>{PORT_TYPEN.map((t) => <option key={t}>{t}</option>)}</select>}
         {!p.virtuell && <SeiteSelect dev={dev} p={p} setP={setP} style={{ width: 110, padding: "2px 4px" }} />}
         {!p.virtuell && <Toggle checked={!!p.p2p} disabled={hw} title={hw ? FEST_TIP : undefined} onChange={(c) => setP((x) => (x.p2p = c))} label="P2P" />}
@@ -456,7 +457,7 @@ export default function DeviceEditor({ P, X, dev, mutate, status, onCheck, compa
         </>}
       </div>
       {dev.webUi?.vorhanden && <div style={{ ...S.hint, marginTop: 6 }}>Link: {url ? <a style={{ color: ACCENT, cursor: "pointer" }} onClick={() => api.openExternal(url)}>{url}</a> : "– (IP fehlt)"}</div>}
-      {status && <div style={{ ...S.hint, marginTop: 4 }}>Letzte Prüfung: {status.ok === null ? status.method : status.ok ? `erreichbar über ${status.ip || "?"} per ${status.method} (${status.ms} ms)${Object.values(status.ifs || {}).filter((x) => x.ok).length > 1 ? `, ${Object.values(status.ifs).filter((x) => x.ok).length} IPs antworten` : ""}` : `keine IP antwortet (${status.method})`} {status.t && `· ${new Date(status.t).toLocaleTimeString("de-DE")}`}</div>}
+      {status && <div style={{ ...S.hint, marginTop: 4 }}>Letzte Prüfung: {status.ok === null ? status.method : status.ok ? `erreichbar über ${status.ip || "?"} per ${status.method} (${status.ms} ms)${status.via?.length ? `, am Rechner über ${[...new Set(status.via.map((v) => viaText(P, v)))].join(", ")}` : ""}${Object.values(status.ifs || {}).filter((x) => x.ok).length > 1 ? `, ${Object.values(status.ifs).filter((x) => x.ok).length} IPs antworten` : ""}` : `keine IP antwortet (${status.method})`} {status.t && `· ${new Date(status.t).toLocaleTimeString("de-DE")}`}</div>}
 
       {/* Protokolle */}
       <Sub>Protokolle</Sub>
