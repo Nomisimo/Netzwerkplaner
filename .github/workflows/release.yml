@@ -100,8 +100,10 @@ jobs:
         run: |
           APP=$(ls -d dist/mac*/Netzwerkplaner.app | head -1)
           codesign -dv --verbose=2 "$APP" 2>&1 | grep -E "Authority|Signature|TeamIdentifier" || true
+          # Auch ad-hoc muss die Signatur zum ganzen Bundle passen, sonst meldet macOS
+          # auf Apple-Silicon-Macs „beschädigt“.
+          codesign --verify --deep --strict --verbose=2 "$APP"
           if [ "$MAC_SIGNIERT" = "1" ]; then
-            codesign --verify --deep --strict "$APP"
             xcrun stapler validate "$APP"
             spctl --assess --type execute -v "$APP"
           fi

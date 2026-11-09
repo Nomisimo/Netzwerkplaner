@@ -1,2 +1,2 @@
 
-**macOS:** Diese Version ist nicht mit einem Apple-Zertifikat signiert. Beim ersten Start die App im Finder mit Rechtsklick → „Öffnen“ starten. Meldet macOS „beschädigt“, einmal im Terminal ausführen: `xattr -cr /Applications/Netzwerkplaner.app`
+**macOS:** Diese Version ist nicht mit einem Apple-Zertifikat signiert, nur ad-hoc. Beim ersten Start meldet macOS, dass der Entwickler nicht überprüft werden kann. Dann unter Systemeinstellungen › Datenschutz & Sicherheit ganz unten „Dennoch öffnen“ wählen (ältere macOS-Versionen: im Finder Rechtsklick › „Öffnen“). Meldet macOS „beschädigt“, einmal im Terminal ausführen: `xattr -cr /Applications/Netzwerkplaner.app`
