@@ -1,0 +1,42 @@
+# Baut bei Änderungen an Paketierung oder Signierung die Mac-App für Apple Silicon (ohne
+# DMG) und prüft die Signatur. So fällt eine ungültige Signatur („App ist beschädigt“)
+# schon im Pull Request auf und nicht erst im Release.
+name: Mac-Build
+
+on:
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - scripts/mac-*.js
+      - build/**
+      - .github/workflows/release.yml
+      - .github/workflows/mac-build.yml
+  workflow_dispatch:
+
+jobs:
+  mac-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: App packen (ohne DMG)
+        run: npx electron-builder --mac --arm64 --dir --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Signatur prüfen
+        run: |
+          APP=$(ls -d dist/mac*/Netzwerkplaner.app | head -1)
+          codesign -dv --verbose=2 "$APP" 2>&1 | grep -E "Signature|Identifier|Sealed" || true
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          # Download mit Quarantäne-Kennung nachstellen: macOS darf die App nicht als beschädigt melden
+          xattr -w com.apple.quarantine "0081;$(printf %x $(date +%s));Safari;" "$APP"
+          spctl --assess --type execute -v "$APP" 2>&1 | tee spctl.txt || true
+          if grep -qi "damaged\|invalid signature\|code has no resources\|a sealed resource is missing" spctl.txt; then
+            echo "::error::macOS würde die App als beschädigt ablehnen"; exit 1
+          fi

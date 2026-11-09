@@ -1,6 +1,6 @@
 {
   "name": "netzwerkplaner",
-  "version": "0.7.0-beta.24",
+  "version": "0.7.0-beta.25",
   "private": true,
   "description": "Offline-Netzwerkplaner für die Veranstaltungstechnik: Topologie als Mindmap, VLANs, IP-Plan, Patchliste",
   "author": "Momo",
@@ -69,6 +69,7 @@
         "NSLocalNetworkUsageDescription": "Der Netzwerkplaner liest im Live-Tab sACN, Art-Net, Dante, NDI und andere Protokolle im lokalen Netz mit und scannt auf Wunsch Subnetze."
       }
     },
+    "afterPack": "scripts/mac-adhoc-signieren.js",
     "nsis": {
       "oneClick": true,
       "perMachine": false,
