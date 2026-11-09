@@ -5,6 +5,10 @@ export const REPO = "Nomisimo/Netzwerkplaner";
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 export const CHANGELOG = {
+  "0.7.0-beta.24": [
+    "Live › Online-Status: Die Prüfung läuft über alle VLANs gleichzeitig. Jede IP wird über jede Netzwerkkarte des Rechners geprüft, in deren Netz sie liegt, auch über die VLAN-Schnittstellen am Mac („NP - <VLAN-Name>“). Die neue Spalte „Erreichbar über“ zeigt je Gerät VLAN und Schnittstelle, über die es antwortet; ebenso der Geräte-Editor und der Tooltip des Statuspunkts. Abschaltbar, dann wie bisher nur über die gewählte Netzwerkkarte",
+    "Download für Mac mit Apple-Chip: das arm64-DMG läuft auf allen Macs mit M-Chip (M1 und neuer)",
+  ],
   "0.7.0-beta.23": [
     "Live › VLANs am Rechner (macOS): eingetragene Adressen, Masken, DHCP/fest und die Auswahl bleiben erhalten (vorher beim Neuladen, nach dem Anlegen und beim Tabwechsel auf den Vorschlag zurückgesetzt). Schon angelegte VLANs zeigen die tatsächliche Adresse am Mac. Die Schnittstellen heißen am Mac jetzt „NP - <VLAN-Name>“; ältere „NP VLAN …“ werden beim nächsten Anlegen umbenannt",
     "VLANs: Netz (z. B. 10.10.20.0/24) wieder im VLAN-Tab eintragbar, optional. „IPs vergeben“ und der Kreispfeil im Geräte-Editor vergeben freie Adressen aus diesem Netz; leer heißt keine automatische Vergabe. Die Prüfung meldet ungültige Netze, Host- statt Netzadresse und überlappende Netze zweier VLANs",
