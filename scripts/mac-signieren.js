@@ -14,7 +14,7 @@ if (fehlt.length) {
   process.exit(1);
 }
 const mac = { ...pkg.build.mac };
-delete mac.identity; // Zertifikat aus CSC_LINK statt ad-hoc
+delete mac.identity; // Zertifikat aus CSC_LINK statt ad-hoc (identity: null)
 Object.assign(mac, {
   hardenedRuntime: true,
   gatekeeperAssess: false,

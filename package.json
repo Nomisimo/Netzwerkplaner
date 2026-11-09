@@ -62,7 +62,7 @@
         "dmg"
       ],
       "category": "public.app-category.utilities",
-      "identity": "-",
+      "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "extendInfo": {
