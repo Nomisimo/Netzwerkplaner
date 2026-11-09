@@ -5,7 +5,10 @@ Die Liste wird auch in der App unter „Was ist neu?“ angezeigt (Quelle: `src/
 
 ## [Unveröffentlicht]
 
+## [0.7.0-beta.24] – 2026-11-09
+
 - Live › Online-Status: Die Prüfung läuft über alle VLANs gleichzeitig. Jede IP wird über jede Netzwerkkarte des Rechners geprüft, in deren Netz sie liegt, auch über die VLAN-Schnittstellen am Mac („NP - <VLAN-Name>“). Die neue Spalte „Erreichbar über“ zeigt je Gerät VLAN und Schnittstelle, über die es antwortet; ebenso der Geräte-Editor und der Tooltip des Statuspunkts. Abschaltbar, dann wie bisher nur über die gewählte Netzwerkkarte
+- Download für Mac mit Apple-Chip: das arm64-DMG läuft auf allen Macs mit M-Chip (M1 und neuer)
 
 ## [0.7.0-beta.23] – 2026-11-03
 
