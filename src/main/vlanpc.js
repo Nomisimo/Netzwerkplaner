@@ -166,4 +166,4 @@ function register(ipcMain) {
   ipcMain.handle('vlanpc-entfernen', () => entfernen());
 }
 
-module.exports = { register, PREFIX, ALT_PREFIX, vlanName, parseHardwarePorts, parseVlans, pruefen, anlegenSkript, entfernenSkript, auswerten };
+module.exports = { register, status, PREFIX, ALT_PREFIX, vlanName, parseHardwarePorts, parseVlans, pruefen, anlegenSkript, entfernenSkript, auswerten };

@@ -110,6 +110,38 @@ export const compareSwitchPorts = (dev, X, snmpPorts) => {
   });
 };
 
+/* ── Erreichbarkeit: über welches VLAN am Rechner antwortet ein Gerät? ───── */
+// via = Weg aus der Erreichbarkeitsprüfung ({ src, iface, cidr, label }). VLAN im Plan, dessen Netz die
+// Adresse des Rechners an dieser Schnittstelle enthält; sonst über den Namen „NP - <VLAN-Name>“.
+export const viaVlan = (P, via) => {
+  if (!via) return null;
+  const vlans = P.vlans || [];
+  const netz = via.src && vlans.find((v) => v.subnetz && inSubnet(via.src, v.subnetz));
+  if (netz) return netz;
+  const m = String(via.label || "").match(/^NP - (.+?)(?: \((\d+)\))?$/);
+  if (!m) return null;
+  return vlans.find((v) => m[2] && +m[2] === v.vid) || vlans.find((v) => (v.name || "").trim() === m[1].trim()) || null;
+};
+
+// Antwortende Wege eines Geräts, je Schnittstelle einmal: [{ via, vlan, ips }]
+export const erreichbarUeber = (P, st) => {
+  const out = new Map();
+  for (const v of st?.via || []) {
+    const k = v.iface || v.label || "";
+    const e = out.get(k) || { via: v, vlan: viaVlan(P, v), ips: [] };
+    if (v.ip && !e.ips.includes(v.ip)) e.ips.push(v.ip);
+    out.set(k, e);
+  }
+  return [...out.values()];
+};
+
+// Kurztext wie „VLAN 20 Licht (vlan0)“ oder „en0“ für Tooltips und den Geräte-Editor
+export const viaText = (P, v) => {
+  const vl = viaVlan(P, v);
+  const name = v?.label && v.label !== v.iface ? `${v.label}${v.iface ? `, ${v.iface}` : ""}` : v?.iface || v?.label || "";
+  return vl ? `VLAN ${vl.vid}${vl.name ? ` ${vl.name}` : ""}${name ? ` (${name})` : ""}` : name;
+};
+
 /* ── Anzeige-Helfer ─────────────────────────────────────────────────────── */
 export const fmtAge = (ms) => (ms == null ? "–" : ms < 1500 ? "jetzt" : ms < 60000 ? `vor ${Math.round(ms / 1000)} s` : `vor ${Math.round(ms / 60000)} min`);
 export const fmtBps = (b) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} Mbit/s` : b >= 1e3 ? `${(b / 1e3).toFixed(0)} kbit/s` : `${b || 0} bit/s`);
