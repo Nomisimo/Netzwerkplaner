@@ -1,9 +1,13 @@
-# Baut bei Änderungen an Paketierung oder Signierung die Mac-App für Apple Silicon (ohne
-# DMG) und prüft die Signatur. So fällt eine ungültige Signatur („App ist beschädigt“)
-# schon im Pull Request auf und nicht erst im Release.
+# Test-Build der Mac-DMGs ohne Release. Baut die DMGs, hängt sie ein und prüft die
+# Signatur der App darin. Die DMGs liegen danach als Artifact am Lauf, damit man sie vor
+# einem Release auf einem echten Mac ausprobieren kann.
+# Läuft von Hand (Actions › Mac-Build › „Run workflow“) und automatisch in Pull Requests,
+# die Paketierung oder Signierung ändern. So fällt eine ungültige Signatur („App ist
+# beschädigt“) auf, bevor ein Release sie verteilt.
 name: Mac-Build
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - package.json
@@ -12,11 +16,21 @@ on:
       - build/**
       - .github/workflows/release.yml
       - .github/workflows/mac-build.yml
-  workflow_dispatch:
 
 jobs:
-  mac-arm64:
-    runs-on: macos-latest
+  dmg:
+    name: DMG ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Apple Silicon
+            os: macos-latest
+            arch: arm64
+          - name: Intel
+            os: macos-15-intel
+            arch: x64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,18 +39,28 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: App packen (ohne DMG)
-        run: npx electron-builder --mac --arm64 --dir --publish never
+
+      - name: DMG bauen
+        run: npx electron-builder --mac --${{ matrix.arch }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      - name: Signatur prüfen
+
+      - name: Signatur in der eingehängten DMG prüfen
         run: |
-          APP=$(ls -d dist/mac*/Netzwerkplaner.app | head -1)
-          codesign -dv --verbose=2 "$APP" 2>&1 | grep -E "Signature|Identifier|Sealed" || true
-          codesign --verify --deep --strict --verbose=2 "$APP"
-          # Download mit Quarantäne-Kennung nachstellen: macOS darf die App nicht als beschädigt melden
-          xattr -w com.apple.quarantine "0081;$(printf %x $(date +%s));Safari;" "$APP"
-          spctl --assess --type execute -v "$APP" 2>&1 | tee spctl.txt || true
-          if grep -qi "damaged\|invalid signature\|code has no resources\|a sealed resource is missing" spctl.txt; then
-            echo "::error::macOS würde die App als beschädigt ablehnen"; exit 1
-          fi
+          DMG=$(ls dist/*.dmg | head -1)
+          MNT=$(mktemp -d)
+          hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MNT"
+          APP="$MNT/Netzwerkplaner.app"
+          codesign -dv --verbose=2 "$APP" 2>&1 | tee sig.txt | grep -E "Signature|Identifier|Sealed" || true
+          grep -q "Signature=adhoc" sig.txt || { echo "::error::App ist nicht ad-hoc signiert"; exit 1; }
+          codesign --verify --deep --strict --verbose=2 "$APP" 2>&1 | tee verify.txt
+          grep -q "valid on disk" verify.txt && grep -q "satisfies its Designated Requirement" verify.txt \
+            || { echo "::error::Signatur ungültig, macOS würde „beschädigt“ melden"; exit 1; }
+          hdiutil detach "$MNT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-dmg-${{ matrix.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
+          retention-days: 14

@@ -4,7 +4,9 @@ Offline-Planungswerkzeug für Netzwerke in der Veranstaltungstechnik (Ton, Licht
 
 Electron-Desktop-App für **macOS und Windows**, läuft komplett ohne Server und ohne Internet.
 
-> **Beta.** Download der aktuellen Version unter [Releases](https://github.com/Nomisimo/Netzwerkplaner/releases): Windows (x64), macOS Apple Silicon und macOS Intel. Die Installer sind nicht signiert; Hinweise zum ersten Start stehen im Release.
+> **Beta.** Download der aktuellen Version unter [Releases](https://github.com/Nomisimo/Netzwerkplaner/releases): Windows (x64), macOS Apple Silicon und macOS Intel. Die Installer sind nicht mit einem Apple- bzw. Windows-Zertifikat signiert (Mac: ad-hoc).
+>
+> **Erster Start am Mac:** macOS meldet, dass die App nicht überprüft werden kann. Ab macOS 15: Systemeinstellungen › Datenschutz & Sicherheit › ganz unten „Dennoch öffnen“. Bis macOS 14 geht auch Rechtsklick › „Öffnen“. Meldet eine ältere Version (bis 0.7.0-beta.24) „beschädigt“: im Terminal `xattr -cr /Applications/Netzwerkplaner.app` und `codesign --force --deep --sign - /Applications/Netzwerkplaner.app` ausführen.
 
 ## Funktionen
 
